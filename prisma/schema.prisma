@@ -1,0 +1,196 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── FIREARMS ─────────────────────────────────────────────────
+
+model Firearm {
+  id              String   @id @default(cuid())
+  name            String
+  manufacturer    String
+  model           String
+  caliber         String
+  serialNumber    String   @unique
+  // FirearmType: PISTOL | RIFLE | SHOTGUN | SMG | PCC | REVOLVER | BOLT_ACTION | LEVER_ACTION
+  type            String
+  acquisitionDate DateTime
+  purchasePrice   Float?
+  currentValue    Float?
+  notes           String?
+  imageUrl        String?
+  // imageSource: "uploaded" | "google_cse" | "seed" | "url"
+  imageSource     String?
+
+  builds          Build[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([caliber])
+  @@index([type])
+}
+
+// ─── BUILDS ───────────────────────────────────────────────────
+
+model Build {
+  id          String      @id @default(cuid())
+  name        String
+  description String?
+  isActive    Boolean     @default(false)
+  firearmId   String
+  firearm     Firearm     @relation(fields: [firearmId], references: [id], onDelete: Cascade)
+
+  slots       BuildSlot[]
+
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([firearmId])
+  @@index([isActive])
+}
+
+model BuildSlot {
+  id          String     @id @default(cuid())
+  buildId     String
+  build       Build      @relation(fields: [buildId], references: [id], onDelete: Cascade)
+  // SlotType: MUZZLE | BARREL | HANDGUARD | STOCK | BUFFER_TUBE | GRIP | OPTIC | OPTIC_MOUNT |
+  //           UNDERBARREL | MAGAZINE | LIGHT | LASER | CHARGING_HANDLE | TRIGGER |
+  //           LOWER_RECEIVER | UPPER_RECEIVER | SLIDE | FRAME | SUPPRESSOR | BIPOD | SLING | COMPENSATOR
+  slotType    String
+  accessoryId String?
+  accessory   Accessory? @relation(fields: [accessoryId], references: [id], onDelete: SetNull)
+
+  // Position on the weapon canvas (percentage-based, 0-100)
+  positionX   Float?
+  positionY   Float?
+  scaleX      Float?     @default(1.0)
+  scaleY      Float?     @default(1.0)
+  layerIndex  Int?       @default(0)
+
+  @@unique([buildId, slotType])
+  @@index([buildId])
+  @@index([accessoryId])
+}
+
+// ─── ACCESSORIES ──────────────────────────────────────────────
+
+model Accessory {
+  id                     String          @id @default(cuid())
+  name                   String
+  manufacturer           String
+  model                  String?
+  // type matches SlotType values above
+  type                   String
+  caliber                String?
+  purchasePrice          Float?
+  acquisitionDate        DateTime?
+  notes                  String?
+  imageUrl               String?
+  imageSource            String?
+
+  // Round count persists with the accessory across all builds
+  roundCount             Int             @default(0)
+  roundCountLogs         RoundCountLog[]
+
+  buildSlots             BuildSlot[]
+
+  // Comma-separated compatible values, e.g. "RIFLE,SMG"
+  compatibleFirearmTypes String?
+  compatibleCalibers     String?
+
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+
+  @@index([type])
+  @@index([roundCount])
+}
+
+model RoundCountLog {
+  id            String    @id @default(cuid())
+  accessoryId   String
+  accessory     Accessory @relation(fields: [accessoryId], references: [id], onDelete: Cascade)
+  roundsAdded   Int
+  previousCount Int
+  newCount      Int
+  sessionNote   String?
+  loggedAt      DateTime  @default(now())
+
+  @@index([accessoryId])
+  @@index([loggedAt])
+}
+
+// ─── AMMO ─────────────────────────────────────────────────────
+
+model AmmoStock {
+  id              String            @id @default(cuid())
+  caliber         String
+  brand           String
+  grainWeight     Float?
+  // bulletType: "FMJ" | "HP" | "OTM" | "Frangible" | "Tracer" | "Subsonic" | "Other"
+  bulletType      String?
+  quantity        Int               @default(0)
+  purchasePrice   Float?
+  purchaseDate    DateTime?
+  storageLocation String?
+  lowStockAlert   Int?
+  notes           String?
+
+  transactions    AmmoTransaction[]
+
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([caliber])
+}
+
+model AmmoTransaction {
+  id           String   @id @default(cuid())
+  stockId      String
+  stock        AmmoStock @relation(fields: [stockId], references: [id], onDelete: Cascade)
+  // type: PURCHASE | RANGE_USE | TRANSFER_OUT | INVENTORY_CORRECTION | EXPENDED
+  type         String
+  quantity     Int
+  previousQty  Int
+  newQty       Int
+  note         String?
+  transactedAt DateTime @default(now())
+
+  @@index([stockId])
+  @@index([transactedAt])
+}
+
+// ─── IMAGE CACHE ──────────────────────────────────────────────
+
+model ImageCache {
+  id          String   @id @default(cuid())
+  entityType  String
+  entityId    String
+  searchQuery String
+  imageUrl    String
+  // source: "google_cse" | "uploaded" | "seed" | "url"
+  source      String
+  isApproved  Boolean  @default(false)
+  width       Int?
+  height      Int?
+  cachedAt    DateTime @default(now())
+
+  @@index([entityType, entityId])
+}
+
+// ─── SETTINGS ─────────────────────────────────────────────────
+
+model AppSettings {
+  id                      String   @id @default("singleton")
+  googleCseApiKey         String?
+  googleCseSearchEngineId String?
+  enableImageSearch       Boolean  @default(false)
+  defaultCurrency         String   @default("USD")
+  appPassword             String?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+}

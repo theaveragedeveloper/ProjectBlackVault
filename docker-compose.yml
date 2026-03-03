@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  blackvault:
+    build: .
+    container_name: blackvault
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=file:/app/data/vault.db
+    volumes:
+      - blackvault-db:/app/data
+      - blackvault-uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  blackvault-db:
+  blackvault-uploads:

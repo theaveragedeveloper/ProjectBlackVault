@@ -1,26 +1,126 @@
 @import "tailwindcss";
 
+/* ── Vault Design Tokens ──────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --vault-bg:           #080B0F;
+  --vault-surface:      #0E1318;
+  --vault-surface-2:    #131A22;
+  --vault-border:       #1C2530;
+  --vault-muted:        #1E2D3D;
+  --vault-accent:       #00C2FF;
+  --vault-accent-dim:   rgba(0, 194, 255, 0.15);
+  --vault-warn:         #F5A623;
+  --vault-warn-dim:     rgba(245, 166, 35, 0.15);
+  --vault-danger:       #E53935;
+  --vault-danger-dim:   rgba(229, 57, 53, 0.15);
+  --vault-success:      #00C853;
+  --vault-success-dim:  rgba(0, 200, 83, 0.15);
+  --vault-text:         #E8EDF2;
+  --vault-text-muted:   #8B9DB0;
+  --vault-text-faint:   #4A5A6B;
+
+  --background: var(--vault-bg);
+  --foreground: var(--vault-text);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ── Base ─────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  scrollbar-color: var(--vault-muted) var(--vault-surface);
+  scrollbar-width: thin;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--vault-bg);
+  color: var(--vault-text);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Tactical Grid Background ─────────────────────────────── */
+.tactical-grid {
+  background-image:
+    linear-gradient(rgba(0, 194, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 194, 255, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* ── Scanline effect ──────────────────────────────────────── */
+.scanlines::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.015) 2px,
+    rgba(0, 0, 0, 0.015) 4px
+  );
+  pointer-events: none;
+}
+
+/* ── Glow effects ─────────────────────────────────────────── */
+.glow-blue {
+  box-shadow: 0 0 20px rgba(0, 194, 255, 0.2), 0 0 40px rgba(0, 194, 255, 0.05);
+}
+
+.glow-amber {
+  box-shadow: 0 0 20px rgba(245, 166, 35, 0.2), 0 0 40px rgba(245, 166, 35, 0.05);
+}
+
+.text-glow-blue {
+  text-shadow: 0 0 8px rgba(0, 194, 255, 0.6);
+}
+
+/* ── Custom scrollbar ─────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: var(--vault-surface);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--vault-muted);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--vault-accent);
+}
+
+/* ── Animations ───────────────────────────────────────────── */
+@keyframes pulse-ring {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50%       { opacity: 1;   transform: scale(1.15); }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-pulse-ring { animation: pulse-ring 2s ease-in-out infinite; }
+.animate-blink      { animation: blink 1.5s ease-in-out infinite; }
+.animate-slide-up   { animation: slide-up 0.2s ease-out; }
+
+/* ── Selection color ──────────────────────────────────────── */
+::selection {
+  background: rgba(0, 194, 255, 0.25);
+  color: var(--vault-text);
 }
