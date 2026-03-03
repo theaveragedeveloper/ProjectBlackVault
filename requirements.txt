@@ -6,3 +6,4 @@ Pillow==10.4.0
 python-dotenv==1.0.1
 Werkzeug==3.0.3
 SQLAlchemy==2.0.31
+gunicorn==22.0.0

@@ -6,6 +6,7 @@ services:
     volumes:
       - ./app/static/uploads:/app/app/static/uploads
       - ./instance:/app/instance
+      - ./blackvault.db:/app/blackvault.db
     env_file:
       - .env
     restart: unless-stopped
