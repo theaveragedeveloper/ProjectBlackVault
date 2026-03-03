@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block title %}{{ accessory.name }} — Black Vault{% endblock %}
+{% block page_title %}{{ accessory.name | upper }}{% endblock %}
+{% block page_subtitle %}{{ accessory.category_label }}{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('accessories.edit_accessory', accessory_id=accessory.id) }}" class="btn-secondary px-4 py-2 text-xs font-hud tracking-widest">EDIT</a>
+{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+  <div class="lg:col-span-1 space-y-4">
+    <!-- Image -->
+    <div class="vault-card p-4">
+      <div class="h-48 bg-vault-bg border border-vault-border flex items-center justify-center overflow-hidden mb-3">
+        {% if accessory.image_path %}
+          <img src="{{ url_for('static', filename=accessory.image_path) }}" class="h-full w-full object-contain p-3" />
+        {% else %}
+          <div class="text-vault-border text-center">
+            <svg class="w-20 h-20 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+            <div class="text-xs mt-2 font-mono">NO IMAGE</div>
+          </div>
+        {% endif %}
+      </div>
+      <span class="category-badge block text-center text-xs">{{ accessory.category_label | upper }}</span>
+    </div>
+
+    <!-- Specs -->
+    <div class="vault-card p-4">
+      <h3 class="section-title mb-4">SPECIFICATIONS</h3>
+      <div class="space-y-3">
+        {% if accessory.make or accessory.model %}
+        <div class="flex justify-between items-center py-2 border-b border-vault-border">
+          <span class="text-xs text-vault-muted font-mono">MAKE / MODEL</span>
+          <span class="text-sm font-semibold">{{ [accessory.make, accessory.model] | select | join(' ') }}</span>
+        </div>
+        {% endif %}
+        {% if accessory.serial_number %}
+        <div class="flex justify-between items-center py-2 border-b border-vault-border">
+          <span class="text-xs text-vault-muted font-mono">SERIAL</span>
+          <span class="text-sm font-mono">{{ accessory.serial_number }}</span>
+        </div>
+        {% endif %}
+        {% if accessory.date_acquired %}
+        <div class="flex justify-between items-center py-2 border-b border-vault-border">
+          <span class="text-xs text-vault-muted font-mono">ACQUIRED</span>
+          <span class="text-sm font-mono">{{ accessory.date_acquired.strftime('%m/%d/%Y') }}</span>
+        </div>
+        {% endif %}
+        {% if accessory.price_paid %}
+        <div class="flex justify-between items-center py-2 border-b border-vault-border">
+          <span class="text-xs text-vault-muted font-mono">PAID</span>
+          <span class="text-sm font-mono">${{ "{:,.2f}".format(accessory.price_paid) }}</span>
+        </div>
+        {% endif %}
+        {% if accessory.last_battery_change %}
+        <div class="flex justify-between items-center py-2 border-b border-vault-border">
+          <span class="text-xs text-vault-muted font-mono">BATTERY</span>
+          <span class="text-sm font-mono text-vault-gold">{{ accessory.last_battery_change.strftime('%m/%d/%Y') }}</span>
+        </div>
+        {% endif %}
+        <div class="flex justify-between items-center py-2">
+          <span class="text-xs text-vault-muted font-mono">TOTAL ROUNDS</span>
+          <span class="text-sm font-hud text-vault-gold">{{ "{:,}".format(accessory.total_rounds) }}</span>
+        </div>
+      </div>
+    </div>
+
+    {% if accessory.notes %}
+    <div class="vault-card p-4">
+      <h3 class="section-title mb-3">NOTES</h3>
+      <p class="text-sm text-vault-muted leading-relaxed">{{ accessory.notes }}</p>
+    </div>
+    {% endif %}
+
+    <div class="vault-card p-4 border border-red-900/40">
+      <h3 class="section-title mb-3 text-red-500">DANGER ZONE</h3>
+      <form method="POST" action="{{ url_for('accessories.delete_accessory', accessory_id=accessory.id) }}"
+            onsubmit="return confirm('Permanently delete {{ accessory.name }}?')">
+        <button type="submit" class="btn-danger w-full text-xs font-hud py-2 tracking-widest">DELETE ACCESSORY</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="lg:col-span-2 space-y-6">
+    <!-- Current Deployment -->
+    <div class="vault-card p-5">
+      <h3 class="section-title mb-4">CURRENT DEPLOYMENT</h3>
+      {% set current = accessory.current_build %}
+      {% if current %}
+      <div class="flex items-center gap-4 p-4 border border-vault-gold/40 bg-vault-gold/5">
+        <div class="w-3 h-3 rounded-full bg-vault-gold animate-pulse"></div>
+        <div>
+          <div class="font-hud text-vault-gold">{{ current.firearm.name }}</div>
+          <div class="text-xs text-vault-muted">Build: {{ current.name }}</div>
+        </div>
+        <a href="{{ url_for('builds.configurator', firearm_id=current.firearm_id, build_id=current.id) }}"
+           class="ml-auto btn-primary px-3 py-1.5 text-xs font-hud">OPEN CONFIGURATOR</a>
+      </div>
+      {% else %}
+      <div class="text-center py-8 text-vault-muted text-sm">
+        Not currently deployed on any active build.
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Build History -->
+    <div class="vault-card p-5">
+      <h3 class="section-title mb-4">BUILD HISTORY</h3>
+      {% set all_slots = accessory.build_slots %}
+      {% if all_slots %}
+      <div class="space-y-2">
+        {% for slot in all_slots %}
+        <div class="flex items-center gap-3 px-4 py-3 border border-vault-border">
+          {% if slot.build.is_active %}<div class="w-2 h-2 rounded-full bg-vault-gold"></div>
+          {% else %}<div class="w-2 h-2 rounded-full bg-vault-border"></div>{% endif %}
+          <div class="flex-1">
+            <div class="text-sm font-semibold">{{ slot.build.firearm.name }}</div>
+            <div class="text-xs text-vault-muted">Build: {{ slot.build.name }} · Slot: {{ slot.slot_label }}</div>
+          </div>
+          {% if slot.build.is_active %}
+          <span class="active-badge text-xs">ACTIVE</span>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="text-center py-6 text-vault-muted text-sm">Not assigned to any builds yet.</div>
+      {% endif %}
+    </div>
+
+    <!-- Maintenance -->
+    <div class="vault-card p-5">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="section-title">MAINTENANCE LOG</h3>
+        <a href="{{ url_for('maintenance.add_maintenance', accessory_id=accessory.id) }}"
+           class="btn-secondary px-3 py-1.5 text-xs font-hud">+ LOG</a>
+      </div>
+      {% if accessory.maintenance_logs %}
+      <div class="space-y-2">
+        {% for log in accessory.maintenance_logs | sort(attribute='date', reverse=True) %}
+        <div class="flex items-center gap-3 px-4 py-3 border border-vault-border">
+          <div class="flex-1">
+            <div class="text-sm font-semibold">{{ log.type_label }}</div>
+            <div class="text-xs text-vault-muted">{{ log.date.strftime('%m/%d/%Y') }}{% if log.notes %} · {{ log.notes }}{% endif %}</div>
+          </div>
+          {% if log.cost %}<div class="text-xs font-mono text-vault-gold">${{ "{:.2f}".format(log.cost) }}</div>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="text-center py-6 text-vault-muted text-sm">No maintenance records yet.</div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}

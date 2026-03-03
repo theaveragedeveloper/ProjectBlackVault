@@ -1,0 +1,16 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+instance/
+*.db
+.DS_Store
+app/static/uploads/firearms/*
+app/static/uploads/accessories/*
+!app/static/uploads/firearms/.gitkeep
+!app/static/uploads/accessories/.gitkeep
+venv/
+.venv/
+*.egg-info/
+dist/
+build/

@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — Black Vault{% endblock %}
+{% block page_title %}DASHBOARD{% endblock %}
+{% block page_subtitle %}Firearms & Accessories Intelligence System{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('firearms.add_firearm') }}" class="btn-primary px-4 py-2 text-xs font-hud tracking-widest">+ ADD FIREARM</a>
+{% endblock %}
+
+{% block content %}
+<!-- Stat Cards -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+  <div class="stat-card p-5">
+    <div class="text-xs text-vault-muted font-mono tracking-widest mb-2">FIREARMS</div>
+    <div class="font-hud text-3xl text-vault-gold font-bold">{{ total_firearms }}</div>
+    <div class="text-xs text-vault-muted mt-1">In vault</div>
+  </div>
+  <div class="stat-card p-5">
+    <div class="text-xs text-vault-muted font-mono tracking-widest mb-2">ACCESSORIES</div>
+    <div class="font-hud text-3xl text-vault-gold font-bold">{{ total_accessories }}</div>
+    <div class="text-xs text-vault-muted mt-1">Tracked items</div>
+  </div>
+  <div class="stat-card p-5">
+    <div class="text-xs text-vault-muted font-mono tracking-widest mb-2">TOTAL ROUNDS</div>
+    <div class="font-hud text-3xl text-vault-gold font-bold">{{ "{:,}".format(total_rounds) }}</div>
+    <div class="text-xs text-vault-muted mt-1">All time</div>
+  </div>
+  <div class="stat-card p-5">
+    <div class="text-xs text-vault-muted font-mono tracking-widest mb-2">ASSET VALUE</div>
+    <div class="font-hud text-3xl text-vault-gold font-bold">${{ "{:,.0f}".format(total_value) }}</div>
+    <div class="text-xs text-vault-muted mt-1">Inventory total</div>
+  </div>
+</div>
+
+<!-- Firearms Grid -->
+<div class="mb-8">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="section-title">ACTIVE ARSENAL</h2>
+    <a href="{{ url_for('firearms.list_firearms') }}" class="text-xs text-vault-gold font-mono hover:text-white tracking-widest">VIEW ALL →</a>
+  </div>
+
+  {% if firearms %}
+  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+    {% for firearm in firearms[:6] %}
+    <a href="{{ url_for('firearms.firearm_detail', firearm_id=firearm.id) }}" class="firearm-card block p-5 group">
+      <!-- Image or Placeholder -->
+      <div class="mb-4 h-32 bg-vault-bg flex items-center justify-center overflow-hidden border border-vault-border">
+        {% if firearm.image_path %}
+          <img src="{{ url_for('static', filename=firearm.image_path) }}" alt="{{ firearm.name }}" class="h-full w-full object-contain p-2 group-hover:scale-105 transition-transform duration-300" />
+        {% else %}
+          <div class="text-vault-border">
+            <svg class="w-16 h-16" fill="currentColor" viewBox="0 0 24 24"><path d="M1 9v2h1v4h2v1h14v-1h1v-4h1V9H1zm18 5H5v-3h14v3z"/></svg>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="flex items-start justify-between">
+        <div>
+          <div class="font-hud text-sm text-vault-gold tracking-wide">{{ firearm.name }}</div>
+          {% if firearm.make or firearm.model %}
+          <div class="text-xs text-vault-muted mt-0.5">{{ [firearm.make, firearm.model] | select | join(' ') }}</div>
+          {% endif %}
+          {% if firearm.caliber %}
+          <div class="text-xs text-vault-gold/60 font-mono mt-1">{{ firearm.caliber }}</div>
+          {% endif %}
+        </div>
+        {% if firearm.active_build %}
+        <span class="active-badge text-xs">ACTIVE</span>
+        {% endif %}
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-vault-border">
+        <div>
+          <div class="text-xs text-vault-muted font-mono">ROUNDS</div>
+          <div class="text-sm font-hud text-white">{{ "{:,}".format(firearm.total_rounds) }}</div>
+        </div>
+        <div>
+          <div class="text-xs text-vault-muted font-mono">BUILD</div>
+          <div class="text-sm font-hud text-white">
+            {% if firearm.active_build %}{{ firearm.active_build.name | truncate(12) }}{% else %}—{% endif %}
+          </div>
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state p-12 text-center">
+    <div class="text-vault-border mb-4">
+      <svg class="w-20 h-20 mx-auto" fill="currentColor" viewBox="0 0 24 24"><path d="M1 9v2h1v4h2v1h14v-1h1v-4h1V9H1zm18 5H5v-3h14v3z"/></svg>
+    </div>
+    <div class="font-hud text-vault-muted text-lg mb-2">VAULT IS EMPTY</div>
+    <p class="text-sm text-vault-muted mb-4">Start by adding your first firearm.</p>
+    <a href="{{ url_for('firearms.add_firearm') }}" class="btn-primary px-6 py-2 text-xs font-hud tracking-widest inline-block">+ ADD FIRST FIREARM</a>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Bottom Row: Recent Activity -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+  <!-- Recent Round Sessions -->
+  <div>
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="section-title">RECENT RANGE SESSIONS</h2>
+      <div class="text-xs text-vault-muted font-mono">LAST 30 DAYS: {{ "{:,}".format(recent_round_count) }} RDS</div>
+    </div>
+    <div class="vault-card">
+      {% if recent_rounds %}
+        {% for log in recent_rounds %}
+        <div class="flex items-center gap-4 px-4 py-3 border-b border-vault-border last:border-0 hover:bg-vault-hover transition-colors">
+          <div class="text-vault-gold font-hud text-sm w-16 text-right flex-shrink-0">{{ "{:,}".format(log.rounds) }}</div>
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-semibold truncate">{{ log.firearm.name }}</div>
+            {% if log.ammo_type %}
+            <div class="text-xs text-vault-muted">{{ log.ammo_type }}</div>
+            {% endif %}
+          </div>
+          <div class="text-xs text-vault-muted font-mono flex-shrink-0">{{ log.date.strftime('%m/%d/%y') }}</div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="px-4 py-8 text-center text-vault-muted text-sm">No range sessions logged yet.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Recent Maintenance -->
+  <div>
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="section-title">RECENT MAINTENANCE</h2>
+      <a href="{{ url_for('maintenance.add_maintenance') }}" class="text-xs text-vault-gold font-mono hover:text-white tracking-widest">+ LOG →</a>
+    </div>
+    <div class="vault-card">
+      {% if recent_maintenance %}
+        {% for log in recent_maintenance %}
+        <div class="flex items-center gap-4 px-4 py-3 border-b border-vault-border last:border-0 hover:bg-vault-hover transition-colors">
+          <div class="w-2 h-2 rounded-full bg-vault-gold flex-shrink-0"></div>
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-semibold">{{ log.type_label }}</div>
+            <div class="text-xs text-vault-muted truncate">
+              {% if log.firearm %}{{ log.firearm.name }}{% endif %}
+              {% if log.accessory %}{{ log.accessory.name }}{% endif %}
+            </div>
+          </div>
+          <div class="text-xs text-vault-muted font-mono flex-shrink-0">{{ log.date.strftime('%m/%d/%y') }}</div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="px-4 py-8 text-center text-vault-muted text-sm">No maintenance records yet.</div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}

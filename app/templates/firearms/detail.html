@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block title %}{{ firearm.name }} — Black Vault{% endblock %}
+{% block page_title %}{{ firearm.name | upper }}{% endblock %}
+{% block page_subtitle %}{{ [firearm.make, firearm.model] | select | join(' ') or 'Firearm Details' }}{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('firearms.edit_firearm', firearm_id=firearm.id) }}" class="btn-secondary px-4 py-2 text-xs font-hud tracking-widest">EDIT</a>
+{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+  <!-- Left Column: Info -->
+  <div class="lg:col-span-1 space-y-4">
+
+    <!-- Image -->
+    <div class="vault-card p-4">
+      <div class="h-48 bg-vault-bg border border-vault-border flex items-center justify-center overflow-hidden mb-3">
+        {% if firearm.image_path %}
+          <img src="{{ url_for('static', filename=firearm.image_path) }}" alt="{{ firearm.name }}" class="h-full w-full object-contain p-3" />
+        {% else %}
+          <div class="text-vault-border text-center">
+            <svg class="w-20 h-20 mx-auto" fill="currentColor" viewBox="0 0 24 24"><path d="M1 9v2h1v4h2v1h14v-1h1v-4h1V9H1zm18 5H5v-3h14v3zM21 7h-1V4h-2v3h-1V3H3v4H2v2h20V7h-1zM5 6V4h12v2H5z"/></svg>
+            <div class="text-xs mt-2 font-mono">NO IMAGE</div>
+          </div>
+        {% endif %}
+      </div>
+      {% if firearm.active_build %}
+      <span class="active-badge text-xs block text-center">BUILD: {{ firearm.active_build.name | upper }}</span>
+      {% endif %}
+    </div>
+
+    <!-- Specs -->
+    <div class="vault-card p-4">
+      <h3 class="section-title mb-4">SPECIFICATIONS</h3>
+      <div class="space-y-3">
+        {% if firearm.caliber %}
+        <div class="flex justify-between items-center py-2 border-b border-vault-border">
+          <span class="text-xs text-vault-muted font-mono">CALIBER</span>
+          <span class="text-sm font-semibold font-mono">{{ firearm.caliber }}</span>
+        </div>
+        {% endif %}
+        {% if firearm.firearm_type %}
+        <div class="flex justify-between items-center py-2 border-b border-vault-border">
+          <span class="text-xs text-vault-muted font-mono">TYPE</span>
+          <span class="text-sm font-semibold">{{ firearm.firearm_type | title }}</span>
+        </div>
+        {% endif %}
+        {% if firearm.serial_number %}
+        <div class="flex justify-between items-center py-2 border-b border-vault-border">
+          <span class="text-xs text-vault-muted font-mono">SERIAL</span>
+          <span class="text-sm font-mono">{{ firearm.serial_number }}</span>
+        </div>
+        {% endif %}
+        {% if firearm.date_acquired %}
+        <div class="flex justify-between items-center py-2 border-b border-vault-border">
+          <span class="text-xs text-vault-muted font-mono">ACQUIRED</span>
+          <span class="text-sm font-mono">{{ firearm.date_acquired.strftime('%m/%d/%Y') }}</span>
+        </div>
+        {% endif %}
+        {% if firearm.price_paid %}
+        <div class="flex justify-between items-center py-2 border-b border-vault-border">
+          <span class="text-xs text-vault-muted font-mono">PAID</span>
+          <span class="text-sm font-mono">${{ "{:,.2f}".format(firearm.price_paid) }}</span>
+        </div>
+        {% endif %}
+        <div class="flex justify-between items-center py-2">
+          <span class="text-xs text-vault-muted font-mono">TOTAL ROUNDS</span>
+          <span class="text-sm font-hud text-vault-gold">{{ "{:,}".format(firearm.total_rounds) }}</span>
+        </div>
+      </div>
+    </div>
+
+    {% if firearm.notes %}
+    <div class="vault-card p-4">
+      <h3 class="section-title mb-3">NOTES</h3>
+      <p class="text-sm text-vault-muted leading-relaxed">{{ firearm.notes }}</p>
+    </div>
+    {% endif %}
+
+    <!-- Danger Zone -->
+    <div class="vault-card p-4 border border-red-900/40">
+      <h3 class="section-title mb-3 text-red-500">DANGER ZONE</h3>
+      <form method="POST" action="{{ url_for('firearms.delete_firearm', firearm_id=firearm.id) }}"
+            onsubmit="return confirm('Permanently delete {{ firearm.name }}? This cannot be undone.')">
+        <button type="submit" class="btn-danger w-full text-xs font-hud py-2 tracking-widest">DELETE FIREARM</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Right Column -->
+  <div class="lg:col-span-2 space-y-6">
+
+    <!-- Log Rounds Card -->
+    <div class="vault-card p-5">
+      <h3 class="section-title mb-4">LOG RANGE SESSION</h3>
+      <form method="POST" action="{{ url_for('firearms.log_rounds', firearm_id=firearm.id) }}" class="grid grid-cols-2 md:grid-cols-4 gap-3 items-end">
+        <div>
+          <label class="form-label">DATE</label>
+          <input type="date" name="date" class="form-input w-full"
+                 value="{{ now().strftime('%Y-%m-%d') if now else '' }}" />
+        </div>
+        <div>
+          <label class="form-label">ROUNDS FIRED <span class="text-red-500">*</span></label>
+          <input type="number" name="rounds" min="1" required placeholder="50"
+                 class="form-input w-full" />
+        </div>
+        <div>
+          <label class="form-label">AMMO TYPE</label>
+          <input type="text" name="ammo_type" placeholder="e.g. 55gr FMJ"
+                 class="form-input w-full" />
+        </div>
+        <div>
+          <button type="submit" class="btn-primary w-full py-2 text-xs font-hud tracking-widest">LOG ROUNDS</button>
+        </div>
+        <div class="col-span-2 md:col-span-4">
+          <label class="form-label">NOTES (optional)</label>
+          <input type="text" name="notes" placeholder="Range, conditions, observations..."
+                 class="form-input w-full" />
+        </div>
+      </form>
+      {% if firearm.active_build %}
+      <p class="text-xs text-vault-muted mt-3 font-mono">Rounds will be credited to active build: <span class="text-vault-gold">{{ firearm.active_build.name }}</span> and all its accessories.</p>
+      {% else %}
+      <p class="text-xs text-vault-muted mt-3 font-mono">No active build — rounds will be tracked on the firearm only.</p>
+      {% endif %}
+    </div>
+
+    <!-- Builds -->
+    <div class="vault-card p-5">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="section-title">BUILDS</h3>
+        <a href="{{ url_for('builds.add_build', firearm_id=firearm.id) }}" class="btn-primary px-3 py-1.5 text-xs font-hud tracking-widest">+ NEW BUILD</a>
+      </div>
+
+      {% if firearm.builds %}
+      <div class="space-y-2">
+        {% for build in firearm.builds %}
+        <div class="flex items-center gap-3 p-3 border border-vault-border hover:border-vault-gold/40 transition-colors {% if build.is_active %}border-vault-gold/40 bg-vault-gold/5{% endif %}">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="font-hud text-sm">{{ build.name }}</span>
+              {% if build.is_active %}<span class="active-badge text-xs">ACTIVE</span>{% endif %}
+            </div>
+            <div class="text-xs text-vault-muted mt-0.5">
+              {{ build.slots|selectattr('accessory_id')|list|length }} accessories · {{ "{:,}".format(build.total_rounds) }} rounds
+            </div>
+          </div>
+          <div class="flex gap-2 flex-shrink-0">
+            <a href="{{ url_for('builds.configurator', firearm_id=firearm.id, build_id=build.id) }}"
+               class="btn-primary px-3 py-1 text-xs font-hud">CONFIGURE</a>
+            {% if not build.is_active %}
+            <button onclick="activateBuild({{ firearm.id }}, {{ build.id }})"
+                    class="btn-secondary px-3 py-1 text-xs font-hud">SET ACTIVE</button>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="text-center py-8 text-vault-muted text-sm">
+        No builds yet. Create a build to start configuring this firearm.
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Round Log History -->
+    <div class="vault-card p-5">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="section-title">ROUND LOG HISTORY</h3>
+        <div class="font-hud text-vault-gold text-sm">{{ "{:,}".format(firearm.total_rounds) }} TOTAL</div>
+      </div>
+
+      {% if round_logs %}
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-vault-border">
+              <th class="text-left text-xs text-vault-muted font-mono py-2 pr-4">DATE</th>
+              <th class="text-right text-xs text-vault-muted font-mono py-2 pr-4">ROUNDS</th>
+              <th class="text-left text-xs text-vault-muted font-mono py-2 pr-4">AMMO</th>
+              <th class="text-left text-xs text-vault-muted font-mono py-2 pr-4">BUILD</th>
+              <th class="text-left text-xs text-vault-muted font-mono py-2">NOTES</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for log in round_logs %}
+            <tr class="border-b border-vault-border/50 hover:bg-vault-hover transition-colors">
+              <td class="py-2 pr-4 font-mono text-xs">{{ log.date.strftime('%m/%d/%y') }}</td>
+              <td class="py-2 pr-4 text-right font-hud text-vault-gold">{{ "{:,}".format(log.rounds) }}</td>
+              <td class="py-2 pr-4 text-xs text-vault-muted">{{ log.ammo_type or '—' }}</td>
+              <td class="py-2 pr-4 text-xs text-vault-muted">{{ log.build.name if log.build else '—' }}</td>
+              <td class="py-2 text-xs text-vault-muted">{{ log.notes or '—' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="text-center py-6 text-vault-muted text-sm">No range sessions logged yet.</div>
+      {% endif %}
+    </div>
+
+    <!-- Maintenance Quick Link -->
+    <div class="flex gap-3">
+      <a href="{{ url_for('maintenance.add_maintenance', firearm_id=firearm.id) }}"
+         class="btn-secondary px-4 py-2 text-xs font-hud tracking-widest">+ LOG MAINTENANCE</a>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function activateBuild(firearmId, buildId) {
+  fetch(`/firearms/${firearmId}/builds/${buildId}/activate`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => { if (data.success) location.reload(); });
+}
+</script>
+{% endblock %}

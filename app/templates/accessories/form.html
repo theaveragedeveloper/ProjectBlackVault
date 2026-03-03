@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Edit' if accessory else 'Add' }} Accessory — Black Vault{% endblock %}
+{% block page_title %}{{ 'EDIT ACCESSORY' if accessory else 'ADD ACCESSORY' }}{% endblock %}
+{% block page_subtitle %}{{ accessory.name if accessory else 'Register a new accessory' }}{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl">
+  <form method="POST" enctype="multipart/form-data" class="space-y-6">
+
+    <div class="vault-card p-6">
+      <h3 class="section-title mb-5">IDENTIFICATION</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+        <div class="md:col-span-2">
+          <label class="form-label">NAME <span class="text-red-500">*</span></label>
+          <input type="text" name="name" required
+                 value="{{ accessory.name if accessory else '' }}"
+                 placeholder="e.g. Trijicon ACOG, SureFire Scout"
+                 class="form-input w-full" />
+        </div>
+
+        <div>
+          <label class="form-label">CATEGORY</label>
+          <select name="category" class="form-input w-full">
+            <option value="">— Select Category —</option>
+            {% for value, label in categories %}
+            <option value="{{ value }}" {% if accessory and accessory.category == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label class="form-label">MANUFACTURER</label>
+          <input type="text" name="make"
+                 value="{{ accessory.make or '' if accessory else '' }}"
+                 placeholder="e.g. Trijicon"
+                 class="form-input w-full" />
+        </div>
+
+        <div>
+          <label class="form-label">MODEL</label>
+          <input type="text" name="model"
+                 value="{{ accessory.model or '' if accessory else '' }}"
+                 placeholder="e.g. ACOG TA31"
+                 class="form-input w-full" />
+        </div>
+
+        <div>
+          <label class="form-label">SERIAL NUMBER</label>
+          <input type="text" name="serial_number"
+                 value="{{ accessory.serial_number or '' if accessory else '' }}"
+                 placeholder="Optional"
+                 class="form-input w-full font-mono" />
+        </div>
+
+      </div>
+    </div>
+
+    <div class="vault-card p-6">
+      <h3 class="section-title mb-5">ACQUISITION DATA</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+        <div>
+          <label class="form-label">DATE ACQUIRED</label>
+          <input type="date" name="date_acquired"
+                 value="{{ accessory.date_acquired.strftime('%Y-%m-%d') if accessory and accessory.date_acquired else '' }}"
+                 class="form-input w-full" />
+        </div>
+
+        <div>
+          <label class="form-label">PRICE PAID ($)</label>
+          <input type="number" name="price_paid" step="0.01" min="0"
+                 value="{{ accessory.price_paid if accessory and accessory.price_paid else '' }}"
+                 placeholder="0.00"
+                 class="form-input w-full" />
+        </div>
+
+        <div>
+          <label class="form-label">LAST BATTERY CHANGE</label>
+          <input type="date" name="last_battery_change"
+                 value="{{ accessory.last_battery_change.strftime('%Y-%m-%d') if accessory and accessory.last_battery_change else '' }}"
+                 class="form-input w-full" />
+          <p class="text-xs text-vault-muted mt-1">For electronics: optics, lights, lasers</p>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="vault-card p-6">
+      <h3 class="section-title mb-5">IMAGE</h3>
+      {% if accessory and accessory.image_path %}
+      <div class="mb-4 h-28 bg-vault-bg border border-vault-border flex items-center justify-center overflow-hidden">
+        <img src="{{ url_for('static', filename=accessory.image_path) }}" class="h-full object-contain p-2" />
+      </div>
+      {% endif %}
+      <label class="form-label">UPLOAD PHOTO</label>
+      <input type="file" name="image" accept="image/*" class="form-input w-full" />
+      <p class="text-xs text-vault-muted mt-1">JPG, PNG, GIF, or WEBP. Max 16MB.</p>
+    </div>
+
+    <div class="vault-card p-6">
+      <h3 class="section-title mb-5">NOTES</h3>
+      <textarea name="notes" rows="3" placeholder="Settings, zero data, observations..."
+                class="form-input w-full resize-none">{{ accessory.notes or '' if accessory else '' }}</textarea>
+    </div>
+
+    <div class="flex gap-3">
+      <button type="submit" class="btn-primary px-8 py-3 font-hud tracking-widest">
+        {{ 'UPDATE ACCESSORY' if accessory else 'ADD TO VAULT' }}
+      </button>
+      <a href="{{ url_for('accessories.accessory_detail', accessory_id=accessory.id) if accessory else url_for('accessories.list_accessories') }}"
+         class="btn-secondary px-8 py-3 font-hud tracking-widest">CANCEL</a>
+    </div>
+
+  </form>
+</div>
+{% endblock %}

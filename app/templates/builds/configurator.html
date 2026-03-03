@@ -1,0 +1,347 @@
+{% extends "base.html" %}
+
+{% block title %}{{ build.name }} — {{ firearm.name }} — Black Vault{% endblock %}
+{% block page_title %}WEAPON CONFIGURATOR{% endblock %}
+{% block page_subtitle %}{{ firearm.name | upper }} · {{ build.name | upper }}{% endblock %}
+
+{% block header_actions %}
+<div class="flex items-center gap-2">
+  {% if not build.is_active %}
+  <button id="activateBtn" onclick="activateBuild()" class="btn-secondary px-4 py-2 text-xs font-hud tracking-widest">SET ACTIVE</button>
+  {% else %}
+  <span class="active-badge text-xs">ACTIVE BUILD</span>
+  {% endif %}
+  <a href="{{ url_for('firearms.firearm_detail', firearm_id=firearm.id) }}" class="btn-secondary px-4 py-2 text-xs font-hud tracking-widest">← BACK</a>
+</div>
+{% endblock %}
+
+{% block content %}
+
+<!-- Build Stats Bar -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+  <div class="stat-card p-4">
+    <div class="text-xs text-vault-muted font-mono">FIREARM ROUNDS</div>
+    <div class="font-hud text-xl text-vault-gold">{{ "{:,}".format(firearm.total_rounds) }}</div>
+  </div>
+  <div class="stat-card p-4">
+    <div class="text-xs text-vault-muted font-mono">BUILD ROUNDS</div>
+    <div class="font-hud text-xl text-vault-gold">{{ "{:,}".format(build.total_rounds) }}</div>
+  </div>
+  <div class="stat-card p-4">
+    <div class="text-xs text-vault-muted font-mono">ATTACHMENTS</div>
+    <div class="font-hud text-xl text-vault-gold">{{ build.slots | selectattr('accessory_id') | list | length }} / {{ build.slots | length }}</div>
+  </div>
+  <div class="stat-card p-4">
+    <div class="text-xs text-vault-muted font-mono">BUILD VALUE</div>
+    <div class="font-hud text-xl text-vault-gold">${{ "{:,.0f}".format(build.total_value) }}</div>
+  </div>
+</div>
+
+<!-- Build Selector (other builds for this firearm) -->
+{% if firearm.builds | length > 1 %}
+<div class="flex gap-2 mb-6 flex-wrap items-center">
+  <span class="text-xs text-vault-muted font-mono tracking-widest">BUILDS:</span>
+  {% for b in firearm.builds %}
+  <a href="{{ url_for('builds.configurator', firearm_id=firearm.id, build_id=b.id) }}"
+     class="filter-chip {% if b.id == build.id %}active{% endif %}">
+    {{ b.name | upper }}{% if b.is_active %} ●{% endif %}
+  </a>
+  {% endfor %}
+  <a href="{{ url_for('builds.add_build', firearm_id=firearm.id) }}" class="filter-chip">+ NEW BUILD</a>
+</div>
+{% else %}
+<div class="flex gap-2 mb-6">
+  <a href="{{ url_for('builds.add_build', firearm_id=firearm.id) }}" class="filter-chip">+ NEW BUILD</a>
+</div>
+{% endif %}
+
+<!-- Configurator Grid -->
+<div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
+
+  {% for section_name, section_slots in slots_by_section.items() %}
+  <div class="vault-card p-5">
+    <h3 class="section-title mb-4">{{ section_name }}</h3>
+    <div class="space-y-3">
+      {% for slot in section_slots %}
+      <div class="slot-card {% if slot.accessory_id %}occupied{% endif %}" id="slot-{{ slot.slot_type }}">
+        <div class="slot-header flex items-center justify-between mb-2">
+          <span class="text-xs font-hud tracking-widest text-vault-muted">{{ slot.slot_label | upper }}</span>
+          <div class="flex gap-2">
+            {% if slot.accessory_id %}
+            <button onclick="detachAccessory('{{ build.id }}', '{{ slot.slot_type }}')"
+                    class="text-xs text-vault-muted hover:text-red-400 font-mono transition-colors">REMOVE</button>
+            {% endif %}
+            <button onclick="openAttachModal('{{ build.id }}', '{{ slot.slot_type }}', '{{ slot.slot_label }}')"
+                    class="text-xs text-vault-gold hover:text-white font-mono transition-colors">
+              {% if slot.accessory_id %}CHANGE{% else %}ATTACH{% endif %}
+            </button>
+          </div>
+        </div>
+
+        {% if slot.accessory_id and slot.accessory %}
+        <!-- Occupied Slot -->
+        <div class="flex items-center gap-3">
+          <div class="w-16 h-16 bg-vault-bg border border-vault-border flex items-center justify-center flex-shrink-0 overflow-hidden">
+            {% if slot.accessory.image_path %}
+            <img src="{{ url_for('static', filename=slot.accessory.image_path) }}" class="w-full h-full object-contain p-1" />
+            {% else %}
+            <div class="text-vault-border">
+              <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+            </div>
+            {% endif %}
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="font-hud text-sm text-white">{{ slot.accessory.name }}</div>
+            {% if slot.accessory.make or slot.accessory.model %}
+            <div class="text-xs text-vault-muted truncate">{{ [slot.accessory.make, slot.accessory.model] | select | join(' ') }}</div>
+            {% endif %}
+            <div class="flex gap-4 mt-1">
+              <span class="text-xs font-mono text-vault-gold">{{ "{:,}".format(slot.accessory.total_rounds) }} RDS</span>
+              {% if slot.accessory.last_battery_change %}
+              <span class="text-xs font-mono text-vault-muted">BAT: {{ slot.accessory.last_battery_change.strftime('%m/%d/%y') }}</span>
+              {% endif %}
+            </div>
+          </div>
+          <a href="{{ url_for('accessories.accessory_detail', accessory_id=slot.accessory.id) }}"
+             class="text-vault-muted hover:text-vault-gold transition-colors flex-shrink-0">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+          </a>
+        </div>
+
+        {% else %}
+        <!-- Empty Slot -->
+        <button onclick="openAttachModal('{{ build.id }}', '{{ slot.slot_type }}', '{{ slot.slot_label }}')"
+                class="w-full empty-slot flex items-center justify-center gap-2 py-4 group">
+          <svg class="w-5 h-5 text-vault-border group-hover:text-vault-gold transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          <span class="text-xs font-hud text-vault-border group-hover:text-vault-gold transition-colors tracking-widest">ADD ATTACHMENT</span>
+        </button>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Add Slot Button -->
+    <button onclick="openAddSlotModal()" class="mt-3 w-full text-xs text-vault-muted hover:text-vault-gold font-mono py-2 border border-dashed border-vault-border hover:border-vault-gold/40 transition-all">
+      + ADD SLOT
+    </button>
+  </div>
+  {% endfor %}
+
+  <!-- Empty state if no slots -->
+  {% if not slots_by_section %}
+  <div class="xl:col-span-2 empty-state p-12 text-center">
+    <div class="font-hud text-vault-muted text-lg mb-3">NO ATTACHMENT SLOTS</div>
+    <p class="text-sm text-vault-muted mb-4">This build has no slots defined. Add slots to start configuring.</p>
+    <button onclick="openAddSlotModal()" class="btn-primary px-6 py-2 text-xs font-hud tracking-widest">+ ADD SLOT</button>
+  </div>
+  {% endif %}
+
+</div>
+
+<!-- Delete Build -->
+<div class="flex gap-3 justify-end">
+  <form method="POST" action="{{ url_for('builds.delete_build', firearm_id=firearm.id, build_id=build.id) }}"
+        onsubmit="return confirm('Delete build \'{{ build.name }}\'? Accessories will not be deleted.')">
+    <button type="submit" class="btn-danger text-xs font-hud px-4 py-2 tracking-widest">DELETE BUILD</button>
+  </form>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     ATTACH ACCESSORY MODAL
+═══════════════════════════════════════════════════════ -->
+<div id="attachModal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="flex items-center justify-between mb-5">
+      <div>
+        <h2 class="font-hud text-vault-gold text-lg tracking-widest">ATTACH ACCESSORY</h2>
+        <div id="modalSlotLabel" class="text-xs text-vault-muted font-mono mt-0.5"></div>
+      </div>
+      <button onclick="closeAttachModal()" class="text-vault-muted hover:text-white text-xl">✕</button>
+    </div>
+
+    <!-- Search -->
+    <div class="mb-4">
+      <input type="text" id="accessorySearch" placeholder="Search accessories..."
+             oninput="filterAccessories()"
+             class="form-input w-full" />
+    </div>
+
+    <!-- Category Filter -->
+    <div class="flex gap-2 mb-4 flex-wrap">
+      <button onclick="filterByCategory('')" class="filter-chip active" id="catAll">ALL</button>
+      {% for value, label in [('optic','Optic'),('muzzle','Muzzle'),('barrel','Barrel'),('underbarrel','Underbarrel'),('stock','Stock'),('grip','Grip'),('magazine','Magazine'),('trigger','Trigger'),('light','Light'),('suppressor','Suppressor'),('sling','Sling'),('other','Other')] %}
+      <button onclick="filterByCategory('{{ value }}')" class="filter-chip" id="cat{{ value }}">{{ label | upper }}</button>
+      {% endfor %}
+    </div>
+
+    <!-- Accessory List -->
+    <div id="accessoryList" class="space-y-2 max-h-80 overflow-y-auto pr-1">
+      <!-- Populated by JS -->
+    </div>
+
+    <div class="mt-4 text-center">
+      <a href="{{ url_for('accessories.add_accessory') }}" class="text-xs text-vault-gold hover:text-white font-mono">+ Add new accessory to vault</a>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     ADD SLOT MODAL
+═══════════════════════════════════════════════════════ -->
+<div id="addSlotModal" class="modal-overlay hidden">
+  <div class="modal-box max-w-sm">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="font-hud text-vault-gold text-lg tracking-widest">ADD SLOT</h2>
+      <button onclick="document.getElementById('addSlotModal').classList.add('hidden')" class="text-vault-muted hover:text-white text-xl">✕</button>
+    </div>
+    <div class="grid grid-cols-2 gap-2">
+      {% for value, label in slot_types %}
+      <button onclick="addSlot('{{ value }}', '{{ label }}')"
+              class="slot-type-btn p-3 border border-vault-border text-xs font-hud text-left hover:border-vault-gold hover:text-vault-gold transition-all tracking-wide">
+        {{ label | upper }}
+      </button>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const BUILD_ID = {{ build.id }};
+const FIREARM_ID = {{ firearm.id }};
+let currentSlotType = '';
+let currentSlotLabel = '';
+let allAccessories = [];
+let activeCategoryFilter = '';
+
+// Load accessories from API
+fetch('/accessories/api/list')
+  .then(r => r.json())
+  .then(data => { allAccessories = data; });
+
+function openAttachModal(buildId, slotType, slotLabel) {
+  currentSlotType = slotType;
+  currentSlotLabel = slotLabel;
+  document.getElementById('modalSlotLabel').textContent = 'SLOT: ' + slotLabel.toUpperCase();
+  document.getElementById('accessorySearch').value = '';
+  activeCategoryFilter = '';
+  document.querySelectorAll('.filter-chip[id^="cat"]').forEach(b => b.classList.remove('active'));
+  document.getElementById('catAll').classList.add('active');
+  renderAccessoryList(allAccessories);
+  document.getElementById('attachModal').classList.remove('hidden');
+}
+
+function closeAttachModal() {
+  document.getElementById('attachModal').classList.add('hidden');
+}
+
+function filterAccessories() {
+  const query = document.getElementById('accessorySearch').value.toLowerCase();
+  const filtered = allAccessories.filter(a => {
+    const matchesQuery = !query ||
+      a.name.toLowerCase().includes(query) ||
+      (a.make && a.make.toLowerCase().includes(query)) ||
+      (a.model && a.model.toLowerCase().includes(query));
+    const matchesCategory = !activeCategoryFilter || a.category === activeCategoryFilter;
+    return matchesQuery && matchesCategory;
+  });
+  renderAccessoryList(filtered);
+}
+
+function filterByCategory(category) {
+  activeCategoryFilter = category;
+  document.querySelectorAll('.filter-chip[id^="cat"]').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById(category ? 'cat' + category : 'catAll');
+  if (btn) btn.classList.add('active');
+  filterAccessories();
+}
+
+function renderAccessoryList(accessories) {
+  const container = document.getElementById('accessoryList');
+  if (!accessories.length) {
+    container.innerHTML = '<div class="text-center py-8 text-vault-muted text-sm font-mono">No accessories found</div>';
+    return;
+  }
+  container.innerHTML = accessories.map(a => `
+    <button onclick="attachAccessory(${a.id})"
+            class="w-full flex items-center gap-3 p-3 border border-vault-border hover:border-vault-gold/60 hover:bg-vault-gold/5 transition-all text-left group">
+      <div class="w-12 h-12 bg-vault-bg border border-vault-border flex items-center justify-center flex-shrink-0 overflow-hidden">
+        ${a.image_path
+          ? `<img src="/static/${a.image_path}" class="w-full h-full object-contain p-1" />`
+          : `<svg class="w-6 h-6 text-vault-border" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>`
+        }
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="font-hud text-sm text-white group-hover:text-vault-gold transition-colors">${a.name}</div>
+        <div class="text-xs text-vault-muted">${[a.make, a.model].filter(Boolean).join(' ') || a.category_label || ''}</div>
+        <div class="text-xs font-mono text-vault-gold/70">${(a.total_rounds || 0).toLocaleString()} rds</div>
+      </div>
+      ${a.price_paid ? `<div class="text-xs font-mono text-vault-muted flex-shrink-0">$${a.price_paid.toFixed(0)}</div>` : ''}
+    </button>
+  `).join('');
+}
+
+function attachAccessory(accessoryId) {
+  fetch(`/api/builds/${BUILD_ID}/slots/${currentSlotType}/attach`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ accessory_id: accessoryId })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      closeAttachModal();
+      location.reload();
+    } else {
+      alert('Error: ' + (data.error || 'Unknown error'));
+    }
+  });
+}
+
+function detachAccessory(buildId, slotType) {
+  if (!confirm('Remove this accessory from the slot?')) return;
+  fetch(`/api/builds/${buildId}/slots/${slotType}/detach`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => { if (data.success) location.reload(); });
+}
+
+function activateBuild() {
+  fetch(`/firearms/${FIREARM_ID}/builds/${BUILD_ID}/activate`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => { if (data.success) location.reload(); });
+}
+
+function openAddSlotModal() {
+  document.getElementById('addSlotModal').classList.remove('hidden');
+}
+
+function addSlot(slotType, slotLabel) {
+  fetch(`/api/builds/${BUILD_ID}/slots/add`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slot_type: slotType })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      document.getElementById('addSlotModal').classList.add('hidden');
+      location.reload();
+    } else {
+      alert(data.error || 'Could not add slot');
+    }
+  });
+}
+
+// Close modals on overlay click
+document.getElementById('attachModal').addEventListener('click', function(e) {
+  if (e.target === this) closeAttachModal();
+});
+document.getElementById('addSlotModal').addEventListener('click', function(e) {
+  if (e.target === this) document.getElementById('addSlotModal').classList.add('hidden');
+});
+</script>
+{% endblock %}

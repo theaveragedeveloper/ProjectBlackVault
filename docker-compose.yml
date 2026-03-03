@@ -1,0 +1,11 @@
+services:
+  blackvault:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./app/static/uploads:/app/app/static/uploads
+      - ./instance:/app/instance
+    env_file:
+      - .env
+    restart: unless-stopped

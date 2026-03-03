@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Maintenance — Black Vault{% endblock %}
+{% block page_title %}MAINTENANCE LOG{% endblock %}
+{% block page_subtitle %}{{ logs|length }} record{{ 's' if logs|length != 1 }}{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('maintenance.add_maintenance') }}" class="btn-primary px-4 py-2 text-xs font-hud tracking-widest">+ LOG MAINTENANCE</a>
+{% endblock %}
+
+{% block content %}
+{% if logs %}
+<div class="vault-card overflow-hidden">
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="border-b border-vault-border">
+        <th class="text-left text-xs text-vault-muted font-mono py-3 px-4">DATE</th>
+        <th class="text-left text-xs text-vault-muted font-mono py-3 px-4">TYPE</th>
+        <th class="text-left text-xs text-vault-muted font-mono py-3 px-4">ITEM</th>
+        <th class="text-left text-xs text-vault-muted font-mono py-3 px-4">NOTES</th>
+        <th class="text-right text-xs text-vault-muted font-mono py-3 px-4">COST</th>
+        <th class="text-left text-xs text-vault-muted font-mono py-3 px-4">NEXT SERVICE</th>
+        <th class="py-3 px-4"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for log in logs %}
+      <tr class="border-b border-vault-border/50 hover:bg-vault-hover transition-colors">
+        <td class="py-3 px-4 font-mono text-xs">{{ log.date.strftime('%m/%d/%Y') }}</td>
+        <td class="py-3 px-4">
+          <span class="text-xs font-hud text-vault-gold">{{ log.type_label | upper }}</span>
+        </td>
+        <td class="py-3 px-4 text-xs">
+          {% if log.firearm %}
+            <a href="{{ url_for('firearms.firearm_detail', firearm_id=log.firearm.id) }}"
+               class="text-vault-text hover:text-vault-gold transition-colors">{{ log.firearm.name }}</a>
+          {% elif log.accessory %}
+            <a href="{{ url_for('accessories.accessory_detail', accessory_id=log.accessory.id) }}"
+               class="text-vault-text hover:text-vault-gold transition-colors">{{ log.accessory.name }}</a>
+          {% else %}—{% endif %}
+        </td>
+        <td class="py-3 px-4 text-xs text-vault-muted max-w-xs truncate">{{ log.notes or '—' }}</td>
+        <td class="py-3 px-4 text-xs text-right font-mono">
+          {% if log.cost %}<span class="text-vault-gold">${{ "{:.2f}".format(log.cost) }}</span>{% else %}—{% endif %}
+        </td>
+        <td class="py-3 px-4 text-xs font-mono text-vault-muted">
+          {{ log.next_service_date.strftime('%m/%d/%Y') if log.next_service_date else '—' }}
+        </td>
+        <td class="py-3 px-4">
+          <form method="POST" action="{{ url_for('maintenance.delete_maintenance', log_id=log.id) }}"
+                onsubmit="return confirm('Delete this maintenance record?')">
+            <button type="submit" class="text-vault-muted hover:text-red-400 text-xs font-mono transition-colors">DEL</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty-state p-16 text-center">
+  <div class="text-vault-border mb-6">
+    <svg class="w-24 h-24 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+  </div>
+  <div class="font-hud text-vault-muted text-xl mb-3">NO MAINTENANCE RECORDS</div>
+  <p class="text-sm text-vault-muted mb-6">Log cleaning, repairs, battery changes, and more.</p>
+  <a href="{{ url_for('maintenance.add_maintenance') }}" class="btn-primary px-8 py-3 text-sm font-hud tracking-widest inline-block">+ LOG MAINTENANCE</a>
+</div>
+{% endif %}
+{% endblock %}

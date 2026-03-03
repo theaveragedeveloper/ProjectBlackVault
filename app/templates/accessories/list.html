@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Accessories — Black Vault{% endblock %}
+{% block page_title %}ACCESSORIES{% endblock %}
+{% block page_subtitle %}{{ accessories|length }} item{{ 's' if accessories|length != 1 }} in inventory{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('accessories.add_accessory') }}" class="btn-primary px-4 py-2 text-xs font-hud tracking-widest">+ ADD ACCESSORY</a>
+{% endblock %}
+
+{% block content %}
+<!-- Category Filter -->
+<div class="flex gap-2 mb-6 flex-wrap">
+  <a href="{{ url_for('accessories.list_accessories') }}"
+     class="filter-chip {% if not active_category %}active{% endif %}">ALL</a>
+  {% for key, label in categories %}
+  <a href="{{ url_for('accessories.list_accessories', category=key) }}"
+     class="filter-chip {% if active_category == key %}active{% endif %}">{{ label | upper }}</a>
+  {% endfor %}
+</div>
+
+{% if accessories %}
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+  {% for acc in accessories %}
+  <div class="firearm-card p-4 group">
+    <div class="mb-3 h-28 bg-vault-bg flex items-center justify-center overflow-hidden border border-vault-border">
+      {% if acc.image_path %}
+        <img src="{{ url_for('static', filename=acc.image_path) }}" alt="{{ acc.name }}" class="h-full w-full object-contain p-2 group-hover:scale-105 transition-transform duration-300" />
+      {% else %}
+        <div class="text-vault-border text-center">
+          <svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="flex items-start justify-between mb-2">
+      <div class="flex-1 min-w-0">
+        <div class="font-hud text-sm text-vault-gold truncate">{{ acc.name }}</div>
+        {% if acc.make or acc.model %}
+        <div class="text-xs text-vault-muted truncate">{{ [acc.make, acc.model] | select | join(' ') }}</div>
+        {% endif %}
+      </div>
+      <span class="category-badge text-xs flex-shrink-0 ml-2">{{ acc.category_label | upper }}</span>
+    </div>
+
+    <div class="grid grid-cols-2 gap-2 py-2 border-y border-vault-border mb-3">
+      <div>
+        <div class="text-xs text-vault-muted font-mono">ROUNDS</div>
+        <div class="text-xs font-hud text-vault-gold">{{ "{:,}".format(acc.total_rounds) }}</div>
+      </div>
+      <div>
+        <div class="text-xs text-vault-muted font-mono">DEPLOYED</div>
+        <div class="text-xs font-hud text-white">
+          {% if acc.current_build %}
+            {{ acc.current_build.firearm.name | truncate(12) }}
+          {% else %}—{% endif %}
+        </div>
+      </div>
+    </div>
+
+    {% if acc.last_battery_change %}
+    <div class="text-xs text-vault-muted font-mono mb-3">
+      BATTERY: <span class="text-vault-gold">{{ acc.last_battery_change.strftime('%m/%d/%y') }}</span>
+    </div>
+    {% endif %}
+
+    <div class="flex gap-2">
+      <a href="{{ url_for('accessories.accessory_detail', accessory_id=acc.id) }}" class="flex-1 btn-primary text-center text-xs font-hud py-2">VIEW</a>
+      <a href="{{ url_for('accessories.edit_accessory', accessory_id=acc.id) }}" class="btn-secondary text-xs font-hud px-3 py-2">EDIT</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state p-16 text-center">
+  <div class="text-vault-border mb-6">
+    <svg class="w-24 h-24 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+  </div>
+  <div class="font-hud text-vault-muted text-xl mb-3">NO ACCESSORIES IN INVENTORY</div>
+  <p class="text-sm text-vault-muted mb-6">Add optics, suppressors, grips, and other accessories.</p>
+  <a href="{{ url_for('accessories.add_accessory') }}" class="btn-primary px-8 py-3 text-sm font-hud tracking-widest inline-block">+ ADD ACCESSORY</a>
+</div>
+{% endif %}
+{% endblock %}

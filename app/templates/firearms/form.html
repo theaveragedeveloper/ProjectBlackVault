@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Edit' if firearm else 'Add' }} Firearm — Black Vault{% endblock %}
+{% block page_title %}{{ 'EDIT FIREARM' if firearm else 'ADD FIREARM' }}{% endblock %}
+{% block page_subtitle %}{{ firearm.name if firearm else 'Register a new weapon' }}{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl">
+  <form method="POST" enctype="multipart/form-data" class="space-y-6">
+
+    <div class="vault-card p-6">
+      <h3 class="section-title mb-5">IDENTIFICATION</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+        <div class="md:col-span-2">
+          <label class="form-label">CALLSIGN / NICKNAME <span class="text-red-500">*</span></label>
+          <input type="text" name="name" required
+                 value="{{ firearm.name if firearm else '' }}"
+                 placeholder="e.g. Primary AR, Bedside Pistol"
+                 class="form-input w-full" />
+          <p class="text-xs text-vault-muted mt-1">Your personal name for this weapon</p>
+        </div>
+
+        <div>
+          <label class="form-label">MANUFACTURER</label>
+          <input type="text" name="make"
+                 value="{{ firearm.make or '' if firearm else '' }}"
+                 placeholder="e.g. Smith & Wesson"
+                 class="form-input w-full" />
+        </div>
+
+        <div>
+          <label class="form-label">MODEL</label>
+          <input type="text" name="model"
+                 value="{{ firearm.model or '' if firearm else '' }}"
+                 placeholder="e.g. M&P15"
+                 class="form-input w-full" />
+        </div>
+
+        <div>
+          <label class="form-label">CALIBER</label>
+          <input type="text" name="caliber"
+                 value="{{ firearm.caliber or '' if firearm else '' }}"
+                 placeholder="e.g. 5.56 NATO, 9mm"
+                 class="form-input w-full" />
+        </div>
+
+        <div>
+          <label class="form-label">TYPE</label>
+          <select name="firearm_type" class="form-input w-full">
+            <option value="">— Select Type —</option>
+            {% for value, label in firearm_types %}
+            <option value="{{ value }}" {% if firearm and firearm.firearm_type == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="md:col-span-2">
+          <label class="form-label">SERIAL NUMBER</label>
+          <input type="text" name="serial_number"
+                 value="{{ firearm.serial_number or '' if firearm else '' }}"
+                 placeholder="e.g. US123456"
+                 class="form-input w-full font-mono" />
+        </div>
+
+      </div>
+    </div>
+
+    <div class="vault-card p-6">
+      <h3 class="section-title mb-5">ACQUISITION DATA</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+        <div>
+          <label class="form-label">DATE ACQUIRED</label>
+          <input type="date" name="date_acquired"
+                 value="{{ firearm.date_acquired.strftime('%Y-%m-%d') if firearm and firearm.date_acquired else '' }}"
+                 class="form-input w-full" />
+        </div>
+
+        <div>
+          <label class="form-label">PRICE PAID ($)</label>
+          <input type="number" name="price_paid" step="0.01" min="0"
+                 value="{{ firearm.price_paid if firearm and firearm.price_paid else '' }}"
+                 placeholder="0.00"
+                 class="form-input w-full" />
+        </div>
+
+      </div>
+    </div>
+
+    <div class="vault-card p-6">
+      <h3 class="section-title mb-5">IMAGE</h3>
+      {% if firearm and firearm.image_path %}
+      <div class="mb-4 h-32 bg-vault-bg border border-vault-border flex items-center justify-center overflow-hidden">
+        <img src="{{ url_for('static', filename=firearm.image_path) }}" class="h-full object-contain p-2" />
+      </div>
+      {% endif %}
+      <label class="form-label">UPLOAD PHOTO</label>
+      <input type="file" name="image" accept="image/*" class="form-input w-full" />
+      <p class="text-xs text-vault-muted mt-1">JPG, PNG, GIF, or WEBP. Max 16MB.</p>
+    </div>
+
+    <div class="vault-card p-6">
+      <h3 class="section-title mb-5">NOTES</h3>
+      <textarea name="notes" rows="4" placeholder="Modifications, history, observations..."
+                class="form-input w-full resize-none">{{ firearm.notes or '' if firearm else '' }}</textarea>
+    </div>
+
+    <div class="flex gap-3">
+      <button type="submit" class="btn-primary px-8 py-3 font-hud tracking-widest">
+        {{ 'UPDATE FIREARM' if firearm else 'ADD TO VAULT' }}
+      </button>
+      <a href="{{ url_for('firearms.firearm_detail', firearm_id=firearm.id) if firearm else url_for('firearms.list_firearms') }}"
+         class="btn-secondary px-8 py-3 font-hud tracking-widest">CANCEL</a>
+    </div>
+
+  </form>
+</div>
+{% endblock %}

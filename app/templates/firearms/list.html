@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Firearms — Black Vault{% endblock %}
+{% block page_title %}FIREARMS{% endblock %}
+{% block page_subtitle %}{{ firearms|length }} weapon{{ 's' if firearms|length != 1 }} in vault{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('firearms.add_firearm') }}" class="btn-primary px-4 py-2 text-xs font-hud tracking-widest">+ ADD FIREARM</a>
+{% endblock %}
+
+{% block content %}
+{% if firearms %}
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+  {% for firearm in firearms %}
+  <div class="firearm-card p-5 group">
+    <div class="mb-4 h-36 bg-vault-bg flex items-center justify-center overflow-hidden border border-vault-border">
+      {% if firearm.image_path %}
+        <img src="{{ url_for('static', filename=firearm.image_path) }}" alt="{{ firearm.name }}" class="h-full w-full object-contain p-2 group-hover:scale-105 transition-transform duration-300" />
+      {% else %}
+        <div class="text-vault-border">
+          <svg class="w-16 h-16" fill="currentColor" viewBox="0 0 24 24"><path d="M1 9v2h1v4h2v1h14v-1h1v-4h1V9H1zm18 5H5v-3h14v3zM21 7h-1V4h-2v3h-1V3H3v4H2v2h20V7h-1zM5 6V4h12v2H5z"/></svg>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="flex items-start justify-between mb-3">
+      <div>
+        <div class="font-hud text-base text-vault-gold">{{ firearm.name }}</div>
+        {% if firearm.make or firearm.model %}
+        <div class="text-xs text-vault-muted mt-0.5">{{ [firearm.make, firearm.model] | select | join(' ') }}</div>
+        {% endif %}
+      </div>
+      {% if firearm.active_build %}
+      <span class="active-badge text-xs flex-shrink-0">ACTIVE</span>
+      {% endif %}
+    </div>
+
+    <div class="grid grid-cols-3 gap-2 mb-4 py-3 border-y border-vault-border">
+      <div class="text-center">
+        <div class="text-xs text-vault-muted font-mono">CALIBER</div>
+        <div class="text-xs font-hud text-white mt-0.5">{{ firearm.caliber or '—' }}</div>
+      </div>
+      <div class="text-center">
+        <div class="text-xs text-vault-muted font-mono">ROUNDS</div>
+        <div class="text-xs font-hud text-vault-gold mt-0.5">{{ "{:,}".format(firearm.total_rounds) }}</div>
+      </div>
+      <div class="text-center">
+        <div class="text-xs text-vault-muted font-mono">BUILDS</div>
+        <div class="text-xs font-hud text-white mt-0.5">{{ firearm.builds|length }}</div>
+      </div>
+    </div>
+
+    <div class="flex gap-2">
+      <a href="{{ url_for('firearms.firearm_detail', firearm_id=firearm.id) }}" class="flex-1 btn-primary text-center text-xs font-hud py-2 tracking-wide">VIEW</a>
+      <a href="{{ url_for('firearms.edit_firearm', firearm_id=firearm.id) }}" class="btn-secondary text-xs font-hud px-3 py-2">EDIT</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state p-16 text-center">
+  <div class="text-vault-border mb-6">
+    <svg class="w-24 h-24 mx-auto" fill="currentColor" viewBox="0 0 24 24"><path d="M1 9v2h1v4h2v1h14v-1h1v-4h1V9H1zm18 5H5v-3h14v3zM21 7h-1V4h-2v3h-1V3H3v4H2v2h20V7h-1zM5 6V4h12v2H5z"/></svg>
+  </div>
+  <div class="font-hud text-vault-muted text-xl mb-3">NO FIREARMS IN VAULT</div>
+  <p class="text-sm text-vault-muted mb-6">Add your first firearm to get started.</p>
+  <a href="{{ url_for('firearms.add_firearm') }}" class="btn-primary px-8 py-3 text-sm font-hud tracking-widest inline-block">+ ADD FIREARM</a>
+</div>
+{% endif %}
+{% endblock %}

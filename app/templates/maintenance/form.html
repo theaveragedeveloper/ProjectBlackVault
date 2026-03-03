@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Log Maintenance — Black Vault{% endblock %}
+{% block page_title %}LOG MAINTENANCE{% endblock %}
+{% block page_subtitle %}Record service, cleaning, or repairs{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl">
+  <form method="POST" class="space-y-6">
+
+    <div class="vault-card p-6">
+      <h3 class="section-title mb-5">MAINTENANCE DETAILS</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+        <div>
+          <label class="form-label">DATE <span class="text-red-500">*</span></label>
+          <input type="date" name="date" required class="form-input w-full" />
+        </div>
+
+        <div>
+          <label class="form-label">TYPE <span class="text-red-500">*</span></label>
+          <select name="maintenance_type" class="form-input w-full">
+            <option value="">— Select Type —</option>
+            {% for value, label in maintenance_types %}
+            <option value="{{ value }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label class="form-label">COST ($)</label>
+          <input type="number" name="cost" step="0.01" min="0" placeholder="0.00" class="form-input w-full" />
+        </div>
+
+        <div>
+          <label class="form-label">NEXT SERVICE DATE</label>
+          <input type="date" name="next_service_date" class="form-input w-full" />
+        </div>
+
+      </div>
+    </div>
+
+    <div class="vault-card p-6">
+      <h3 class="section-title mb-5">ITEM</h3>
+      <p class="text-xs text-vault-muted mb-4">Select the firearm or accessory this maintenance applies to.</p>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+        <div>
+          <label class="form-label">FIREARM</label>
+          <select name="firearm_id" class="form-input w-full" id="firearmSelect">
+            <option value="">— None —</option>
+            {% for firearm in firearms %}
+            <option value="{{ firearm.id }}" {% if prefill_firearm and prefill_firearm == firearm.id|string %}selected{% endif %}>{{ firearm.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label class="form-label">ACCESSORY</label>
+          <select name="accessory_id" class="form-input w-full" id="accessorySelect">
+            <option value="">— None —</option>
+            {% for acc in accessories %}
+            <option value="{{ acc.id }}" {% if prefill_accessory and prefill_accessory == acc.id|string %}selected{% endif %}>{{ acc.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="vault-card p-6">
+      <h3 class="section-title mb-5">NOTES</h3>
+      <textarea name="notes" rows="3" placeholder="What was done, parts used, observations..."
+                class="form-input w-full resize-none"></textarea>
+    </div>
+
+    <div class="flex gap-3">
+      <button type="submit" class="btn-primary px-8 py-3 font-hud tracking-widest">LOG MAINTENANCE</button>
+      <a href="{{ url_for('maintenance.list_maintenance') }}" class="btn-secondary px-8 py-3 font-hud tracking-widest">CANCEL</a>
+    </div>
+
+  </form>
+</div>
+{% endblock %}
