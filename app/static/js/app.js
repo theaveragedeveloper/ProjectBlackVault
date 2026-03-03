@@ -2,6 +2,19 @@
    PROJECT BLACK VAULT — Main JavaScript
    ============================================================ */
 
+// UTC clock
+function updateClock() {
+  const el = document.getElementById('sys-clock');
+  if (!el) return;
+  const now = new Date();
+  const h = String(now.getUTCHours()).padStart(2, '0');
+  const m = String(now.getUTCMinutes()).padStart(2, '0');
+  const s = String(now.getUTCSeconds()).padStart(2, '0');
+  el.textContent = `${h}:${m}:${s} UTC`;
+}
+updateClock();
+setInterval(updateClock, 1000);
+
 document.addEventListener('DOMContentLoaded', () => {
 
   // Auto-set today's date on date fields that are empty

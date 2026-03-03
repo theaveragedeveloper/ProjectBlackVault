@@ -6,7 +6,7 @@
   <title>{% block title %}Project Black Vault{% endblock %}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}" />
   <script>
@@ -15,24 +15,24 @@
         extend: {
           colors: {
             vault: {
-              bg:      '#0a0a0a',
-              surface: '#111111',
-              card:    '#161616',
-              hover:   '#1e1e1e',
-              border:  '#2a2a2a',
-              gold:    '#c9a227',
-              'gold-dim': '#8a6f1a',
-              red:     '#cc3333',
-              green:   '#2a7a3a',
-              blue:    '#1a4a8a',
-              text:    '#e0e0e0',
-              muted:   '#777777',
+              bg:          '#06090f',
+              surface:     '#0a1120',
+              card:        '#0e1828',
+              hover:       '#152030',
+              border:      '#1a2d42',
+              gold:        '#00b4d8',
+              'gold-dim':  '#006b85',
+              red:         '#e53e3e',
+              green:       '#38a169',
+              blue:        '#2b6cb0',
+              text:        '#dce8f0',
+              muted:       '#3a5570',
             }
           },
           fontFamily: {
-            tactical: ['Rajdhani', 'sans-serif'],
-            mono:     ['Share Tech Mono', 'monospace'],
-            hud:      ['Orbitron', 'sans-serif'],
+            tactical: ['Inter', 'sans-serif'],
+            mono:     ['"JetBrains Mono"', 'monospace'],
+            hud:      ['Inter', 'sans-serif'],
           }
         }
       }
@@ -43,15 +43,16 @@
 
   <!-- Sidebar -->
   <nav id="sidebar" class="fixed left-0 top-0 h-full w-64 bg-vault-surface border-r border-vault-border z-50 flex flex-col transition-transform duration-300">
+
     <!-- Logo -->
     <div class="p-5 border-b border-vault-border">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 bg-vault-gold flex items-center justify-center" style="clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);">
-          <span class="text-black font-hud font-black text-sm">BV</span>
+        <div class="w-9 h-9 border border-vault-gold flex items-center justify-center flex-shrink-0">
+          <span class="font-mono font-bold text-vault-gold text-xs tracking-widest">BV</span>
         </div>
         <div>
-          <div class="font-hud font-bold text-vault-gold text-sm tracking-widest">BLACK</div>
-          <div class="font-hud font-bold text-vault-text text-sm tracking-widest -mt-1">VAULT</div>
+          <div class="font-mono font-bold text-vault-text text-xs tracking-widest">BLACK VAULT</div>
+          <div class="font-mono text-vault-muted text-xs tracking-wider mt-0.5">ASSET REGISTRY</div>
         </div>
       </div>
     </div>
@@ -62,63 +63,68 @@
         <span class="text-xs text-vault-muted tracking-widest font-mono uppercase">Navigation</span>
       </div>
       <a href="{{ url_for('main.index') }}"
-         class="nav-link flex items-center gap-3 px-4 py-3 text-sm font-semibold tracking-wide transition-all {% if request.endpoint == 'main.index' %}active{% endif %}">
-        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-        <span>DASHBOARD</span>
+         class="nav-link flex items-center gap-3 px-4 py-2.5 transition-all {% if request.endpoint == 'main.index' %}active{% endif %}">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        <span>Dashboard</span>
       </a>
       <a href="{{ url_for('firearms.list_firearms') }}"
-         class="nav-link flex items-center gap-3 px-4 py-3 text-sm font-semibold tracking-wide transition-all {% if 'firearms' in request.endpoint %}active{% endif %}">
+         class="nav-link flex items-center gap-3 px-4 py-2.5 transition-all {% if 'firearms' in request.endpoint %}active{% endif %}">
         <svg class="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M1 9v2h1v4h2v1h14v-1h1v-4h1V9H1zm18 5H5v-3h14v3zM21 7h-1V4h-2v3h-1V3H3v4H2v2h20V7h-1zM5 6V4h12v2H5z"/></svg>
-        <span>FIREARMS</span>
+        <span>Firearms</span>
       </a>
       <a href="{{ url_for('accessories.list_accessories') }}"
-         class="nav-link flex items-center gap-3 px-4 py-3 text-sm font-semibold tracking-wide transition-all {% if 'accessories' in request.endpoint %}active{% endif %}">
-        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
-        <span>ACCESSORIES</span>
+         class="nav-link flex items-center gap-3 px-4 py-2.5 transition-all {% if 'accessories' in request.endpoint %}active{% endif %}">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+        <span>Accessories</span>
       </a>
       <a href="{{ url_for('maintenance.list_maintenance') }}"
-         class="nav-link flex items-center gap-3 px-4 py-3 text-sm font-semibold tracking-wide transition-all {% if 'maintenance' in request.endpoint %}active{% endif %}">
-        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-        <span>MAINTENANCE</span>
+         class="nav-link flex items-center gap-3 px-4 py-2.5 transition-all {% if 'maintenance' in request.endpoint %}active{% endif %}">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        <span>Maintenance</span>
       </a>
 
       <div class="px-4 mt-6 mb-2">
         <span class="text-xs text-vault-muted tracking-widest font-mono uppercase">Quick Add</span>
       </div>
       <a href="{{ url_for('firearms.add_firearm') }}"
-         class="nav-link flex items-center gap-3 px-4 py-3 text-sm font-semibold tracking-wide transition-all text-vault-muted">
-        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-        <span>ADD FIREARM</span>
+         class="nav-link flex items-center gap-3 px-4 py-2.5 transition-all text-vault-muted">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4"/></svg>
+        <span>Add Firearm</span>
       </a>
       <a href="{{ url_for('accessories.add_accessory') }}"
-         class="nav-link flex items-center gap-3 px-4 py-3 text-sm font-semibold tracking-wide transition-all text-vault-muted">
-        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-        <span>ADD ACCESSORY</span>
+         class="nav-link flex items-center gap-3 px-4 py-2.5 transition-all text-vault-muted">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4"/></svg>
+        <span>Add Accessory</span>
       </a>
       <a href="{{ url_for('maintenance.add_maintenance') }}"
-         class="nav-link flex items-center gap-3 px-4 py-3 text-sm font-semibold tracking-wide transition-all text-vault-muted">
-        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-        <span>LOG MAINTENANCE</span>
+         class="nav-link flex items-center gap-3 px-4 py-2.5 transition-all text-vault-muted">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4"/></svg>
+        <span>Log Maintenance</span>
       </a>
     </div>
 
     <!-- Footer -->
     <div class="p-4 border-t border-vault-border">
-      <div class="text-xs text-vault-muted font-mono">PROJECT BLACK VAULT</div>
+      <div class="flex items-center gap-2 mb-1">
+        <span class="status-dot"></span>
+        <span class="text-xs text-vault-muted font-mono">SYSTEM ONLINE</span>
+      </div>
       <div class="text-xs text-vault-muted font-mono">v1.0.0</div>
     </div>
   </nav>
 
   <!-- Main Content -->
   <div class="ml-64 flex-1 flex flex-col min-h-screen">
+
     <!-- Top Bar -->
     <header class="sticky top-0 z-40 bg-vault-surface border-b border-vault-border px-6 py-3 flex items-center justify-between">
       <div>
-        <h1 class="font-hud text-vault-gold text-lg tracking-widest uppercase">{% block page_title %}Dashboard{% endblock %}</h1>
+        <h1 class="font-mono font-bold text-vault-gold text-sm tracking-widest uppercase">{% block page_title %}Dashboard{% endblock %}</h1>
         <div class="text-xs text-vault-muted font-mono mt-0.5">{% block page_subtitle %}{% endblock %}</div>
       </div>
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-4">
         {% block header_actions %}{% endblock %}
+        <div class="text-xs font-mono text-vault-muted border-l border-vault-border pl-4 tabular-nums" id="sys-clock">--:--:-- UTC</div>
       </div>
     </header>
 
@@ -127,9 +133,9 @@
       {% if messages %}
         <div class="px-6 pt-4 space-y-2">
           {% for category, message in messages %}
-            <div class="flash-message flex items-center gap-3 px-4 py-3 border text-sm font-semibold tracking-wide
-              {% if category == 'error' %}bg-red-900/20 border-red-700 text-red-400
-              {% elif category == 'success' %}bg-green-900/20 border-green-700 text-green-400
+            <div class="flash-message flex items-center gap-3 px-4 py-2.5 border text-xs font-mono tracking-wide
+              {% if category == 'error' %}bg-red-900/10 border-red-900 text-red-400
+              {% elif category == 'success' %}bg-green-900/10 border-green-900 text-green-400
               {% else %}bg-vault-card border-vault-border text-vault-text{% endif %}">
               <span>{{ message }}</span>
               <button onclick="this.parentElement.remove()" class="ml-auto text-vault-muted hover:text-vault-text">✕</button>

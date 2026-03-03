@@ -1,104 +1,121 @@
 /* ============================================================
    PROJECT BLACK VAULT — Custom Styles
-   Military / Tactical / COD-inspired UI
+   Modern Military / Operational Intelligence UI
    ============================================================ */
 
 :root {
-  --bg-primary:    #0a0a0a;
-  --bg-surface:    #111111;
-  --bg-card:       #161616;
-  --bg-hover:      #1e1e1e;
-  --border:        #2a2a2a;
-  --border-accent: #c9a227;
-  --gold:          #c9a227;
-  --gold-dim:      #8a6f1a;
-  --red:           #cc3333;
-  --green:         #2a7a3a;
-  --text:          #e0e0e0;
-  --muted:         #777777;
+  --bg-primary:     #06090f;
+  --bg-surface:     #0a1120;
+  --bg-card:        #0e1828;
+  --bg-hover:       #152030;
+  --border:         #1a2d42;
+  --border-accent:  #00b4d8;
+  --cyan:           #00b4d8;
+  --cyan-dim:       #006b85;
+  --cyan-bright:    #38d4f5;
+  --red:            #e53e3e;
+  --green:          #38a169;
+  --amber:          #d97706;
+  --text:           #dce8f0;
+  --text-secondary: #7a9bb5;
+  --muted:          #3a5570;
 }
 
 /* ── Scrollbar ── */
-::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: var(--bg-primary); }
-::-webkit-scrollbar-thumb { background: #333; border-radius: 0; }
-::-webkit-scrollbar-thumb:hover { background: var(--gold-dim); }
+::-webkit-scrollbar-thumb { background: #1a3050; border-radius: 0; }
+::-webkit-scrollbar-thumb:hover { background: var(--cyan-dim); }
 
 /* ── Selection ── */
-::selection { background: var(--gold); color: #000; }
+::selection { background: var(--cyan); color: #000; }
 
 /* ── Body ── */
 body {
   background: var(--bg-primary);
   color: var(--text);
-  font-family: 'Rajdhani', sans-serif;
+  font-family: 'Inter', sans-serif;
 }
 
 /* ── Navigation ── */
 .nav-link {
-  color: #999;
-  border-left: 3px solid transparent;
-  letter-spacing: 0.1em;
+  color: var(--text-secondary);
+  border-left: 2px solid transparent;
+  letter-spacing: 0.03em;
+  font-size: 0.8rem;
+  font-weight: 500;
 }
 .nav-link:hover {
-  color: var(--gold);
-  background: rgba(201, 162, 39, 0.06);
-  border-left-color: var(--gold-dim);
+  color: var(--text);
+  background: rgba(0, 180, 216, 0.06);
+  border-left-color: var(--cyan-dim);
 }
 .nav-link.active {
-  color: var(--gold);
-  background: rgba(201, 162, 39, 0.1);
-  border-left-color: var(--gold);
+  color: var(--cyan);
+  background: rgba(0, 180, 216, 0.08);
+  border-left-color: var(--cyan);
 }
 
 /* ── Buttons ── */
 .btn-primary {
-  display: inline-block;
-  background: var(--gold);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  background: var(--cyan);
   color: #000;
-  font-family: 'Rajdhani', sans-serif;
-  font-weight: 700;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 0.7rem;
   letter-spacing: 0.1em;
-  padding: 0.5rem 1rem;
+  padding: 0.45rem 1rem;
   transition: all 0.15s ease;
-  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+  text-transform: uppercase;
+  border: 1px solid var(--cyan);
 }
 .btn-primary:hover {
-  background: #e0b52c;
-  transform: translateY(-1px);
+  background: var(--cyan-bright);
+  border-color: var(--cyan-bright);
 }
-.btn-primary:active { transform: translateY(0); }
+.btn-primary:active { opacity: 0.9; }
 
 .btn-secondary {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
   background: transparent;
-  color: var(--text);
-  font-family: 'Rajdhani', sans-serif;
-  font-weight: 600;
+  color: var(--text-secondary);
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  font-size: 0.7rem;
   letter-spacing: 0.1em;
-  padding: 0.5rem 1rem;
+  padding: 0.45rem 1rem;
   border: 1px solid var(--border);
   transition: all 0.15s ease;
+  text-transform: uppercase;
 }
 .btn-secondary:hover {
-  border-color: var(--gold);
-  color: var(--gold);
+  border-color: var(--cyan-dim);
+  color: var(--cyan);
 }
 
 .btn-danger {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
   background: transparent;
-  color: #cc3333;
-  font-family: 'Rajdhani', sans-serif;
-  font-weight: 600;
+  color: #fc8181;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  font-size: 0.7rem;
   letter-spacing: 0.1em;
-  padding: 0.5rem 1rem;
-  border: 1px solid #661a1a;
+  padding: 0.45rem 1rem;
+  border: 1px solid #742a2a;
   transition: all 0.15s ease;
+  text-transform: uppercase;
 }
 .btn-danger:hover {
-  background: rgba(204, 51, 51, 0.15);
-  border-color: #cc3333;
+  background: rgba(229, 62, 62, 0.1);
+  border-color: #e53e3e;
 }
 
 /* ── Cards ── */
@@ -117,19 +134,19 @@ body {
   content: '';
   position: absolute;
   top: 0; left: 0;
-  width: 3px;
+  width: 2px;
   height: 100%;
   background: transparent;
   transition: background 0.2s ease;
 }
 .firearm-card:hover {
-  border-color: rgba(201, 162, 39, 0.4);
-  background: rgba(201, 162, 39, 0.03);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  border-color: rgba(0, 180, 216, 0.3);
+  background: rgba(0, 180, 216, 0.02);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
 }
 .firearm-card:hover::before {
-  background: var(--gold);
+  background: var(--cyan);
 }
 
 .stat-card {
@@ -143,17 +160,17 @@ body {
   position: absolute;
   bottom: 0; left: 0;
   width: 100%;
-  height: 2px;
-  background: linear-gradient(90deg, var(--gold), transparent);
+  height: 1px;
+  background: linear-gradient(90deg, var(--cyan), transparent);
 }
 
 /* ── Form Elements ── */
 .form-label {
   display: block;
-  font-size: 0.7rem;
-  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.65rem;
+  font-family: 'JetBrains Mono', monospace;
   color: var(--muted);
-  letter-spacing: 0.15em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   margin-bottom: 0.375rem;
 }
@@ -162,18 +179,19 @@ body {
   background: var(--bg-surface);
   border: 1px solid var(--border);
   color: var(--text);
-  font-family: 'Rajdhani', sans-serif;
-  font-size: 0.95rem;
-  padding: 0.5rem 0.75rem;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+  padding: 0.45rem 0.75rem;
   transition: border-color 0.15s ease;
   outline: none;
   border-radius: 0;
+  width: 100%;
 }
 .form-input:focus {
-  border-color: var(--gold);
-  background: #141414;
+  border-color: var(--cyan-dim);
+  background: #091420;
 }
-.form-input::placeholder { color: #444; }
+.form-input::placeholder { color: #1e3a50; }
 select.form-input option {
   background: var(--bg-surface);
   color: var(--text);
@@ -181,11 +199,11 @@ select.form-input option {
 
 /* ── Section Headers ── */
 .section-title {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 0.7rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
   font-weight: 700;
-  color: var(--gold);
-  letter-spacing: 0.25em;
+  color: var(--cyan);
+  letter-spacing: 0.2em;
   text-transform: uppercase;
   padding-bottom: 0.5rem;
   border-bottom: 1px solid var(--border);
@@ -194,45 +212,48 @@ select.form-input option {
 
 /* ── Badges ── */
 .active-badge {
-  font-family: 'Share Tech Mono', monospace;
-  font-size: 0.6rem;
-  letter-spacing: 0.15em;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
   color: #000;
-  background: var(--gold);
-  padding: 0.15rem 0.5rem;
+  background: var(--cyan);
+  padding: 0.1rem 0.5rem;
+  text-transform: uppercase;
 }
 
 .category-badge {
-  font-family: 'Share Tech Mono', monospace;
-  font-size: 0.6rem;
-  letter-spacing: 0.15em;
-  color: var(--gold);
-  border: 1px solid var(--gold-dim);
-  padding: 0.15rem 0.5rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  color: var(--cyan);
+  border: 1px solid var(--cyan-dim);
+  padding: 0.1rem 0.5rem;
+  text-transform: uppercase;
 }
 
 /* ── Filter Chips ── */
 .filter-chip {
   display: inline-block;
-  font-family: 'Rajdhani', sans-serif;
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.15em;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
   padding: 0.25rem 0.75rem;
   border: 1px solid var(--border);
   color: var(--muted);
   background: transparent;
   cursor: pointer;
   transition: all 0.15s ease;
+  text-transform: uppercase;
 }
 .filter-chip:hover {
-  border-color: var(--gold-dim);
-  color: var(--gold);
+  border-color: var(--cyan-dim);
+  color: var(--text-secondary);
 }
 .filter-chip.active {
-  background: var(--gold);
-  border-color: var(--gold);
-  color: #000;
+  background: rgba(0, 180, 216, 0.1);
+  border-color: var(--cyan);
+  color: var(--cyan);
 }
 
 /* ── Empty State ── */
@@ -250,38 +271,38 @@ select.form-input option {
   position: relative;
 }
 .slot-card.occupied {
-  border-color: rgba(201, 162, 39, 0.35);
+  border-color: rgba(0, 180, 216, 0.3);
 }
 .slot-card.occupied::before {
   content: '';
   position: absolute;
   top: 0; left: 0;
-  width: 3px;
+  width: 2px;
   height: 100%;
-  background: var(--gold);
+  background: var(--cyan);
 }
 
 .empty-slot {
-  border: 1px dashed #333;
+  border: 1px dashed #152030;
   background: transparent;
   transition: all 0.2s ease;
 }
 .empty-slot:hover {
-  border-color: rgba(201, 162, 39, 0.4);
-  background: rgba(201, 162, 39, 0.03);
+  border-color: rgba(0, 180, 216, 0.35);
+  background: rgba(0, 180, 216, 0.02);
 }
 
 /* ── Modals ── */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(0, 0, 0, 0.88);
   z-index: 100;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 1rem;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(2px);
 }
 .modal-overlay.hidden { display: none; }
 
@@ -300,8 +321,8 @@ select.form-input option {
   position: absolute;
   top: 0; left: 0;
   width: 100%;
-  height: 3px;
-  background: linear-gradient(90deg, var(--gold), var(--gold-dim), transparent);
+  height: 1px;
+  background: linear-gradient(90deg, var(--cyan), var(--cyan-dim), transparent);
 }
 
 /* ── Tactical corner decoration ── */
@@ -312,40 +333,41 @@ select.form-input option {
 .tactical-corner::after {
   content: '';
   position: absolute;
-  width: 12px;
-  height: 12px;
-  border-color: var(--gold);
+  width: 10px;
+  height: 10px;
+  border-color: var(--cyan-dim);
   border-style: solid;
 }
 .tactical-corner::before {
   top: -1px; left: -1px;
-  border-width: 2px 0 0 2px;
+  border-width: 1px 0 0 1px;
 }
 .tactical-corner::after {
   bottom: -1px; right: -1px;
-  border-width: 0 2px 2px 0;
+  border-width: 0 1px 1px 0;
 }
 
 /* ── Slot type buttons in modal ── */
 .slot-type-btn {
   background: var(--bg-surface);
-  font-family: 'Rajdhani', sans-serif;
-  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  font-size: 0.75rem;
 }
 .slot-type-btn:hover {
-  background: rgba(201, 162, 39, 0.08);
+  background: rgba(0, 180, 216, 0.08);
 }
 
 /* ── Flash message animation ── */
 .flash-message {
-  animation: slideIn 0.3s ease;
+  animation: slideIn 0.2s ease;
 }
 @keyframes slideIn {
-  from { transform: translateY(-10px); opacity: 0; }
+  from { transform: translateY(-6px); opacity: 0; }
   to   { transform: translateY(0);    opacity: 1; }
 }
 
-/* ── Scanline overlay effect (subtle) ── */
+/* ── Subtle scanline overlay ── */
 body::after {
   content: '';
   position: fixed;
@@ -355,20 +377,31 @@ body::after {
     0deg,
     transparent,
     transparent 2px,
-    rgba(0, 0, 0, 0.015) 2px,
-    rgba(0, 0, 0, 0.015) 4px
+    rgba(0, 0, 0, 0.01) 2px,
+    rgba(0, 0, 0, 0.01) 4px
   );
   z-index: 9999;
 }
 
-/* ── Tables ── */
+/* ── Operational status dot ── */
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* ── Data tables ── */
 table { border-collapse: collapse; }
 
-/* ── Image hover glow ── */
-img { filter: brightness(0.95); transition: filter 0.2s ease; }
-img:hover { filter: brightness(1.05); }
+/* ── Images ── */
+img { filter: brightness(0.9); transition: filter 0.2s ease; }
+img:hover { filter: brightness(1.0); }
 
-/* ── Sidebar mobile (future) ── */
+/* ── Sidebar mobile ── */
 @media (max-width: 768px) {
   #sidebar { transform: translateX(-100%); }
   #sidebar.open { transform: translateX(0); }
