@@ -27,7 +27,7 @@ export async function GET() {
 
     const result = firearms.map((firearm) => ({
       ...firearm,
-      serialNumber: decryptField(firearm.serialNumber) ?? firearm.serialNumber,
+      serialNumber: firearm.serialNumber ? (decryptField(firearm.serialNumber) ?? firearm.serialNumber) : null,
       notes: decryptField(firearm.notes),
       buildCount: firearm._count.builds,
       activeBuild: firearm.builds[0] ?? null,
@@ -65,9 +65,9 @@ export async function POST(request: NextRequest) {
       imageSource,
     } = body;
 
-    if (!name || !manufacturer || !model || !caliber || !serialNumber || !type || !acquisitionDate) {
+    if (!name) {
       return NextResponse.json(
-        { error: "Missing required fields: name, manufacturer, model, caliber, serialNumber, type, acquisitionDate" },
+        { error: "Missing required field: name" },
         { status: 400 }
       );
     }
@@ -75,12 +75,12 @@ export async function POST(request: NextRequest) {
     const firearm = await prisma.firearm.create({
       data: {
         name,
-        manufacturer,
-        model,
-        caliber,
-        serialNumber: encryptField(serialNumber),
-        type,
-        acquisitionDate: new Date(acquisitionDate),
+        manufacturer: manufacturer || "",
+        model: model || "",
+        caliber: caliber || "",
+        serialNumber: serialNumber ? encryptField(serialNumber) : null,
+        type: type || "",
+        acquisitionDate: acquisitionDate ? new Date(acquisitionDate) : null,
         purchasePrice: purchasePrice ?? null,
         currentValue: currentValue ?? null,
         notes: notes ? encryptField(notes) : null,

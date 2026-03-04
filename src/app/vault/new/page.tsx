@@ -32,12 +32,12 @@ export default function NewFirearmPage() {
 
     const payload = {
       name: data.get("name") as string,
-      manufacturer: data.get("manufacturer") as string,
-      model: data.get("model") as string,
-      caliber: caliberInput,
-      serialNumber: data.get("serialNumber") as string,
-      type: data.get("type") as string,
-      acquisitionDate: data.get("acquisitionDate") as string,
+      manufacturer: (data.get("manufacturer") as string) || "",
+      model: (data.get("model") as string) || "",
+      caliber: caliberInput || "",
+      serialNumber: (data.get("serialNumber") as string) || null,
+      type: (data.get("type") as string) || "",
+      acquisitionDate: (data.get("acquisitionDate") as string) || null,
       purchasePrice: data.get("purchasePrice") ? Number(data.get("purchasePrice")) : null,
       currentValue: data.get("currentValue") ? Number(data.get("currentValue")) : null,
       notes: (data.get("notes") as string) || null,
@@ -87,7 +87,7 @@ export default function NewFirearmPage() {
       <div className="max-w-2xl mx-auto px-6 py-8">
         <div className="mb-8">
           <h2 className="text-xl font-bold text-vault-text mb-1">New Firearm Entry</h2>
-          <p className="text-sm text-vault-text-muted">Register a new firearm in the vault.</p>
+          <p className="text-sm text-vault-text-muted">Register a new firearm in the vault. Only the firearm name is required.</p>
         </div>
 
         {error && (
@@ -121,26 +121,24 @@ export default function NewFirearmPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="manufacturer" className={LABEL_CLASS}>
-                  Manufacturer <span className="text-[#E53935]">*</span>
+                  Manufacturer
                 </label>
                 <input
                   id="manufacturer"
                   name="manufacturer"
                   type="text"
-                  required
                   placeholder="e.g. Glock"
                   className={INPUT_CLASS}
                 />
               </div>
               <div>
                 <label htmlFor="model" className={LABEL_CLASS}>
-                  Model <span className="text-[#E53935]">*</span>
+                  Model
                 </label>
                 <input
                   id="model"
                   name="model"
                   type="text"
-                  required
                   placeholder="e.g. G19 Gen5"
                   className={INPUT_CLASS}
                 />
@@ -150,9 +148,7 @@ export default function NewFirearmPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Caliber Combobox */}
               <div>
-                <label className={LABEL_CLASS}>
-                  Caliber <span className="text-[#E53935]">*</span>
-                </label>
+                <label className={LABEL_CLASS}>Caliber</label>
                 <div className="relative" ref={caliberRef}>
                   <input
                     type="text"
@@ -163,7 +159,6 @@ export default function NewFirearmPage() {
                     }}
                     onFocus={() => setCaliberDropdownOpen(true)}
                     onBlur={() => setTimeout(() => setCaliberDropdownOpen(false), 150)}
-                    required
                     placeholder="e.g. 9mm Luger"
                     className={INPUT_CLASS}
                   />
@@ -190,9 +185,9 @@ export default function NewFirearmPage() {
               {/* Type */}
               <div>
                 <label htmlFor="type" className={LABEL_CLASS}>
-                  Type <span className="text-[#E53935]">*</span>
+                  Type
                 </label>
-                <select id="type" name="type" required className={INPUT_CLASS}>
+                <select id="type" name="type" className={INPUT_CLASS}>
                   <option value="">Select type...</option>
                   {FIREARM_TYPES.map((t) => (
                     <option key={t} value={t}>
@@ -205,17 +200,16 @@ export default function NewFirearmPage() {
 
             <div>
               <label htmlFor="serialNumber" className={LABEL_CLASS}>
-                Serial Number <span className="text-[#E53935]">*</span>
+                Serial Number
               </label>
               <input
                 id="serialNumber"
                 name="serialNumber"
                 type="text"
-                required
-                placeholder="e.g. ABC123456"
+                placeholder="e.g. ABC123456 (optional)"
                 className={`${INPUT_CLASS} font-mono`}
               />
-              <p className="text-xs text-vault-text-faint mt-1">Must be unique across all firearms in vault.</p>
+              <p className="text-xs text-vault-text-faint mt-1">Must be unique if provided.</p>
             </div>
           </fieldset>
 
@@ -227,15 +221,13 @@ export default function NewFirearmPage() {
 
             <div>
               <label htmlFor="acquisitionDate" className={LABEL_CLASS}>
-                Date Acquired <span className="text-[#E53935]">*</span>
+                Date Acquired
               </label>
               <input
                 id="acquisitionDate"
                 name="acquisitionDate"
                 type="date"
-                required
                 className={INPUT_CLASS}
-                defaultValue={new Date().toISOString().split("T")[0]}
               />
             </div>
 
