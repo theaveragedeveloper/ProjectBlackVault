@@ -4,7 +4,7 @@ FROM node:20-alpine AS deps
 WORKDIR /app
 
 # Install libc6-compat for native modules (e.g. sharp, better-sqlite3)
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat openssl
 
 COPY package.json package-lock.json* ./
 RUN npm ci --omit=dev
@@ -14,7 +14,7 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat openssl
 
 # Copy production deps from stage 1
 COPY --from=deps /app/node_modules ./node_modules
@@ -37,7 +37,7 @@ FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat openssl
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
