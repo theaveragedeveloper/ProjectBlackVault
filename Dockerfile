@@ -28,6 +28,11 @@ RUN npm ci
 # Generate Prisma client
 RUN npx prisma generate
 
+# Provide a build-time database so static pre-rendering can run Prisma queries.
+# At runtime, DATABASE_URL is overridden by docker-compose to /app/data/vault.db.
+ENV DATABASE_URL="file:/tmp/build.db"
+RUN npx prisma migrate deploy
+
 # Build Next.js in standalone mode
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
