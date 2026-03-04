@@ -23,6 +23,7 @@ export async function GET() {
       ...settings,
       googleCseApiKey: settings.googleCseApiKey ? "***configured***" : null,
       _googleCseApiKeyIsSet: !!settings.googleCseApiKey,
+      encryptionEnabled: !!process.env.VAULT_ENCRYPTION_KEY,
     });
   } catch (error) {
     console.error("GET /api/settings error:", error);

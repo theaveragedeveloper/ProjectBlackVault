@@ -51,7 +51,7 @@ const TYPE_BADGE_COLORS: Record<string, string> = {
   SMG: "border-[#9C27B0]/40 text-[#CE93D8]",
   PCC: "border-[#00BCD4]/40 text-[#00BCD4]",
   REVOLVER: "border-[#E53935]/40 text-[#EF9A9A]",
-  BOLT_ACTION: "border-[#8B9DB0]/40 text-[#8B9DB0]",
+  BOLT_ACTION: "border-[#8B9DB0]/40 text-vault-text-muted",
   LEVER_ACTION: "border-[#FF7043]/40 text-[#FF7043]",
 };
 
@@ -117,7 +117,7 @@ function SortableWidget({
         <div
           {...attributes}
           {...listeners}
-          className="absolute top-3 right-3 z-10 cursor-grab active:cursor-grabbing p-1.5 rounded bg-[#161B22] border border-[#21262D] text-[#5C6E82] hover:text-[#9AA5B4] transition-colors"
+          className="absolute top-3 right-3 z-10 cursor-grab active:cursor-grabbing p-1.5 rounded bg-vault-surface-2 border border-vault-border text-vault-text-faint hover:text-vault-text-muted transition-colors"
           title="Drag to reorder"
         >
           <GripVertical className="w-4 h-4" />
@@ -186,16 +186,16 @@ function LowAmmoWidget({ items }: { items: AmmoStockItem[] }) {
           </span>
         )}
       </div>
-      <div className="bg-[#0D1117] border border-[#21262D] rounded-lg overflow-hidden">
+      <div className="bg-vault-surface border border-vault-border rounded-lg overflow-hidden">
         {items.length === 0 ? (
           <div className="p-8 text-center">
             <div className="w-10 h-10 rounded-full bg-[#00C853]/10 border border-[#00C853]/20 flex items-center justify-center mx-auto mb-3">
               <Target className="w-5 h-5 text-[#00C853]" />
             </div>
-            <p className="text-sm text-[#9AA5B4]">All stocks are well supplied</p>
+            <p className="text-sm text-vault-text-muted">All stocks are well supplied</p>
           </div>
         ) : (
-          <div className="divide-y divide-[#21262D]">
+          <div className="divide-y divide-vault-border">
             {items.map((item) => {
               const pct = item.lowStockAlert
                 ? Math.round((item.quantity / item.lowStockAlert) * 100)
@@ -209,13 +209,13 @@ function LowAmmoWidget({ items }: { items: AmmoStockItem[] }) {
                 <div key={item.id} className="flex items-center gap-4 px-4 py-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm font-mono font-semibold text-[#F7F9FC]">
+                      <span className="text-sm font-mono font-semibold text-vault-text">
                         {item.caliber}
                       </span>
-                      <span className="text-xs text-[#5C6E82]">·</span>
-                      <span className="text-xs text-[#9AA5B4] truncate">{item.brand}</span>
+                      <span className="text-xs text-vault-text-faint">·</span>
+                      <span className="text-xs text-vault-text-muted truncate">{item.brand}</span>
                     </div>
-                    <div className="w-full bg-[#21262D] rounded-full h-1">
+                    <div className="w-full bg-vault-border rounded-full h-1">
                       <div
                         className={`h-1 rounded-full transition-all ${barColor}`}
                         style={{ width: `${Math.min(pct, 100)}%` }}
@@ -226,7 +226,7 @@ function LowAmmoWidget({ items }: { items: AmmoStockItem[] }) {
                     <p className={`text-sm font-mono font-bold ${statusColor}`}>
                       {formatNumber(item.quantity)}
                     </p>
-                    <p className="text-xs text-[#5C6E82]">
+                    <p className="text-xs text-vault-text-faint">
                       alert: {formatNumber(item.lowStockAlert ?? 0)}
                     </p>
                   </div>
@@ -260,13 +260,13 @@ function RecentWidget({ firearms }: { firearms: RecentFirearm[] }) {
           Recent Acquisitions
         </h2>
       </div>
-      <div className="bg-[#0D1117] border border-[#21262D] rounded-lg overflow-hidden">
+      <div className="bg-vault-surface border border-vault-border rounded-lg overflow-hidden">
         {firearms.length === 0 ? (
           <div className="p-8 text-center">
             <div className="w-10 h-10 rounded-full bg-[#00C2FF]/10 border border-[#00C2FF]/20 flex items-center justify-center mx-auto mb-3">
               <Shield className="w-5 h-5 text-[#00C2FF]" />
             </div>
-            <p className="text-sm text-[#9AA5B4] mb-3">No firearms in vault yet</p>
+            <p className="text-sm text-vault-text-muted mb-3">No firearms in vault yet</p>
             <Link
               href="/vault/new"
               className="text-xs bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 px-3 py-1.5 rounded transition-colors"
@@ -275,14 +275,14 @@ function RecentWidget({ firearms }: { firearms: RecentFirearm[] }) {
             </Link>
           </div>
         ) : (
-          <div className="divide-y divide-[#21262D]">
+          <div className="divide-y divide-vault-border">
             {firearms.map((firearm) => (
               <Link
                 key={firearm.id}
                 href={`/vault/${firearm.id}`}
-                className="flex items-center gap-3 px-4 py-3 hover:bg-[#161B22] transition-colors group"
+                className="flex items-center gap-3 px-4 py-3 hover:bg-vault-surface-2 transition-colors group"
               >
-                <div className="w-10 h-10 rounded bg-[#21262D] border border-[#21262D] overflow-hidden shrink-0 flex items-center justify-center">
+                <div className="w-10 h-10 rounded bg-vault-border border border-vault-border overflow-hidden shrink-0 flex items-center justify-center">
                   {firearm.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -291,31 +291,31 @@ function RecentWidget({ firearms }: { firearms: RecentFirearm[] }) {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <Shield className="w-4 h-4 text-[#5C6E82]" />
+                    <Shield className="w-4 h-4 text-vault-text-faint" />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
-                    <p className="text-sm font-semibold text-[#F7F9FC] truncate group-hover:text-[#00C2FF] transition-colors">
+                    <p className="text-sm font-semibold text-vault-text truncate group-hover:text-[#00C2FF] transition-colors">
                       {firearm.name}
                     </p>
                     <span
                       className={`text-[10px] px-1.5 py-0.5 rounded border font-mono uppercase shrink-0 ${
-                        TYPE_BADGE_COLORS[firearm.type] ?? "border-[#21262D] text-[#9AA5B4]"
+                        TYPE_BADGE_COLORS[firearm.type] ?? "border-vault-border text-vault-text-muted"
                       }`}
                     >
                       {FIREARM_TYPE_LABELS[firearm.type] ?? firearm.type}
                     </span>
                   </div>
-                  <p className="text-xs text-[#9AA5B4]">
+                  <p className="text-xs text-vault-text-muted">
                     {firearm.manufacturer} · {firearm.caliber}
                   </p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-xs text-[#5C6E82]">
+                  <p className="text-xs text-vault-text-faint">
                     {formatDate(firearm.acquisitionDate)}
                   </p>
-                  <ChevronRight className="w-3 h-3 text-[#5C6E82] group-hover:text-[#00C2FF] ml-auto mt-1 transition-colors" />
+                  <ChevronRight className="w-3 h-3 text-vault-text-faint group-hover:text-[#00C2FF] ml-auto mt-1 transition-colors" />
                 </div>
               </Link>
             ))}
@@ -355,13 +355,13 @@ function AmmoSummaryWidget({ ammoStocks }: { ammoStocks: AmmoStockItem[] }) {
           Ammo by Caliber
         </h2>
       </div>
-      <div className="bg-[#0D1117] border border-[#21262D] rounded-lg overflow-hidden">
+      <div className="bg-vault-surface border border-vault-border rounded-lg overflow-hidden">
         {sorted.length === 0 ? (
           <div className="p-8 text-center">
             <div className="w-10 h-10 rounded-full bg-[#00C853]/10 border border-[#00C853]/20 flex items-center justify-center mx-auto mb-3">
               <Package className="w-5 h-5 text-[#00C853]" />
             </div>
-            <p className="text-sm text-[#9AA5B4] mb-3">No ammo tracked yet</p>
+            <p className="text-sm text-vault-text-muted mb-3">No ammo tracked yet</p>
             <Link
               href="/ammo"
               className="text-xs bg-[#00C853]/10 border border-[#00C853]/30 text-[#00C853] hover:bg-[#00C853]/20 px-3 py-1.5 rounded transition-colors"
@@ -370,21 +370,21 @@ function AmmoSummaryWidget({ ammoStocks }: { ammoStocks: AmmoStockItem[] }) {
             </Link>
           </div>
         ) : (
-          <div className="divide-y divide-[#21262D]">
+          <div className="divide-y divide-vault-border">
             {sorted.map(([caliber, qty]) => {
               const pct = Math.round((qty / maxQty) * 100);
               return (
                 <div key={caliber} className="flex items-center gap-4 px-4 py-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-mono font-semibold text-[#F7F9FC]">
+                      <span className="text-sm font-mono font-semibold text-vault-text">
                         {caliber}
                       </span>
                       <span className="text-sm font-mono font-bold text-[#00C853]">
                         {formatNumber(qty)}
                       </span>
                     </div>
-                    <div className="w-full bg-[#21262D] rounded-full h-1">
+                    <div className="w-full bg-vault-border rounded-full h-1">
                       <div
                         className="h-1 rounded-full bg-[#00C853] transition-all"
                         style={{ width: `${pct}%` }}
@@ -486,7 +486,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
       <div className="flex items-center justify-end mb-6">
         {editMode ? (
           <div className="flex items-center gap-3">
-            <p className="text-xs text-[#9AA5B4]">Drag widgets to reorder</p>
+            <p className="text-xs text-vault-text-muted">Drag widgets to reorder</p>
             <button
               onClick={() => setEditMode(false)}
               className="flex items-center gap-1.5 text-xs bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 px-3 py-1.5 rounded transition-colors"
@@ -498,7 +498,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
         ) : (
           <button
             onClick={() => setEditMode(true)}
-            className="flex items-center gap-1.5 text-xs text-[#5C6E82] hover:text-[#9AA5B4] border border-[#21262D] px-3 py-1.5 rounded transition-colors"
+            className="flex items-center gap-1.5 text-xs text-vault-text-faint hover:text-vault-text-muted border border-vault-border px-3 py-1.5 rounded transition-colors"
           >
             <Settings2 className="w-3 h-3" />
             Customize

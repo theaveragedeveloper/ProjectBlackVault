@@ -10,11 +10,11 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, subtitle, actions, className }: PageHeaderProps) {
   return (
-    <div className={cn("flex items-center justify-between py-6 px-6 border-b border-[#1C2530]", className)}>
+    <div className={cn("flex items-center justify-between py-6 px-6 border-b border-vault-border", className)}>
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-[#E8EDF2]">{title}</h1>
+        <h1 className="text-xl font-bold tracking-tight text-vault-text">{title}</h1>
         {subtitle && (
-          <p className="text-sm text-[#8B9DB0] mt-0.5">{subtitle}</p>
+          <p className="text-sm text-vault-text-muted mt-0.5">{subtitle}</p>
         )}
       </div>
       {actions && (

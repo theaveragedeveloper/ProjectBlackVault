@@ -79,16 +79,16 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const navContent = (
     <>
       {/* Logo */}
-      <div className="flex items-center gap-3 px-4 h-14 border-b border-[#21262D] shrink-0">
+      <div className="flex items-center gap-3 px-4 h-14 border-b border-vault-border shrink-0">
         <div className="w-7 h-7 rounded bg-[#00C2FF]/10 border border-[#00C2FF]/30 flex items-center justify-center shrink-0">
           <Shield className="w-4 h-4 text-[#00C2FF]" />
         </div>
         {!collapsed && (
           <div className="overflow-hidden flex-1 min-w-0">
-            <p className="text-xs font-bold text-[#F7F9FC] tracking-widest uppercase leading-none">
+            <p className="text-xs font-bold text-vault-text tracking-widest uppercase leading-none">
               BlackVault
             </p>
-            <p className="text-[10px] text-[#5C6E82] tracking-wider uppercase mt-0.5">
+            <p className="text-[10px] text-vault-text-faint tracking-wider uppercase mt-0.5">
               Armory Platform
             </p>
           </div>
@@ -97,7 +97,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
         {onMobileClose && (
           <button
             onClick={onMobileClose}
-            className="md:hidden ml-auto p-1 text-[#5C6E82] hover:text-[#9AA5B4] transition-colors"
+            className="md:hidden ml-auto p-1 text-vault-text-faint hover:text-vault-text-muted transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -121,7 +121,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
                 "flex items-center gap-3 px-2.5 py-2 rounded-md text-sm transition-all duration-150 group relative",
                 isActive
                   ? "bg-[#00C2FF]/10 text-[#00C2FF] border border-[#00C2FF]/20"
-                  : "text-[#9AA5B4] hover:text-[#F7F9FC] hover:bg-[#21262D]"
+                  : "text-vault-text-muted hover:text-vault-text hover:bg-vault-border"
               )}
             >
               {isActive && (
@@ -131,7 +131,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
                 className={cn(
                   "shrink-0 transition-colors",
                   collapsed ? "w-5 h-5" : "w-4 h-4",
-                  isActive ? "text-[#00C2FF]" : "text-[#5C6E82] group-hover:text-[#9AA5B4]"
+                  isActive ? "text-[#00C2FF]" : "text-vault-text-faint group-hover:text-vault-text-muted"
                 )}
               />
               {!collapsed && (
@@ -145,10 +145,10 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
       </nav>
 
       {/* Collapse toggle — desktop only */}
-      <div className="hidden md:block px-2 pb-3 shrink-0 border-t border-[#21262D] pt-2">
+      <div className="hidden md:block px-2 pb-3 shrink-0 border-t border-vault-border pt-2">
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="w-full flex items-center justify-center gap-2 px-2.5 py-2 rounded-md text-[#5C6E82] hover:text-[#9AA5B4] hover:bg-[#21262D] transition-colors"
+          className="w-full flex items-center justify-center gap-2 px-2.5 py-2 rounded-md text-vault-text-faint hover:text-vault-text-muted hover:bg-vault-border transition-colors"
         >
           {collapsed ? (
             <ChevronRight className="w-4 h-4" />
@@ -168,7 +168,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
       {/* Desktop sidebar */}
       <aside
         className={cn(
-          "hidden md:flex flex-col h-screen border-r border-[#21262D] bg-[#0D1117] transition-all duration-300 ease-in-out shrink-0",
+          "hidden md:flex flex-col h-screen border-r border-vault-border bg-vault-surface transition-all duration-300 ease-in-out shrink-0",
           collapsed ? "w-16" : "w-56"
         )}
       >
@@ -184,7 +184,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
             onClick={onMobileClose}
           />
           {/* Drawer */}
-          <aside className="fixed inset-y-0 left-0 z-50 flex flex-col w-64 bg-[#0D1117] border-r border-[#21262D] md:hidden animate-slide-up">
+          <aside className="fixed inset-y-0 left-0 z-50 flex flex-col w-64 bg-vault-surface border-r border-vault-border md:hidden animate-slide-up">
             {navContent}
           </aside>
         </>

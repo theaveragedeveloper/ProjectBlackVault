@@ -7,6 +7,8 @@
   --vault-surface-2:    #161B22;
   --vault-border:       #21262D;
   --vault-muted:        #1C2128;
+  --vault-canvas:       #050709;
+  --vault-overlay:      rgba(5, 7, 9, 0.85);
   --vault-accent:       #00C2FF;
   --vault-accent-dim:   rgba(0, 194, 255, 0.12);
   --vault-warn:         #F5A623;
@@ -23,9 +25,36 @@
   --foreground: var(--vault-text);
 }
 
+/* ── Light Theme Overrides ───────────────────────────────── */
+[data-theme="light"] {
+  --vault-bg:           #F8FAFC;
+  --vault-surface:      #FFFFFF;
+  --vault-surface-2:    #F1F5F9;
+  --vault-border:       #CBD5E1;
+  --vault-muted:        #E2E8F0;
+  --vault-canvas:       #E8EDF2;
+  --vault-overlay:      rgba(15, 23, 42, 0.85);
+  --vault-text:         #0F172A;
+  --vault-text-muted:   #475569;
+  --vault-text-faint:   #94A3B8;
+
+  --background: var(--vault-bg);
+  --foreground: var(--vault-text);
+}
+
+/* ── Tailwind Token Mappings ────────────────────────────── */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background:        var(--background);
+  --color-foreground:        var(--foreground);
+  --color-vault-bg:          var(--vault-bg);
+  --color-vault-surface:     var(--vault-surface);
+  --color-vault-surface-2:   var(--vault-surface-2);
+  --color-vault-border:      var(--vault-border);
+  --color-vault-muted:       var(--vault-muted);
+  --color-vault-canvas:      var(--vault-canvas);
+  --color-vault-text:        var(--vault-text);
+  --color-vault-text-muted:  var(--vault-text-muted);
+  --color-vault-text-faint:  var(--vault-text-faint);
 }
 
 /* ── Base ─────────────────────────────────────────────────── */

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { encryptField, decryptField } from "@/lib/crypto";
 
 // GET /api/firearms/[id] - Get a single firearm with active build, slots, and accessories
 export async function GET(
@@ -36,6 +37,8 @@ export async function GET(
 
     return NextResponse.json({
       ...firearm,
+      serialNumber: decryptField(firearm.serialNumber) ?? firearm.serialNumber,
+      notes: decryptField(firearm.notes),
       buildCount: firearm._count.builds,
       activeBuild,
       _count: undefined,
@@ -85,14 +88,14 @@ export async function PUT(
         ...(manufacturer !== undefined && { manufacturer }),
         ...(model !== undefined && { model }),
         ...(caliber !== undefined && { caliber }),
-        ...(serialNumber !== undefined && { serialNumber }),
+        ...(serialNumber !== undefined && { serialNumber: encryptField(serialNumber) }),
         ...(type !== undefined && { type }),
         ...(acquisitionDate !== undefined && {
           acquisitionDate: new Date(acquisitionDate),
         }),
         ...(purchasePrice !== undefined && { purchasePrice }),
         ...(currentValue !== undefined && { currentValue }),
-        ...(notes !== undefined && { notes }),
+        ...(notes !== undefined && { notes: notes ? encryptField(notes) : null }),
         ...(imageUrl !== undefined && { imageUrl }),
         ...(imageSource !== undefined && { imageSource }),
       },

@@ -182,7 +182,7 @@ export default function AccessoryDetailPage() {
   return (
     <div className="min-h-full">
       {/* Header with image */}
-      <div className="relative h-44 bg-[#080B0F] overflow-hidden">
+      <div className="relative h-44 bg-vault-bg overflow-hidden">
         {accessory.imageUrl ? (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -191,18 +191,18 @@ export default function AccessoryDetailPage() {
               alt={accessory.name}
               className="w-full h-full object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#080B0F] via-[#080B0F]/50 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-vault-bg via-vault-bg/50 to-transparent" />
           </>
         ) : (
           <div className="absolute inset-0 tactical-grid flex items-center justify-center">
-            <Shield className="w-12 h-12 text-[#1C2530]" />
+            <Shield className="w-12 h-12 text-vault-border" />
           </div>
         )}
 
         <div className="absolute top-0 left-0 right-0 flex items-center px-6 py-4">
           <Link
             href="/accessories"
-            className="flex items-center gap-1.5 text-[#E8EDF2]/80 hover:text-[#E8EDF2] text-sm transition-colors bg-[#080B0F]/60 backdrop-blur-sm px-3 py-1.5 rounded-md border border-[#1C2530]/60"
+            className="flex items-center gap-1.5 text-[#E8EDF2]/80 hover:text-vault-text text-sm transition-colors bg-vault-bg/60 backdrop-blur-sm px-3 py-1.5 rounded-md border border-[#1C2530]/60"
           >
             <ArrowLeft className="w-4 h-4" />
             Accessories
@@ -211,17 +211,17 @@ export default function AccessoryDetailPage() {
 
         <div className="absolute bottom-0 left-0 right-0 px-6 pb-4">
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs px-2 py-0.5 rounded border border-[#1C2530] text-[#8B9DB0] font-mono uppercase">
+            <span className="text-xs px-2 py-0.5 rounded border border-vault-border text-vault-text-muted font-mono uppercase">
               {SLOT_TYPE_LABELS[accessory.type] ?? accessory.type}
             </span>
             {accessory.caliber && (
-              <span className="text-xs px-2 py-0.5 rounded border border-[#1C2530] text-[#8B9DB0] font-mono">
+              <span className="text-xs px-2 py-0.5 rounded border border-vault-border text-vault-text-muted font-mono">
                 {accessory.caliber}
               </span>
             )}
           </div>
-          <h1 className="text-xl font-bold text-[#E8EDF2]">{accessory.name}</h1>
-          <p className="text-sm text-[#8B9DB0]">{accessory.manufacturer}</p>
+          <h1 className="text-xl font-bold text-vault-text">{accessory.name}</h1>
+          <p className="text-sm text-vault-text-muted">{accessory.manufacturer}</p>
         </div>
       </div>
 
@@ -229,10 +229,10 @@ export default function AccessoryDetailPage() {
         {/* Stats row */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {/* Round count - prominent */}
-          <div className="col-span-2 sm:col-span-1 bg-[#0E1318] border border-[#1C2530] rounded-lg p-4">
+          <div className="col-span-2 sm:col-span-1 bg-vault-surface border border-vault-border rounded-lg p-4">
             <div className="flex items-center gap-2 mb-2">
-              <Target className="w-3.5 h-3.5 text-[#4A5A6B]" />
-              <p className="text-[10px] uppercase tracking-widest text-[#4A5A6B]">Round Count</p>
+              <Target className="w-3.5 h-3.5 text-vault-text-faint" />
+              <p className="text-[10px] uppercase tracking-widest text-vault-text-faint">Round Count</p>
             </div>
             <p className={`text-3xl font-bold font-mono ${roundColor}`}>
               {formatNumber(accessory.roundCount)}
@@ -246,28 +246,28 @@ export default function AccessoryDetailPage() {
             </button>
           </div>
 
-          <div className="bg-[#0E1318] border border-[#1C2530] rounded-lg p-4">
+          <div className="bg-vault-surface border border-vault-border rounded-lg p-4">
             <div className="flex items-center gap-2 mb-2">
-              <DollarSign className="w-3.5 h-3.5 text-[#4A5A6B]" />
-              <p className="text-[10px] uppercase tracking-widest text-[#4A5A6B]">Price</p>
+              <DollarSign className="w-3.5 h-3.5 text-vault-text-faint" />
+              <p className="text-[10px] uppercase tracking-widest text-vault-text-faint">Price</p>
             </div>
-            <p className="text-sm font-mono text-[#E8EDF2]">
+            <p className="text-sm font-mono text-vault-text">
               {formatCurrency(accessory.purchasePrice)}
             </p>
           </div>
 
-          <div className="bg-[#0E1318] border border-[#1C2530] rounded-lg p-4">
+          <div className="bg-vault-surface border border-vault-border rounded-lg p-4">
             <div className="flex items-center gap-2 mb-2">
-              <Calendar className="w-3.5 h-3.5 text-[#4A5A6B]" />
-              <p className="text-[10px] uppercase tracking-widest text-[#4A5A6B]">Acquired</p>
+              <Calendar className="w-3.5 h-3.5 text-vault-text-faint" />
+              <p className="text-[10px] uppercase tracking-widest text-vault-text-faint">Acquired</p>
             </div>
-            <p className="text-sm text-[#E8EDF2]">{formatDate(accessory.acquisitionDate)}</p>
+            <p className="text-sm text-vault-text">{formatDate(accessory.acquisitionDate)}</p>
           </div>
 
-          <div className="bg-[#0E1318] border border-[#1C2530] rounded-lg p-4">
+          <div className="bg-vault-surface border border-vault-border rounded-lg p-4">
             <div className="flex items-center gap-2 mb-2">
-              <Layers className="w-3.5 h-3.5 text-[#4A5A6B]" />
-              <p className="text-[10px] uppercase tracking-widest text-[#4A5A6B]">Installed On</p>
+              <Layers className="w-3.5 h-3.5 text-vault-text-faint" />
+              <p className="text-[10px] uppercase tracking-widest text-vault-text-faint">Installed On</p>
             </div>
             {accessory.currentBuild ? (
               <div>
@@ -277,19 +277,19 @@ export default function AccessoryDetailPage() {
                 >
                   {accessory.currentBuild.firearm.name}
                 </Link>
-                <p className="text-[10px] text-[#4A5A6B] mt-0.5">
+                <p className="text-[10px] text-vault-text-faint mt-0.5">
                   {accessory.currentBuild.name}
                 </p>
               </div>
             ) : (
-              <p className="text-sm text-[#4A5A6B]">Uninstalled</p>
+              <p className="text-sm text-vault-text-faint">Uninstalled</p>
             )}
           </div>
         </div>
 
         {/* Log Rounds Inline Form */}
         {logOpen && (
-          <div className="bg-[#0E1318] border border-[#00C2FF]/30 rounded-lg p-5">
+          <div className="bg-vault-surface border border-[#00C2FF]/30 rounded-lg p-5">
             <h3 className="text-sm font-semibold text-[#00C2FF] mb-4 flex items-center gap-2">
               <Target className="w-4 h-4" />
               Log Round Count
@@ -302,7 +302,7 @@ export default function AccessoryDetailPage() {
             )}
             <form onSubmit={submitLogRounds} className="flex items-end gap-3 flex-wrap">
               <div>
-                <label className="block text-[10px] uppercase tracking-widest text-[#8B9DB0] mb-1.5">
+                <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">
                   Rounds Fired <span className="text-[#E53935]">*</span>
                 </label>
                 <input
@@ -312,11 +312,11 @@ export default function AccessoryDetailPage() {
                   onChange={(e) => setLogRounds(e.target.value)}
                   required
                   placeholder="e.g. 200"
-                  className="bg-[#080B0F] border border-[#1C2530] text-[#E8EDF2] rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-[#4A5A6B] w-36"
+                  className="bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint w-36"
                 />
               </div>
               <div className="flex-1 min-w-48">
-                <label className="block text-[10px] uppercase tracking-widest text-[#8B9DB0] mb-1.5">
+                <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">
                   Session Note
                 </label>
                 <input
@@ -324,14 +324,14 @@ export default function AccessoryDetailPage() {
                   value={logNote}
                   onChange={(e) => setLogNote(e.target.value)}
                   placeholder="e.g. Sunday range session"
-                  className="w-full bg-[#080B0F] border border-[#1C2530] text-[#E8EDF2] rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-[#4A5A6B]"
+                  className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
                 />
               </div>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setLogOpen(false)}
-                  className="px-3 py-2 text-sm text-[#8B9DB0] hover:text-[#E8EDF2] border border-[#1C2530] rounded-md transition-colors"
+                  className="px-3 py-2 text-sm text-vault-text-muted hover:text-vault-text border border-vault-border rounded-md transition-colors"
                 >
                   Cancel
                 </button>
@@ -354,11 +354,11 @@ export default function AccessoryDetailPage() {
 
         {/* Notes */}
         {accessory.notes && (
-          <div className="bg-[#0E1318] border border-[#1C2530] rounded-lg p-4">
-            <h3 className="text-xs font-semibold uppercase tracking-widest text-[#8B9DB0] mb-2">
+          <div className="bg-vault-surface border border-vault-border rounded-lg p-4">
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-vault-text-muted mb-2">
               Notes
             </h3>
-            <p className="text-sm text-[#E8EDF2] leading-relaxed whitespace-pre-wrap">
+            <p className="text-sm text-vault-text leading-relaxed whitespace-pre-wrap">
               {accessory.notes}
             </p>
           </div>
@@ -371,10 +371,10 @@ export default function AccessoryDetailPage() {
             Round Count History
           </h2>
 
-          <div className="bg-[#0E1318] border border-[#1C2530] rounded-lg overflow-hidden">
+          <div className="bg-vault-surface border border-vault-border rounded-lg overflow-hidden">
             {accessory.roundCountLogs.length === 0 ? (
               <div className="p-8 text-center">
-                <p className="text-sm text-[#8B9DB0]">No round count logs yet.</p>
+                <p className="text-sm text-vault-text-muted">No round count logs yet.</p>
                 <button
                   onClick={() => setLogOpen(true)}
                   className="mt-3 text-xs text-[#00C2FF] hover:underline"
@@ -386,35 +386,35 @@ export default function AccessoryDetailPage() {
               <>
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-[#1C2530]">
-                      <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-[#4A5A6B] font-medium">
+                    <tr className="border-b border-vault-border">
+                      <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium">
                         Date
                       </th>
-                      <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-[#4A5A6B] font-medium">
+                      <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium">
                         Rounds Added
                       </th>
-                      <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-[#4A5A6B] font-medium">
+                      <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium">
                         Total After
                       </th>
-                      <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-[#4A5A6B] font-medium hidden md:table-cell">
+                      <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium hidden md:table-cell">
                         Note
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#1C2530]">
+                  <tbody className="divide-y divide-vault-border">
                     {visibleLogs.map((log) => (
-                      <tr key={log.id} className="hover:bg-[#131A22] transition-colors">
-                        <td className="px-4 py-3 text-xs text-[#8B9DB0]">
+                      <tr key={log.id} className="hover:bg-vault-surface-2 transition-colors">
+                        <td className="px-4 py-3 text-xs text-vault-text-muted">
                           {formatDate(log.loggedAt)}
                         </td>
                         <td className="px-4 py-3 font-mono font-bold text-[#00C2FF]">
                           +{formatNumber(log.roundsAdded)}
                         </td>
-                        <td className="px-4 py-3 font-mono text-[#E8EDF2]">
+                        <td className="px-4 py-3 font-mono text-vault-text">
                           {formatNumber(log.newCount)}
                         </td>
-                        <td className="px-4 py-3 text-xs text-[#8B9DB0] hidden md:table-cell">
-                          {log.sessionNote ?? <span className="text-[#4A5A6B]">—</span>}
+                        <td className="px-4 py-3 text-xs text-vault-text-muted hidden md:table-cell">
+                          {log.sessionNote ?? <span className="text-vault-text-faint">—</span>}
                         </td>
                       </tr>
                     ))}
@@ -424,7 +424,7 @@ export default function AccessoryDetailPage() {
                 {accessory.roundCountLogs.length > 5 && (
                   <button
                     onClick={() => setHistoryExpanded((e) => !e)}
-                    className="w-full flex items-center justify-center gap-2 py-3 text-xs text-[#8B9DB0] hover:text-[#E8EDF2] border-t border-[#1C2530] transition-colors"
+                    className="w-full flex items-center justify-center gap-2 py-3 text-xs text-vault-text-muted hover:text-vault-text border-t border-vault-border transition-colors"
                   >
                     {historyExpanded ? (
                       <>
@@ -446,17 +446,17 @@ export default function AccessoryDetailPage() {
 
         {/* Current build info */}
         {accessory.currentBuild && (
-          <div className="bg-[#0E1318] border border-[#1C2530] rounded-lg p-4">
-            <h2 className="text-xs font-semibold uppercase tracking-widest text-[#8B9DB0] mb-3 flex items-center gap-2">
+          <div className="bg-vault-surface border border-vault-border rounded-lg p-4">
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-vault-text-muted mb-3 flex items-center gap-2">
               <Layers className="w-3.5 h-3.5" />
               Currently Installed
             </h2>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-semibold text-[#E8EDF2]">
+                <p className="text-sm font-semibold text-vault-text">
                   {accessory.currentBuild.firearm.name}
                 </p>
-                <p className="text-xs text-[#8B9DB0] mt-0.5">
+                <p className="text-xs text-vault-text-muted mt-0.5">
                   Build: {accessory.currentBuild.name} ·{" "}
                   {SLOT_TYPE_LABELS[accessory.currentBuild.slotType] ?? accessory.currentBuild.slotType} slot
                 </p>
