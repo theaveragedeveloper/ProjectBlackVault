@@ -56,10 +56,13 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 
-# Copy Prisma schema and migrations so we can run migrate deploy at startup
+# Copy Prisma schema and migrations so we can run migrate deploy at startup.
+# Also copy the CLI package directly so we use the project's pinned version
+# (5.22.0) instead of npx downloading the latest (which is a breaking Prisma 7).
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder /app/node_modules/prisma  ./node_modules/prisma
 
 # Create persistent data directories
 RUN mkdir -p /app/data /app/uploads && \
@@ -74,4 +77,4 @@ ENV HOSTNAME="0.0.0.0"
 ENV DATABASE_URL="file:/app/data/vault.db"
 
 # Run migrations then start the server
-CMD ["sh", "-c", "npx prisma migrate deploy && node server.js"]
+CMD ["sh", "-c", "node ./node_modules/prisma/build/index.js migrate deploy && node server.js"]
