@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/utils";
+import { SLOT_TYPE_LABELS } from "@/lib/types";
 import {
   ArrowLeft,
   Shield,
@@ -18,30 +19,6 @@ import {
   ChevronUp,
 } from "lucide-react";
 
-const SLOT_TYPE_LABELS: Record<string, string> = {
-  MUZZLE: "Muzzle",
-  BARREL: "Barrel",
-  HANDGUARD: "Handguard",
-  STOCK: "Stock",
-  BUFFER_TUBE: "Buffer Tube",
-  GRIP: "Grip",
-  OPTIC: "Optic",
-  OPTIC_MOUNT: "Optic Mount",
-  UNDERBARREL: "Underbarrel",
-  MAGAZINE: "Magazine",
-  LIGHT: "Light",
-  LASER: "Laser",
-  CHARGING_HANDLE: "Charging Handle",
-  TRIGGER: "Trigger",
-  LOWER_RECEIVER: "Lower Receiver",
-  UPPER_RECEIVER: "Upper Receiver",
-  SLIDE: "Slide",
-  FRAME: "Frame",
-  SUPPRESSOR: "Suppressor",
-  BIPOD: "Bipod",
-  SLING: "Sling",
-  COMPENSATOR: "Compensator",
-};
 
 interface RoundCountLog {
   id: string;

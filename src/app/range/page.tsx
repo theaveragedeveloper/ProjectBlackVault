@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { formatNumber } from "@/lib/utils";
+import { SLOT_TYPE_LABELS as SLOT_TYPE_LABELS_IMPORT } from "@/lib/types";
 import {
   Target,
   ChevronDown,
@@ -52,20 +53,7 @@ interface AmmoStock {
   quantity: number;
 }
 
-const SLOT_TYPE_LABELS: Record<string, string> = {
-  BARREL: "Barrel",
-  SUPPRESSOR: "Suppressor",
-  MUZZLE: "Muzzle",
-  OPTIC: "Optic",
-  TRIGGER: "Trigger",
-  HANDGUARD: "Handguard",
-  STOCK: "Stock",
-  GRIP: "Grip",
-  MAGAZINE: "Magazine",
-  MAGWELL: "Magwell",
-  LIGHT: "Light",
-  LASER: "Laser",
-};
+const SLOT_TYPE_LABELS: Record<string, string> = SLOT_TYPE_LABELS_IMPORT as Record<string, string>;
 
 // Slots that typically accumulate rounds (wear parts)
 const ROUND_COUNT_SLOTS = new Set(["BARREL", "SUPPRESSOR", "MUZZLE", "TRIGGER", "SLIDE", "FRAME"]);
