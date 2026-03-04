@@ -12,9 +12,9 @@ import {
 } from "lucide-react";
 
 const INPUT_CLASS =
-  "w-full bg-[#0E1318] border border-[#1C2530] text-[#E8EDF2] rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-[#4A5A6B] transition-colors";
+  "w-full bg-vault-surface border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint transition-colors";
 const LABEL_CLASS =
-  "block text-xs font-medium uppercase tracking-widest text-[#8B9DB0] mb-1.5";
+  "block text-xs font-medium uppercase tracking-widest text-vault-text-muted mb-1.5";
 
 interface Firearm {
   id: string;
@@ -115,16 +115,16 @@ export default function NewBuildPage() {
   return (
     <div className="min-h-full">
       {/* Header */}
-      <div className="flex items-center gap-3 px-6 py-4 border-b border-[#1C2530] flex-wrap">
+      <div className="flex items-center gap-3 px-6 py-4 border-b border-vault-border flex-wrap">
         <Link
           href={`/vault/${firearmId}`}
-          className="flex items-center gap-1.5 text-[#8B9DB0] hover:text-[#E8EDF2] text-sm transition-colors"
+          className="flex items-center gap-1.5 text-vault-text-muted hover:text-vault-text text-sm transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to {firearm.name}
         </Link>
-        <span className="text-[#1C2530]">/</span>
-        <h1 className="text-sm font-semibold text-[#E8EDF2] tracking-wide uppercase">
+        <span className="text-vault-border">/</span>
+        <h1 className="text-sm font-semibold text-vault-text tracking-wide uppercase">
           New Build
         </h1>
       </div>
@@ -132,15 +132,15 @@ export default function NewBuildPage() {
       <div className="max-w-xl mx-auto px-6 py-8">
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-xs px-2 py-0.5 rounded border border-[#1C2530] text-[#8B9DB0] font-mono uppercase">
+            <span className="text-xs px-2 py-0.5 rounded border border-vault-border text-vault-text-muted font-mono uppercase">
               {firearm.type}
             </span>
-            <span className="text-xs text-[#4A5A6B]">{firearm.caliber}</span>
+            <span className="text-xs text-vault-text-faint">{firearm.caliber}</span>
           </div>
-          <h2 className="text-xl font-bold text-[#E8EDF2] mb-1">
+          <h2 className="text-xl font-bold text-vault-text mb-1">
             New Build for {firearm.name}
           </h2>
-          <p className="text-sm text-[#8B9DB0]">
+          <p className="text-sm text-vault-text-muted">
             Configure a new loadout for this firearm.
           </p>
         </div>
@@ -153,7 +153,7 @@ export default function NewBuildPage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <fieldset className="bg-[#0E1318] border border-[#1C2530] rounded-lg p-5 space-y-4">
+          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
             <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
               Build Details
             </legend>
@@ -171,7 +171,7 @@ export default function NewBuildPage() {
                 className={INPUT_CLASS}
                 autoFocus
               />
-              <p className="text-xs text-[#4A5A6B] mt-1">
+              <p className="text-xs text-vault-text-faint mt-1">
                 Give this configuration a descriptive name.
               </p>
             </div>
@@ -191,7 +191,7 @@ export default function NewBuildPage() {
           </fieldset>
 
           {/* Active toggle */}
-          <fieldset className="bg-[#0E1318] border border-[#1C2530] rounded-lg p-5">
+          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5">
             <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
               Status
             </legend>
@@ -201,25 +201,25 @@ export default function NewBuildPage() {
               className={`mt-3 flex items-center gap-3 w-full text-left px-4 py-3 rounded-md border transition-all ${
                 isActive
                   ? "border-[#00C853]/40 bg-[#00C853]/5"
-                  : "border-[#1C2530] hover:border-[#8B9DB0]/30"
+                  : "border-vault-border hover:border-vault-text-muted/30"
               }`}
             >
               <div
                 className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors shrink-0 ${
                   isActive
                     ? "border-[#00C853] bg-[#00C853]"
-                    : "border-[#4A5A6B]"
+                    : "border-vault-text-faint"
                 }`}
               >
                 {isActive && (
-                  <CheckCircle2 className="w-3 h-3 text-[#080B0F]" />
+                  <CheckCircle2 className="w-3 h-3 text-vault-bg" />
                 )}
               </div>
               <div>
-                <p className="text-sm font-medium text-[#E8EDF2]">
+                <p className="text-sm font-medium text-vault-text">
                   Set as Active Build
                 </p>
-                <p className="text-xs text-[#8B9DB0] mt-0.5">
+                <p className="text-xs text-vault-text-muted mt-0.5">
                   Active build will be shown on the firearm&apos;s detail page. Only one
                   build per firearm can be active.
                 </p>
@@ -230,7 +230,7 @@ export default function NewBuildPage() {
           <div className="flex items-center justify-end gap-3 pt-2">
             <Link
               href={`/vault/${firearmId}`}
-              className="px-4 py-2 text-sm text-[#8B9DB0] hover:text-[#E8EDF2] border border-[#1C2530] rounded-md hover:border-[#8B9DB0]/30 transition-colors"
+              className="px-4 py-2 text-sm text-vault-text-muted hover:text-vault-text border border-vault-border rounded-md hover:border-vault-text-muted/30 transition-colors"
             >
               Cancel
             </Link>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { encryptField, decryptField } from "@/lib/crypto";
 
 // GET /api/firearms - List all firearms with build count
 export async function GET() {
@@ -26,6 +27,8 @@ export async function GET() {
 
     const result = firearms.map((firearm) => ({
       ...firearm,
+      serialNumber: decryptField(firearm.serialNumber) ?? firearm.serialNumber,
+      notes: decryptField(firearm.notes),
       buildCount: firearm._count.builds,
       activeBuild: firearm.builds[0] ?? null,
       builds: undefined,
@@ -75,12 +78,12 @@ export async function POST(request: NextRequest) {
         manufacturer,
         model,
         caliber,
-        serialNumber,
+        serialNumber: encryptField(serialNumber),
         type,
         acquisitionDate: new Date(acquisitionDate),
         purchasePrice: purchasePrice ?? null,
         currentValue: currentValue ?? null,
-        notes: notes ?? null,
+        notes: notes ? encryptField(notes) : null,
         imageUrl: imageUrl ?? null,
         imageSource: imageSource ?? null,
       },

@@ -7,9 +7,9 @@ import { SLOT_TYPES, SLOT_TYPE_LABELS, COMMON_CALIBERS } from "@/lib/types";
 import { ArrowLeft, Save, Loader2, AlertCircle } from "lucide-react";
 
 const INPUT_CLASS =
-  "w-full bg-[#0E1318] border border-[#1C2530] text-[#E8EDF2] rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-[#4A5A6B] transition-colors";
+  "w-full bg-vault-surface border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint transition-colors";
 const LABEL_CLASS =
-  "block text-xs font-medium uppercase tracking-widest text-[#8B9DB0] mb-1.5";
+  "block text-xs font-medium uppercase tracking-widest text-vault-text-muted mb-1.5";
 
 interface Accessory {
   id: string;
@@ -141,24 +141,24 @@ export default function EditAccessoryPage() {
   return (
     <div className="min-h-full">
       {/* Header */}
-      <div className="flex items-center gap-4 px-6 py-4 border-b border-[#1C2530] flex-wrap">
+      <div className="flex items-center gap-4 px-6 py-4 border-b border-vault-border flex-wrap">
         <Link
           href={`/accessories/${accessoryId}`}
-          className="flex items-center gap-1.5 text-[#8B9DB0] hover:text-[#E8EDF2] text-sm transition-colors"
+          className="flex items-center gap-1.5 text-vault-text-muted hover:text-vault-text text-sm transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to {accessory.name}
         </Link>
-        <span className="text-[#1C2530]">/</span>
-        <h1 className="text-sm font-semibold text-[#E8EDF2] tracking-wide uppercase">
+        <span className="text-vault-border">/</span>
+        <h1 className="text-sm font-semibold text-vault-text tracking-wide uppercase">
           Edit Accessory
         </h1>
       </div>
 
       <div className="max-w-2xl mx-auto px-6 py-8">
         <div className="mb-8">
-          <h2 className="text-xl font-bold text-[#E8EDF2] mb-1">Edit {accessory.name}</h2>
-          <p className="text-sm text-[#8B9DB0]">Update the details for this accessory.</p>
+          <h2 className="text-xl font-bold text-vault-text mb-1">Edit {accessory.name}</h2>
+          <p className="text-sm text-vault-text-muted">Update the details for this accessory.</p>
         </div>
 
         {error && (
@@ -177,7 +177,7 @@ export default function EditAccessoryPage() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Identity */}
-          <fieldset className="bg-[#0E1318] border border-[#1C2530] rounded-lg p-5 space-y-4">
+          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
             <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
               Identity
             </legend>
@@ -263,7 +263,7 @@ export default function EditAccessoryPage() {
                     className={INPUT_CLASS}
                   />
                   {caliberDropdownOpen && filteredCalibers.length > 0 && caliberInput && (
-                    <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-[#0E1318] border border-[#1C2530] rounded-md shadow-lg max-h-48 overflow-y-auto">
+                    <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-vault-surface border border-vault-border rounded-md shadow-lg max-h-48 overflow-y-auto">
                       {filteredCalibers.map((c) => (
                         <button
                           key={c}
@@ -272,7 +272,7 @@ export default function EditAccessoryPage() {
                             setCaliberInput(c);
                             setCaliberDropdownOpen(false);
                           }}
-                          className="w-full text-left px-3 py-2 text-sm text-[#E8EDF2] hover:bg-[#1C2530] hover:text-[#00C2FF] transition-colors font-mono"
+                          className="w-full text-left px-3 py-2 text-sm text-vault-text hover:bg-vault-border hover:text-[#00C2FF] transition-colors font-mono"
                         >
                           {c}
                         </button>
@@ -285,7 +285,7 @@ export default function EditAccessoryPage() {
           </fieldset>
 
           {/* Acquisition */}
-          <fieldset className="bg-[#0E1318] border border-[#1C2530] rounded-lg p-5 space-y-4">
+          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
             <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
               Acquisition
             </legend>
@@ -308,7 +308,7 @@ export default function EditAccessoryPage() {
                   Purchase Price
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4A5A6B] text-sm">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-vault-text-faint text-sm">
                     $
                   </span>
                   <input
@@ -327,7 +327,7 @@ export default function EditAccessoryPage() {
           </fieldset>
 
           {/* Image */}
-          <fieldset className="bg-[#0E1318] border border-[#1C2530] rounded-lg p-5 space-y-4">
+          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
             <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
               Image
             </legend>
@@ -344,12 +344,12 @@ export default function EditAccessoryPage() {
                 className={INPUT_CLASS}
               />
               {accessory.imageUrl && (
-                <div className="mt-3 w-full h-28 rounded-md overflow-hidden border border-[#1C2530]">
+                <div className="mt-3 w-full h-28 rounded-md overflow-hidden border border-vault-border">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={accessory.imageUrl}
                     alt={accessory.name}
-                    className="w-full h-full object-contain bg-[#080B0F]"
+                    className="w-full h-full object-contain bg-vault-bg"
                   />
                 </div>
               )}
@@ -357,7 +357,7 @@ export default function EditAccessoryPage() {
           </fieldset>
 
           {/* Notes */}
-          <fieldset className="bg-[#0E1318] border border-[#1C2530] rounded-lg p-5 space-y-4">
+          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
             <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
               Notes
             </legend>
@@ -380,7 +380,7 @@ export default function EditAccessoryPage() {
           <div className="flex items-center justify-end gap-3 pt-2">
             <Link
               href={`/accessories/${accessoryId}`}
-              className="px-4 py-2 text-sm text-[#8B9DB0] hover:text-[#E8EDF2] border border-[#1C2530] rounded-md hover:border-[#8B9DB0]/30 transition-colors"
+              className="px-4 py-2 text-sm text-vault-text-muted hover:text-vault-text border border-vault-border rounded-md hover:border-vault-text-muted/30 transition-colors"
             >
               Cancel
             </Link>

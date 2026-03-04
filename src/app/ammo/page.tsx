@@ -90,10 +90,10 @@ function AddRoundsModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#080B0F]/80 backdrop-blur-sm">
-      <div className="bg-[#0E1318] border border-[#1C2530] rounded-lg p-6 w-full max-w-md">
-        <h3 className="text-sm font-semibold text-[#E8EDF2] mb-1">Add Rounds</h3>
-        <p className="text-xs text-[#8B9DB0] mb-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-vault-bg/80 backdrop-blur-sm">
+      <div className="bg-vault-surface border border-vault-border rounded-lg p-6 w-full max-w-md">
+        <h3 className="text-sm font-semibold text-vault-text mb-1">Add Rounds</h3>
+        <p className="text-xs text-vault-text-muted mb-4">
           {stock.brand} · {stock.caliber}
           {stock.grainWeight ? ` · ${stock.grainWeight}gr` : ""}
           {stock.bulletType ? ` · ${stock.bulletType}` : ""}
@@ -106,7 +106,7 @@ function AddRoundsModal({
         )}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-[10px] uppercase tracking-widest text-[#8B9DB0] mb-1.5">
+            <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">
               Quantity to Add <span className="text-[#E53935]">*</span>
             </label>
             <input
@@ -116,22 +116,22 @@ function AddRoundsModal({
               value={qty}
               onChange={(e) => setQty(e.target.value)}
               placeholder="e.g. 500"
-              className="w-full bg-[#080B0F] border border-[#1C2530] text-[#E8EDF2] rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-[#4A5A6B]"
+              className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
             />
-            <p className="text-xs text-[#4A5A6B] mt-1">Current: {formatNumber(stock.quantity)} rds</p>
+            <p className="text-xs text-vault-text-faint mt-1">Current: {formatNumber(stock.quantity)} rds</p>
           </div>
           <div>
-            <label className="block text-[10px] uppercase tracking-widest text-[#8B9DB0] mb-1.5">Note</label>
+            <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">Note</label>
             <input
               type="text"
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="e.g. Academy purchase"
-              className="w-full bg-[#080B0F] border border-[#1C2530] text-[#E8EDF2] rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-[#4A5A6B]"
+              className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
             />
           </div>
           <div className="flex gap-2 justify-end pt-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-[#8B9DB0] hover:text-[#E8EDF2] border border-[#1C2530] rounded-md transition-colors">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-vault-text-muted hover:text-vault-text border border-vault-border rounded-md transition-colors">
               Cancel
             </button>
             <button
@@ -183,10 +183,10 @@ function LogUseModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#080B0F]/80 backdrop-blur-sm">
-      <div className="bg-[#0E1318] border border-[#1C2530] rounded-lg p-6 w-full max-w-md">
-        <h3 className="text-sm font-semibold text-[#E8EDF2] mb-1">Log Range Use</h3>
-        <p className="text-xs text-[#8B9DB0] mb-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-vault-bg/80 backdrop-blur-sm">
+      <div className="bg-vault-surface border border-vault-border rounded-lg p-6 w-full max-w-md">
+        <h3 className="text-sm font-semibold text-vault-text mb-1">Log Range Use</h3>
+        <p className="text-xs text-vault-text-muted mb-4">
           {stock.brand} · {stock.caliber} · Current: {formatNumber(stock.quantity)} rds
         </p>
         {error && (
@@ -197,7 +197,7 @@ function LogUseModal({
         )}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-[10px] uppercase tracking-widest text-[#8B9DB0] mb-1.5">
+            <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">
               Rounds Used <span className="text-[#E53935]">*</span>
             </label>
             <input
@@ -208,21 +208,21 @@ function LogUseModal({
               value={qty}
               onChange={(e) => setQty(e.target.value)}
               placeholder="e.g. 100"
-              className="w-full bg-[#080B0F] border border-[#1C2530] text-[#E8EDF2] rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-[#4A5A6B]"
+              className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
             />
           </div>
           <div>
-            <label className="block text-[10px] uppercase tracking-widest text-[#8B9DB0] mb-1.5">Note</label>
+            <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">Note</label>
             <input
               type="text"
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="e.g. Sunday range trip"
-              className="w-full bg-[#080B0F] border border-[#1C2530] text-[#E8EDF2] rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-[#4A5A6B]"
+              className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
             />
           </div>
           <div className="flex gap-2 justify-end pt-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-[#8B9DB0] hover:text-[#E8EDF2] border border-[#1C2530] rounded-md transition-colors">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-vault-text-muted hover:text-vault-text border border-vault-border rounded-md transition-colors">
               Cancel
             </button>
             <button
@@ -305,14 +305,14 @@ export default function AmmoPage() {
 
       <div className="p-6">
         {/* Summary */}
-        <div className="flex items-center gap-6 mb-6 bg-[#0E1318] border border-[#1C2530] rounded-lg px-5 py-3">
+        <div className="flex items-center gap-6 mb-6 bg-vault-surface border border-vault-border rounded-lg px-5 py-3">
           <div>
-            <p className="text-[10px] uppercase tracking-widest text-[#4A5A6B] mb-0.5">Calibers</p>
-            <p className="text-lg font-bold font-mono text-[#E8EDF2]">{groups.length}</p>
+            <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-0.5">Calibers</p>
+            <p className="text-lg font-bold font-mono text-vault-text">{groups.length}</p>
           </div>
-          <div className="w-px h-8 bg-[#1C2530]" />
+          <div className="w-px h-8 bg-vault-border" />
           <div>
-            <p className="text-[10px] uppercase tracking-widest text-[#4A5A6B] mb-0.5">Total Rounds</p>
+            <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-0.5">Total Rounds</p>
             <p className="text-lg font-bold font-mono text-[#F5A623]">{formatNumber(totalRounds)}</p>
           </div>
         </div>
@@ -326,8 +326,8 @@ export default function AmmoPage() {
             <div className="w-16 h-16 rounded-full bg-[#F5A623]/10 border border-[#F5A623]/20 flex items-center justify-center mb-4">
               <Target className="w-8 h-8 text-[#F5A623]" />
             </div>
-            <h3 className="text-lg font-semibold text-[#E8EDF2] mb-2">No ammo stocks</h3>
-            <p className="text-sm text-[#8B9DB0] mb-6 max-w-sm">
+            <h3 className="text-lg font-semibold text-vault-text mb-2">No ammo stocks</h3>
+            <p className="text-sm text-vault-text-muted mb-6 max-w-sm">
               Start tracking your ammunition inventory by adding your first stock.
             </p>
             <Link
@@ -354,18 +354,18 @@ export default function AmmoPage() {
               return (
                 <div
                   key={group.caliber}
-                  className={`bg-[#0E1318] border rounded-lg overflow-hidden ${styles.border}`}
+                  className={`bg-vault-surface border rounded-lg overflow-hidden ${styles.border}`}
                 >
                   {/* Caliber header */}
                   <button
                     onClick={() => toggleCaliber(group.caliber)}
-                    className="w-full flex items-center justify-between px-4 py-4 hover:bg-[#131A22] transition-colors"
+                    className="w-full flex items-center justify-between px-4 py-4 hover:bg-vault-surface-2 transition-colors"
                   >
                     <div className="flex items-center gap-3">
                       <span className={`w-2 h-2 rounded-full shrink-0 ${styles.dot}`} />
                       <div className="text-left">
-                        <p className="font-bold font-mono text-[#E8EDF2]">{group.caliber}</p>
-                        <p className="text-xs text-[#4A5A6B]">
+                        <p className="font-bold font-mono text-vault-text">{group.caliber}</p>
+                        <p className="text-xs text-vault-text-faint">
                           {group.stocks.length} stock{group.stocks.length !== 1 ? "s" : ""}
                         </p>
                       </div>
@@ -375,16 +375,16 @@ export default function AmmoPage() {
                         {formatNumber(group.totalQuantity)}
                       </p>
                       {isExpanded ? (
-                        <ChevronUp className="w-4 h-4 text-[#4A5A6B] shrink-0" />
+                        <ChevronUp className="w-4 h-4 text-vault-text-faint shrink-0" />
                       ) : (
-                        <ChevronDown className="w-4 h-4 text-[#4A5A6B] shrink-0" />
+                        <ChevronDown className="w-4 h-4 text-vault-text-faint shrink-0" />
                       )}
                     </div>
                   </button>
 
                   {/* Stocks list */}
                   {isExpanded && (
-                    <div className="border-t border-[#1C2530] divide-y divide-[#1C2530]">
+                    <div className="border-t border-vault-border divide-y divide-vault-border">
                       {group.stocks.map((stock) => {
                         const st = stockStatus(stock.quantity, stock.lowStockAlert);
                         const ss = STATUS_STYLES[st];
@@ -396,28 +396,28 @@ export default function AmmoPage() {
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-0.5">
                                   <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${ss.dot}`} />
-                                  <p className="text-sm font-semibold text-[#E8EDF2] truncate">
+                                  <p className="text-sm font-semibold text-vault-text truncate">
                                     {stock.brand}
                                   </p>
                                   {stock.bulletType && (
-                                    <span className="text-[10px] font-mono text-[#4A5A6B] border border-[#1C2530] px-1.5 py-0.5 rounded">
+                                    <span className="text-[10px] font-mono text-vault-text-faint border border-vault-border px-1.5 py-0.5 rounded">
                                       {stock.bulletType}
                                     </span>
                                   )}
                                   {stock.grainWeight && (
-                                    <span className="text-[10px] text-[#4A5A6B]">
+                                    <span className="text-[10px] text-vault-text-faint">
                                       {stock.grainWeight}gr
                                     </span>
                                   )}
                                 </div>
                                 {stock.storageLocation && (
                                   <div className="flex items-center gap-1 mt-0.5 ml-3.5">
-                                    <MapPin className="w-2.5 h-2.5 text-[#4A5A6B]" />
-                                    <p className="text-[10px] text-[#4A5A6B]">{stock.storageLocation}</p>
+                                    <MapPin className="w-2.5 h-2.5 text-vault-text-faint" />
+                                    <p className="text-[10px] text-vault-text-faint">{stock.storageLocation}</p>
                                   </div>
                                 )}
                                 {stock.lowStockAlert && (
-                                  <p className="text-[10px] text-[#4A5A6B] ml-3.5 mt-0.5">
+                                  <p className="text-[10px] text-vault-text-faint ml-3.5 mt-0.5">
                                     Alert at {formatNumber(stock.lowStockAlert)} rds
                                   </p>
                                 )}
@@ -426,14 +426,14 @@ export default function AmmoPage() {
                                 <p className={`text-base font-bold font-mono ${tc}`}>
                                   {formatNumber(stock.quantity)}
                                 </p>
-                                <p className="text-[10px] text-[#4A5A6B]">rds</p>
+                                <p className="text-[10px] text-vault-text-faint">rds</p>
                               </div>
                             </div>
 
                             {/* Stock progress bar */}
                             {stock.lowStockAlert && (
                               <div className="mb-2 ml-3.5">
-                                <div className="w-full bg-[#1C2530] rounded-full h-1">
+                                <div className="w-full bg-vault-border rounded-full h-1">
                                   <div
                                     className={`h-1 rounded-full ${ss.dot.replace("animate-pulse", "").trim().replace("bg-", "bg-")}`}
                                     style={{
@@ -464,7 +464,7 @@ export default function AmmoPage() {
                                 Log Use
                               </button>
                               {stock.purchasePrice && (
-                                <span className="text-[10px] text-[#4A5A6B] font-mono ml-auto">
+                                <span className="text-[10px] text-vault-text-faint font-mono ml-auto">
                                   {formatCurrency(stock.purchasePrice)}
                                 </span>
                               )}

@@ -13,8 +13,8 @@ import {
 } from "lucide-react";
 
 const INPUT_CLASS =
-  "w-full bg-[#0E1318] border border-[#1C2530] text-[#E8EDF2] rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-[#4A5A6B] transition-colors";
-const LABEL_CLASS = "block text-xs font-medium uppercase tracking-widest text-[#8B9DB0] mb-1.5";
+  "w-full bg-vault-surface border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint transition-colors";
+const LABEL_CLASS = "block text-xs font-medium uppercase tracking-widest text-vault-text-muted mb-1.5";
 
 interface Firearm {
   id: string;
@@ -270,22 +270,22 @@ export default function RangeSessionPage() {
           <div className="w-20 h-20 rounded-full bg-[#00C853]/10 border border-[#00C853]/30 flex items-center justify-center mb-6">
             <CheckCircle2 className="w-10 h-10 text-[#00C853]" />
           </div>
-          <h2 className="text-2xl font-bold text-[#E8EDF2] mb-2">Session Logged</h2>
-          <p className="text-[#8B9DB0] mb-6 max-w-sm">
+          <h2 className="text-2xl font-bold text-vault-text mb-2">Session Logged</h2>
+          <p className="text-vault-text-muted mb-6 max-w-sm">
             Range session recorded successfully.
           </p>
-          <div className="bg-[#0E1318] border border-[#1C2530] rounded-lg p-5 text-left max-w-sm w-full mb-8">
-            <p className="text-xs uppercase tracking-widest text-[#4A5A6B] mb-3">Session Summary</p>
+          <div className="bg-vault-surface border border-vault-border rounded-lg p-5 text-left max-w-sm w-full mb-8">
+            <p className="text-xs uppercase tracking-widest text-vault-text-faint mb-3">Session Summary</p>
             <div className="space-y-2">
               <div className="flex justify-between">
-                <span className="text-sm text-[#8B9DB0]">Rounds fired</span>
+                <span className="text-sm text-vault-text-muted">Rounds fired</span>
                 <span className="text-sm font-mono font-bold text-[#00C2FF]">
                   {formatNumber(parseInt(roundsFired))}
                 </span>
               </div>
               {successDetails.accessories.length > 0 && (
                 <div>
-                  <p className="text-sm text-[#8B9DB0] mb-1">Logged to accessories:</p>
+                  <p className="text-sm text-vault-text-muted mb-1">Logged to accessories:</p>
                   {successDetails.accessories.map((name) => (
                     <p key={name} className="text-xs text-[#00C853] flex items-center gap-1.5 ml-2">
                       <CheckCircle2 className="w-3 h-3" />
@@ -296,7 +296,7 @@ export default function RangeSessionPage() {
               )}
               {successDetails.ammoLeft != null && (
                 <div className="flex justify-between">
-                  <span className="text-sm text-[#8B9DB0]">Ammo remaining</span>
+                  <span className="text-sm text-vault-text-muted">Ammo remaining</span>
                   <span className="text-sm font-mono text-[#F5A623]">
                     {formatNumber(successDetails.ammoLeft)} rds
                   </span>
@@ -332,7 +332,7 @@ export default function RangeSessionPage() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Firearm & Build */}
-          <fieldset className="bg-[#0E1318] border border-[#1C2530] rounded-lg p-5 space-y-4">
+          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
             <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
               Firearm & Build
             </legend>
@@ -344,7 +344,7 @@ export default function RangeSessionPage() {
               {loadingFirearms ? (
                 <div className="flex items-center gap-2 h-10">
                   <Loader2 className="w-4 h-4 text-[#00C2FF] animate-spin" />
-                  <span className="text-sm text-[#8B9DB0]">Loading...</span>
+                  <span className="text-sm text-vault-text-muted">Loading...</span>
                 </div>
               ) : (
                 <div className="relative">
@@ -365,7 +365,7 @@ export default function RangeSessionPage() {
                       </option>
                     ))}
                   </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#4A5A6B] pointer-events-none" />
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-vault-text-faint pointer-events-none" />
                 </div>
               )}
             </div>
@@ -376,10 +376,10 @@ export default function RangeSessionPage() {
                 {loadingBuilds ? (
                   <div className="flex items-center gap-2 h-10">
                     <Loader2 className="w-4 h-4 text-[#00C2FF] animate-spin" />
-                    <span className="text-sm text-[#8B9DB0]">Loading builds...</span>
+                    <span className="text-sm text-vault-text-muted">Loading builds...</span>
                   </div>
                 ) : builds.length === 0 ? (
-                  <p className="text-sm text-[#4A5A6B] py-2">No builds for this firearm.</p>
+                  <p className="text-sm text-vault-text-faint py-2">No builds for this firearm.</p>
                 ) : (
                   <div className="relative">
                     <select
@@ -394,7 +394,7 @@ export default function RangeSessionPage() {
                         </option>
                       ))}
                     </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#4A5A6B] pointer-events-none" />
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-vault-text-faint pointer-events-none" />
                   </div>
                 )}
               </div>
@@ -402,7 +402,7 @@ export default function RangeSessionPage() {
           </fieldset>
 
           {/* Rounds & Ammo */}
-          <fieldset className="bg-[#0E1318] border border-[#1C2530] rounded-lg p-5 space-y-4">
+          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
             <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
               Rounds Fired
             </legend>
@@ -429,7 +429,7 @@ export default function RangeSessionPage() {
                   <Loader2 className="w-4 h-4 text-[#F5A623] animate-spin" />
                 </div>
               ) : compatibleAmmo.length === 0 ? (
-                <p className="text-sm text-[#4A5A6B] py-2">
+                <p className="text-sm text-vault-text-faint py-2">
                   {selectedFirearmData
                     ? `No ${selectedFirearmData.caliber} stocks found.`
                     : "Select a firearm to filter compatible ammo."}
@@ -451,10 +451,10 @@ export default function RangeSessionPage() {
                       </option>
                     ))}
                   </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#4A5A6B] pointer-events-none" />
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-vault-text-faint pointer-events-none" />
                 </div>
               )}
-              <p className="text-xs text-[#4A5A6B] mt-1">
+              <p className="text-xs text-vault-text-faint mt-1">
                 This will deduct rounds from the selected stock.
               </p>
             </div>
@@ -462,11 +462,11 @@ export default function RangeSessionPage() {
 
           {/* Accessories Round Attribution */}
           {selectedBuildData && buildAccessories.length > 0 && (
-            <fieldset className="bg-[#0E1318] border border-[#1C2530] rounded-lg p-5 space-y-3">
+            <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-3">
               <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
                 Attribute Rounds To Accessories
               </legend>
-              <p className="text-xs text-[#8B9DB0]">
+              <p className="text-xs text-vault-text-muted">
                 Select which accessories should have their round count incremented.
                 Barrel and suppressor are pre-selected.
               </p>
@@ -483,7 +483,7 @@ export default function RangeSessionPage() {
                       className={`flex items-center gap-3 p-3 rounded-md border cursor-pointer transition-all ${
                         isSelected
                           ? "bg-[#00C2FF]/10 border-[#00C2FF]/30"
-                          : "bg-[#080B0F] border-[#1C2530] hover:border-[#8B9DB0]/30"
+                          : "bg-vault-bg border-vault-border hover:border-vault-text-muted/30"
                       }`}
                     >
                       <input
@@ -496,18 +496,18 @@ export default function RangeSessionPage() {
                         className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
                           isSelected
                             ? "bg-[#00C2FF] border-[#00C2FF]"
-                            : "border-[#1C2530]"
+                            : "border-vault-border"
                         }`}
                       >
                         {isSelected && (
-                          <svg className="w-2.5 h-2.5 text-[#080B0F]" fill="currentColor" viewBox="0 0 20 20">
+                          <svg className="w-2.5 h-2.5 text-vault-bg" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                           </svg>
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium text-[#E8EDF2] truncate">
+                          <p className="text-sm font-medium text-vault-text truncate">
                             {slot.accessory.name}
                           </p>
                           {isRoundCountPart && (
@@ -517,11 +517,11 @@ export default function RangeSessionPage() {
                           )}
                         </div>
                         <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[10px] text-[#4A5A6B]">
+                          <span className="text-[10px] text-vault-text-faint">
                             {SLOT_TYPE_LABELS[slot.slotType] ?? slot.slotType}
                           </span>
-                          <span className="text-[10px] text-[#4A5A6B]">·</span>
-                          <span className="text-[10px] font-mono text-[#8B9DB0]">
+                          <span className="text-[10px] text-vault-text-faint">·</span>
+                          <span className="text-[10px] font-mono text-vault-text-muted">
                             {formatNumber(slot.accessory.roundCount)} rds total
                           </span>
                         </div>
@@ -539,10 +539,10 @@ export default function RangeSessionPage() {
           )}
 
           {selectedBuild && buildAccessories.length === 0 && (
-            <div className="bg-[#0E1318] border border-[#1C2530] rounded-lg p-5">
+            <div className="bg-vault-surface border border-vault-border rounded-lg p-5">
               <div className="flex items-center gap-3">
-                <Shield className="w-4 h-4 text-[#4A5A6B]" />
-                <p className="text-sm text-[#8B9DB0]">
+                <Shield className="w-4 h-4 text-vault-text-faint" />
+                <p className="text-sm text-vault-text-muted">
                   This build has no accessories installed. Rounds fired won&apos;t be attributed to any parts.
                 </p>
               </div>
@@ -550,7 +550,7 @@ export default function RangeSessionPage() {
           )}
 
           {/* Session Note */}
-          <fieldset className="bg-[#0E1318] border border-[#1C2530] rounded-lg p-5 space-y-4">
+          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
             <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
               Session Note
             </legend>
@@ -568,7 +568,7 @@ export default function RangeSessionPage() {
 
           {/* Submit */}
           <div className="flex items-center justify-end gap-3 pt-2">
-            <div className="flex-1 text-xs text-[#4A5A6B]">
+            <div className="flex-1 text-xs text-vault-text-faint">
               {selectedAccessories.size > 0 && (
                 <p>Will log rounds to {selectedAccessories.size} accessor{selectedAccessories.size !== 1 ? "ies" : "y"}</p>
               )}

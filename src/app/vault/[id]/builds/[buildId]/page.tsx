@@ -186,11 +186,11 @@ function AccessoryBrowserModal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: "rgba(5, 7, 9, 0.85)" }}
+      style={{ backgroundColor: "var(--vault-overlay)" }}
     >
-      <div className="bg-[#0E1318] border border-[#1C2530] rounded-xl w-full max-w-2xl max-h-[85vh] flex flex-col animate-slide-up shadow-2xl">
+      <div className="bg-vault-surface border border-vault-border rounded-xl w-full max-w-2xl max-h-[85vh] flex flex-col animate-slide-up shadow-2xl">
         {/* Modal header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#1C2530] shrink-0">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-vault-border shrink-0">
           <div className="flex items-center gap-3">
             <div
               className="w-8 h-8 rounded-md flex items-center justify-center"
@@ -202,30 +202,30 @@ function AccessoryBrowserModal({
               />
             </div>
             <div>
-              <p className="text-xs text-[#4A5A6B] uppercase tracking-widest font-mono">
+              <p className="text-xs text-vault-text-faint uppercase tracking-widest font-mono">
                 Assign Attachment
               </p>
-              <h2 className="text-sm font-semibold text-[#E8EDF2]">
+              <h2 className="text-sm font-semibold text-vault-text">
                 {SLOT_TYPE_LABELS[slotType]}
               </h2>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-md flex items-center justify-center text-[#8B9DB0] hover:text-[#E8EDF2] hover:bg-[#1C2530] transition-colors"
+            className="w-8 h-8 rounded-md flex items-center justify-center text-vault-text-muted hover:text-vault-text hover:bg-vault-border transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Tab bar */}
-        <div className="flex border-b border-[#21262D] shrink-0">
+        <div className="flex border-b border-vault-border shrink-0">
           <button
             onClick={() => setView("browse")}
             className={`flex-1 py-2.5 text-xs font-medium tracking-wide transition-colors ${
               view === "browse"
                 ? "text-[#00C2FF] border-b-2 border-[#00C2FF]"
-                : "text-[#5C6E82] hover:text-[#9AA5B4]"
+                : "text-vault-text-faint hover:text-vault-text-muted"
             }`}
           >
             Browse Library
@@ -235,7 +235,7 @@ function AccessoryBrowserModal({
             className={`flex-1 py-2.5 text-xs font-medium tracking-wide transition-colors ${
               view === "create"
                 ? "text-[#00C2FF] border-b-2 border-[#00C2FF]"
-                : "text-[#5C6E82] hover:text-[#9AA5B4]"
+                : "text-vault-text-faint hover:text-vault-text-muted"
             }`}
           >
             + Create New
@@ -244,15 +244,15 @@ function AccessoryBrowserModal({
 
         {/* Search — only show in browse view */}
         {view === "browse" && (
-          <div className="px-5 py-3 border-b border-[#1C2530] shrink-0">
+          <div className="px-5 py-3 border-b border-vault-border shrink-0">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#4A5A6B]" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-vault-text-faint" />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={`Search ${SLOT_TYPE_LABELS[slotType]} accessories...`}
-                className="w-full bg-[#080B0F] border border-[#1C2530] text-[#E8EDF2] rounded-md pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-[#4A5A6B]"
+                className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
                 autoFocus
               />
             </div>
@@ -281,10 +281,10 @@ function AccessoryBrowserModal({
               </div>
             ) : filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 gap-3">
-                <div className="w-12 h-12 rounded-full bg-[#1C2530] flex items-center justify-center">
-                  <Crosshair className="w-6 h-6 text-[#4A5A6B]" />
+                <div className="w-12 h-12 rounded-full bg-vault-border flex items-center justify-center">
+                  <Crosshair className="w-6 h-6 text-vault-text-faint" />
                 </div>
-                <p className="text-sm text-[#8B9DB0]">
+                <p className="text-sm text-vault-text-muted">
                   {search
                     ? "No accessories match your search"
                     : `No ${SLOT_TYPE_LABELS[slotType]} accessories in your collection`}
@@ -307,10 +307,10 @@ function AccessoryBrowserModal({
                       key={acc.id}
                       onClick={() => assignAccessory(acc.id)}
                       disabled={!!assigning}
-                      className="flex items-center gap-3 text-left w-full bg-[#080B0F] border border-[#1C2530] hover:border-[#00C2FF]/40 hover:bg-[#00C2FF]/5 rounded-lg p-3 transition-all disabled:opacity-60 disabled:cursor-not-allowed group"
+                      className="flex items-center gap-3 text-left w-full bg-vault-bg border border-vault-border hover:border-[#00C2FF]/40 hover:bg-[#00C2FF]/5 rounded-lg p-3 transition-all disabled:opacity-60 disabled:cursor-not-allowed group"
                     >
                       {/* Thumbnail */}
-                      <div className="w-14 h-14 shrink-0 rounded-md overflow-hidden bg-[#0E1318] border border-[#1C2530] flex items-center justify-center">
+                      <div className="w-14 h-14 shrink-0 rounded-md overflow-hidden bg-vault-surface border border-vault-border flex items-center justify-center">
                         {acc.imageUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
@@ -328,13 +328,13 @@ function AccessoryBrowserModal({
 
                       {/* Info */}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-[#E8EDF2] truncate group-hover:text-[#00C2FF] transition-colors">
+                        <p className="text-sm font-medium text-vault-text truncate group-hover:text-[#00C2FF] transition-colors">
                           {acc.name}
                         </p>
-                        <p className="text-xs text-[#8B9DB0] truncate">{acc.manufacturer}</p>
+                        <p className="text-xs text-vault-text-muted truncate">{acc.manufacturer}</p>
                         <div className="flex items-center gap-2 mt-1">
                           {acc.caliber && (
-                            <span className="text-[10px] font-mono text-[#4A5A6B] border border-[#1C2530] px-1.5 py-0.5 rounded">
+                            <span className="text-[10px] font-mono text-vault-text-faint border border-vault-border px-1.5 py-0.5 rounded">
                               {acc.caliber}
                             </span>
                           )}
@@ -349,7 +349,7 @@ function AccessoryBrowserModal({
                         {isAssigning ? (
                           <Loader2 className="w-4 h-4 text-[#00C2FF] animate-spin" />
                         ) : (
-                          <Plus className="w-4 h-4 text-[#4A5A6B] group-hover:text-[#00C2FF] transition-colors" />
+                          <Plus className="w-4 h-4 text-vault-text-faint group-hover:text-[#00C2FF] transition-colors" />
                         )}
                       </div>
                     </button>
@@ -369,52 +369,52 @@ function AccessoryBrowserModal({
             <div className="space-y-4">
               {/* Pre-filled slot type - readonly display */}
               <div>
-                <label className="block text-[10px] uppercase tracking-widest text-[#5C6E82] mb-1.5">Type</label>
-                <div className="bg-[#080B0F] border border-[#21262D] rounded-md px-3 py-2 text-sm text-[#9AA5B4] font-mono">
+                <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Type</label>
+                <div className="bg-vault-bg border border-vault-border rounded-md px-3 py-2 text-sm text-vault-text-muted font-mono">
                   {SLOT_TYPE_LABELS[slotType]}
                 </div>
               </div>
               {/* Name */}
               <div>
-                <label className="block text-[10px] uppercase tracking-widest text-[#5C6E82] mb-1.5">Name *</label>
+                <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Name *</label>
                 <input value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))}
-                  className="w-full bg-[#080B0F] border border-[#21262D] text-[#F7F9FC] rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-[#5C6E82]"
+                  className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
                   placeholder="e.g. Trijicon ACOG 4x32" />
               </div>
               {/* Manufacturer */}
               <div>
-                <label className="block text-[10px] uppercase tracking-widest text-[#5C6E82] mb-1.5">Manufacturer *</label>
+                <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Manufacturer *</label>
                 <input value={form.manufacturer} onChange={e => setForm(f => ({...f, manufacturer: e.target.value}))}
-                  className="w-full bg-[#080B0F] border border-[#21262D] text-[#F7F9FC] rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-[#5C6E82]"
+                  className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
                   placeholder="e.g. Trijicon" />
               </div>
               {/* Model + Caliber side by side */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] uppercase tracking-widest text-[#5C6E82] mb-1.5">Model</label>
+                  <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Model</label>
                   <input value={form.model} onChange={e => setForm(f => ({...f, model: e.target.value}))}
-                    className="w-full bg-[#080B0F] border border-[#21262D] text-[#F7F9FC] rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-[#5C6E82]"
+                    className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
                     placeholder="Optional" />
                 </div>
                 <div>
-                  <label className="block text-[10px] uppercase tracking-widest text-[#5C6E82] mb-1.5">Caliber</label>
+                  <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Caliber</label>
                   <input value={form.caliber} onChange={e => setForm(f => ({...f, caliber: e.target.value}))}
-                    className="w-full bg-[#080B0F] border border-[#21262D] text-[#F7F9FC] rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-[#5C6E82]"
+                    className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
                     placeholder="Optional" />
                 </div>
               </div>
               {/* Price + Image side by side */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] uppercase tracking-widest text-[#5C6E82] mb-1.5">Purchase Price</label>
+                  <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Purchase Price</label>
                   <input type="number" value={form.purchasePrice} onChange={e => setForm(f => ({...f, purchasePrice: e.target.value}))}
-                    className="w-full bg-[#080B0F] border border-[#21262D] text-[#F7F9FC] rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-[#5C6E82]"
+                    className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
                     placeholder="0.00" />
                 </div>
                 <div>
-                  <label className="block text-[10px] uppercase tracking-widest text-[#5C6E82] mb-1.5">Image URL</label>
+                  <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Image URL</label>
                   <input value={form.imageUrl} onChange={e => setForm(f => ({...f, imageUrl: e.target.value}))}
-                    className="w-full bg-[#080B0F] border border-[#21262D] text-[#F7F9FC] rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-[#5C6E82]"
+                    className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
                     placeholder="https://..." />
                 </div>
               </div>
@@ -423,15 +423,15 @@ function AccessoryBrowserModal({
         )}
 
         {/* Footer */}
-        <div className="px-5 py-3 border-t border-[#1C2530] shrink-0 flex items-center justify-between">
+        <div className="px-5 py-3 border-t border-vault-border shrink-0 flex items-center justify-between">
           {view === "browse" ? (
             <>
-              <span className="text-xs text-[#4A5A6B]">
+              <span className="text-xs text-vault-text-faint">
                 {filtered.length} accessory{filtered.length !== 1 ? "s" : ""}
               </span>
               <button
                 onClick={onClose}
-                className="text-sm text-[#8B9DB0] hover:text-[#E8EDF2] border border-[#1C2530] hover:border-[#8B9DB0]/30 px-4 py-1.5 rounded-md transition-colors"
+                className="text-sm text-vault-text-muted hover:text-vault-text border border-vault-border hover:border-vault-text-muted/30 px-4 py-1.5 rounded-md transition-colors"
               >
                 Cancel
               </button>
@@ -441,7 +441,7 @@ function AccessoryBrowserModal({
               <button
                 onClick={onClose}
                 disabled={creating}
-                className="text-sm text-[#8B9DB0] hover:text-[#E8EDF2] border border-[#1C2530] hover:border-[#8B9DB0]/30 px-4 py-1.5 rounded-md transition-colors disabled:opacity-50"
+                className="text-sm text-vault-text-muted hover:text-vault-text border border-vault-border hover:border-vault-text-muted/30 px-4 py-1.5 rounded-md transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -484,7 +484,7 @@ function WeaponCanvas({ build, onSlotClick, onRemoveSlot }: WeaponCanvasProps) {
   }
 
   return (
-    <div className="relative w-full h-full bg-[#050709] overflow-hidden">
+    <div className="relative w-full h-full bg-vault-canvas overflow-hidden">
       {/* Tactical grid */}
       <div className="absolute inset-0 tactical-grid opacity-60" />
 
@@ -506,10 +506,10 @@ function WeaponCanvas({ build, onSlotClick, onRemoveSlot }: WeaponCanvasProps) {
           />
         ) : (
           <div className="flex flex-col items-center gap-4 text-center select-none">
-            <Shield className="w-20 h-20 text-[#1C2530]" />
+            <Shield className="w-20 h-20 text-vault-border" />
             <div>
-              <p className="text-lg font-bold text-[#1C2530]">{build.firearm.name}</p>
-              <p className="text-xs text-[#131A22] font-mono mt-1 uppercase tracking-widest">
+              <p className="text-lg font-bold text-vault-border">{build.firearm.name}</p>
+              <p className="text-xs text-vault-surface-2 font-mono mt-1 uppercase tracking-widest">
                 {build.firearm.type}
               </p>
             </div>
@@ -544,7 +544,7 @@ function WeaponCanvas({ build, onSlotClick, onRemoveSlot }: WeaponCanvasProps) {
                 <div
                   className="flex items-center gap-1.5 px-2 py-1 rounded-md border text-[10px] font-medium cursor-default whitespace-nowrap max-w-[140px]"
                   style={{
-                    backgroundColor: "rgba(5,7,9,0.9)",
+                    backgroundColor: "var(--vault-canvas)",
                     borderColor: `${slotIconConfig?.color ?? "#00C2FF"}40`,
                     color: slotIconConfig?.color ?? "#00C2FF",
                     boxShadow: `0 0 10px ${slotIconConfig?.color ?? "#00C2FF"}20`,
@@ -557,7 +557,7 @@ function WeaponCanvas({ build, onSlotClick, onRemoveSlot }: WeaponCanvasProps) {
                 {/* Round count sub-badge */}
                 <div
                   className="absolute -bottom-3.5 left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded text-[9px] font-mono whitespace-nowrap"
-                  style={{ backgroundColor: "rgba(5,7,9,0.9)", color: "#F5A623", border: "1px solid rgba(245,166,35,0.3)" }}
+                  style={{ backgroundColor: "var(--vault-canvas)", color: "#F5A623", border: "1px solid rgba(245,166,35,0.3)" }}
                 >
                   {acc.roundCount.toLocaleString()}r
                 </div>
@@ -606,7 +606,7 @@ function WeaponCanvas({ build, onSlotClick, onRemoveSlot }: WeaponCanvasProps) {
                 style={{ backgroundColor: `${slotIconConfig?.color ?? "#8B9DB0"}80` }}
               />
               {/* Hover tooltip */}
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-[#050709] border border-[#1C2530] rounded text-[10px] text-[#8B9DB0] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-vault-canvas border border-vault-border rounded text-[10px] text-vault-text-muted whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                 {SLOT_TYPE_LABELS[slotType]}
               </div>
             </div>
@@ -616,7 +616,7 @@ function WeaponCanvas({ build, onSlotClick, onRemoveSlot }: WeaponCanvasProps) {
 
       {/* Build name watermark */}
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-center pointer-events-none">
-        <p className="text-[10px] font-mono text-[#1C2530] uppercase tracking-[0.3em]">
+        <p className="text-[10px] font-mono text-vault-border uppercase tracking-[0.3em]">
           {build.name}
         </p>
       </div>
@@ -654,14 +654,14 @@ function SlotPanel({
   const filledCount = build.slots.filter((s) => s.accessoryId).length;
 
   return (
-    <div className="h-full flex flex-col bg-[#0D1117] border-t md:border-t-0 border-l-0 md:border-l border-[#21262D]">
+    <div className="h-full flex flex-col bg-vault-surface border-t md:border-t-0 border-l-0 md:border-l border-vault-border">
       {/* Panel header */}
-      <div className="px-4 py-4 border-b border-[#1C2530] shrink-0">
-        <p className="text-[10px] text-[#4A5A6B] uppercase tracking-widest font-mono mb-1">
+      <div className="px-4 py-4 border-b border-vault-border shrink-0">
+        <p className="text-[10px] text-vault-text-faint uppercase tracking-widest font-mono mb-1">
           {build.firearm.name} &middot; {build.firearm.caliber}
         </p>
         <div className="flex items-center gap-2">
-          <h2 className="text-sm font-bold text-[#E8EDF2] leading-tight truncate">
+          <h2 className="text-sm font-bold text-vault-text leading-tight truncate">
             {build.name}
           </h2>
           {build.isActive && (
@@ -675,14 +675,14 @@ function SlotPanel({
         {/* Slot fill progress */}
         <div className="mt-2">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] text-[#4A5A6B]">
+            <span className="text-[10px] text-vault-text-faint">
               {filledCount}/{availableSlots.length} slots configured
             </span>
-            <span className="text-[10px] text-[#4A5A6B] font-mono">
+            <span className="text-[10px] text-vault-text-faint font-mono">
               {Math.round((filledCount / (availableSlots.length || 1)) * 100)}%
             </span>
           </div>
-          <div className="h-0.5 bg-[#1C2530] rounded-full overflow-hidden">
+          <div className="h-0.5 bg-vault-border rounded-full overflow-hidden">
             <div
               className="h-full bg-[#00C2FF] rounded-full transition-all duration-500"
               style={{
@@ -697,7 +697,7 @@ function SlotPanel({
           <div className="relative mt-3">
             <button
               onClick={() => setSwitchOpen((o) => !o)}
-              className="flex items-center justify-between w-full text-xs text-[#8B9DB0] hover:text-[#E8EDF2] border border-[#1C2530] hover:border-[#8B9DB0]/30 rounded-md px-3 py-2 transition-colors"
+              className="flex items-center justify-between w-full text-xs text-vault-text-muted hover:text-vault-text border border-vault-border hover:border-vault-text-muted/30 rounded-md px-3 py-2 transition-colors"
             >
               <span>Switch Build</span>
               <ChevronDown
@@ -705,7 +705,7 @@ function SlotPanel({
               />
             </button>
             {switchOpen && (
-              <div className="absolute z-30 top-full left-0 right-0 mt-1 bg-[#080B0F] border border-[#1C2530] rounded-md shadow-xl overflow-hidden">
+              <div className="absolute z-30 top-full left-0 right-0 mt-1 bg-vault-bg border border-vault-border rounded-md shadow-xl overflow-hidden">
                 {otherBuilds.map((b) => (
                   <button
                     key={b.id}
@@ -713,7 +713,7 @@ function SlotPanel({
                       onSwitchBuild(b.id);
                       setSwitchOpen(false);
                     }}
-                    className="flex items-center justify-between w-full text-left px-3 py-2 text-sm text-[#E8EDF2] hover:bg-[#0E1318] transition-colors"
+                    className="flex items-center justify-between w-full text-left px-3 py-2 text-sm text-vault-text hover:bg-vault-surface transition-colors"
                   >
                     <span className="truncate">{b.name}</span>
                     {b.isActive && (
@@ -741,7 +741,7 @@ function SlotPanel({
             <div
               key={slotType}
               className={`flex items-center gap-3 px-4 py-3 border-b border-[#1C2530]/50 transition-colors ${
-                hasAccessory ? "hover:bg-[#080B0F]" : "hover:bg-[#080B0F]"
+                hasAccessory ? "hover:bg-vault-bg" : "hover:bg-vault-bg"
               }`}
             >
               {/* Icon */}
@@ -767,14 +767,14 @@ function SlotPanel({
               <div className="flex-1 min-w-0">
                 <p
                   className={`text-[10px] uppercase tracking-widest font-mono ${
-                    hasAccessory ? "text-[#4A5A6B]" : "text-[#2A3B4C]"
+                    hasAccessory ? "text-vault-text-faint" : "text-vault-border"
                   }`}
                 >
                   {SLOT_TYPE_LABELS[slotType]}
                 </p>
                 {hasAccessory && slot?.accessory ? (
                   <div className="flex items-center gap-2 mt-0.5">
-                    <p className="text-xs font-medium text-[#E8EDF2] truncate">
+                    <p className="text-xs font-medium text-vault-text truncate">
                       {slot.accessory.name}
                     </p>
                     <span className="shrink-0 text-[9px] font-mono text-[#F5A623] bg-[#F5A623]/10 border border-[#F5A623]/20 px-1.5 py-0.5 rounded">
@@ -782,7 +782,7 @@ function SlotPanel({
                     </span>
                   </div>
                 ) : (
-                  <p className="text-[10px] text-[#2A3B4C] mt-0.5">Empty</p>
+                  <p className="text-[10px] text-vault-border mt-0.5">Empty</p>
                 )}
               </div>
 
@@ -792,13 +792,13 @@ function SlotPanel({
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => onSlotClick(slotType)}
-                      className="text-[10px] text-[#8B9DB0] hover:text-[#00C2FF] border border-[#1C2530] hover:border-[#00C2FF]/40 px-2 py-1 rounded transition-colors"
+                      className="text-[10px] text-vault-text-muted hover:text-[#00C2FF] border border-vault-border hover:border-[#00C2FF]/40 px-2 py-1 rounded transition-colors"
                     >
                       Change
                     </button>
                     <button
                       onClick={() => onRemoveSlot(slotType)}
-                      className="w-6 h-6 flex items-center justify-center text-[#8B9DB0] hover:text-[#E53935] hover:bg-[#E53935]/10 rounded transition-colors"
+                      className="w-6 h-6 flex items-center justify-center text-vault-text-muted hover:text-[#E53935] hover:bg-[#E53935]/10 rounded transition-colors"
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -806,7 +806,7 @@ function SlotPanel({
                 ) : (
                   <button
                     onClick={() => onSlotClick(slotType)}
-                    className="flex items-center gap-1 text-[10px] text-[#4A5A6B] hover:text-[#00C2FF] border border-[#1C2530]/60 hover:border-[#00C2FF]/40 px-2 py-1 rounded transition-colors"
+                    className="flex items-center gap-1 text-[10px] text-vault-text-faint hover:text-[#00C2FF] border border-[#1C2530]/60 hover:border-[#00C2FF]/40 px-2 py-1 rounded transition-colors"
                   >
                     <Plus className="w-2.5 h-2.5" />
                     Attach
@@ -905,9 +905,9 @@ export default function BuildConfiguratorPage() {
   // ── Loading/error screens ──────────────────────────────────
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-full min-h-screen bg-[#050709]">
+      <div className="flex flex-col items-center justify-center h-full min-h-screen bg-vault-canvas">
         <Loader2 className="w-10 h-10 text-[#00C2FF] animate-spin mb-4" />
-        <p className="text-sm text-[#8B9DB0] font-mono uppercase tracking-widest">
+        <p className="text-sm text-vault-text-muted font-mono uppercase tracking-widest">
           Loading Configurator...
         </p>
       </div>
@@ -916,7 +916,7 @@ export default function BuildConfiguratorPage() {
 
   if (error || !build) {
     return (
-      <div className="flex flex-col items-center justify-center h-full min-h-screen bg-[#050709] gap-4">
+      <div className="flex flex-col items-center justify-center h-full min-h-screen bg-vault-canvas gap-4">
         <AlertCircle className="w-12 h-12 text-[#E53935]" />
         <p className="text-[#E53935]">{error ?? "Build not found"}</p>
         <Link href={`/vault/${firearmId}`} className="text-sm text-[#00C2FF] hover:underline">
@@ -928,20 +928,20 @@ export default function BuildConfiguratorPage() {
 
   // ── Main layout ────────────────────────────────────────────
   return (
-    <div className="flex flex-col h-screen bg-[#050709] overflow-hidden">
+    <div className="flex flex-col h-screen bg-vault-canvas overflow-hidden">
       {/* Thin header bar */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#1C2530] bg-[#080B0F] shrink-0 z-20">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-vault-border bg-vault-bg shrink-0 z-20">
         <div className="flex items-center gap-3">
           <Link
             href={`/vault/${firearmId}`}
-            className="flex items-center gap-1.5 text-[#8B9DB0] hover:text-[#E8EDF2] text-xs transition-colors"
+            className="flex items-center gap-1.5 text-vault-text-muted hover:text-vault-text text-xs transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">{build.firearm.name}</span>
             <span className="sm:hidden">Back</span>
           </Link>
-          <span className="text-[#1C2530] text-xs">/</span>
-          <span className="text-xs text-[#E8EDF2] font-medium">{build.name}</span>
+          <span className="text-vault-border text-xs">/</span>
+          <span className="text-xs text-vault-text font-medium">{build.name}</span>
           {build.isActive && (
             <span className="flex items-center gap-1 text-[9px] font-mono text-[#00C853] border border-[#00C853]/40 px-1.5 py-0.5 rounded uppercase">
               <CheckCircle2 className="w-2.5 h-2.5" />
@@ -952,7 +952,7 @@ export default function BuildConfiguratorPage() {
 
         <div className="flex items-center gap-2">
           {/* Firearm type badge */}
-          <span className="hidden sm:inline text-[10px] font-mono text-[#4A5A6B] border border-[#1C2530] px-2 py-0.5 rounded uppercase">
+          <span className="hidden sm:inline text-[10px] font-mono text-vault-text-faint border border-vault-border px-2 py-0.5 rounded uppercase">
             {build.firearm.type}
           </span>
 
@@ -971,7 +971,7 @@ export default function BuildConfiguratorPage() {
               Activate Build
             </button>
           ) : (
-            <span className="text-xs text-[#4A5A6B] px-3 py-1.5 border border-[#1C2530] rounded">
+            <span className="text-xs text-vault-text-faint px-3 py-1.5 border border-vault-border rounded">
               Build Active
             </span>
           )}

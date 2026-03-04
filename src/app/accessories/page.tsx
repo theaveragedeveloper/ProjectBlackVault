@@ -97,14 +97,14 @@ export default async function AccessoriesPage() {
 
       <div className="p-6">
         {/* Summary bar */}
-        <div className="flex items-center gap-6 mb-6 bg-[#0E1318] border border-[#1C2530] rounded-lg px-5 py-3">
+        <div className="flex items-center gap-6 mb-6 bg-vault-surface border border-vault-border rounded-lg px-5 py-3">
           <div>
-            <p className="text-[10px] uppercase tracking-widest text-[#4A5A6B] mb-0.5">Total Parts</p>
-            <p className="text-lg font-bold font-mono text-[#E8EDF2]">{formatNumber(accessories.length)}</p>
+            <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-0.5">Total Parts</p>
+            <p className="text-lg font-bold font-mono text-vault-text">{formatNumber(accessories.length)}</p>
           </div>
-          <div className="w-px h-8 bg-[#1C2530]" />
+          <div className="w-px h-8 bg-vault-border" />
           <div>
-            <p className="text-[10px] uppercase tracking-widest text-[#4A5A6B] mb-0.5">Total Rounds Through</p>
+            <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-0.5">Total Rounds Through</p>
             <p className="text-lg font-bold font-mono text-[#00C2FF]">{formatNumber(totalRounds)}</p>
           </div>
         </div>
@@ -115,8 +115,8 @@ export default async function AccessoriesPage() {
             <div className="w-16 h-16 rounded-full bg-[#00C2FF]/10 border border-[#00C2FF]/20 flex items-center justify-center mb-4">
               <Crosshair className="w-8 h-8 text-[#00C2FF]" />
             </div>
-            <h3 className="text-lg font-semibold text-[#E8EDF2] mb-2">No accessories yet</h3>
-            <p className="text-sm text-[#8B9DB0] mb-6 max-w-sm">
+            <h3 className="text-lg font-semibold text-vault-text mb-2">No accessories yet</h3>
+            <p className="text-sm text-vault-text-muted mb-6 max-w-sm">
               Add parts, optics, suppressors and other attachments to track round counts and build configurations.
             </p>
             <Link
@@ -128,38 +128,38 @@ export default async function AccessoriesPage() {
             </Link>
           </div>
         ) : (
-          <div className="bg-[#0E1318] border border-[#1C2530] rounded-lg overflow-hidden">
+          <div className="bg-vault-surface border border-vault-border rounded-lg overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-[#1C2530]">
-                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-[#4A5A6B] font-medium w-12">
+                  <tr className="border-b border-vault-border">
+                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium w-12">
                       Img
                     </th>
-                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-[#4A5A6B] font-medium">
+                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium">
                       Name
                     </th>
-                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-[#4A5A6B] font-medium hidden md:table-cell">
+                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium hidden md:table-cell">
                       Type
                     </th>
-                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-[#4A5A6B] font-medium hidden lg:table-cell">
+                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium hidden lg:table-cell">
                       Manufacturer
                     </th>
-                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-[#4A5A6B] font-medium">
+                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium">
                       Rounds
                     </th>
-                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-[#4A5A6B] font-medium hidden xl:table-cell">
+                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium hidden xl:table-cell">
                       Installed On
                     </th>
-                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-[#4A5A6B] font-medium hidden lg:table-cell">
+                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium hidden lg:table-cell">
                       Price
                     </th>
-                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-[#4A5A6B] font-medium hidden xl:table-cell">
+                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium hidden xl:table-cell">
                       Acquired
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#1C2530]">
+                <tbody className="divide-y divide-vault-border">
                   {accessories.map((accessory) => {
                     const colors = roundCountColor(accessory.roundCount, accessory.type);
                     const maxRounds = BARREL_TYPES.has(accessory.type) ? 5000 : 20000;
@@ -168,11 +168,11 @@ export default async function AccessoriesPage() {
                     return (
                       <tr
                         key={accessory.id}
-                        className="hover:bg-[#131A22] transition-colors group"
+                        className="hover:bg-vault-surface-2 transition-colors group"
                       >
                         {/* Thumbnail */}
                         <td className="px-4 py-3">
-                          <div className="w-9 h-9 rounded bg-[#080B0F] border border-[#1C2530] overflow-hidden flex items-center justify-center shrink-0">
+                          <div className="w-9 h-9 rounded bg-vault-bg border border-vault-border overflow-hidden flex items-center justify-center shrink-0">
                             {accessory.imageUrl ? (
                               // eslint-disable-next-line @next/next/no-img-element
                               <img
@@ -181,7 +181,7 @@ export default async function AccessoriesPage() {
                                 className="w-full h-full object-cover"
                               />
                             ) : (
-                              <Shield className="w-4 h-4 text-[#4A5A6B]" />
+                              <Shield className="w-4 h-4 text-vault-text-faint" />
                             )}
                           </div>
                         </td>
@@ -189,12 +189,12 @@ export default async function AccessoriesPage() {
                         {/* Name */}
                         <td className="px-4 py-3">
                           <Link href={`/accessories/${accessory.id}`} className="block">
-                            <p className="font-semibold text-[#E8EDF2] group-hover:text-[#00C2FF] transition-colors truncate max-w-[180px] flex items-center gap-1">
+                            <p className="font-semibold text-vault-text group-hover:text-[#00C2FF] transition-colors truncate max-w-[180px] flex items-center gap-1">
                               {accessory.name}
                               <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 shrink-0" />
                             </p>
                             {accessory.model && (
-                              <p className="text-xs text-[#4A5A6B] truncate max-w-[180px]">
+                              <p className="text-xs text-vault-text-faint truncate max-w-[180px]">
                                 {accessory.model}
                               </p>
                             )}
@@ -203,14 +203,14 @@ export default async function AccessoriesPage() {
 
                         {/* Type */}
                         <td className="px-4 py-3 hidden md:table-cell">
-                          <span className="text-xs px-2 py-0.5 rounded border border-[#1C2530] text-[#8B9DB0] font-mono uppercase">
+                          <span className="text-xs px-2 py-0.5 rounded border border-vault-border text-vault-text-muted font-mono uppercase">
                             {SLOT_TYPE_LABELS[accessory.type] ?? accessory.type}
                           </span>
                         </td>
 
                         {/* Manufacturer */}
                         <td className="px-4 py-3 hidden lg:table-cell">
-                          <p className="text-sm text-[#8B9DB0] truncate max-w-[120px]">
+                          <p className="text-sm text-vault-text-muted truncate max-w-[120px]">
                             {accessory.manufacturer}
                           </p>
                         </td>
@@ -221,7 +221,7 @@ export default async function AccessoriesPage() {
                             <p className={`text-sm font-mono font-bold ${colors.text} w-14 shrink-0`}>
                               {formatNumber(accessory.roundCount)}
                             </p>
-                            <div className="w-20 bg-[#1C2530] rounded-full h-1 hidden sm:block">
+                            <div className="w-20 bg-vault-border rounded-full h-1 hidden sm:block">
                               <div
                                 className={`h-1 rounded-full ${colors.bar} transition-all`}
                                 style={{ width: `${pct}%` }}
@@ -237,25 +237,25 @@ export default async function AccessoriesPage() {
                               <p className="text-xs text-[#00C853] truncate max-w-[140px]">
                                 {accessory.currentBuild.firearm.name}
                               </p>
-                              <p className="text-[10px] text-[#4A5A6B] truncate max-w-[140px]">
+                              <p className="text-[10px] text-vault-text-faint truncate max-w-[140px]">
                                 {accessory.currentBuild.name}
                               </p>
                             </div>
                           ) : (
-                            <p className="text-xs text-[#4A5A6B]">Uninstalled</p>
+                            <p className="text-xs text-vault-text-faint">Uninstalled</p>
                           )}
                         </td>
 
                         {/* Price */}
                         <td className="px-4 py-3 hidden lg:table-cell">
-                          <p className="text-sm font-mono text-[#8B9DB0]">
+                          <p className="text-sm font-mono text-vault-text-muted">
                             {formatCurrency(accessory.purchasePrice)}
                           </p>
                         </td>
 
                         {/* Date */}
                         <td className="px-4 py-3 hidden xl:table-cell">
-                          <p className="text-xs text-[#4A5A6B]">
+                          <p className="text-xs text-vault-text-faint">
                             {formatDate(accessory.acquisitionDate)}
                           </p>
                         </td>

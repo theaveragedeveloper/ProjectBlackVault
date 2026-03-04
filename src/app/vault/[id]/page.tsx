@@ -35,7 +35,7 @@ const TYPE_BADGE_COLORS: Record<string, string> = {
   SMG: "border-[#9C27B0]/40 text-[#CE93D8]",
   PCC: "border-[#00BCD4]/40 text-[#00BCD4]",
   REVOLVER: "border-[#E53935]/40 text-[#EF9A9A]",
-  BOLT_ACTION: "border-[#8B9DB0]/40 text-[#8B9DB0]",
+  BOLT_ACTION: "border-[#8B9DB0]/40 text-vault-text-muted",
   LEVER_ACTION: "border-[#FF7043]/40 text-[#FF7043]",
 };
 
@@ -94,7 +94,7 @@ export default async function FirearmDetailPage({
   }
 
   const activeBuild = firearm.builds.find((b) => b.isActive) ?? null;
-  const typeBadge = TYPE_BADGE_COLORS[firearm.type] ?? "border-[#1C2530] text-[#8B9DB0]";
+  const typeBadge = TYPE_BADGE_COLORS[firearm.type] ?? "border-vault-border text-vault-text-muted";
   const typeLabel = FIREARM_TYPE_LABELS[firearm.type] ?? firearm.type;
 
   const gainLoss =
@@ -105,7 +105,7 @@ export default async function FirearmDetailPage({
   return (
     <div className="min-h-full">
       {/* Hero Banner */}
-      <div className="relative h-56 bg-[#080B0F] overflow-hidden">
+      <div className="relative h-56 bg-vault-bg overflow-hidden">
         {firearm.imageUrl ? (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -114,11 +114,11 @@ export default async function FirearmDetailPage({
               alt={firearm.name}
               className="w-full h-full object-cover object-center"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#080B0F] via-[#080B0F]/60 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-vault-bg via-vault-bg/60 to-transparent" />
           </>
         ) : (
           <div className="absolute inset-0 tactical-grid flex items-center justify-center">
-            <Shield className="w-16 h-16 text-[#1C2530]" />
+            <Shield className="w-16 h-16 text-vault-border" />
           </div>
         )}
 
@@ -126,14 +126,14 @@ export default async function FirearmDetailPage({
         <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-4">
           <Link
             href="/vault"
-            className="flex items-center gap-1.5 text-[#E8EDF2]/80 hover:text-[#E8EDF2] text-sm transition-colors bg-[#080B0F]/60 backdrop-blur-sm px-3 py-1.5 rounded-md border border-[#1C2530]/60"
+            className="flex items-center gap-1.5 text-[#E8EDF2]/80 hover:text-vault-text text-sm transition-colors bg-vault-bg/60 backdrop-blur-sm px-3 py-1.5 rounded-md border border-[#1C2530]/60"
           >
             <ArrowLeft className="w-4 h-4" />
             Vault
           </Link>
           <Link
             href={`/vault/${id}/edit`}
-            className="flex items-center gap-1.5 text-sm bg-[#080B0F]/60 backdrop-blur-sm border border-[#1C2530]/60 text-[#8B9DB0] hover:text-[#E8EDF2] px-3 py-1.5 rounded-md transition-colors"
+            className="flex items-center gap-1.5 text-sm bg-vault-bg/60 backdrop-blur-sm border border-[#1C2530]/60 text-vault-text-muted hover:text-vault-text px-3 py-1.5 rounded-md transition-colors"
           >
             <Edit className="w-4 h-4" />
             Edit
@@ -148,12 +148,12 @@ export default async function FirearmDetailPage({
                 <span className={`text-xs px-2 py-0.5 rounded border font-mono uppercase ${typeBadge}`}>
                   {typeLabel}
                 </span>
-                <span className="text-xs px-2 py-0.5 rounded border border-[#1C2530] text-[#8B9DB0] font-mono">
+                <span className="text-xs px-2 py-0.5 rounded border border-vault-border text-vault-text-muted font-mono">
                   {firearm.caliber}
                 </span>
               </div>
-              <h1 className="text-2xl font-bold text-[#E8EDF2] leading-tight">{firearm.name}</h1>
-              <p className="text-sm text-[#8B9DB0] mt-0.5">
+              <h1 className="text-2xl font-bold text-vault-text leading-tight">{firearm.name}</h1>
+              <p className="text-sm text-vault-text-muted mt-0.5">
                 {firearm.manufacturer} · {firearm.model}
               </p>
             </div>
@@ -164,38 +164,38 @@ export default async function FirearmDetailPage({
       <div className="p-6 space-y-6">
         {/* Metadata Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          <div className="bg-[#0E1318] border border-[#1C2530] rounded-lg p-4">
+          <div className="bg-vault-surface border border-vault-border rounded-lg p-4">
             <div className="flex items-center gap-2 mb-2">
-              <Hash className="w-3.5 h-3.5 text-[#4A5A6B]" />
-              <p className="text-[10px] uppercase tracking-widest text-[#4A5A6B]">Serial</p>
+              <Hash className="w-3.5 h-3.5 text-vault-text-faint" />
+              <p className="text-[10px] uppercase tracking-widest text-vault-text-faint">Serial</p>
             </div>
-            <p className="text-sm font-mono text-[#E8EDF2]">{firearm.serialNumber}</p>
+            <p className="text-sm font-mono text-vault-text">{firearm.serialNumber}</p>
           </div>
 
-          <div className="bg-[#0E1318] border border-[#1C2530] rounded-lg p-4">
+          <div className="bg-vault-surface border border-vault-border rounded-lg p-4">
             <div className="flex items-center gap-2 mb-2">
-              <Calendar className="w-3.5 h-3.5 text-[#4A5A6B]" />
-              <p className="text-[10px] uppercase tracking-widest text-[#4A5A6B]">Acquired</p>
+              <Calendar className="w-3.5 h-3.5 text-vault-text-faint" />
+              <p className="text-[10px] uppercase tracking-widest text-vault-text-faint">Acquired</p>
             </div>
-            <p className="text-sm text-[#E8EDF2]">{formatDate(firearm.acquisitionDate)}</p>
+            <p className="text-sm text-vault-text">{formatDate(firearm.acquisitionDate)}</p>
           </div>
 
-          <div className="bg-[#0E1318] border border-[#1C2530] rounded-lg p-4">
+          <div className="bg-vault-surface border border-vault-border rounded-lg p-4">
             <div className="flex items-center gap-2 mb-2">
-              <DollarSign className="w-3.5 h-3.5 text-[#4A5A6B]" />
-              <p className="text-[10px] uppercase tracking-widest text-[#4A5A6B]">Paid</p>
+              <DollarSign className="w-3.5 h-3.5 text-vault-text-faint" />
+              <p className="text-[10px] uppercase tracking-widest text-vault-text-faint">Paid</p>
             </div>
-            <p className="text-sm font-mono text-[#E8EDF2]">
+            <p className="text-sm font-mono text-vault-text">
               {formatCurrency(firearm.purchasePrice)}
             </p>
           </div>
 
-          <div className="bg-[#0E1318] border border-[#1C2530] rounded-lg p-4">
+          <div className="bg-vault-surface border border-vault-border rounded-lg p-4">
             <div className="flex items-center gap-2 mb-2">
-              <TrendingUp className="w-3.5 h-3.5 text-[#4A5A6B]" />
-              <p className="text-[10px] uppercase tracking-widest text-[#4A5A6B]">Value</p>
+              <TrendingUp className="w-3.5 h-3.5 text-vault-text-faint" />
+              <p className="text-[10px] uppercase tracking-widest text-vault-text-faint">Value</p>
             </div>
-            <p className="text-sm font-mono text-[#E8EDF2]">
+            <p className="text-sm font-mono text-vault-text">
               {formatCurrency(firearm.currentValue)}
             </p>
             {gainLoss != null && (
@@ -205,23 +205,23 @@ export default async function FirearmDetailPage({
             )}
           </div>
 
-          <div className="bg-[#0E1318] border border-[#1C2530] rounded-lg p-4 sm:col-span-1 col-span-2">
+          <div className="bg-vault-surface border border-vault-border rounded-lg p-4 sm:col-span-1 col-span-2">
             <div className="flex items-center gap-2 mb-2">
-              <Layers className="w-3.5 h-3.5 text-[#4A5A6B]" />
-              <p className="text-[10px] uppercase tracking-widest text-[#4A5A6B]">Builds</p>
+              <Layers className="w-3.5 h-3.5 text-vault-text-faint" />
+              <p className="text-[10px] uppercase tracking-widest text-vault-text-faint">Builds</p>
             </div>
-            <p className="text-sm font-mono text-[#E8EDF2]">{firearm.builds.length}</p>
+            <p className="text-sm font-mono text-vault-text">{firearm.builds.length}</p>
           </div>
         </div>
 
         {/* Notes */}
         {firearm.notes && (
-          <div className="bg-[#0E1318] border border-[#1C2530] rounded-lg p-4">
+          <div className="bg-vault-surface border border-vault-border rounded-lg p-4">
             <div className="flex items-center gap-2 mb-3">
-              <FileText className="w-4 h-4 text-[#4A5A6B]" />
-              <h3 className="text-xs font-semibold uppercase tracking-widest text-[#8B9DB0]">Notes</h3>
+              <FileText className="w-4 h-4 text-vault-text-faint" />
+              <h3 className="text-xs font-semibold uppercase tracking-widest text-vault-text-muted">Notes</h3>
             </div>
-            <p className="text-sm text-[#E8EDF2] leading-relaxed whitespace-pre-wrap">{firearm.notes}</p>
+            <p className="text-sm text-vault-text leading-relaxed whitespace-pre-wrap">{firearm.notes}</p>
           </div>
         )}
 
@@ -244,12 +244,12 @@ export default async function FirearmDetailPage({
           </div>
 
           {firearm.builds.length === 0 ? (
-            <div className="bg-[#0E1318] border border-[#1C2530] rounded-lg p-10 text-center">
+            <div className="bg-vault-surface border border-vault-border rounded-lg p-10 text-center">
               <div className="w-12 h-12 rounded-full bg-[#00C2FF]/10 border border-[#00C2FF]/20 flex items-center justify-center mx-auto mb-4">
                 <Layers className="w-6 h-6 text-[#00C2FF]" />
               </div>
-              <h3 className="text-sm font-semibold text-[#E8EDF2] mb-2">No builds yet</h3>
-              <p className="text-xs text-[#8B9DB0] mb-4 max-w-xs mx-auto">
+              <h3 className="text-sm font-semibold text-vault-text mb-2">No builds yet</h3>
+              <p className="text-xs text-vault-text-muted mb-4 max-w-xs mx-auto">
                 Create a build to start configuring accessories and attachments for this firearm.
               </p>
               <Link
@@ -267,17 +267,17 @@ export default async function FirearmDetailPage({
                 return (
                   <div
                     key={build.id}
-                    className={`bg-[#0E1318] border rounded-lg p-4 ${
+                    className={`bg-vault-surface border rounded-lg p-4 ${
                       build.isActive
                         ? "border-[#00C853]/40"
-                        : "border-[#1C2530] hover:border-[#8B9DB0]/30"
+                        : "border-vault-border hover:border-vault-text-muted/30"
                     } transition-colors`}
                   >
                     {/* Build header */}
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
-                          <h3 className="text-sm font-semibold text-[#E8EDF2] truncate">
+                          <h3 className="text-sm font-semibold text-vault-text truncate">
                             {build.name}
                           </h3>
                           {build.isActive && (
@@ -288,30 +288,30 @@ export default async function FirearmDetailPage({
                           )}
                         </div>
                         {build.description && (
-                          <p className="text-xs text-[#8B9DB0] truncate">{build.description}</p>
+                          <p className="text-xs text-vault-text-muted truncate">{build.description}</p>
                         )}
                       </div>
                     </div>
 
                     {/* Slot summary */}
                     <div className="mb-4">
-                      <p className="text-xs text-[#4A5A6B] mb-2">
+                      <p className="text-xs text-vault-text-faint mb-2">
                         {filledSlots.length} of {build.slots.length} slot{build.slots.length !== 1 ? "s" : ""} filled
                       </p>
                       {filledSlots.length > 0 && (
                         <div className="space-y-1">
                           {filledSlots.slice(0, 4).map((slot) => (
                             <div key={slot.id} className="flex items-center gap-2">
-                              <span className="text-[10px] font-mono text-[#4A5A6B] w-24 shrink-0">
+                              <span className="text-[10px] font-mono text-vault-text-faint w-24 shrink-0">
                                 {SLOT_TYPE_LABELS[slot.slotType] ?? slot.slotType}
                               </span>
-                              <span className="text-xs text-[#8B9DB0] truncate">
+                              <span className="text-xs text-vault-text-muted truncate">
                                 {slot.accessory?.name ?? "—"}
                               </span>
                             </div>
                           ))}
                           {filledSlots.length > 4 && (
-                            <p className="text-[10px] text-[#4A5A6B]">
+                            <p className="text-[10px] text-vault-text-faint">
                               +{filledSlots.length - 4} more
                             </p>
                           )}
