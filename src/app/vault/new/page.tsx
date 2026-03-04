@@ -118,7 +118,7 @@ export default function NewFirearmPage() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="manufacturer" className={LABEL_CLASS}>
                   Manufacturer <span className="text-[#E53935]">*</span>
@@ -147,7 +147,7 @@ export default function NewFirearmPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Caliber Combobox */}
               <div>
                 <label className={LABEL_CLASS}>
@@ -239,7 +239,7 @@ export default function NewFirearmPage() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="purchasePrice" className={LABEL_CLASS}>
                   Purchase Price

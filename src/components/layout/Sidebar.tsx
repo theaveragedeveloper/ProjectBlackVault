@@ -12,9 +12,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Zap,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const NAV_ITEMS = [
   {
@@ -61,31 +62,45 @@ const NAV_ITEMS = [
   },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
+}
+
+export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
 
-  return (
-    <aside
-      className={cn(
-        "flex flex-col h-screen border-r border-[#1C2530] bg-[#0E1318] transition-all duration-300 ease-in-out shrink-0",
-        collapsed ? "w-16" : "w-56"
-      )}
-    >
+  // Close mobile menu on route change
+  useEffect(() => {
+    onMobileClose?.();
+  }, [pathname, onMobileClose]);
+
+  const navContent = (
+    <>
       {/* Logo */}
-      <div className="flex items-center gap-3 px-4 h-14 border-b border-[#1C2530] shrink-0">
+      <div className="flex items-center gap-3 px-4 h-14 border-b border-[#21262D] shrink-0">
         <div className="w-7 h-7 rounded bg-[#00C2FF]/10 border border-[#00C2FF]/30 flex items-center justify-center shrink-0">
           <Shield className="w-4 h-4 text-[#00C2FF]" />
         </div>
         {!collapsed && (
-          <div className="overflow-hidden">
-            <p className="text-xs font-bold text-[#E8EDF2] tracking-widest uppercase leading-none">
+          <div className="overflow-hidden flex-1 min-w-0">
+            <p className="text-xs font-bold text-[#F7F9FC] tracking-widest uppercase leading-none">
               BlackVault
             </p>
-            <p className="text-[10px] text-[#4A5A6B] tracking-wider uppercase mt-0.5">
+            <p className="text-[10px] text-[#5C6E82] tracking-wider uppercase mt-0.5">
               Armory Platform
             </p>
           </div>
+        )}
+        {/* Mobile close button */}
+        {onMobileClose && (
+          <button
+            onClick={onMobileClose}
+            className="md:hidden ml-auto p-1 text-[#5C6E82] hover:text-[#9AA5B4] transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
         )}
       </div>
 
@@ -106,7 +121,7 @@ export function Sidebar() {
                 "flex items-center gap-3 px-2.5 py-2 rounded-md text-sm transition-all duration-150 group relative",
                 isActive
                   ? "bg-[#00C2FF]/10 text-[#00C2FF] border border-[#00C2FF]/20"
-                  : "text-[#8B9DB0] hover:text-[#E8EDF2] hover:bg-[#1C2530]"
+                  : "text-[#9AA5B4] hover:text-[#F7F9FC] hover:bg-[#21262D]"
               )}
             >
               {isActive && (
@@ -116,7 +131,7 @@ export function Sidebar() {
                 className={cn(
                   "shrink-0 transition-colors",
                   collapsed ? "w-5 h-5" : "w-4 h-4",
-                  isActive ? "text-[#00C2FF]" : "text-[#4A5A6B] group-hover:text-[#8B9DB0]"
+                  isActive ? "text-[#00C2FF]" : "text-[#5C6E82] group-hover:text-[#9AA5B4]"
                 )}
               />
               {!collapsed && (
@@ -129,11 +144,11 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Collapse toggle */}
-      <div className="px-2 pb-3 shrink-0 border-t border-[#1C2530] pt-2">
+      {/* Collapse toggle — desktop only */}
+      <div className="hidden md:block px-2 pb-3 shrink-0 border-t border-[#21262D] pt-2">
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="w-full flex items-center justify-center gap-2 px-2.5 py-2 rounded-md text-[#4A5A6B] hover:text-[#8B9DB0] hover:bg-[#1C2530] transition-colors"
+          className="w-full flex items-center justify-center gap-2 px-2.5 py-2 rounded-md text-[#5C6E82] hover:text-[#9AA5B4] hover:bg-[#21262D] transition-colors"
         >
           {collapsed ? (
             <ChevronRight className="w-4 h-4" />
@@ -145,6 +160,35 @@ export function Sidebar() {
           )}
         </button>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop sidebar */}
+      <aside
+        className={cn(
+          "hidden md:flex flex-col h-screen border-r border-[#21262D] bg-[#0D1117] transition-all duration-300 ease-in-out shrink-0",
+          collapsed ? "w-16" : "w-56"
+        )}
+      >
+        {navContent}
+      </aside>
+
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 z-40 bg-black/60 md:hidden"
+            onClick={onMobileClose}
+          />
+          {/* Drawer */}
+          <aside className="fixed inset-y-0 left-0 z-50 flex flex-col w-64 bg-[#0D1117] border-r border-[#21262D] md:hidden animate-slide-up">
+            {navContent}
+          </aside>
+        </>
+      )}
+    </>
   );
 }

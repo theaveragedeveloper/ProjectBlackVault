@@ -320,7 +320,7 @@ export default async function FirearmDetailPage({
                     </div>
 
                     <Link
-                      href={`/builds/${build.id}`}
+                      href={`/vault/${id}/builds/${build.id}`}
                       className="flex items-center justify-center gap-2 w-full text-xs bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 px-3 py-2 rounded transition-colors"
                     >
                       <Settings2 className="w-3 h-3" />

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
 import {
   Shield,
   Plus,
@@ -11,6 +11,10 @@ import {
   Crosshair,
   Layers,
   SlidersHorizontal,
+  GripVertical,
+  Pencil,
+  Trash2,
+  CheckCircle2,
 } from "lucide-react";
 
 const FIREARM_TYPES = ["ALL", "PISTOL", "RIFLE", "SHOTGUN", "SMG", "PCC", "REVOLVER", "BOLT_ACTION", "LEVER_ACTION"] as const;
@@ -61,6 +65,14 @@ interface Firearm {
   activeBuild: ActiveBuild | null;
 }
 
+interface Build {
+  id: string;
+  name: string;
+  isActive: boolean;
+  sortOrder: number;
+  slots: { id: string; slotType: string; accessory: { id: string; name: string } | null }[];
+}
+
 function FirearmTypeIcon({ type }: { type: string }) {
   switch (type) {
     case "PISTOL":
@@ -79,7 +91,14 @@ function FirearmTypeIcon({ type }: { type: string }) {
   }
 }
 
-function FirearmCard({ firearm }: { firearm: Firearm }) {
+interface FirearmCardProps {
+  firearm: Firearm;
+  editMode?: boolean;
+  editBuilds?: Build[];
+  onDeleteBuild?: (build: Build & { firearmId: string }, accessories: { id: string; name: string }[]) => void;
+}
+
+function FirearmCard({ firearm, editMode, editBuilds, onDeleteBuild }: FirearmCardProps) {
   const typeBadge = TYPE_BADGE_COLORS[firearm.type] ?? "border-[#1C2530] text-[#8B9DB0]";
   const typeLabel = FIREARM_TYPE_LABELS[firearm.type] ?? firearm.type;
   const activeBuild = firearm.activeBuild;
@@ -146,7 +165,7 @@ function FirearmCard({ firearm }: { firearm: Firearm }) {
         </div>
 
         {/* Active build */}
-        {activeBuild && (
+        {activeBuild && !editMode && (
           <div className="mb-3 px-2 py-1.5 rounded bg-[#080B0F] border border-[#1C2530]">
             <div className="flex items-center gap-1.5">
               <Layers className="w-3 h-3 text-[#00C853]" />
@@ -159,33 +178,71 @@ function FirearmCard({ firearm }: { firearm: Firearm }) {
         )}
 
         {/* Footer */}
-        <div className="mt-auto flex items-center justify-between pt-3 border-t border-[#1C2530]">
-          {firearm.purchasePrice != null ? (
-            <span className="text-xs font-mono text-[#8B9DB0]">
-              {formatCurrency(firearm.purchasePrice)}
-            </span>
-          ) : (
-            <span className="text-xs text-[#4A5A6B]">No price</span>
-          )}
+        {!editMode && (
+          <div className="mt-auto flex items-center justify-between pt-3 border-t border-[#1C2530]">
+            {firearm.purchasePrice != null ? (
+              <span className="text-xs font-mono text-[#8B9DB0]">
+                {formatCurrency(firearm.purchasePrice)}
+              </span>
+            ) : (
+              <span className="text-xs text-[#4A5A6B]">No price</span>
+            )}
 
-          {activeBuild ? (
-            <Link
-              href={`/builds/${activeBuild.id}`}
-              className="flex items-center gap-1.5 text-xs bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 px-2.5 py-1 rounded transition-colors"
-            >
-              <Settings2 className="w-3 h-3" />
-              Configure
-            </Link>
-          ) : (
-            <Link
-              href={`/vault/${firearm.id}`}
-              className="flex items-center gap-1.5 text-xs bg-[#1C2530] border border-[#1C2530] text-[#8B9DB0] hover:text-[#E8EDF2] hover:border-[#8B9DB0]/30 px-2.5 py-1 rounded transition-colors"
-            >
-              <Plus className="w-3 h-3" />
-              Create Build
-            </Link>
-          )}
-        </div>
+            {activeBuild ? (
+              <Link
+                href={`/vault/${firearm.id}/builds/${activeBuild.id}`}
+                className="flex items-center gap-1.5 text-xs bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 px-2.5 py-1 rounded transition-colors"
+              >
+                <Settings2 className="w-3 h-3" />
+                Configure
+              </Link>
+            ) : (
+              <Link
+                href={`/vault/${firearm.id}`}
+                className="flex items-center gap-1.5 text-xs bg-[#1C2530] border border-[#1C2530] text-[#8B9DB0] hover:text-[#E8EDF2] hover:border-[#8B9DB0]/30 px-2.5 py-1 rounded transition-colors"
+              >
+                <Plus className="w-3 h-3" />
+                Create Build
+              </Link>
+            )}
+          </div>
+        )}
+
+        {/* Edit mode builds section */}
+        {editMode && editBuilds && (
+          <div className="mt-3 pt-3 border-t border-[#21262D]">
+            <p className="text-[10px] uppercase tracking-widest text-[#5C6E82] mb-2">Builds</p>
+            {editBuilds.length === 0 ? (
+              <p className="text-xs text-[#5C6E82] italic">No builds</p>
+            ) : (
+              <div className="space-y-1">
+                {editBuilds.map((build) => {
+                  const accessoriesOnBuild = build.slots
+                    .filter(s => s.accessory !== null)
+                    .map(s => s.accessory!);
+                  return (
+                    <div key={build.id} className="flex items-center gap-2 py-1.5 px-2 rounded bg-[#080B0F] border border-[#21262D] group/build">
+                      <GripVertical className="w-3.5 h-3.5 text-[#5C6E82] shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-[#F7F9FC] truncate">{build.name}</p>
+                        <p className="text-[10px] text-[#5C6E82]">{accessoriesOnBuild.length} accessories</p>
+                      </div>
+                      {build.isActive && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#00C853]/10 text-[#00C853] border border-[#00C853]/20 shrink-0">Active</span>
+                      )}
+                      <button
+                        onClick={() => onDeleteBuild?.({ ...build, firearmId: firearm.id }, accessoriesOnBuild)}
+                        className="w-6 h-6 flex items-center justify-center rounded text-[#5C6E82] hover:text-[#E53935] hover:bg-[#E53935]/10 transition-colors shrink-0"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -195,6 +252,13 @@ export default function VaultPage() {
   const [firearms, setFirearms] = useState<Firearm[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<string>("ALL");
+  const [editMode, setEditMode] = useState(false);
+  const [buildsByFirearm, setBuildsByFirearm] = useState<Record<string, Build[]>>({});
+  const [deleteTarget, setDeleteTarget] = useState<{
+    build: { id: string; name: string; firearmId: string };
+    accessories: { id: string; name: string }[];
+  } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetch("/api/firearms")
@@ -205,6 +269,60 @@ export default function VaultPage() {
       })
       .catch(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!editMode) return;
+    Promise.all(
+      firearms.map(f =>
+        fetch(`/api/builds?firearmId=${f.id}`)
+          .then(r => r.json())
+          .then(data => ({ firearmId: f.id, builds: Array.isArray(data) ? data : [] }))
+      )
+    ).then(results => {
+      const map: Record<string, Build[]> = {};
+      results.forEach(r => { map[r.firearmId] = r.builds; });
+      setBuildsByFirearm(map);
+    });
+  }, [editMode, firearms]);
+
+  function openDeleteModal(build: Build & { firearmId: string }, accessories: { id: string; name: string }[]) {
+    setDeleteTarget({ build, accessories });
+  }
+
+  async function handleDeleteBuild(deleteAccessories: boolean) {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      // Delete build (accessories auto-unassigned via onDelete: SetNull in schema)
+      await fetch(`/api/builds/${deleteTarget.build.id}`, { method: "DELETE" });
+
+      // Optionally delete accessories too
+      if (deleteAccessories && deleteTarget.accessories.length > 0) {
+        await Promise.all(
+          deleteTarget.accessories.map(a =>
+            fetch(`/api/accessories/${a.id}`, { method: "DELETE" })
+          )
+        );
+      }
+
+      // Refresh firearms list
+      const res = await fetch("/api/firearms");
+      const data = await res.json();
+      if (Array.isArray(data)) setFirearms(data);
+
+      // Update buildsByFirearm state
+      const newBuilds = await fetch(`/api/builds?firearmId=${deleteTarget.build.firearmId}`)
+        .then(r => r.json())
+        .then(d => Array.isArray(d) ? d : []);
+      setBuildsByFirearm(prev => ({ ...prev, [deleteTarget.build.firearmId]: newBuilds }));
+
+      setDeleteTarget(null);
+    } catch (err) {
+      console.error("Delete failed", err);
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   const filtered = activeFilter === "ALL"
     ? firearms
@@ -221,13 +339,26 @@ export default function VaultPage() {
         title="VAULT"
         subtitle={`${firearms.length} firearm${firearms.length !== 1 ? "s" : ""} in inventory`}
         actions={
-          <Link
-            href="/vault/new"
-            className="flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 px-3 py-1.5 rounded text-sm font-medium transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Add Firearm
-          </Link>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setEditMode(!editMode)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium transition-colors border ${
+                editMode
+                  ? "bg-[#00C853]/10 border-[#00C853]/30 text-[#00C853] hover:bg-[#00C853]/20"
+                  : "bg-[#21262D] border-[#21262D] text-[#9AA5B4] hover:text-[#F7F9FC] hover:border-[#9AA5B4]/30"
+              }`}
+            >
+              {editMode ? <CheckCircle2 className="w-4 h-4" /> : <Pencil className="w-4 h-4" />}
+              {editMode ? "Done" : "Edit"}
+            </button>
+            <Link
+              href="/vault/new"
+              className="flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 px-3 py-1.5 rounded text-sm font-medium transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add Firearm
+            </Link>
+          </div>
         }
       />
 
@@ -295,14 +426,100 @@ export default function VaultPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filtered.map((firearm) => (
-              <Link key={firearm.id} href={`/vault/${firearm.id}`} className="block">
-                <FirearmCard firearm={firearm} />
-              </Link>
-            ))}
+            {filtered.map((firearm) =>
+              editMode ? (
+                <FirearmCard
+                  key={firearm.id}
+                  firearm={firearm}
+                  editMode={editMode}
+                  editBuilds={buildsByFirearm[firearm.id]}
+                  onDeleteBuild={openDeleteModal}
+                />
+              ) : (
+                <Link key={firearm.id} href={`/vault/${firearm.id}`} className="block">
+                  <FirearmCard firearm={firearm} />
+                </Link>
+              )
+            )}
           </div>
         )}
       </div>
+
+      {/* Delete confirmation modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{backgroundColor: "rgba(5,7,9,0.9)"}}>
+          <div className="bg-[#0D1117] border border-[#21262D] rounded-xl w-full max-w-md animate-slide-up shadow-2xl">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-[#E53935]/10 border border-[#E53935]/20 flex items-center justify-center">
+                  <Trash2 className="w-5 h-5 text-[#E53935]" />
+                </div>
+                <div>
+                  <h2 className="text-base font-semibold text-[#F7F9FC]">Delete Build</h2>
+                  <p className="text-xs text-[#9AA5B4]">{deleteTarget.build.name}</p>
+                </div>
+              </div>
+
+              {deleteTarget.accessories.length > 0 ? (
+                <>
+                  <p className="text-sm text-[#9AA5B4] mb-3">
+                    This build has <span className="text-[#F7F9FC] font-medium">{deleteTarget.accessories.length} accessor{deleteTarget.accessories.length !== 1 ? "ies" : "y"}</span> assigned to it:
+                  </p>
+                  <div className="bg-[#080B0F] border border-[#21262D] rounded-lg p-3 mb-4 space-y-1 max-h-32 overflow-y-auto">
+                    {deleteTarget.accessories.map(a => (
+                      <p key={a.id} className="text-xs text-[#9AA5B4]">• {a.name}</p>
+                    ))}
+                  </div>
+                  <p className="text-sm text-[#9AA5B4] mb-4">What would you like to do with these accessories?</p>
+                  <div className="space-y-2">
+                    <button
+                      disabled={deleting}
+                      onClick={() => handleDeleteBuild(false)}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-lg border border-[#21262D] bg-[#161B22] hover:border-[#00C2FF]/30 hover:bg-[#00C2FF]/5 transition-all text-left disabled:opacity-50"
+                    >
+                      <Shield className="w-4 h-4 text-[#00C2FF] shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-[#F7F9FC]">Keep accessories in vault</p>
+                        <p className="text-xs text-[#9AA5B4]">Accessories stay in your inventory, just unassigned</p>
+                      </div>
+                    </button>
+                    <button
+                      disabled={deleting}
+                      onClick={() => handleDeleteBuild(true)}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-lg border border-[#E53935]/20 bg-[#E53935]/5 hover:bg-[#E53935]/10 transition-all text-left disabled:opacity-50"
+                    >
+                      <Trash2 className="w-4 h-4 text-[#E53935] shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-[#E53935]">Delete accessories too</p>
+                        <p className="text-xs text-[#9AA5B4]">Permanently removes accessories from your vault</p>
+                      </div>
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-[#9AA5B4] mb-6">This build has no accessories assigned. Delete it?</p>
+                  <button
+                    disabled={deleting}
+                    onClick={() => handleDeleteBuild(false)}
+                    className="w-full px-4 py-2.5 rounded-lg bg-[#E53935]/10 border border-[#E53935]/30 text-[#E53935] hover:bg-[#E53935]/20 transition-colors text-sm font-medium disabled:opacity-50"
+                  >
+                    {deleting ? "Deleting..." : "Delete Build"}
+                  </button>
+                </>
+              )}
+
+              <button
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+                className="w-full mt-3 px-4 py-2 rounded-lg text-[#9AA5B4] hover:text-[#F7F9FC] text-sm transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

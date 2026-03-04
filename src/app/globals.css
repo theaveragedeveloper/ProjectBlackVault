@@ -3,21 +3,21 @@
 /* ── Vault Design Tokens ──────────────────────────────────── */
 :root {
   --vault-bg:           #080B0F;
-  --vault-surface:      #0E1318;
-  --vault-surface-2:    #131A22;
-  --vault-border:       #1C2530;
-  --vault-muted:        #1E2D3D;
+  --vault-surface:      #0D1117;
+  --vault-surface-2:    #161B22;
+  --vault-border:       #21262D;
+  --vault-muted:        #1C2128;
   --vault-accent:       #00C2FF;
-  --vault-accent-dim:   rgba(0, 194, 255, 0.15);
+  --vault-accent-dim:   rgba(0, 194, 255, 0.12);
   --vault-warn:         #F5A623;
-  --vault-warn-dim:     rgba(245, 166, 35, 0.15);
+  --vault-warn-dim:     rgba(245, 166, 35, 0.12);
   --vault-danger:       #E53935;
-  --vault-danger-dim:   rgba(229, 57, 53, 0.15);
+  --vault-danger-dim:   rgba(229, 57, 53, 0.12);
   --vault-success:      #00C853;
-  --vault-success-dim:  rgba(0, 200, 83, 0.15);
-  --vault-text:         #E8EDF2;
-  --vault-text-muted:   #8B9DB0;
-  --vault-text-faint:   #4A5A6B;
+  --vault-success-dim:  rgba(0, 200, 83, 0.12);
+  --vault-text:         #F7F9FC;
+  --vault-text-muted:   #9AA5B4;
+  --vault-text-faint:   #5C6E82;
 
   --background: var(--vault-bg);
   --foreground: var(--vault-text);

@@ -79,6 +79,11 @@ function AccessoryBrowserModal({
   const [assigning, setAssigning] = useState<string | null>(null);
   const [assignError, setAssignError] = useState<string | null>(null);
 
+  const [view, setView] = useState<"browse" | "create">("browse");
+  const [form, setForm] = useState({ name: "", manufacturer: "", model: "", caliber: "", purchasePrice: "", imageUrl: "" });
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
   useEffect(() => {
     fetch(`/api/accessories?type=${encodeURIComponent(slotType)}`)
       .then((r) => r.json())
@@ -128,6 +133,53 @@ function AccessoryBrowserModal({
     }
   }
 
+  async function handleCreate() {
+    if (!form.name.trim() || !form.manufacturer.trim()) {
+      setCreateError("Name and Manufacturer are required");
+      return;
+    }
+    setCreating(true);
+    setCreateError(null);
+    try {
+      // Create the accessory
+      const createRes = await fetch("/api/accessories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name.trim(),
+          manufacturer: form.manufacturer.trim(),
+          model: form.model.trim() || undefined,
+          type: slotType,
+          caliber: form.caliber.trim() || undefined,
+          purchasePrice: form.purchasePrice ? parseFloat(form.purchasePrice) : undefined,
+          imageUrl: form.imageUrl.trim() || undefined,
+        }),
+      });
+      const created = await createRes.json();
+      if (!createRes.ok) {
+        setCreateError(created.error ?? "Failed to create accessory");
+        return;
+      }
+      // Assign to slot
+      const assignRes = await fetch(`/api/builds/${buildId}/slots`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slotType, accessoryId: created.id }),
+      });
+      if (!assignRes.ok) {
+        const j = await assignRes.json();
+        setCreateError(j.error ?? "Created but failed to assign");
+        return;
+      }
+      onAssigned();
+      onClose();
+    } catch {
+      setCreateError("Network error");
+    } finally {
+      setCreating(false);
+    }
+  }
+
   const slotIconConfig = SLOT_ICONS[slotType as SlotType];
   const SlotIcon = slotIconConfig?.icon ?? Shield;
 
@@ -166,23 +218,49 @@ function AccessoryBrowserModal({
           </button>
         </div>
 
-        {/* Search */}
-        <div className="px-5 py-3 border-b border-[#1C2530] shrink-0">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#4A5A6B]" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={`Search ${SLOT_TYPE_LABELS[slotType]} accessories...`}
-              className="w-full bg-[#080B0F] border border-[#1C2530] text-[#E8EDF2] rounded-md pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-[#4A5A6B]"
-              autoFocus
-            />
-          </div>
+        {/* Tab bar */}
+        <div className="flex border-b border-[#21262D] shrink-0">
+          <button
+            onClick={() => setView("browse")}
+            className={`flex-1 py-2.5 text-xs font-medium tracking-wide transition-colors ${
+              view === "browse"
+                ? "text-[#00C2FF] border-b-2 border-[#00C2FF]"
+                : "text-[#5C6E82] hover:text-[#9AA5B4]"
+            }`}
+          >
+            Browse Library
+          </button>
+          <button
+            onClick={() => setView("create")}
+            className={`flex-1 py-2.5 text-xs font-medium tracking-wide transition-colors ${
+              view === "create"
+                ? "text-[#00C2FF] border-b-2 border-[#00C2FF]"
+                : "text-[#5C6E82] hover:text-[#9AA5B4]"
+            }`}
+          >
+            + Create New
+          </button>
         </div>
 
-        {/* Error banner */}
-        {assignError && (
+        {/* Search — only show in browse view */}
+        {view === "browse" && (
+          <div className="px-5 py-3 border-b border-[#1C2530] shrink-0">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#4A5A6B]" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={`Search ${SLOT_TYPE_LABELS[slotType]} accessories...`}
+                className="w-full bg-[#080B0F] border border-[#1C2530] text-[#E8EDF2] rounded-md pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-[#4A5A6B]"
+                autoFocus
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Error banner (browse view assign errors) */}
+        {view === "browse" && assignError && (
           <div className="mx-5 mt-3 flex items-center gap-2 bg-[#E53935]/10 border border-[#E53935]/30 rounded-md px-3 py-2 shrink-0">
             <AlertCircle className="w-4 h-4 text-[#E53935] shrink-0" />
             <p className="text-xs text-[#E53935]">{assignError}</p>
@@ -190,107 +268,197 @@ function AccessoryBrowserModal({
         )}
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-5">
-          {loading ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 className="w-6 h-6 text-[#00C2FF] animate-spin" />
-            </div>
-          ) : error ? (
-            <div className="flex flex-col items-center justify-center py-16 gap-3">
-              <AlertCircle className="w-8 h-8 text-[#E53935]" />
-              <p className="text-sm text-[#E53935]">{error}</p>
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 gap-3">
-              <div className="w-12 h-12 rounded-full bg-[#1C2530] flex items-center justify-center">
-                <Crosshair className="w-6 h-6 text-[#4A5A6B]" />
+        {view === "browse" ? (
+          <div className="flex-1 overflow-y-auto p-5">
+            {loading ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="w-6 h-6 text-[#00C2FF] animate-spin" />
               </div>
-              <p className="text-sm text-[#8B9DB0]">
-                {search
-                  ? "No accessories match your search"
-                  : `No ${SLOT_TYPE_LABELS[slotType]} accessories in your collection`}
-              </p>
-              {!search && (
-                <Link
-                  href="/accessories/new"
-                  className="text-xs text-[#00C2FF] hover:underline"
-                >
-                  Add one now
-                </Link>
-              )}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {filtered.map((acc) => {
-                const isAssigning = assigning === acc.id;
-                return (
+            ) : error ? (
+              <div className="flex flex-col items-center justify-center py-16 gap-3">
+                <AlertCircle className="w-8 h-8 text-[#E53935]" />
+                <p className="text-sm text-[#E53935]">{error}</p>
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 gap-3">
+                <div className="w-12 h-12 rounded-full bg-[#1C2530] flex items-center justify-center">
+                  <Crosshair className="w-6 h-6 text-[#4A5A6B]" />
+                </div>
+                <p className="text-sm text-[#8B9DB0]">
+                  {search
+                    ? "No accessories match your search"
+                    : `No ${SLOT_TYPE_LABELS[slotType]} accessories in your collection`}
+                </p>
+                {!search && (
                   <button
-                    key={acc.id}
-                    onClick={() => assignAccessory(acc.id)}
-                    disabled={!!assigning}
-                    className="flex items-center gap-3 text-left w-full bg-[#080B0F] border border-[#1C2530] hover:border-[#00C2FF]/40 hover:bg-[#00C2FF]/5 rounded-lg p-3 transition-all disabled:opacity-60 disabled:cursor-not-allowed group"
+                    onClick={() => setView("create")}
+                    className="text-xs text-[#00C2FF] hover:underline"
                   >
-                    {/* Thumbnail */}
-                    <div className="w-14 h-14 shrink-0 rounded-md overflow-hidden bg-[#0E1318] border border-[#1C2530] flex items-center justify-center">
-                      {acc.imageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={acc.imageUrl}
-                          alt={acc.name}
-                          className="w-full h-full object-contain p-1"
-                        />
-                      ) : (
-                        <SlotIcon
-                          className="w-6 h-6"
-                          style={{ color: slotIconConfig?.color ?? "#4A5A6B" }}
-                        />
-                      )}
-                    </div>
-
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-[#E8EDF2] truncate group-hover:text-[#00C2FF] transition-colors">
-                        {acc.name}
-                      </p>
-                      <p className="text-xs text-[#8B9DB0] truncate">{acc.manufacturer}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        {acc.caliber && (
-                          <span className="text-[10px] font-mono text-[#4A5A6B] border border-[#1C2530] px-1.5 py-0.5 rounded">
-                            {acc.caliber}
-                          </span>
-                        )}
-                        <span className="text-[10px] font-mono text-[#F5A623]">
-                          {acc.roundCount.toLocaleString()} rds
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Action */}
-                    <div className="shrink-0">
-                      {isAssigning ? (
-                        <Loader2 className="w-4 h-4 text-[#00C2FF] animate-spin" />
-                      ) : (
-                        <Plus className="w-4 h-4 text-[#4A5A6B] group-hover:text-[#00C2FF] transition-colors" />
-                      )}
-                    </div>
+                    Create one now
                   </button>
-                );
-              })}
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {filtered.map((acc) => {
+                  const isAssigning = assigning === acc.id;
+                  return (
+                    <button
+                      key={acc.id}
+                      onClick={() => assignAccessory(acc.id)}
+                      disabled={!!assigning}
+                      className="flex items-center gap-3 text-left w-full bg-[#080B0F] border border-[#1C2530] hover:border-[#00C2FF]/40 hover:bg-[#00C2FF]/5 rounded-lg p-3 transition-all disabled:opacity-60 disabled:cursor-not-allowed group"
+                    >
+                      {/* Thumbnail */}
+                      <div className="w-14 h-14 shrink-0 rounded-md overflow-hidden bg-[#0E1318] border border-[#1C2530] flex items-center justify-center">
+                        {acc.imageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={acc.imageUrl}
+                            alt={acc.name}
+                            className="w-full h-full object-contain p-1"
+                          />
+                        ) : (
+                          <SlotIcon
+                            className="w-6 h-6"
+                            style={{ color: slotIconConfig?.color ?? "#4A5A6B" }}
+                          />
+                        )}
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-[#E8EDF2] truncate group-hover:text-[#00C2FF] transition-colors">
+                          {acc.name}
+                        </p>
+                        <p className="text-xs text-[#8B9DB0] truncate">{acc.manufacturer}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          {acc.caliber && (
+                            <span className="text-[10px] font-mono text-[#4A5A6B] border border-[#1C2530] px-1.5 py-0.5 rounded">
+                              {acc.caliber}
+                            </span>
+                          )}
+                          <span className="text-[10px] font-mono text-[#F5A623]">
+                            {acc.roundCount.toLocaleString()} rds
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Action */}
+                      <div className="shrink-0">
+                        {isAssigning ? (
+                          <Loader2 className="w-4 h-4 text-[#00C2FF] animate-spin" />
+                        ) : (
+                          <Plus className="w-4 h-4 text-[#4A5A6B] group-hover:text-[#00C2FF] transition-colors" />
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto p-5">
+            {createError && (
+              <div className="mb-4 flex items-center gap-2 bg-[#E53935]/10 border border-[#E53935]/30 rounded-md px-3 py-2">
+                <AlertCircle className="w-4 h-4 text-[#E53935] shrink-0" />
+                <p className="text-xs text-[#E53935]">{createError}</p>
+              </div>
+            )}
+            <div className="space-y-4">
+              {/* Pre-filled slot type - readonly display */}
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-[#5C6E82] mb-1.5">Type</label>
+                <div className="bg-[#080B0F] border border-[#21262D] rounded-md px-3 py-2 text-sm text-[#9AA5B4] font-mono">
+                  {SLOT_TYPE_LABELS[slotType]}
+                </div>
+              </div>
+              {/* Name */}
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-[#5C6E82] mb-1.5">Name *</label>
+                <input value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))}
+                  className="w-full bg-[#080B0F] border border-[#21262D] text-[#F7F9FC] rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-[#5C6E82]"
+                  placeholder="e.g. Trijicon ACOG 4x32" />
+              </div>
+              {/* Manufacturer */}
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-[#5C6E82] mb-1.5">Manufacturer *</label>
+                <input value={form.manufacturer} onChange={e => setForm(f => ({...f, manufacturer: e.target.value}))}
+                  className="w-full bg-[#080B0F] border border-[#21262D] text-[#F7F9FC] rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-[#5C6E82]"
+                  placeholder="e.g. Trijicon" />
+              </div>
+              {/* Model + Caliber side by side */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest text-[#5C6E82] mb-1.5">Model</label>
+                  <input value={form.model} onChange={e => setForm(f => ({...f, model: e.target.value}))}
+                    className="w-full bg-[#080B0F] border border-[#21262D] text-[#F7F9FC] rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-[#5C6E82]"
+                    placeholder="Optional" />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest text-[#5C6E82] mb-1.5">Caliber</label>
+                  <input value={form.caliber} onChange={e => setForm(f => ({...f, caliber: e.target.value}))}
+                    className="w-full bg-[#080B0F] border border-[#21262D] text-[#F7F9FC] rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-[#5C6E82]"
+                    placeholder="Optional" />
+                </div>
+              </div>
+              {/* Price + Image side by side */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest text-[#5C6E82] mb-1.5">Purchase Price</label>
+                  <input type="number" value={form.purchasePrice} onChange={e => setForm(f => ({...f, purchasePrice: e.target.value}))}
+                    className="w-full bg-[#080B0F] border border-[#21262D] text-[#F7F9FC] rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-[#5C6E82]"
+                    placeholder="0.00" />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest text-[#5C6E82] mb-1.5">Image URL</label>
+                  <input value={form.imageUrl} onChange={e => setForm(f => ({...f, imageUrl: e.target.value}))}
+                    className="w-full bg-[#080B0F] border border-[#21262D] text-[#F7F9FC] rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-[#5C6E82]"
+                    placeholder="https://..." />
+                </div>
+              </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="px-5 py-3 border-t border-[#1C2530] shrink-0 flex items-center justify-between">
-          <span className="text-xs text-[#4A5A6B]">
-            {filtered.length} accessory{filtered.length !== 1 ? "s" : ""}
-          </span>
-          <button
-            onClick={onClose}
-            className="text-sm text-[#8B9DB0] hover:text-[#E8EDF2] border border-[#1C2530] hover:border-[#8B9DB0]/30 px-4 py-1.5 rounded-md transition-colors"
-          >
-            Cancel
-          </button>
+          {view === "browse" ? (
+            <>
+              <span className="text-xs text-[#4A5A6B]">
+                {filtered.length} accessory{filtered.length !== 1 ? "s" : ""}
+              </span>
+              <button
+                onClick={onClose}
+                className="text-sm text-[#8B9DB0] hover:text-[#E8EDF2] border border-[#1C2530] hover:border-[#8B9DB0]/30 px-4 py-1.5 rounded-md transition-colors"
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={onClose}
+                disabled={creating}
+                className="text-sm text-[#8B9DB0] hover:text-[#E8EDF2] border border-[#1C2530] hover:border-[#8B9DB0]/30 px-4 py-1.5 rounded-md transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreate}
+                disabled={creating}
+                className="flex items-center gap-2 text-sm bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 px-4 py-1.5 rounded-md transition-colors disabled:opacity-50"
+              >
+                {creating ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Plus className="w-3.5 h-3.5" />
+                )}
+                {creating ? "Creating..." : "Create & Assign"}
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -486,7 +654,7 @@ function SlotPanel({
   const filledCount = build.slots.filter((s) => s.accessoryId).length;
 
   return (
-    <div className="h-full flex flex-col bg-[#0E1318] border-l border-[#1C2530]">
+    <div className="h-full flex flex-col bg-[#0D1117] border-t md:border-t-0 border-l-0 md:border-l border-[#21262D]">
       {/* Panel header */}
       <div className="px-4 py-4 border-b border-[#1C2530] shrink-0">
         <p className="text-[10px] text-[#4A5A6B] uppercase tracking-widest font-mono mb-1">
@@ -810,10 +978,10 @@ export default function BuildConfiguratorPage() {
         </div>
       </div>
 
-      {/* Main split layout */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left: Weapon Canvas (65%) */}
-        <div className="relative" style={{ flex: "0 0 65%" }}>
+      {/* Main split layout — vertical on mobile, side-by-side on md+ */}
+      <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+        {/* Canvas — fixed height on mobile, flex on desktop */}
+        <div className="relative h-64 md:h-auto shrink-0 md:shrink md:[flex:0_0_65%]">
           <WeaponCanvas
             build={build}
             onSlotClick={(slotType) => setBrowserSlot(slotType)}
@@ -821,8 +989,8 @@ export default function BuildConfiguratorPage() {
           />
         </div>
 
-        {/* Right: Slot Panel (35%) */}
-        <div className="overflow-hidden" style={{ flex: "0 0 35%" }}>
+        {/* Slot Panel — flex below canvas on mobile, 35% on desktop */}
+        <div className="flex-1 md:[flex:0_0_35%] overflow-hidden">
           <SlotPanel
             build={build}
             allBuilds={allBuilds}

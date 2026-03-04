@@ -115,7 +115,7 @@ export default function NewAccessoryPage() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="manufacturer" className={LABEL_CLASS}>
                   Manufacturer <span className="text-[#E53935]">*</span>
@@ -143,7 +143,7 @@ export default function NewAccessoryPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="type" className={LABEL_CLASS}>
                   Type / Slot <span className="text-[#E53935]">*</span>
@@ -202,7 +202,7 @@ export default function NewAccessoryPage() {
               Acquisition
             </legend>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="acquisitionDate" className={LABEL_CLASS}>
                   Date Acquired

@@ -146,7 +146,7 @@ export default function NewAmmoStockPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="brand" className={LABEL_CLASS}>
                   Brand <span className="text-[#E53935]">*</span>
@@ -175,7 +175,7 @@ export default function NewAmmoStockPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="grainWeight" className={LABEL_CLASS}>
                   Grain Weight (gr)
@@ -212,7 +212,7 @@ export default function NewAmmoStockPage() {
             <legend className="text-xs font-mono uppercase tracking-widest text-[#F5A623] px-1 -ml-1">
               Purchase Details
             </legend>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="purchasePrice" className={LABEL_CLASS}>
                   Purchase Price (total)

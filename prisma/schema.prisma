@@ -42,6 +42,7 @@ model Build {
   name        String
   description String?
   isActive    Boolean     @default(false)
+  sortOrder   Int         @default(0)
   firearmId   String
   firearm     Firearm     @relation(fields: [firearmId], references: [id], onDelete: Cascade)
 
