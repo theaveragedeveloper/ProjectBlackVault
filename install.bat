@@ -21,6 +21,32 @@ if %errorlevel% neq 0 (
   set COMPOSE=docker compose
 )
 
+:: ── Existing installation guard ──────────────────────────────
+if exist ".blackvault.env" (
+  echo WARNING: .blackvault.env already exists.
+  echo   Re-running install will generate a NEW encryption key.
+  echo   Any existing encrypted data will become unrecoverable.
+  echo.
+  set /p KEEP_EXISTING="  Keep existing config and just restart? [Y/n]: "
+  if "!KEEP_EXISTING!"=="" set KEEP_EXISTING=Y
+  if /i "!KEEP_EXISTING!"=="Y" (
+    echo.
+    echo Keeping existing config.
+    echo Pulling latest BlackVault image...
+    %COMPOSE% --env-file .blackvault.env pull
+    echo.
+    echo Starting BlackVault...
+    %COMPOSE% --env-file .blackvault.env up -d
+    echo.
+    echo BlackVault started. Check logs with:
+    echo   %COMPOSE% --env-file .blackvault.env logs -f
+    echo.
+    pause
+    exit /b 0
+  )
+  echo.
+)
+
 :: ── Data directory ───────────────────────────────────────────
 echo Where should BlackVault store its data?
 echo   Default: %USERPROFILE%\.blackvault

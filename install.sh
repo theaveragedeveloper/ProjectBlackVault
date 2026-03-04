@@ -26,6 +26,47 @@ else
   COMPOSE="docker-compose"
 fi
 
+# ── Existing installation guard ──────────────────────────────
+if [ -f ".blackvault.env" ]; then
+  echo "WARNING: .blackvault.env already exists."
+  echo "  Re-running install will generate a NEW encryption key."
+  echo "  Any existing encrypted data will become unrecoverable."
+  echo ""
+  read -rp "  Keep existing config and just restart? [Y/n]: " KEEP_EXISTING
+  KEEP_EXISTING="${KEEP_EXISTING:-Y}"
+  if [[ "$KEEP_EXISTING" =~ ^[Yy]$ ]]; then
+    echo ""
+    echo "Keeping existing config."
+    # shellcheck disable=SC1091
+    source .blackvault.env 2>/dev/null || true
+    echo "Pulling latest BlackVault image..."
+    $COMPOSE --env-file .blackvault.env pull
+    echo ""
+    echo "Starting BlackVault..."
+    $COMPOSE --env-file .blackvault.env up -d
+    echo ""
+    echo "Waiting for BlackVault to be ready..."
+    MAX_RETRIES=15
+    for i in $(seq 1 $MAX_RETRIES); do
+      if wget -qO- "http://localhost:${PORT:-3000}/api/health" 2>/dev/null | grep -q '"ok"'; then
+        echo "BlackVault is ready."
+        break
+      fi
+      if [ "$i" -eq "$MAX_RETRIES" ]; then
+        echo "Still starting — check logs with:"
+        echo "  $COMPOSE --env-file .blackvault.env logs -f"
+      else
+        sleep 2
+      fi
+    done
+    echo ""
+    echo "  URL: http://localhost:${PORT:-3000}"
+    echo ""
+    exit 0
+  fi
+  echo ""
+fi
+
 # ── Data directory ───────────────────────────────────────────
 DEFAULT_DATA="$HOME/.blackvault"
 echo "Where should BlackVault store its data?"
@@ -80,15 +121,20 @@ echo "Starting BlackVault..."
 $COMPOSE --env-file .blackvault.env up -d
 
 echo ""
-echo "Waiting for health check..."
-sleep 5
-
-if $COMPOSE --env-file .blackvault.env ps | grep -q "healthy\|running"; then
-  echo "BlackVault is running."
-else
-  echo "Container started — check logs with:"
-  echo "  $COMPOSE --env-file .blackvault.env logs -f"
-fi
+echo "Waiting for BlackVault to be ready..."
+MAX_RETRIES=15
+for i in $(seq 1 $MAX_RETRIES); do
+  if wget -qO- "http://localhost:${PORT}/api/health" 2>/dev/null | grep -q '"ok"'; then
+    echo "BlackVault is ready."
+    break
+  fi
+  if [ "$i" -eq "$MAX_RETRIES" ]; then
+    echo "Still starting — check logs with:"
+    echo "  $COMPOSE --env-file .blackvault.env logs -f"
+  else
+    sleep 2
+  fi
+done
 
 # ── Summary ───────────────────────────────────────────────────
 echo ""
