@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { Sidebar } from "@/components/layout/Sidebar";
-import { MobileHeader } from "@/components/layout/MobileHeader";
+import { NavShell } from "@/components/layout/NavShell";
 import { ThemeProvider } from "@/components/layout/ThemeProvider";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 
@@ -30,15 +29,7 @@ export default function RootLayout({
       </head>
       <body className={`${inter.variable} antialiased bg-vault-bg text-vault-text`}>
         <ThemeProvider>
-          <div className="flex h-screen overflow-hidden">
-            <Sidebar />
-            <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-              <MobileHeader />
-              <main className="flex-1 overflow-y-auto min-w-0">
-                {children}
-              </main>
-            </div>
-          </div>
+          <NavShell>{children}</NavShell>
           <ThemeToggle />
         </ThemeProvider>
       </body>
