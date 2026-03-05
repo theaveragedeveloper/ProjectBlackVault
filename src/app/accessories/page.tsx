@@ -190,7 +190,7 @@ export default function AccessoriesPage() {
                         </td>
                         <td className="px-4 py-3">
                           <span className={`inline-flex items-center text-xs font-mono font-bold px-2 py-0.5 rounded border ${colors.badge}`}>
-                            {formatNumber(accessory.roundCount)}
+                            {formatNumber(accessory.roundCount)} rds
                           </span>
                         </td>
                         <td className="px-4 py-3 hidden xl:table-cell">
