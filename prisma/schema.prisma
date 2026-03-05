@@ -144,11 +144,83 @@ model RangeSession {
   rangeLocation String?
   notes         String?
 
+  // ── Environment / Weather ─────────────────────────────
+  environment    String?   // "INDOOR" | "OUTDOOR"
+  temperatureF   Float?    // degrees Fahrenheit
+  windSpeedMph   Float?    // mph
+  windDirection  String?   // e.g. "NW", "Headwind", "Crosswind"
+  humidity       Float?    // 0-100 percentage
+  lightCondition String?   // "BRIGHT" | "OVERCAST" | "LOW_LIGHT" | "NIGHT"
+  weatherNotes   String?
+
+  // ── Shot Group Data ───────────────────────────────────
+  targetDistanceYd Float?  // yards
+  groupSizeIn      Float?  // best group in inches
+  groupSizeMoa     Float?  // MOA (best group)
+  numberOfGroups   Int?
+  groupNotes       String?
+
+  // ── Relations ─────────────────────────────────────────
+  sessionDrills  SessionDrill[]
+  ammoLinks      SessionAmmoLink[]
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   @@index([firearmId])
   @@index([date])
+}
+
+model DrillTemplate {
+  id          String         @id @default(cuid())
+  name        String
+  description String?
+  // category: "ACCURACY" | "SPEED" | "TACTICAL" | "FUNDAMENTALS" | "CUSTOM"
+  category    String         @default("CUSTOM")
+  // scoringType: "TIME" | "SCORE" | "TIME_AND_SCORE" | "PASS_FAIL" | "NOTES_ONLY"
+  scoringType String         @default("NOTES_ONLY")
+  parTime     Float?         // par time in seconds
+  maxScore    Int?
+  isBuiltIn   Boolean        @default(false)
+
+  sessionDrills SessionDrill[]
+
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([category])
+}
+
+model SessionDrill {
+  id          String         @id @default(cuid())
+  sessionId   String
+  session     RangeSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  templateId  String?
+  template    DrillTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  drillName   String         // denormalized; preserved if template is deleted
+  timeSeconds Float?
+  hits        Int?
+  totalShots  Int?
+  accuracy    Float?         // 0-100 percentage
+  score       Float?
+  notes       String?
+  sortOrder   Int            @default(0)
+  createdAt   DateTime       @default(now())
+
+  @@index([sessionId])
+  @@index([templateId])
+}
+
+model SessionAmmoLink {
+  id            String          @id @default(cuid())
+  sessionId     String
+  session       RangeSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  transactionId String
+  transaction   AmmoTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, transactionId])
+  @@index([sessionId])
+  @@index([transactionId])
 }
 
 // ─── MAINTENANCE NOTES ────────────────────────────────────────
@@ -205,6 +277,8 @@ model AmmoTransaction {
   newQty       Int
   note         String?
   transactedAt DateTime @default(now())
+
+  sessionLinks SessionAmmoLink[]
 
   @@index([stockId])
   @@index([transactedAt])

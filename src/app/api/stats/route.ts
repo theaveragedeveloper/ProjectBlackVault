@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
 //          total investment value, recent items
 export async function GET() {
   try {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
     const [
       firearmCount,
       accessoryCount,
@@ -15,6 +17,9 @@ export async function GET() {
       recentFirearms,
       recentAccessories,
       recentAmmo,
+      rangeSessionAggregate,
+      rangeSessionsLast30,
+      lastRangeSession,
     ] = await Promise.all([
       // Total firearms
       prisma.firearm.count(),
@@ -93,6 +98,29 @@ export async function GET() {
           brand: true,
           quantity: true,
           updatedAt: true,
+        },
+      }),
+
+      // Range session totals
+      prisma.rangeSession.aggregate({
+        _sum: { roundsFired: true },
+        _count: { id: true },
+      }),
+
+      // Sessions in last 30 days
+      prisma.rangeSession.count({
+        where: { date: { gte: thirtyDaysAgo } },
+      }),
+
+      // Most recent session
+      prisma.rangeSession.findFirst({
+        orderBy: { date: "desc" },
+        select: {
+          id: true,
+          date: true,
+          rangeName: true,
+          roundsFired: true,
+          firearm: { select: { name: true } },
         },
       }),
     ]);
@@ -188,6 +216,20 @@ export async function GET() {
         firearms: recentFirearms,
         accessories: recentAccessories,
         ammo: recentAmmo,
+      },
+      rangeSessions: {
+        count: rangeSessionAggregate._count.id,
+        totalRounds: rangeSessionAggregate._sum.roundsFired ?? 0,
+        sessionsLast30Days: rangeSessionsLast30,
+        lastSession: lastRangeSession
+          ? {
+              id: lastRangeSession.id,
+              date: lastRangeSession.date,
+              rangeName: lastRangeSession.rangeName,
+              roundsFired: lastRangeSession.roundsFired,
+              firearmName: lastRangeSession.firearm.name,
+            }
+          : null,
       },
     });
   } catch (error) {
