@@ -237,6 +237,7 @@ model AppSettings {
   enableImageSearch       Boolean  @default(false)
   defaultCurrency         String   @default("USD")
   appPassword             String?
+  encryptionKey           String?
   dataStoragePath         String?
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
