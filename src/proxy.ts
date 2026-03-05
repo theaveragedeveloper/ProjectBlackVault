@@ -27,7 +27,7 @@ async function verifyWithWebCrypto(signed: string, secret: string): Promise<bool
   return diff === 0;
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const session = request.cookies.get("vault_session");
   const { pathname } = request.nextUrl;
 
