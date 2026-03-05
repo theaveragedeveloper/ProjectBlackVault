@@ -55,7 +55,7 @@ const TYPE_BADGE_COLORS: Record<string, string> = {
   LEVER_ACTION: "border-[#FF7043]/40 text-[#FF7043]",
 };
 
-const DEFAULT_ORDER = ["stats", "low-ammo", "recent", "ammo-summary"];
+const DEFAULT_ORDER = ["stats", "range-sessions", "low-ammo", "recent", "ammo-summary"];
 const STORAGE_KEY = "vault-dashboard-layout";
 
 interface AmmoStockItem {
@@ -81,6 +81,19 @@ interface RecentFirearm {
   createdAt: Date;
 }
 
+interface RangeStats {
+  count: number;
+  totalRounds: number;
+  sessionsLast30Days: number;
+  lastSession: {
+    id: string;
+    date: string | Date;
+    rangeName: string | null;
+    roundsFired: number;
+    firearmName: string;
+  } | null;
+}
+
 interface DashboardData {
   firearmCount: number;
   accessoryCount: number;
@@ -89,6 +102,7 @@ interface DashboardData {
   lowStockItems: AmmoStockItem[];
   recentFirearms: RecentFirearm[];
   ammoStocks: AmmoStockItem[];
+  rangeStats: RangeStats;
 }
 
 // ── Sortable wrapper ──────────────────────────────────────────
@@ -349,6 +363,80 @@ function RecentWidget({ firearms }: { firearms: RecentFirearm[] }) {
   );
 }
 
+function RangeSessionsWidget({ stats }: { stats: RangeStats }) {
+  return (
+    <section>
+      <div className="flex items-center gap-2 mb-3">
+        <Target className="w-4 h-4 text-[#00C2FF]" />
+        <h2 className="text-sm font-semibold tracking-widest uppercase text-[#00C2FF]">
+          Range Activity
+        </h2>
+      </div>
+      <div className="bg-vault-surface border border-vault-border rounded-lg overflow-hidden">
+        {stats.count === 0 ? (
+          <div className="p-8 text-center">
+            <div className="w-10 h-10 rounded-full bg-[#00C2FF]/10 border border-[#00C2FF]/20 flex items-center justify-center mx-auto mb-3">
+              <Target className="w-5 h-5 text-[#00C2FF]" />
+            </div>
+            <p className="text-sm text-vault-text-muted mb-3">No range sessions logged yet</p>
+            <Link
+              href="/range"
+              className="text-xs bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 px-3 py-1.5 rounded transition-colors"
+            >
+              Log First Session
+            </Link>
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-3 divide-x divide-vault-border border-b border-vault-border">
+              <div className="px-4 py-3 text-center">
+                <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-0.5">Sessions</p>
+                <p className="text-lg font-bold font-mono text-vault-text">{formatNumber(stats.count)}</p>
+              </div>
+              <div className="px-4 py-3 text-center">
+                <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-0.5">Rounds</p>
+                <p className="text-lg font-bold font-mono text-[#00C2FF]">{formatNumber(stats.totalRounds)}</p>
+              </div>
+              <div className="px-4 py-3 text-center">
+                <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-0.5">Last 30 Days</p>
+                <p className="text-lg font-bold font-mono text-vault-text">{stats.sessionsLast30Days}</p>
+              </div>
+            </div>
+            {stats.lastSession && (
+              <Link href={`/range/${stats.lastSession.id}`}
+                className="flex items-center gap-3 px-4 py-3 hover:bg-vault-surface-2 transition-colors group">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-vault-text-faint mb-0.5">Last session</p>
+                  <p className="text-sm text-vault-text truncate group-hover:text-[#00C2FF] transition-colors">
+                    {stats.lastSession.firearmName}
+                    {stats.lastSession.rangeName ? ` · ${stats.lastSession.rangeName}` : ""}
+                  </p>
+                  <p className="text-xs text-vault-text-faint">
+                    {formatDate(stats.lastSession.date)} · {formatNumber(stats.lastSession.roundsFired)} rds
+                  </p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-vault-text-faint group-hover:text-[#00C2FF] transition-colors shrink-0" />
+              </Link>
+            )}
+          </>
+        )}
+      </div>
+      {stats.count > 0 && (
+        <div className="mt-2 flex items-center justify-end gap-4">
+          <Link href="/range"
+            className="text-xs text-[#00C2FF] hover:text-[#00C2FF]/80 flex items-center gap-1">
+            Log Session <ChevronRight className="w-3 h-3" />
+          </Link>
+          <Link href="/range/history"
+            className="text-xs text-[#00C2FF] hover:text-[#00C2FF]/80 flex items-center gap-1">
+            View History <ChevronRight className="w-3 h-3" />
+          </Link>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function AmmoSummaryWidget({ ammoStocks }: { ammoStocks: AmmoStockItem[] }) {
   // Group by caliber
   const byCaliber = ammoStocks.reduce<Record<string, number>>((acc, stock) => {
@@ -470,6 +558,8 @@ export function DashboardClient({ data }: { data: DashboardData }) {
     switch (id) {
       case "stats":
         return <StatsWidget data={data} />;
+      case "range-sessions":
+        return <RangeSessionsWidget stats={data.rangeStats} />;
       case "low-ammo":
         return <LowAmmoWidget items={data.lowStockItems} />;
       case "recent":
