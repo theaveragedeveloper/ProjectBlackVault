@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
+import { verifyTokenNode } from "@/lib/session";
 
 export async function GET() {
   try {
@@ -15,7 +16,10 @@ export async function GET() {
     const cookieStore = await cookies();
     const session = cookieStore.get("vault_session");
     const passwordRequired = !!settings.appPassword;
-    const authenticated = !!session?.value;
+    const secret = process.env.SESSION_SECRET;
+    const authenticated = session?.value
+      ? (secret ? verifyTokenNode(session.value, secret) : true)
+      : false;
 
     return NextResponse.json({ passwordRequired, authenticated });
   } catch (error) {
