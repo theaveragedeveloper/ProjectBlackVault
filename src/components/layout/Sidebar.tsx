@@ -16,6 +16,8 @@ import {
   Clock,
   LogOut,
   ChevronDown,
+  BookOpen,
+  Calculator,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
@@ -67,6 +69,8 @@ const NAV_ITEMS: NavItem[] = [
     children: [
       { label: "Log Session", href: "/range", icon: Package },
       { label: "Session History", href: "/range/history", icon: Clock },
+      { label: "Drill Library", href: "/range/drills", icon: BookOpen },
+      { label: "Hit Factor Calc", href: "/range/hit-factor", icon: Calculator },
     ],
   },
   {
