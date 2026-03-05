@@ -174,6 +174,7 @@ export default function AccessoryDetailPage() {
   }
 
   return (
+    <>
     <div className="min-h-full">
       {/* Header with image */}
       <div className="relative h-44 bg-vault-bg overflow-hidden">
@@ -505,5 +506,6 @@ export default function AccessoryDetailPage() {
         </div>
       </div>
     )}
+    </>
   );
 }

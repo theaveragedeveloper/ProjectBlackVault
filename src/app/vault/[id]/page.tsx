@@ -230,6 +230,7 @@ export default function FirearmDetailPage() {
   }
 
   return (
+    <>
     <div className="min-h-full flex flex-col lg:flex-row">
       {/* Main content */}
       <div className="flex-1 min-w-0">
@@ -657,7 +658,6 @@ export default function FirearmDetailPage() {
         )}
       </div>
     </div>
-
     {/* Photo upload modal */}
     {photoModalOpen && (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(5,7,9,0.85)" }}>
@@ -682,5 +682,6 @@ export default function FirearmDetailPage() {
         </div>
       </div>
     )}
+    </>
   );
 }
