@@ -16,6 +16,7 @@ services:
       - NODE_ENV=production
       - DATABASE_URL=file:/app/data/vault.db
       - VAULT_ENCRYPTION_KEY=${VAULT_ENCRYPTION_KEY:-}
+      - SESSION_SECRET=${SESSION_SECRET:-}
     volumes:
       - ${DATA_DIR:-./data}/db:/app/data
       - ${DATA_DIR:-./data}/uploads:/app/uploads

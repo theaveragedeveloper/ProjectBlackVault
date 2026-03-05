@@ -1,6 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 
-export function middleware(request: NextRequest) {
+async function verifyWithWebCrypto(signed: string, secret: string): Promise<boolean> {
+  const lastDot = signed.lastIndexOf(".");
+  if (lastDot === -1) return false;
+  const token = signed.slice(0, lastDot);
+  const providedHex = signed.slice(lastDot + 1);
+
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(token));
+  const expectedHex = Array.from(new Uint8Array(sig))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+
+  if (providedHex.length !== expectedHex.length) return false;
+  let diff = 0;
+  for (let i = 0; i < providedHex.length; i++) {
+    diff |= providedHex.charCodeAt(i) ^ expectedHex.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
+export async function middleware(request: NextRequest) {
   const session = request.cookies.get("vault_session");
   const { pathname } = request.nextUrl;
 
@@ -16,6 +43,21 @@ export function middleware(request: NextRequest) {
   if (!session?.value) {
     const loginUrl = new URL("/login", request.url);
     return NextResponse.redirect(loginUrl);
+  }
+
+  // Validate the session signature if SESSION_SECRET is configured
+  const secret = process.env.SESSION_SECRET;
+  if (secret) {
+    const valid = await verifyWithWebCrypto(session.value, secret);
+    if (!valid) {
+      const loginUrl = new URL("/login", request.url);
+      return NextResponse.redirect(loginUrl);
+    }
+  } else {
+    console.warn(
+      "[blackvault] SESSION_SECRET is not set — session cookies are not cryptographically validated. " +
+      "Set SESSION_SECRET in your environment to prevent cookie forgery."
+    );
   }
 
   return NextResponse.next();
