@@ -25,15 +25,19 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
-    const result = firearms.map((firearm) => ({
-      ...firearm,
-      serialNumber: firearm.serialNumber ? (decryptField(firearm.serialNumber) ?? firearm.serialNumber) : null,
-      notes: decryptField(firearm.notes),
-      buildCount: firearm._count.builds,
-      activeBuild: firearm.builds[0] ?? null,
-      builds: undefined,
-      _count: undefined,
-    }));
+    const result = await Promise.all(
+      firearms.map(async (firearm) => ({
+        ...firearm,
+        serialNumber: firearm.serialNumber
+          ? ((await decryptField(firearm.serialNumber)) ?? firearm.serialNumber)
+          : null,
+        notes: await decryptField(firearm.notes),
+        buildCount: firearm._count.builds,
+        activeBuild: firearm.builds[0] ?? null,
+        builds: undefined,
+        _count: undefined,
+      }))
+    );
 
     return NextResponse.json(result);
   } catch (error) {
@@ -78,12 +82,12 @@ export async function POST(request: NextRequest) {
         manufacturer: manufacturer || "",
         model: model || "",
         caliber: caliber || "",
-        serialNumber: serialNumber ? encryptField(serialNumber) : null,
+        serialNumber: serialNumber ? await encryptField(serialNumber) : null,
         type: type || "",
         acquisitionDate: acquisitionDate ? new Date(acquisitionDate) : null,
         purchasePrice: purchasePrice ?? null,
         currentValue: currentValue ?? null,
-        notes: notes ? encryptField(notes) : null,
+        notes: notes ? await encryptField(notes) : null,
         imageUrl: imageUrl ?? null,
         imageSource: imageSource ?? null,
       },

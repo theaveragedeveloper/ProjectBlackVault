@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { FIREARM_TYPES, FIREARM_TYPE_LABELS, COMMON_CALIBERS } from "@/lib/types";
 import { ArrowLeft, Save, Loader2, AlertCircle } from "lucide-react";
+import ImagePicker from "@/components/shared/ImagePicker";
 
 const INPUT_CLASS =
   "w-full bg-vault-surface border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint transition-colors";
@@ -24,6 +25,7 @@ interface Firearm {
   currentValue: number | null;
   notes: string | null;
   imageUrl: string | null;
+  imageSource: string | null;
 }
 
 function toDateInputValue(dateStr: string | null): string {
@@ -51,6 +53,8 @@ export default function EditFirearmPage() {
   const [caliberInput, setCaliberInput] = useState("");
   const [caliberDropdownOpen, setCaliberDropdownOpen] = useState(false);
   const caliberRef = useRef<HTMLDivElement>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [imageSource, setImageSource] = useState<string | null>(null);
 
   const filteredCalibers = COMMON_CALIBERS.filter((c) =>
     c.toLowerCase().includes(caliberInput.toLowerCase())
@@ -65,6 +69,8 @@ export default function EditFirearmPage() {
         } else {
           setFirearm(data);
           setCaliberInput(data.caliber ?? "");
+          setImageUrl(data.imageUrl ?? null);
+          setImageSource(data.imageSource ?? null);
         }
         setDataLoading(false);
       })
@@ -94,8 +100,8 @@ export default function EditFirearmPage() {
       purchasePrice: data.get("purchasePrice") ? Number(data.get("purchasePrice")) : null,
       currentValue: data.get("currentValue") ? Number(data.get("currentValue")) : null,
       notes: (data.get("notes") as string) || null,
-      imageUrl: (data.get("imageUrl") as string) || null,
-      imageSource: data.get("imageUrl") ? "url" : null,
+      imageUrl,
+      imageSource,
     };
 
     try {
@@ -136,9 +142,7 @@ export default function EditFirearmPage() {
       <div className="flex flex-col items-center justify-center min-h-full gap-4">
         <AlertCircle className="w-10 h-10 text-[#E53935]" />
         <p className="text-[#E53935]">{dataError ?? "Firearm not found"}</p>
-        <Link href="/vault" className="text-sm text-[#00C2FF] hover:underline">
-          Back to Vault
-        </Link>
+        <Link href="/vault" className="text-sm text-[#00C2FF] hover:underline">Back to Vault</Link>
       </div>
     );
   }
@@ -147,17 +151,12 @@ export default function EditFirearmPage() {
     <div className="min-h-full">
       {/* Header */}
       <div className="flex items-center gap-4 px-6 py-4 border-b border-vault-border flex-wrap">
-        <Link
-          href={`/vault/${firearmId}`}
-          className="flex items-center gap-1.5 text-vault-text-muted hover:text-vault-text text-sm transition-colors"
-        >
+        <Link href={`/vault/${firearmId}`} className="flex items-center gap-1.5 text-vault-text-muted hover:text-vault-text text-sm transition-colors">
           <ArrowLeft className="w-4 h-4" />
           Back to {firearm.name}
         </Link>
         <span className="text-vault-border">/</span>
-        <h1 className="text-sm font-semibold text-vault-text tracking-wide uppercase">
-          Edit Firearm
-        </h1>
+        <h1 className="text-sm font-semibold text-vault-text tracking-wide uppercase">Edit Firearm</h1>
       </div>
 
       <div className="max-w-2xl mx-auto px-6 py-8">
@@ -183,67 +182,32 @@ export default function EditFirearmPage() {
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Identity */}
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
-            <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
-              Identity
-            </legend>
+            <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">Identity</legend>
 
             <div>
-              <label htmlFor="name" className={LABEL_CLASS}>
-                Firearm Name <span className="text-[#E53935]">*</span>
-              </label>
-              <input
-                id="name"
-                name="name"
-                type="text"
-                required
-                defaultValue={firearm.name}
-                className={INPUT_CLASS}
-              />
+              <label htmlFor="name" className={LABEL_CLASS}>Firearm Name <span className="text-[#E53935]">*</span></label>
+              <input id="name" name="name" type="text" required defaultValue={firearm.name} className={INPUT_CLASS} />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="manufacturer" className={LABEL_CLASS}>
-                  Manufacturer <span className="text-[#E53935]">*</span>
-                </label>
-                <input
-                  id="manufacturer"
-                  name="manufacturer"
-                  type="text"
-                  required
-                  defaultValue={firearm.manufacturer}
-                  className={INPUT_CLASS}
-                />
+                <label htmlFor="manufacturer" className={LABEL_CLASS}>Manufacturer <span className="text-[#E53935]">*</span></label>
+                <input id="manufacturer" name="manufacturer" type="text" required defaultValue={firearm.manufacturer} className={INPUT_CLASS} />
               </div>
               <div>
-                <label htmlFor="model" className={LABEL_CLASS}>
-                  Model <span className="text-[#E53935]">*</span>
-                </label>
-                <input
-                  id="model"
-                  name="model"
-                  type="text"
-                  required
-                  defaultValue={firearm.model}
-                  className={INPUT_CLASS}
-                />
+                <label htmlFor="model" className={LABEL_CLASS}>Model <span className="text-[#E53935]">*</span></label>
+                <input id="model" name="model" type="text" required defaultValue={firearm.model} className={INPUT_CLASS} />
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Caliber Combobox */}
               <div>
-                <label className={LABEL_CLASS}>
-                  Caliber <span className="text-[#E53935]">*</span>
-                </label>
+                <label className={LABEL_CLASS}>Caliber <span className="text-[#E53935]">*</span></label>
                 <div className="relative" ref={caliberRef}>
                   <input
                     type="text"
                     value={caliberInput}
-                    onChange={(e) => {
-                      setCaliberInput(e.target.value);
-                      setCaliberDropdownOpen(true);
-                    }}
+                    onChange={(e) => { setCaliberInput(e.target.value); setCaliberDropdownOpen(true); }}
                     onFocus={() => setCaliberDropdownOpen(true)}
                     onBlur={() => setTimeout(() => setCaliberDropdownOpen(false), 150)}
                     required
@@ -253,192 +217,81 @@ export default function EditFirearmPage() {
                   {caliberDropdownOpen && filteredCalibers.length > 0 && (
                     <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-vault-surface border border-vault-border rounded-md shadow-lg max-h-48 overflow-y-auto">
                       {filteredCalibers.map((c) => (
-                        <button
-                          key={c}
-                          type="button"
-                          onClick={() => {
-                            setCaliberInput(c);
-                            setCaliberDropdownOpen(false);
-                          }}
-                          className="w-full text-left px-3 py-2 text-sm text-vault-text hover:bg-vault-border hover:text-[#00C2FF] transition-colors font-mono"
-                        >
-                          {c}
-                        </button>
+                        <button key={c} type="button" onClick={() => { setCaliberInput(c); setCaliberDropdownOpen(false); }}
+                          className="w-full text-left px-3 py-2 text-sm text-vault-text hover:bg-vault-border hover:text-[#00C2FF] transition-colors font-mono">{c}</button>
                       ))}
                     </div>
                   )}
                 </div>
               </div>
-
-              {/* Type */}
               <div>
-                <label htmlFor="type" className={LABEL_CLASS}>
-                  Type <span className="text-[#E53935]">*</span>
-                </label>
-                <select
-                  id="type"
-                  name="type"
-                  required
-                  defaultValue={firearm.type}
-                  className={INPUT_CLASS}
-                >
+                <label htmlFor="type" className={LABEL_CLASS}>Type <span className="text-[#E53935]">*</span></label>
+                <select id="type" name="type" required defaultValue={firearm.type} className={INPUT_CLASS}>
                   <option value="">Select type...</option>
-                  {FIREARM_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {FIREARM_TYPE_LABELS[t]}
-                    </option>
-                  ))}
+                  {FIREARM_TYPES.map((t) => <option key={t} value={t}>{FIREARM_TYPE_LABELS[t]}</option>)}
                 </select>
               </div>
             </div>
 
             <div>
-              <label htmlFor="serialNumber" className={LABEL_CLASS}>
-                Serial Number <span className="text-[#E53935]">*</span>
-              </label>
-              <input
-                id="serialNumber"
-                name="serialNumber"
-                type="text"
-                required
-                defaultValue={firearm.serialNumber}
-                className={`${INPUT_CLASS} font-mono`}
-              />
+              <label htmlFor="serialNumber" className={LABEL_CLASS}>Serial Number <span className="text-[#E53935]">*</span></label>
+              <input id="serialNumber" name="serialNumber" type="text" required defaultValue={firearm.serialNumber} className={`${INPUT_CLASS} font-mono`} />
             </div>
           </fieldset>
 
           {/* Acquisition */}
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
-            <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
-              Acquisition
-            </legend>
-
+            <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">Acquisition</legend>
             <div>
-              <label htmlFor="acquisitionDate" className={LABEL_CLASS}>
-                Date Acquired <span className="text-[#E53935]">*</span>
-              </label>
-              <input
-                id="acquisitionDate"
-                name="acquisitionDate"
-                type="date"
-                required
-                defaultValue={toDateInputValue(firearm.acquisitionDate)}
-                className={INPUT_CLASS}
-              />
+              <label htmlFor="acquisitionDate" className={LABEL_CLASS}>Date Acquired <span className="text-[#E53935]">*</span></label>
+              <input id="acquisitionDate" name="acquisitionDate" type="date" required defaultValue={toDateInputValue(firearm.acquisitionDate)} className={INPUT_CLASS} />
             </div>
-
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="purchasePrice" className={LABEL_CLASS}>
-                  Purchase Price
-                </label>
+                <label htmlFor="purchasePrice" className={LABEL_CLASS}>Purchase Price</label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-vault-text-faint text-sm">
-                    $
-                  </span>
-                  <input
-                    id="purchasePrice"
-                    name="purchasePrice"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    defaultValue={firearm.purchasePrice ?? ""}
-                    placeholder="0.00"
-                    className={`${INPUT_CLASS} pl-7`}
-                  />
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-vault-text-faint text-sm">$</span>
+                  <input id="purchasePrice" name="purchasePrice" type="number" min="0" step="0.01" defaultValue={firearm.purchasePrice ?? ""} placeholder="0.00" className={`${INPUT_CLASS} pl-7`} />
                 </div>
               </div>
               <div>
-                <label htmlFor="currentValue" className={LABEL_CLASS}>
-                  Current Value
-                </label>
+                <label htmlFor="currentValue" className={LABEL_CLASS}>Current Value</label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-vault-text-faint text-sm">
-                    $
-                  </span>
-                  <input
-                    id="currentValue"
-                    name="currentValue"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    defaultValue={firearm.currentValue ?? ""}
-                    placeholder="0.00"
-                    className={`${INPUT_CLASS} pl-7`}
-                  />
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-vault-text-faint text-sm">$</span>
+                  <input id="currentValue" name="currentValue" type="number" min="0" step="0.01" defaultValue={firearm.currentValue ?? ""} placeholder="0.00" className={`${INPUT_CLASS} pl-7`} />
                 </div>
               </div>
             </div>
           </fieldset>
 
-          {/* Image */}
+          {/* Photo */}
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
-            <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
-              Image
-            </legend>
-            <div>
-              <label htmlFor="imageUrl" className={LABEL_CLASS}>
-                Image URL
-              </label>
-              <input
-                id="imageUrl"
-                name="imageUrl"
-                type="url"
-                defaultValue={firearm.imageUrl ?? ""}
-                placeholder="https://example.com/image.jpg"
-                className={INPUT_CLASS}
-              />
-              {firearm.imageUrl && (
-                <div className="mt-3 w-full h-32 rounded-md overflow-hidden border border-vault-border">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={firearm.imageUrl}
-                    alt={firearm.name}
-                    className="w-full h-full object-contain bg-vault-bg"
-                  />
-                </div>
-              )}
-            </div>
+            <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">Photo</legend>
+            <ImagePicker
+              entityType="firearm"
+              entityId={firearmId}
+              currentUrl={imageUrl}
+              onChange={(url, source) => { setImageUrl(url); setImageSource(source); }}
+            />
           </fieldset>
 
           {/* Notes */}
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
-            <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
-              Notes
-            </legend>
+            <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">Notes</legend>
             <div>
-              <label htmlFor="notes" className={LABEL_CLASS}>
-                Notes
-              </label>
-              <textarea
-                id="notes"
-                name="notes"
-                rows={3}
-                defaultValue={firearm.notes ?? ""}
-                placeholder="Any additional notes..."
-                className={`${INPUT_CLASS} resize-none`}
-              />
+              <label htmlFor="notes" className={LABEL_CLASS}>Notes</label>
+              <textarea id="notes" name="notes" rows={3} defaultValue={firearm.notes ?? ""} placeholder="Any additional notes..." className={`${INPUT_CLASS} resize-none`} />
             </div>
           </fieldset>
 
           {/* Actions */}
           <div className="flex items-center justify-end gap-3 pt-2">
-            <Link
-              href={`/vault/${firearmId}`}
-              className="px-4 py-2 text-sm text-vault-text-muted hover:text-vault-text border border-vault-border rounded-md hover:border-vault-text-muted/30 transition-colors"
-            >
+            <Link href={`/vault/${firearmId}`} className="px-4 py-2 text-sm text-vault-text-muted hover:text-vault-text border border-vault-border rounded-md hover:border-vault-text-muted/30 transition-colors">
               Cancel
             </Link>
-            <button
-              type="submit"
-              disabled={loading || success}
-              className="flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-50 disabled:cursor-not-allowed px-5 py-2 rounded-md text-sm font-medium transition-colors"
-            >
-              {loading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Save className="w-4 h-4" />
-              )}
+            <button type="submit" disabled={loading || success}
+              className="flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-50 disabled:cursor-not-allowed px-5 py-2 rounded-md text-sm font-medium transition-colors">
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               {loading ? "Saving..." : success ? "Saved!" : "Save Changes"}
             </button>
           </div>

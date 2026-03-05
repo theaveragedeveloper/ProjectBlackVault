@@ -25,7 +25,9 @@ export async function GET() {
       googleCseApiKey: settings.googleCseApiKey ? "***configured***" : null,
       _googleCseApiKeyIsSet: !!settings.googleCseApiKey,
       appPassword: settings.appPassword ? "***set***" : null,
-      encryptionEnabled: !!process.env.VAULT_ENCRYPTION_KEY,
+      encryptionEnabled: !!(process.env.VAULT_ENCRYPTION_KEY || settings.encryptionKey),
+      encryptionViaEnv: !!process.env.VAULT_ENCRYPTION_KEY,
+      encryptionKey: undefined, // never expose the raw key
     });
   } catch (error) {
     console.error("GET /api/settings error:", error);
@@ -94,6 +96,9 @@ export async function PUT(request: NextRequest) {
       googleCseApiKey: settings.googleCseApiKey ? "***configured***" : null,
       _googleCseApiKeyIsSet: !!settings.googleCseApiKey,
       appPassword: settings.appPassword ? "***set***" : null,
+      encryptionEnabled: !!(process.env.VAULT_ENCRYPTION_KEY || settings.encryptionKey),
+      encryptionViaEnv: !!process.env.VAULT_ENCRYPTION_KEY,
+      encryptionKey: undefined,
     });
   } catch (error) {
     console.error("PUT /api/settings error:", error);
