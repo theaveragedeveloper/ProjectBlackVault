@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Shield,
   Crosshair,
@@ -13,11 +13,22 @@ import {
   ChevronRight,
   Zap,
   X,
+  Clock,
+  LogOut,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 
-const NAV_ITEMS = [
+interface NavItem {
+  label: string;
+  href: string;
+  icon: React.ElementType;
+  description: string;
+  children?: { label: string; href: string; icon: React.ElementType }[];
+}
+
+const NAV_ITEMS: NavItem[] = [
   {
     label: "Command",
     href: "/",
@@ -53,6 +64,10 @@ const NAV_ITEMS = [
     href: "/range",
     icon: Package,
     description: "Log range sessions",
+    children: [
+      { label: "Log Session", href: "/range", icon: Package },
+      { label: "Session History", href: "/range/history", icon: Clock },
+    ],
   },
   {
     label: "Settings",
@@ -69,12 +84,32 @@ interface SidebarProps {
 
 export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
+  const [rangeExpanded, setRangeExpanded] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  // Auto-expand Range if on a range path
+  useEffect(() => {
+    if (pathname.startsWith("/range")) {
+      setRangeExpanded(true);
+    }
+  }, [pathname]);
 
   // Close mobile menu on route change
   useEffect(() => {
     onMobileClose?.();
   }, [pathname, onMobileClose]);
+
+  async function handleLogout() {
+    setLoggingOut(true);
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      router.push("/login");
+    } catch {
+      setLoggingOut(false);
+    }
+  }
 
   const navContent = (
     <>
@@ -111,7 +146,74 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
           const isActive =
             item.href === "/"
               ? pathname === "/"
-              : pathname.startsWith(item.href);
+              : pathname === item.href || (item.href !== "/range" && pathname.startsWith(item.href));
+          const isRangeParent = item.href === "/range";
+          const isRangeActive = pathname.startsWith("/range");
+
+          if (isRangeParent && item.children) {
+            return (
+              <div key={item.href}>
+                <button
+                  onClick={() => !collapsed && setRangeExpanded((v) => !v)}
+                  title={collapsed ? item.label : undefined}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-2.5 py-2 rounded-md text-sm transition-all duration-150 group relative",
+                    isRangeActive
+                      ? "bg-[#00C2FF]/10 text-[#00C2FF] border border-[#00C2FF]/20"
+                      : "text-vault-text-muted hover:text-vault-text hover:bg-vault-border"
+                  )}
+                >
+                  {isRangeActive && (
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-[#00C2FF] rounded-r-full" />
+                  )}
+                  <Icon
+                    className={cn(
+                      "shrink-0 transition-colors",
+                      collapsed ? "w-5 h-5" : "w-4 h-4",
+                      isRangeActive ? "text-[#00C2FF]" : "text-vault-text-faint group-hover:text-vault-text-muted"
+                    )}
+                  />
+                  {!collapsed && (
+                    <>
+                      <span className="font-medium tracking-wide truncate flex-1 text-left">
+                        {item.label}
+                      </span>
+                      <ChevronDown
+                        className={cn(
+                          "w-3 h-3 shrink-0 transition-transform",
+                          rangeExpanded ? "rotate-180" : ""
+                        )}
+                      />
+                    </>
+                  )}
+                </button>
+                {!collapsed && rangeExpanded && (
+                  <div className="ml-3 mt-0.5 space-y-0.5 border-l border-vault-border pl-3">
+                    {item.children.map((child) => {
+                      const ChildIcon = child.icon;
+                      const childActive = pathname === child.href;
+                      return (
+                        <Link
+                          key={child.href}
+                          href={child.href}
+                          className={cn(
+                            "flex items-center gap-2.5 px-2 py-1.5 rounded-md text-xs transition-all",
+                            childActive
+                              ? "text-[#00C2FF] bg-[#00C2FF]/5"
+                              : "text-vault-text-faint hover:text-vault-text-muted hover:bg-vault-border"
+                          )}
+                        >
+                          <ChildIcon className="w-3.5 h-3.5 shrink-0" />
+                          <span>{child.label}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          }
+
           return (
             <Link
               key={item.href}
@@ -144,11 +246,23 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
         })}
       </nav>
 
-      {/* Collapse toggle — desktop only */}
-      <div className="hidden md:block px-2 pb-3 shrink-0 border-t border-vault-border pt-2">
+      {/* Bottom: logout + collapse */}
+      <div className="px-2 pb-3 shrink-0 border-t border-vault-border pt-2 space-y-1">
+        {/* Logout button */}
+        <button
+          onClick={handleLogout}
+          disabled={loggingOut}
+          title={collapsed ? "Logout" : undefined}
+          className="w-full flex items-center gap-3 px-2.5 py-2 rounded-md text-sm text-vault-text-faint hover:text-[#E53935] hover:bg-[#E53935]/5 transition-colors"
+        >
+          <LogOut className={cn("shrink-0", collapsed ? "w-5 h-5" : "w-4 h-4")} />
+          {!collapsed && <span className="tracking-wide">Logout</span>}
+        </button>
+
+        {/* Collapse toggle — desktop only */}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="w-full flex items-center justify-center gap-2 px-2.5 py-2 rounded-md text-vault-text-faint hover:text-vault-text-muted hover:bg-vault-border transition-colors"
+          className="hidden md:flex w-full items-center justify-center gap-2 px-2.5 py-2 rounded-md text-vault-text-faint hover:text-vault-text-muted hover:bg-vault-border transition-colors"
         >
           {collapsed ? (
             <ChevronRight className="w-4 h-4" />

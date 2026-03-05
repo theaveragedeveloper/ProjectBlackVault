@@ -37,8 +37,8 @@ export async function GET(
 
     return NextResponse.json({
       ...firearm,
-      serialNumber: decryptField(firearm.serialNumber) ?? firearm.serialNumber,
-      notes: decryptField(firearm.notes),
+      serialNumber: (await decryptField(firearm.serialNumber)) ?? firearm.serialNumber,
+      notes: await decryptField(firearm.notes),
       buildCount: firearm._count.builds,
       activeBuild,
       _count: undefined,
@@ -88,14 +88,16 @@ export async function PUT(
         ...(manufacturer !== undefined && { manufacturer }),
         ...(model !== undefined && { model }),
         ...(caliber !== undefined && { caliber }),
-        ...(serialNumber !== undefined && { serialNumber: encryptField(serialNumber) }),
+        ...(serialNumber !== undefined && {
+          serialNumber: serialNumber ? await encryptField(serialNumber) : null,
+        }),
         ...(type !== undefined && { type }),
         ...(acquisitionDate !== undefined && {
           acquisitionDate: new Date(acquisitionDate),
         }),
         ...(purchasePrice !== undefined && { purchasePrice }),
         ...(currentValue !== undefined && { currentValue }),
-        ...(notes !== undefined && { notes: notes ? encryptField(notes) : null }),
+        ...(notes !== undefined && { notes: notes ? await encryptField(notes) : null }),
         ...(imageUrl !== undefined && { imageUrl }),
         ...(imageSource !== undefined && { imageSource }),
       },

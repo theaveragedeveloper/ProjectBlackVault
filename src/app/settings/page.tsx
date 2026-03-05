@@ -13,6 +13,15 @@ import {
   Image,
   Settings,
   ShieldCheck,
+  HardDrive,
+  Network,
+  Copy,
+  ShieldOff,
+  Download,
+  KeyRound,
+  ChevronDown,
+  ChevronUp,
+  Shield,
 } from "lucide-react";
 
 const INPUT_CLASS =
@@ -29,10 +38,20 @@ interface AppSettings {
   appPassword: string | null;
   defaultCurrency: string;
   encryptionEnabled?: boolean;
+  encryptionViaEnv?: boolean;
+}
+
+interface SystemInfo {
+  localIPs: string[];
+  port: string;
+  hostname: string;
+  dbPath: string;
+  platform: string;
 }
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [sysInfo, setSysInfo] = useState<SystemInfo | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
   const [dataError, setDataError] = useState<string | null>(null);
 
@@ -42,23 +61,39 @@ export default function SettingsPage() {
   const [appPassword, setAppPassword] = useState("");
   const [showApiKey, setShowApiKey] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  // Encryption UI state
+  const [encBusy, setEncBusy] = useState(false);
+  const [encError, setEncError] = useState<string | null>(null);
+  const [generatedKey, setGeneratedKey] = useState<string | null>(null);
+  const [keySaved, setKeySaved] = useState(false);
+  const [showOwnKey, setShowOwnKey] = useState(false);
+  const [ownKeyInput, setOwnKeyInput] = useState("");
+  const [ownKeyError, setOwnKeyError] = useState<string | null>(null);
+  const [showDisableConfirm, setShowDisableConfirm] = useState(false);
+  const [disableInput, setDisableInput] = useState("");
+  const [exportedKey, setExportedKey] = useState<string | null>(null);
+  const [keyCopied, setKeyCopied] = useState(false);
+
   useEffect(() => {
-    fetch("/api/settings")
-      .then((r) => r.json())
-      .then((data) => {
+    Promise.all([
+      fetch("/api/settings").then((r) => r.json()),
+      fetch("/api/system-info").then((r) => r.json()),
+    ])
+      .then(([data, info]) => {
         if (data.error) {
           setDataError(data.error);
         } else {
           setSettings(data);
           setEnableImageSearch(data.enableImageSearch ?? false);
-          // Don't pre-fill the masked key — show placeholder instead
           setSearchEngineId(data.googleCseSearchEngineId ?? "");
         }
+        if (!info.error) setSysInfo(info);
         setDataLoading(false);
       })
       .catch(() => {
@@ -66,6 +101,13 @@ export default function SettingsPage() {
         setDataLoading(false);
       });
   }, []);
+
+  function handleCopyUrl(url: string) {
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedUrl(url);
+      setTimeout(() => setCopiedUrl(null), 2000);
+    });
+  }
 
   async function handleSave(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -78,12 +120,10 @@ export default function SettingsPage() {
       googleCseSearchEngineId: searchEngineId || null,
     };
 
-    // Only send apiKey if the user typed something (otherwise keep existing)
     if (apiKey) {
       payload.googleCseApiKey = apiKey;
     }
 
-    // App password: if blank send null (disable), if typed send the value
     payload.appPassword = appPassword || null;
 
     try {
@@ -99,7 +139,7 @@ export default function SettingsPage() {
         setSaveError(json.error ?? "Failed to save settings");
       } else {
         setSettings(json);
-        setApiKey(""); // clear after save
+        setApiKey("");
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 3000);
       }
@@ -108,6 +148,114 @@ export default function SettingsPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  // ── Encryption helpers ───────────────────────────────────────────
+
+  async function handleEnableEncryption() {
+    setEncError(null);
+    setEncBusy(true);
+    try {
+      const res = await fetch("/api/encryption", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok) {
+        setEncError(json.error ?? "Failed to generate encryption key.");
+        return;
+      }
+      setGeneratedKey(json.key);
+      setKeySaved(false);
+      setSettings((s) => s ? { ...s, encryptionEnabled: true, encryptionViaEnv: false } : s);
+    } catch {
+      setEncError("Network error. Please try again.");
+    } finally {
+      setEncBusy(false);
+    }
+  }
+
+  async function handleUseOwnKey() {
+    setOwnKeyError(null);
+    const key = ownKeyInput.trim();
+    if (!/^[0-9a-fA-F]{64}$/.test(key)) {
+      setOwnKeyError("Key must be exactly 64 hexadecimal characters.");
+      return;
+    }
+    setEncBusy(true);
+    try {
+      const res = await fetch("/api/encryption", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setOwnKeyError(json.error ?? "Failed to save key.");
+        return;
+      }
+      setOwnKeyInput("");
+      setShowOwnKey(false);
+      setSettings((s) => s ? { ...s, encryptionEnabled: true, encryptionViaEnv: false } : s);
+    } catch {
+      setOwnKeyError("Network error. Please try again.");
+    } finally {
+      setEncBusy(false);
+    }
+  }
+
+  async function handleExportKey() {
+    setEncError(null);
+    try {
+      const res = await fetch("/api/encryption");
+      const json = await res.json();
+      if (!res.ok) {
+        setEncError(json.error ?? "Could not retrieve key.");
+        return;
+      }
+      setExportedKey(json.key);
+    } catch {
+      setEncError("Network error. Please try again.");
+    }
+  }
+
+  async function handleDisableEncryption() {
+    if (disableInput !== "DISABLE") return;
+    setEncBusy(true);
+    try {
+      const res = await fetch("/api/encryption", { method: "DELETE" });
+      if (!res.ok) {
+        const json = await res.json();
+        setEncError(json.error ?? "Failed to disable encryption.");
+        return;
+      }
+      setSettings((s) => s ? { ...s, encryptionEnabled: false } : s);
+      setShowDisableConfirm(false);
+      setDisableInput("");
+      setExportedKey(null);
+      setGeneratedKey(null);
+    } catch {
+      setEncError("Network error. Please try again.");
+    } finally {
+      setEncBusy(false);
+    }
+  }
+
+  function copyKey(key: string) {
+    navigator.clipboard.writeText(key).then(() => {
+      setKeyCopied(true);
+      setTimeout(() => setKeyCopied(false), 2000);
+    });
+  }
+
+  function downloadKey(key: string) {
+    const blob = new Blob(
+      [`BlackVault Encryption Key\n\nVAULT_ENCRYPTION_KEY=${key}\n\nKeep this file safe. Losing it means your encrypted data cannot be recovered.\n`],
+      { type: "text/plain" }
+    );
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "blackvault-encryption-key.txt";
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   if (dataLoading) {
@@ -137,9 +285,7 @@ export default function SettingsPage() {
         <div className="flex items-center gap-3">
           <Settings className="w-5 h-5 text-[#00C2FF]" />
           <div>
-            <h1 className="text-lg font-bold tracking-widest text-vault-text uppercase">
-              Settings
-            </h1>
+            <h1 className="text-lg font-bold tracking-widest text-vault-text uppercase">Settings</h1>
             <p className="text-xs text-vault-text-muted mt-0.5">Configure your vault preferences</p>
           </div>
         </div>
@@ -168,107 +314,56 @@ export default function SettingsPage() {
                 <Image className="w-3.5 h-3.5" />
                 Image Search
               </legend>
-              {/* Status badge */}
-              <span
-                className={`text-[10px] font-mono px-2 py-0.5 rounded border uppercase ${
-                  imageSearchConfigured
-                    ? "text-[#00C853] border-[#00C853]/40"
-                    : "text-vault-text-faint border-vault-border"
-                }`}
-              >
+              <span className={`text-[10px] font-mono px-2 py-0.5 rounded border uppercase ${imageSearchConfigured ? "text-[#00C853] border-[#00C853]/40" : "text-vault-text-faint border-vault-border"}`}>
                 {imageSearchConfigured ? "Configured" : "Not Configured"}
               </span>
             </div>
 
             <p className="text-xs text-vault-text-muted leading-relaxed">
-              Enable Google Custom Search to automatically find images for firearms and
-              accessories. Requires a Google Cloud CSE API key and a configured search engine.
+              Enable Google Custom Search to automatically find images for firearms and accessories. Requires a Google Cloud CSE API key and a configured search engine.
             </p>
 
-            {/* Enable toggle */}
             <div>
-              <button
-                type="button"
-                onClick={() => setEnableImageSearch((v) => !v)}
-                className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-md border transition-all ${
-                  enableImageSearch
-                    ? "border-[#00C2FF]/40 bg-[#00C2FF]/5"
-                    : "border-vault-border hover:border-vault-text-muted/20"
-                }`}
-              >
-                <div
-                  className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${
-                    enableImageSearch ? "bg-[#00C2FF]" : "bg-vault-border"
-                  }`}
-                >
-                  <div
-                    className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${
-                      enableImageSearch ? "left-4" : "left-0.5"
-                    }`}
-                  />
+              <button type="button" onClick={() => setEnableImageSearch((v) => !v)}
+                className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-md border transition-all ${enableImageSearch ? "border-[#00C2FF]/40 bg-[#00C2FF]/5" : "border-vault-border hover:border-vault-text-muted/20"}`}>
+                <div className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${enableImageSearch ? "bg-[#00C2FF]" : "bg-vault-border"}`}>
+                  <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${enableImageSearch ? "left-4" : "left-0.5"}`} />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-vault-text">Enable Image Search</p>
-                  <p className="text-xs text-vault-text-faint mt-0.5">
-                    Adds a &quot;Search Images&quot; button to firearm and accessory forms.
-                  </p>
+                  <p className="text-xs text-vault-text-faint mt-0.5">Adds a &quot;Search Images&quot; button to firearm and accessory forms.</p>
                 </div>
               </button>
             </div>
 
-            {/* API Key */}
             <div>
               <label className={LABEL_CLASS}>
                 <Search className="w-3 h-3 inline mr-1" />
                 Google CSE API Key
                 {settings?._googleCseApiKeyIsSet && (
-                  <span className="ml-2 text-[#00C853] text-[10px] normal-case tracking-normal">
-                    (currently set)
-                  </span>
+                  <span className="ml-2 text-[#00C853] text-[10px] normal-case tracking-normal">(currently set)</span>
                 )}
               </label>
               <div className="relative">
-                <input
-                  type={showApiKey ? "text" : "password"}
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder={
-                    settings?._googleCseApiKeyIsSet
-                      ? "Leave blank to keep existing key"
-                      : "AIza..."
-                  }
-                  className={`${INPUT_CLASS} pr-10 font-mono`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowApiKey((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-vault-text-faint hover:text-vault-text-muted"
-                >
+                <input type={showApiKey ? "text" : "password"} value={apiKey} onChange={(e) => setApiKey(e.target.value)}
+                  placeholder={settings?._googleCseApiKeyIsSet ? "Leave blank to keep existing key" : "AIza..."}
+                  className={`${INPUT_CLASS} pr-10 font-mono`} />
+                <button type="button" onClick={() => setShowApiKey((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-vault-text-faint hover:text-vault-text-muted">
                   {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              <p className="text-xs text-vault-text-faint mt-1">
-                From the Google Cloud Console. Leave blank to keep the existing key.
-              </p>
+              <p className="text-xs text-vault-text-faint mt-1">From the Google Cloud Console. Leave blank to keep the existing key.</p>
             </div>
 
-            {/* Search Engine ID */}
             <div>
               <label htmlFor="searchEngineId" className={LABEL_CLASS}>
                 <Search className="w-3 h-3 inline mr-1" />
                 Search Engine ID (cx)
               </label>
-              <input
-                id="searchEngineId"
-                type="text"
-                value={searchEngineId}
-                onChange={(e) => setSearchEngineId(e.target.value)}
-                placeholder="e.g. 017576662512468239146:omuauf_lfve"
-                className={`${INPUT_CLASS} font-mono`}
-              />
-              <p className="text-xs text-vault-text-faint mt-1">
-                The &quot;cx&quot; parameter from your Programmable Search Engine dashboard.
-              </p>
+              <input id="searchEngineId" type="text" value={searchEngineId} onChange={(e) => setSearchEngineId(e.target.value)}
+                placeholder="e.g. 017576662512468239146:omuauf_lfve" className={`${INPUT_CLASS} font-mono`} />
+              <p className="text-xs text-vault-text-faint mt-1">The &quot;cx&quot; parameter from your Programmable Search Engine dashboard.</p>
             </div>
           </fieldset>
 
@@ -279,47 +374,26 @@ export default function SettingsPage() {
                 <Lock className="w-3.5 h-3.5" />
                 Security
               </legend>
-              <span
-                className={`text-[10px] font-mono px-2 py-0.5 rounded border uppercase ${
-                  settings?.appPassword
-                    ? "text-[#F5A623] border-[#F5A623]/40"
-                    : "text-vault-text-faint border-vault-border"
-                }`}
-              >
+              <span className={`text-[10px] font-mono px-2 py-0.5 rounded border uppercase ${settings?.appPassword ? "text-[#F5A623] border-[#F5A623]/40" : "text-vault-text-faint border-vault-border"}`}>
                 {settings?.appPassword ? "Password Set" : "No Password"}
               </span>
             </div>
 
             <p className="text-xs text-vault-text-muted leading-relaxed">
-              Set an optional app password to restrict access to the vault. Leave blank to
-              disable password protection.
+              Set an optional app password to restrict access to the vault. Leave blank to disable password protection.
             </p>
 
             <div>
-              <label className={LABEL_CLASS}>
-                <Lock className="w-3 h-3 inline mr-1" />
-                App Password
-              </label>
+              <label className={LABEL_CLASS}><Lock className="w-3 h-3 inline mr-1" />App Password</label>
               <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={appPassword}
-                  onChange={(e) => setAppPassword(e.target.value)}
-                  placeholder="Leave blank to disable password protection"
-                  className={`${INPUT_CLASS} pr-10`}
-                  autoComplete="new-password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-vault-text-faint hover:text-vault-text-muted"
-                >
+                <input type={showPassword ? "text" : "password"} value={appPassword} onChange={(e) => setAppPassword(e.target.value)}
+                  placeholder="Leave blank to disable password protection" className={`${INPUT_CLASS} pr-10`} autoComplete="new-password" />
+                <button type="button" onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-vault-text-faint hover:text-vault-text-muted">
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              <p className="text-xs text-vault-text-faint mt-1">
-                Note: This is a simple access restriction, not end-to-end encryption.
-              </p>
+              <p className="text-xs text-vault-text-faint mt-1">Note: This is a simple access restriction, not end-to-end encryption.</p>
             </div>
           </fieldset>
 
@@ -330,98 +404,296 @@ export default function SettingsPage() {
                 <ShieldCheck className="w-3.5 h-3.5" />
                 Encryption at Rest
               </legend>
-              <span
-                className={`text-[10px] font-mono px-2 py-0.5 rounded border uppercase ${
-                  settings?.encryptionEnabled
-                    ? "text-[#00C853] border-[#00C853]/40"
-                    : "text-vault-text-faint border-vault-border"
-                }`}
-              >
-                {settings?.encryptionEnabled ? "Active" : "Not Configured"}
+              <span className={`text-[10px] font-mono px-2 py-0.5 rounded border uppercase ${settings?.encryptionEnabled ? "text-[#00C853] border-[#00C853]/40" : "text-vault-text-faint border-vault-border"}`}>
+                {settings?.encryptionEnabled ? "Active" : "Not Active"}
               </span>
             </div>
 
-            <p className="text-xs text-vault-text-muted leading-relaxed">
-              When a <code className="text-vault-text-faint font-mono">VAULT_ENCRYPTION_KEY</code> is
-              set, sensitive fields are encrypted in the database using AES-256-GCM. The key is
-              set via the installer or manually in your <code className="text-vault-text-faint font-mono">.blackvault.env</code> file.
-            </p>
-
-            {settings?.encryptionEnabled ? (
-              <div className="space-y-2">
-                <p className="text-[10px] uppercase tracking-widest text-vault-text-faint font-mono mb-2">
-                  Encrypted Fields
-                </p>
-                {["Serial Number", "Notes"].map((field) => (
-                  <div key={field} className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#00C853]" />
-                    <span className="text-xs text-vault-text-muted">{field}</span>
-                  </div>
-                ))}
+            {encError && (
+              <div className="flex items-center gap-2 bg-[#E53935]/10 border border-[#E53935]/30 rounded-md px-3 py-2">
+                <AlertCircle className="w-3.5 h-3.5 text-[#E53935] shrink-0" />
+                <p className="text-xs text-[#E53935]">{encError}</p>
               </div>
-            ) : (
-              <div className="bg-[#F5A623]/5 border border-[#F5A623]/20 rounded-md px-4 py-3">
-                <p className="text-xs text-[#F5A623] font-mono">
-                  To enable encryption, generate a key and add it to your environment:
-                </p>
-                <p className="text-[11px] font-mono text-vault-text-faint mt-1 break-all">
-                  openssl rand -hex 32
-                </p>
-                <p className="text-[11px] text-vault-text-faint mt-1">
-                  Then set <code className="font-mono">VAULT_ENCRYPTION_KEY=&lt;key&gt;</code> in{" "}
-                  <code className="font-mono">.blackvault.env</code> and restart.
-                </p>
+            )}
+
+            {/* ── NOT ACTIVE ── */}
+            {!settings?.encryptionEnabled && (
+              <div className="space-y-4">
+                <div className="flex items-start gap-3 bg-vault-bg border border-vault-border rounded-md px-4 py-3">
+                  <Shield className="w-5 h-5 text-vault-text-faint shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-vault-text">Protect Your Sensitive Data</p>
+                    <p className="text-xs text-vault-text-muted mt-1 leading-relaxed">
+                      When encryption is on, your serial numbers and notes are scrambled in the database. Even if someone gets your data file, they can&apos;t read those details without your key.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Generated key panel */}
+                {generatedKey ? (
+                  <div className="space-y-3 bg-[#00C853]/5 border border-[#00C853]/20 rounded-md p-4">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-[#00C853] shrink-0" />
+                      <p className="text-sm font-semibold text-[#00C853]">Encryption is now active!</p>
+                    </div>
+
+                    <div className="bg-[#F5A623]/10 border border-[#F5A623]/30 rounded-md px-3 py-2">
+                      <p className="text-xs text-[#F5A623] font-semibold mb-1">Save your key before leaving this page</p>
+                      <p className="text-xs text-vault-text-muted">If you lose this key, your serial numbers and notes cannot be recovered. There is no way to reset it.</p>
+                    </div>
+
+                    <div>
+                      <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5 font-mono">Your Encryption Key</p>
+                      <div className="flex items-center gap-2 bg-vault-bg border border-vault-border rounded-md px-3 py-2">
+                        <code className="text-xs font-mono text-vault-text flex-1 break-all select-all">{generatedKey}</code>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 flex-wrap">
+                      <button type="button" onClick={() => copyKey(generatedKey)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-vault-surface border border-vault-border text-vault-text-muted hover:text-vault-text rounded-md text-xs transition-colors">
+                        {keyCopied ? <CheckCircle2 className="w-3.5 h-3.5 text-[#00C853]" /> : <Copy className="w-3.5 h-3.5" />}
+                        {keyCopied ? "Copied!" : "Copy Key"}
+                      </button>
+                      <button type="button" onClick={() => downloadKey(generatedKey)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-vault-surface border border-vault-border text-vault-text-muted hover:text-vault-text rounded-md text-xs transition-colors">
+                        <Download className="w-3.5 h-3.5" />
+                        Download Key File
+                      </button>
+                    </div>
+
+                    <label className="flex items-start gap-2 cursor-pointer">
+                      <input type="checkbox" checked={keySaved} onChange={(e) => setKeySaved(e.target.checked)}
+                        className="mt-0.5 accent-[#00C853]" />
+                      <span className="text-xs text-vault-text-muted">
+                        I&apos;ve saved my key in a safe place (a password manager, USB drive, or printed copy).
+                      </span>
+                    </label>
+
+                    {keySaved && (
+                      <button type="button" onClick={() => setGeneratedKey(null)}
+                        className="w-full py-2 bg-[#00C853]/10 border border-[#00C853]/30 text-[#00C853] rounded-md text-sm font-medium hover:bg-[#00C853]/20 transition-colors">
+                        Done — close this panel
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <button type="button" onClick={handleEnableEncryption} disabled={encBusy}
+                    className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-50 disabled:cursor-not-allowed rounded-md text-sm font-medium transition-colors">
+                    {encBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
+                    {encBusy ? "Generating key..." : "Enable Encryption"}
+                  </button>
+                )}
+
+                {/* Already have a key */}
+                {!generatedKey && (
+                  <div>
+                    <button type="button" onClick={() => setShowOwnKey((v) => !v)}
+                      className="flex items-center gap-1 text-xs text-vault-text-faint hover:text-vault-text-muted transition-colors">
+                      <KeyRound className="w-3 h-3" />
+                      Already have a key?
+                      {showOwnKey ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                    </button>
+                    {showOwnKey && (
+                      <div className="mt-2 space-y-2">
+                        <input type="text" value={ownKeyInput} onChange={(e) => setOwnKeyInput(e.target.value)}
+                          placeholder="Paste your 64-character hex key here"
+                          className={`${INPUT_CLASS} font-mono text-xs`} />
+                        {ownKeyError && <p className="text-xs text-[#E53935]">{ownKeyError}</p>}
+                        <button type="button" onClick={handleUseOwnKey} disabled={encBusy || !ownKeyInput}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-vault-surface border border-vault-border text-vault-text-muted hover:text-vault-text disabled:opacity-50 rounded-md text-xs transition-colors">
+                          {encBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : <KeyRound className="w-3 h-3" />}
+                          Use This Key
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── ACTIVE ── */}
+            {settings?.encryptionEnabled && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 bg-[#00C853]/5 border border-[#00C853]/20 rounded-md px-4 py-3">
+                  <ShieldCheck className="w-4 h-4 text-[#00C853] shrink-0" />
+                  <div>
+                    <p className="text-xs text-[#00C853] font-semibold">Encryption is active</p>
+                    <p className="text-xs text-vault-text-muted mt-0.5">Serial numbers and notes are encrypted in your database.</p>
+                  </div>
+                </div>
+
+                {settings.encryptionViaEnv ? (
+                  <div className="bg-vault-bg border border-vault-border rounded-md px-4 py-3">
+                    <p className="text-xs text-vault-text-muted leading-relaxed">
+                      Your encryption key is managed via the <code className="font-mono text-vault-text-faint">VAULT_ENCRYPTION_KEY</code> environment variable. To change or disable it, update your <code className="font-mono text-vault-text-faint">.blackvault.env</code> file and restart the app.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {/* Export key panel */}
+                    {exportedKey ? (
+                      <div className="space-y-3 bg-vault-bg border border-vault-border rounded-md p-4">
+                        <p className="text-xs font-semibold text-vault-text">Your Encryption Key</p>
+                        <div className="flex items-center gap-2 bg-vault-surface border border-vault-border rounded-md px-3 py-2">
+                          <code className="text-xs font-mono text-vault-text flex-1 break-all select-all">{exportedKey}</code>
+                        </div>
+                        <div className="flex gap-2 flex-wrap">
+                          <button type="button" onClick={() => copyKey(exportedKey)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-vault-surface border border-vault-border text-vault-text-muted hover:text-vault-text rounded-md text-xs transition-colors">
+                            {keyCopied ? <CheckCircle2 className="w-3.5 h-3.5 text-[#00C853]" /> : <Copy className="w-3.5 h-3.5" />}
+                            {keyCopied ? "Copied!" : "Copy Key"}
+                          </button>
+                          <button type="button" onClick={() => downloadKey(exportedKey)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-vault-surface border border-vault-border text-vault-text-muted hover:text-vault-text rounded-md text-xs transition-colors">
+                            <Download className="w-3.5 h-3.5" />
+                            Download Key File
+                          </button>
+                          <button type="button" onClick={() => setExportedKey(null)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-vault-surface border border-vault-border text-vault-text-faint hover:text-vault-text rounded-md text-xs transition-colors">
+                            Hide
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button type="button" onClick={handleExportKey}
+                        className="flex items-center gap-1.5 text-xs text-vault-text-muted hover:text-[#00C2FF] transition-colors">
+                        <Download className="w-3.5 h-3.5" />
+                        Back Up Your Key
+                      </button>
+                    )}
+
+                    {/* Disable encryption */}
+                    {showDisableConfirm ? (
+                      <div className="bg-[#E53935]/5 border border-[#E53935]/20 rounded-md p-4 space-y-3">
+                        <p className="text-xs font-semibold text-[#E53935]">Disable Encryption</p>
+                        <p className="text-xs text-vault-text-muted leading-relaxed">
+                          This removes the encryption key from the app. Existing encrypted data will remain encrypted and unreadable until you re-enable encryption with the same key. New data will be saved as plaintext.
+                        </p>
+                        <p className="text-xs text-vault-text-muted">Type <strong className="text-vault-text">DISABLE</strong> to confirm:</p>
+                        <input type="text" value={disableInput} onChange={(e) => setDisableInput(e.target.value)}
+                          placeholder="DISABLE" className={`${INPUT_CLASS} font-mono`} />
+                        <div className="flex gap-2">
+                          <button type="button" onClick={handleDisableEncryption} disabled={disableInput !== "DISABLE" || encBusy}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#E53935]/10 border border-[#E53935]/30 text-[#E53935] hover:bg-[#E53935]/20 disabled:opacity-50 disabled:cursor-not-allowed rounded-md text-xs transition-colors">
+                            {encBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldOff className="w-3 h-3" />}
+                            Disable Encryption
+                          </button>
+                          <button type="button" onClick={() => { setShowDisableConfirm(false); setDisableInput(""); }}
+                            className="px-3 py-1.5 bg-vault-surface border border-vault-border text-vault-text-muted hover:text-vault-text rounded-md text-xs transition-colors">
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button type="button" onClick={() => setShowDisableConfirm(true)}
+                        className="flex items-center gap-1.5 text-xs text-vault-text-faint hover:text-[#E53935] transition-colors">
+                        <ShieldOff className="w-3.5 h-3.5" />
+                        Disable Encryption
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </fieldset>
 
+          {/* ── Data Storage ────────────────────────────────── */}
+          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
+            <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
+              <HardDrive className="w-3.5 h-3.5" />
+              Data Storage
+            </legend>
+
+            <p className="text-xs text-vault-text-muted leading-relaxed">
+              BlackVault stores all data in a local SQLite database file. No data is sent to external servers.
+            </p>
+
+            <div className="space-y-3">
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Database File</p>
+                <div className="flex items-center gap-2 bg-vault-bg border border-vault-border rounded-md px-3 py-2">
+                  <code className="text-xs font-mono text-vault-text-muted flex-1 break-all">{sysInfo?.dbPath ?? "Loading..."}</code>
+                </div>
+                <p className="text-xs text-vault-text-faint mt-1">Back up this file to preserve all your firearms, accessories, and build data.</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Storage Type</p>
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#00C853]" />
+                  <span className="text-xs text-vault-text-muted">Local SQLite — 100% offline, no cloud sync</span>
+                </div>
+              </div>
+            </div>
+          </fieldset>
+
+          {/* ── Network Access ───────────────────────────────── */}
+          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
+            <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
+              <Network className="w-3.5 h-3.5" />
+              Network Access
+            </legend>
+
+            <p className="text-xs text-vault-text-muted leading-relaxed">
+              Access BlackVault from any device on your local network using the addresses below.
+              Make sure BlackVault is bound to <code className="text-vault-text-faint font-mono">0.0.0.0</code> (not just localhost).
+            </p>
+
+            <div className="space-y-2">
+              <div className="bg-vault-bg border border-vault-border rounded-md px-3 py-2 flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-[10px] text-vault-text-faint font-mono uppercase mb-0.5">This Device</p>
+                  <code className="text-xs font-mono text-vault-text">http://localhost:{sysInfo?.port ?? "3000"}</code>
+                </div>
+                <button type="button" onClick={() => handleCopyUrl(`http://localhost:${sysInfo?.port ?? "3000"}`)}
+                  className="shrink-0 p-1.5 text-vault-text-faint hover:text-[#00C2FF] transition-colors rounded" title="Copy URL">
+                  {copiedUrl === `http://localhost:${sysInfo?.port ?? "3000"}` ? <CheckCircle2 className="w-3.5 h-3.5 text-[#00C853]" /> : <Copy className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+
+              {sysInfo?.localIPs && sysInfo.localIPs.length > 0 ? (
+                sysInfo.localIPs.map((ip) => (
+                  <div key={ip} className="bg-vault-bg border border-vault-border rounded-md px-3 py-2 flex items-center justify-between gap-2">
+                    <div>
+                      <p className="text-[10px] text-vault-text-faint font-mono uppercase mb-0.5">Local Network</p>
+                      <code className="text-xs font-mono text-vault-text">http://{ip}:{sysInfo.port}</code>
+                    </div>
+                    <button type="button" onClick={() => handleCopyUrl(`http://${ip}:${sysInfo.port}`)}
+                      className="shrink-0 p-1.5 text-vault-text-faint hover:text-[#00C2FF] transition-colors rounded" title="Copy URL">
+                      {copiedUrl === `http://${ip}:${sysInfo.port}` ? <CheckCircle2 className="w-3.5 h-3.5 text-[#00C853]" /> : <Copy className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <div className="text-xs text-vault-text-faint italic">No local network interfaces detected.</div>
+              )}
+            </div>
+
+            <div className="bg-[#00C2FF]/5 border border-[#00C2FF]/20 rounded-md px-4 py-3">
+              <p className="text-[11px] text-[#00C2FF] font-mono mb-1">Docker Users</p>
+              <p className="text-xs text-vault-text-faint leading-relaxed">
+                Ensure the container port is mapped with <code className="font-mono">-p 3000:3000</code> or equivalent in docker-compose.yml.
+              </p>
+            </div>
+          </fieldset>
+
           {/* ── Status Summary ──────────────────────────────── */}
           <div className="bg-vault-bg border border-vault-border rounded-lg p-4">
-            <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-3 font-mono">
-              Current Configuration Status
-            </p>
+            <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-3 font-mono">Current Configuration Status</p>
             <div className="space-y-2">
-              <StatusRow
-                label="Image Search"
-                value={enableImageSearch ? "Enabled" : "Disabled"}
-                ok={enableImageSearch}
-              />
-              <StatusRow
-                label="CSE API Key"
-                value={settings?._googleCseApiKeyIsSet ? "Configured" : "Not set"}
-                ok={!!settings?._googleCseApiKeyIsSet}
-              />
-              <StatusRow
-                label="Search Engine ID"
-                value={settings?.googleCseSearchEngineId ? "Configured" : "Not set"}
-                ok={!!settings?.googleCseSearchEngineId}
-              />
-              <StatusRow
-                label="App Password"
-                value={settings?.appPassword ? "Enabled" : "Disabled"}
-                ok={!!settings?.appPassword}
-                neutralIfFalse
-              />
-              <StatusRow
-                label="Encryption at Rest"
-                value={settings?.encryptionEnabled ? "Active" : "Not configured"}
-                ok={!!settings?.encryptionEnabled}
-              />
+              <StatusRow label="Image Search" value={enableImageSearch ? "Enabled" : "Disabled"} ok={enableImageSearch} />
+              <StatusRow label="CSE API Key" value={settings?._googleCseApiKeyIsSet ? "Configured" : "Not set"} ok={!!settings?._googleCseApiKeyIsSet} />
+              <StatusRow label="Search Engine ID" value={settings?.googleCseSearchEngineId ? "Configured" : "Not set"} ok={!!settings?.googleCseSearchEngineId} />
+              <StatusRow label="App Password" value={settings?.appPassword ? "Enabled" : "Disabled"} ok={!!settings?.appPassword} neutralIfFalse />
+              <StatusRow label="Encryption at Rest" value={settings?.encryptionEnabled ? "Active" : "Not configured"} ok={!!settings?.encryptionEnabled} />
             </div>
           </div>
 
           {/* Actions */}
           <div className="flex items-center justify-end gap-3 pt-2">
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-2.5 rounded-md text-sm font-medium transition-colors"
-            >
-              {saving ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Save className="w-4 h-4" />
-              )}
+            <button type="submit" disabled={saving}
+              className="flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-2.5 rounded-md text-sm font-medium transition-colors">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               {saving ? "Saving..." : "Save Settings"}
             </button>
           </div>
@@ -431,33 +703,14 @@ export default function SettingsPage() {
   );
 }
 
-function StatusRow({
-  label,
-  value,
-  ok,
-  neutralIfFalse,
-}: {
-  label: string;
-  value: string;
-  ok: boolean;
-  neutralIfFalse?: boolean;
-}) {
-  const color = ok
-    ? "text-[#00C853]"
-    : neutralIfFalse
-    ? "text-vault-text-faint"
-    : "text-vault-text-faint";
-
-  const dotColor = ok
-    ? "bg-[#00C853]"
-    : "bg-vault-border";
-
+function StatusRow({ label, value, ok, neutralIfFalse }: { label: string; value: string; ok: boolean; neutralIfFalse?: boolean }) {
+  void neutralIfFalse;
   return (
     <div className="flex items-center justify-between">
       <span className="text-xs text-vault-text-muted">{label}</span>
       <div className="flex items-center gap-2">
-        <div className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
-        <span className={`text-xs font-mono ${color}`}>{value}</span>
+        <div className={`w-1.5 h-1.5 rounded-full ${ok ? "bg-[#00C853]" : "bg-vault-border"}`} />
+        <span className={`text-xs font-mono ${ok ? "text-[#00C853]" : "text-vault-text-faint"}`}>{value}</span>
       </div>
     </div>
   );

@@ -33,7 +33,6 @@
     "framer-motion": "^12.34.5",
     "lucide-react": "^0.576.0",
     "next": "16.1.6",
-    "prisma": "^5.22.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "recharts": "^3.7.0",
@@ -49,6 +48,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "prisma": "^5.22.0",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
     "typescript": "^5"

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { hashPassword } from "@/lib/password";
 
 // GET /api/settings - Get the singleton AppSettings
 export async function GET() {
@@ -23,7 +24,10 @@ export async function GET() {
       ...settings,
       googleCseApiKey: settings.googleCseApiKey ? "***configured***" : null,
       _googleCseApiKeyIsSet: !!settings.googleCseApiKey,
-      encryptionEnabled: !!process.env.VAULT_ENCRYPTION_KEY,
+      appPassword: settings.appPassword ? "***set***" : null,
+      encryptionEnabled: !!(process.env.VAULT_ENCRYPTION_KEY || settings.encryptionKey),
+      encryptionViaEnv: !!process.env.VAULT_ENCRYPTION_KEY,
+      encryptionKey: undefined, // never expose the raw key
     });
   } catch (error) {
     console.error("GET /api/settings error:", error);
@@ -70,7 +74,11 @@ export async function PUT(request: NextRequest) {
     }
 
     if (appPassword !== undefined) {
-      updateData.appPassword = appPassword === "" ? null : appPassword;
+      if (appPassword === "" || appPassword === null) {
+        updateData.appPassword = null;
+      } else if (typeof appPassword === "string" && appPassword.length <= 1024) {
+        updateData.appPassword = hashPassword(appPassword);
+      }
     }
 
     // Upsert: create the singleton if it doesn't exist, update if it does
@@ -87,6 +95,10 @@ export async function PUT(request: NextRequest) {
       ...settings,
       googleCseApiKey: settings.googleCseApiKey ? "***configured***" : null,
       _googleCseApiKeyIsSet: !!settings.googleCseApiKey,
+      appPassword: settings.appPassword ? "***set***" : null,
+      encryptionEnabled: !!(process.env.VAULT_ENCRYPTION_KEY || settings.encryptionKey),
+      encryptionViaEnv: !!process.env.VAULT_ENCRYPTION_KEY,
+      encryptionKey: undefined,
     });
   } catch (error) {
     console.error("PUT /api/settings error:", error);

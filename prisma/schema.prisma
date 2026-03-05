@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
 }
 
 datasource db {
@@ -12,13 +13,13 @@ datasource db {
 model Firearm {
   id              String   @id @default(cuid())
   name            String
-  manufacturer    String
-  model           String
-  caliber         String
-  serialNumber    String   @unique
+  manufacturer    String   @default("")
+  model           String   @default("")
+  caliber         String   @default("")
+  serialNumber    String?  @unique
   // FirearmType: PISTOL | RIFLE | SHOTGUN | SMG | PCC | REVOLVER | BOLT_ACTION | LEVER_ACTION
-  type            String
-  acquisitionDate DateTime
+  type            String   @default("")
+  acquisitionDate DateTime?
   purchasePrice   Float?
   currentValue    Float?
   notes           String?
@@ -27,6 +28,8 @@ model Firearm {
   imageSource     String?
 
   builds          Build[]
+  rangeSessions   RangeSession[]
+  maintenanceNotes MaintenanceNote[]
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -47,6 +50,7 @@ model Build {
   firearm     Firearm     @relation(fields: [firearmId], references: [id], onDelete: Cascade)
 
   slots       BuildSlot[]
+  rangeSessions RangeSession[]
 
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
@@ -61,7 +65,8 @@ model BuildSlot {
   build       Build      @relation(fields: [buildId], references: [id], onDelete: Cascade)
   // SlotType: MUZZLE | BARREL | HANDGUARD | STOCK | BUFFER_TUBE | GRIP | OPTIC | OPTIC_MOUNT |
   //           UNDERBARREL | MAGAZINE | LIGHT | LASER | CHARGING_HANDLE | TRIGGER |
-  //           LOWER_RECEIVER | UPPER_RECEIVER | SLIDE | FRAME | SUPPRESSOR | BIPOD | SLING | COMPENSATOR
+  //           LOWER_RECEIVER | UPPER_RECEIVER | SLIDE | FRAME | SUPPRESSOR | BIPOD | SLING |
+  //           COMPENSATOR | MAGWELL
   slotType    String
   accessoryId String?
   accessory   Accessory? @relation(fields: [accessoryId], references: [id], onDelete: SetNull)
@@ -83,7 +88,7 @@ model BuildSlot {
 model Accessory {
   id                     String          @id @default(cuid())
   name                   String
-  manufacturer           String
+  manufacturer           String          @default("")
   model                  String?
   // type matches SlotType values above
   type                   String
@@ -123,6 +128,46 @@ model RoundCountLog {
 
   @@index([accessoryId])
   @@index([loggedAt])
+}
+
+// ─── RANGE SESSIONS ───────────────────────────────────────────
+
+model RangeSession {
+  id            String   @id @default(cuid())
+  firearmId     String
+  firearm       Firearm  @relation(fields: [firearmId], references: [id], onDelete: Cascade)
+  buildId       String?
+  build         Build?   @relation(fields: [buildId], references: [id], onDelete: SetNull)
+  date          DateTime @default(now())
+  roundsFired   Int
+  rangeName     String?
+  rangeLocation String?
+  notes         String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([firearmId])
+  @@index([date])
+}
+
+// ─── MAINTENANCE NOTES ────────────────────────────────────────
+
+model MaintenanceNote {
+  id          String   @id @default(cuid())
+  firearmId   String
+  firearm     Firearm  @relation(fields: [firearmId], references: [id], onDelete: Cascade)
+  date        DateTime @default(now())
+  // type: "cleaning" | "repair" | "inspection" | "upgrade" | "other"
+  type        String   @default("other")
+  description String
+  mileage     Int?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([firearmId])
+  @@index([date])
 }
 
 // ─── AMMO ─────────────────────────────────────────────────────
@@ -192,6 +237,8 @@ model AppSettings {
   enableImageSearch       Boolean  @default(false)
   defaultCurrency         String   @default("USD")
   appPassword             String?
+  encryptionKey           String?
+  dataStoragePath         String?
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 }

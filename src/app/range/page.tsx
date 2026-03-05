@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { formatNumber } from "@/lib/utils";
+import { SLOT_TYPE_LABELS as SLOT_TYPE_LABELS_IMPORT } from "@/lib/types";
 import {
   Target,
   ChevronDown,
@@ -10,6 +11,7 @@ import {
   AlertCircle,
   CheckCircle2,
   Shield,
+  MapPin,
 } from "lucide-react";
 
 const INPUT_CLASS =
@@ -51,18 +53,9 @@ interface AmmoStock {
   quantity: number;
 }
 
-const SLOT_TYPE_LABELS: Record<string, string> = {
-  BARREL: "Barrel",
-  SUPPRESSOR: "Suppressor",
-  MUZZLE: "Muzzle",
-  OPTIC: "Optic",
-  TRIGGER: "Trigger",
-  HANDGUARD: "Handguard",
-  STOCK: "Stock",
-  GRIP: "Grip",
-};
+const SLOT_TYPE_LABELS: Record<string, string> = SLOT_TYPE_LABELS_IMPORT as Record<string, string>;
 
-// Slots that typically accumulate rounds
+// Slots that typically accumulate rounds (wear parts)
 const ROUND_COUNT_SLOTS = new Set(["BARREL", "SUPPRESSOR", "MUZZLE", "TRIGGER", "SLIDE", "FRAME"]);
 
 export default function RangeSessionPage() {
@@ -75,6 +68,8 @@ export default function RangeSessionPage() {
   const [roundsFired, setRoundsFired] = useState<string>("");
   const [selectedAmmoStock, setSelectedAmmoStock] = useState<string>("");
   const [sessionNote, setSessionNote] = useState<string>("");
+  const [rangeName, setRangeName] = useState<string>("");
+  const [rangeLocation, setRangeLocation] = useState<string>("");
   const [selectedAccessories, setSelectedAccessories] = useState<Set<string>>(new Set());
 
   const [loadingFirearms, setLoadingFirearms] = useState(true);
@@ -93,10 +88,7 @@ export default function RangeSessionPage() {
   useEffect(() => {
     fetch("/api/firearms")
       .then((r) => r.json())
-      .then((data) => {
-        setFirearms(data);
-        setLoadingFirearms(false);
-      })
+      .then((data) => { setFirearms(data); setLoadingFirearms(false); })
       .catch(() => setLoadingFirearms(false));
   }, []);
 
@@ -104,19 +96,13 @@ export default function RangeSessionPage() {
   useEffect(() => {
     fetch("/api/ammo")
       .then((r) => r.json())
-      .then((data) => {
-        setAmmoStocks(data.all ?? []);
-        setLoadingAmmo(false);
-      })
+      .then((data) => { setAmmoStocks(data.all ?? []); setLoadingAmmo(false); })
       .catch(() => setLoadingAmmo(false));
   }, []);
 
   // Load builds when firearm changes
   const loadBuilds = useCallback(async (firearmId: string) => {
-    if (!firearmId) {
-      setBuilds([]);
-      return;
-    }
+    if (!firearmId) { setBuilds([]); return; }
     setLoadingBuilds(true);
     try {
       const res = await fetch(`/api/builds?firearmId=${firearmId}`);
@@ -125,18 +111,17 @@ export default function RangeSessionPage() {
 
       // Auto-select active build
       const active = data.find((b: Build) => b.isActive);
-      if (active) {
-        setSelectedBuild(active.id);
-        // Auto-select barrel and suppressor
+      const selectedB = active ?? (data.length > 0 ? data[0] : null);
+      if (selectedB) {
+        setSelectedBuild(selectedB.id);
+        // Pre-select ALL accessories in the build (not just wear parts)
         const autoSelect = new Set<string>();
-        for (const slot of active.slots) {
-          if (slot.accessory && ROUND_COUNT_SLOTS.has(slot.slotType)) {
+        for (const slot of selectedB.slots) {
+          if (slot.accessory) {
             autoSelect.add(slot.accessory.id);
           }
         }
         setSelectedAccessories(autoSelect);
-      } else if (data.length > 0) {
-        setSelectedBuild(data[0].id);
       } else {
         setSelectedBuild("");
       }
@@ -158,9 +143,10 @@ export default function RangeSessionPage() {
   useEffect(() => {
     const build = builds.find((b) => b.id === selectedBuild);
     if (!build) return;
+    // Pre-select ALL accessories in the build
     const autoSelect = new Set<string>();
     for (const slot of build.slots) {
-      if (slot.accessory && ROUND_COUNT_SLOTS.has(slot.slotType)) {
+      if (slot.accessory) {
         autoSelect.add(slot.accessory.id);
       }
     }
@@ -179,11 +165,8 @@ export default function RangeSessionPage() {
   function toggleAccessory(accessoryId: string) {
     setSelectedAccessories((prev) => {
       const next = new Set(prev);
-      if (next.has(accessoryId)) {
-        next.delete(accessoryId);
-      } else {
-        next.add(accessoryId);
-      }
+      if (next.has(accessoryId)) next.delete(accessoryId);
+      else next.add(accessoryId);
       return next;
     });
   }
@@ -213,7 +196,7 @@ export default function RangeSessionPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             rounds,
-            note: sessionNote || `Range session`,
+            note: sessionNote || (rangeName ? `Range session at ${rangeName}` : "Range session"),
           }),
         });
         if (!res.ok) {
@@ -231,15 +214,27 @@ export default function RangeSessionPage() {
           body: JSON.stringify({
             type: "RANGE_USE",
             quantity: rounds,
-            note: sessionNote || "Range session",
+            note: sessionNote || (rangeName ? `Range session at ${rangeName}` : "Range session"),
           }),
         });
         const json = await res.json();
-        if (!res.ok) {
-          throw new Error(json.error ?? "Failed to deduct ammo");
-        }
+        if (!res.ok) throw new Error(json.error ?? "Failed to deduct ammo");
         ammoLeft = json.stock.quantity;
       }
+
+      // Save range session record
+      await fetch("/api/range-sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firearmId: selectedFirearm,
+          buildId: selectedBuild || null,
+          roundsFired: rounds,
+          rangeName: rangeName || null,
+          rangeLocation: rangeLocation || null,
+          notes: sessionNote || null,
+        }),
+      });
 
       setSuccessDetails({ accessories: results, ammoLeft });
       setSuccess(true);
@@ -256,6 +251,8 @@ export default function RangeSessionPage() {
     setRoundsFired("");
     setSelectedAmmoStock("");
     setSessionNote("");
+    setRangeName("");
+    setRangeLocation("");
     setSelectedAccessories(new Set());
     setSuccess(false);
     setError(null);
@@ -271,25 +268,26 @@ export default function RangeSessionPage() {
             <CheckCircle2 className="w-10 h-10 text-[#00C853]" />
           </div>
           <h2 className="text-2xl font-bold text-vault-text mb-2">Session Logged</h2>
-          <p className="text-vault-text-muted mb-6 max-w-sm">
-            Range session recorded successfully.
-          </p>
+          {rangeName && (
+            <div className="flex items-center gap-1.5 text-sm text-vault-text-muted mb-2">
+              <MapPin className="w-3.5 h-3.5" />
+              <span>{rangeName}{rangeLocation ? ` · ${rangeLocation}` : ""}</span>
+            </div>
+          )}
+          <p className="text-vault-text-muted mb-6 max-w-sm">Range session recorded successfully.</p>
           <div className="bg-vault-surface border border-vault-border rounded-lg p-5 text-left max-w-sm w-full mb-8">
             <p className="text-xs uppercase tracking-widest text-vault-text-faint mb-3">Session Summary</p>
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span className="text-sm text-vault-text-muted">Rounds fired</span>
-                <span className="text-sm font-mono font-bold text-[#00C2FF]">
-                  {formatNumber(parseInt(roundsFired))}
-                </span>
+                <span className="text-sm font-mono font-bold text-[#00C2FF]">{formatNumber(parseInt(roundsFired))}</span>
               </div>
               {successDetails.accessories.length > 0 && (
                 <div>
                   <p className="text-sm text-vault-text-muted mb-1">Logged to accessories:</p>
                   {successDetails.accessories.map((name) => (
                     <p key={name} className="text-xs text-[#00C853] flex items-center gap-1.5 ml-2">
-                      <CheckCircle2 className="w-3 h-3" />
-                      {name}
+                      <CheckCircle2 className="w-3 h-3" />{name}
                     </p>
                   ))}
                 </div>
@@ -297,17 +295,13 @@ export default function RangeSessionPage() {
               {successDetails.ammoLeft != null && (
                 <div className="flex justify-between">
                   <span className="text-sm text-vault-text-muted">Ammo remaining</span>
-                  <span className="text-sm font-mono text-[#F5A623]">
-                    {formatNumber(successDetails.ammoLeft)} rds
-                  </span>
+                  <span className="text-sm font-mono text-[#F5A623]">{formatNumber(successDetails.ammoLeft)} rds</span>
                 </div>
               )}
             </div>
           </div>
-          <button
-            onClick={resetForm}
-            className="flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 px-5 py-2 rounded-md text-sm font-medium transition-colors"
-          >
+          <button onClick={resetForm}
+            className="flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 px-5 py-2 rounded-md text-sm font-medium transition-colors">
             Log Another Session
           </button>
         </div>
@@ -317,10 +311,7 @@ export default function RangeSessionPage() {
 
   return (
     <div className="min-h-full">
-      <PageHeader
-        title="RANGE SESSION"
-        subtitle="Log rounds fired, deduct ammo, and update accessory round counts"
-      />
+      <PageHeader title="RANGE SESSION" subtitle="Log rounds fired, deduct ammo, and update accessory round counts" />
 
       <div className="max-w-2xl mx-auto px-6 py-8">
         {error && (
@@ -338,9 +329,7 @@ export default function RangeSessionPage() {
             </legend>
 
             <div>
-              <label className={LABEL_CLASS}>
-                Firearm <span className="text-[#E53935]">*</span>
-              </label>
+              <label className={LABEL_CLASS}>Firearm <span className="text-[#E53935]">*</span></label>
               {loadingFirearms ? (
                 <div className="flex items-center gap-2 h-10">
                   <Loader2 className="w-4 h-4 text-[#00C2FF] animate-spin" />
@@ -348,21 +337,12 @@ export default function RangeSessionPage() {
                 </div>
               ) : (
                 <div className="relative">
-                  <select
-                    required
-                    value={selectedFirearm}
-                    onChange={(e) => {
-                      setSelectedFirearm(e.target.value);
-                      setSelectedBuild("");
-                      setSelectedAmmoStock("");
-                    }}
-                    className={INPUT_CLASS}
-                  >
+                  <select required value={selectedFirearm}
+                    onChange={(e) => { setSelectedFirearm(e.target.value); setSelectedBuild(""); setSelectedAmmoStock(""); }}
+                    className={INPUT_CLASS}>
                     <option value="">Select firearm...</option>
                     {firearms.map((f) => (
-                      <option key={f.id} value={f.id}>
-                        {f.name} ({f.caliber})
-                      </option>
+                      <option key={f.id} value={f.id}>{f.name}{f.caliber ? ` (${f.caliber})` : ""}</option>
                     ))}
                   </select>
                   <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-vault-text-faint pointer-events-none" />
@@ -382,16 +362,10 @@ export default function RangeSessionPage() {
                   <p className="text-sm text-vault-text-faint py-2">No builds for this firearm.</p>
                 ) : (
                   <div className="relative">
-                    <select
-                      value={selectedBuild}
-                      onChange={(e) => setSelectedBuild(e.target.value)}
-                      className={INPUT_CLASS}
-                    >
+                    <select value={selectedBuild} onChange={(e) => setSelectedBuild(e.target.value)} className={INPUT_CLASS}>
                       <option value="">No build selected</option>
                       {builds.map((b) => (
-                        <option key={b.id} value={b.id}>
-                          {b.name}{b.isActive ? " (Active)" : ""}
-                        </option>
+                        <option key={b.id} value={b.id}>{b.name}{b.isActive ? " (Active)" : ""}</option>
                       ))}
                     </select>
                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-vault-text-faint pointer-events-none" />
@@ -401,6 +375,38 @@ export default function RangeSessionPage() {
             )}
           </fieldset>
 
+          {/* Range Location */}
+          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
+            <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
+              Range Location
+            </legend>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className={LABEL_CLASS}>
+                  <MapPin className="w-3 h-3 inline mr-1" />
+                  Range Name
+                </label>
+                <input
+                  type="text"
+                  value={rangeName}
+                  onChange={(e) => setRangeName(e.target.value)}
+                  placeholder="e.g. Eagle Eye Range"
+                  className={INPUT_CLASS}
+                />
+              </div>
+              <div>
+                <label className={LABEL_CLASS}>Location / City</label>
+                <input
+                  type="text"
+                  value={rangeLocation}
+                  onChange={(e) => setRangeLocation(e.target.value)}
+                  placeholder="e.g. Dallas, TX"
+                  className={INPUT_CLASS}
+                />
+              </div>
+            </div>
+          </fieldset>
+
           {/* Rounds & Ammo */}
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
             <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
@@ -408,18 +414,9 @@ export default function RangeSessionPage() {
             </legend>
 
             <div>
-              <label className={LABEL_CLASS}>
-                Rounds Fired <span className="text-[#E53935]">*</span>
-              </label>
-              <input
-                type="number"
-                min={1}
-                required
-                value={roundsFired}
-                onChange={(e) => setRoundsFired(e.target.value)}
-                placeholder="e.g. 200"
-                className={INPUT_CLASS}
-              />
+              <label className={LABEL_CLASS}>Rounds Fired <span className="text-[#E53935]">*</span></label>
+              <input type="number" min={1} required value={roundsFired} onChange={(e) => setRoundsFired(e.target.value)}
+                placeholder="e.g. 200" className={INPUT_CLASS} />
             </div>
 
             <div>
@@ -436,27 +433,18 @@ export default function RangeSessionPage() {
                 </p>
               ) : (
                 <div className="relative">
-                  <select
-                    value={selectedAmmoStock}
-                    onChange={(e) => setSelectedAmmoStock(e.target.value)}
-                    className={INPUT_CLASS}
-                  >
+                  <select value={selectedAmmoStock} onChange={(e) => setSelectedAmmoStock(e.target.value)} className={INPUT_CLASS}>
                     <option value="">No deduction</option>
                     {compatibleAmmo.map((a) => (
                       <option key={a.id} value={a.id}>
-                        {a.caliber} · {a.brand}
-                        {a.grainWeight ? ` ${a.grainWeight}gr` : ""}
-                        {a.bulletType ? ` ${a.bulletType}` : ""}
-                        {" "}— {formatNumber(a.quantity)} rds
+                        {a.caliber} · {a.brand}{a.grainWeight ? ` ${a.grainWeight}gr` : ""}{a.bulletType ? ` ${a.bulletType}` : ""} — {formatNumber(a.quantity)} rds
                       </option>
                     ))}
                   </select>
                   <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-vault-text-faint pointer-events-none" />
                 </div>
               )}
-              <p className="text-xs text-vault-text-faint mt-1">
-                This will deduct rounds from the selected stock.
-              </p>
+              <p className="text-xs text-vault-text-faint mt-1">This will deduct rounds from the selected stock.</p>
             </div>
           </fieldset>
 
@@ -467,38 +455,22 @@ export default function RangeSessionPage() {
                 Attribute Rounds To Accessories
               </legend>
               <p className="text-xs text-vault-text-muted">
-                Select which accessories should have their round count incremented.
-                Barrel and suppressor are pre-selected.
+                All accessories from the selected build are pre-selected. Uncheck any that shouldn&apos;t count rounds.
               </p>
 
               <div className="space-y-2">
                 {buildAccessories.map((slot) => {
                   if (!slot.accessory) return null;
                   const isSelected = selectedAccessories.has(slot.accessory.id);
-                  const isRoundCountPart = ROUND_COUNT_SLOTS.has(slot.slotType);
+                  const isWearPart = ROUND_COUNT_SLOTS.has(slot.slotType);
 
                   return (
-                    <label
-                      key={slot.id}
+                    <label key={slot.id}
                       className={`flex items-center gap-3 p-3 rounded-md border cursor-pointer transition-all ${
-                        isSelected
-                          ? "bg-[#00C2FF]/10 border-[#00C2FF]/30"
-                          : "bg-vault-bg border-vault-border hover:border-vault-text-muted/30"
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => toggleAccessory(slot.accessory!.id)}
-                        className="sr-only"
-                      />
-                      <div
-                        className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
-                          isSelected
-                            ? "bg-[#00C2FF] border-[#00C2FF]"
-                            : "border-vault-border"
-                        }`}
-                      >
+                        isSelected ? "bg-[#00C2FF]/10 border-[#00C2FF]/30" : "bg-vault-bg border-vault-border hover:border-vault-text-muted/30"
+                      }`}>
+                      <input type="checkbox" checked={isSelected} onChange={() => toggleAccessory(slot.accessory!.id)} className="sr-only" />
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${isSelected ? "bg-[#00C2FF] border-[#00C2FF]" : "border-vault-border"}`}>
                         {isSelected && (
                           <svg className="w-2.5 h-2.5 text-vault-bg" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -507,29 +479,19 @@ export default function RangeSessionPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium text-vault-text truncate">
-                            {slot.accessory.name}
-                          </p>
-                          {isRoundCountPart && (
-                            <span className="text-[10px] text-[#F5A623] border border-[#F5A623]/30 px-1.5 py-0.5 rounded font-mono">
-                              wear part
-                            </span>
+                          <p className="text-sm font-medium text-vault-text truncate">{slot.accessory.name}</p>
+                          {isWearPart && (
+                            <span className="text-[10px] text-[#F5A623] border border-[#F5A623]/30 px-1.5 py-0.5 rounded font-mono">wear</span>
                           )}
                         </div>
                         <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[10px] text-vault-text-faint">
-                            {SLOT_TYPE_LABELS[slot.slotType] ?? slot.slotType}
-                          </span>
+                          <span className="text-[10px] text-vault-text-faint">{SLOT_TYPE_LABELS[slot.slotType] ?? slot.slotType}</span>
                           <span className="text-[10px] text-vault-text-faint">·</span>
-                          <span className="text-[10px] font-mono text-vault-text-muted">
-                            {formatNumber(slot.accessory.roundCount)} rds total
-                          </span>
+                          <span className="text-[10px] font-mono text-vault-text-muted">{formatNumber(slot.accessory.roundCount)} rds total</span>
                         </div>
                       </div>
                       {isSelected && roundsFired && (
-                        <span className="text-xs font-mono text-[#00C2FF] shrink-0">
-                          +{formatNumber(parseInt(roundsFired) || 0)}
-                        </span>
+                        <span className="text-xs font-mono text-[#00C2FF] shrink-0">+{formatNumber(parseInt(roundsFired) || 0)}</span>
                       )}
                     </label>
                   );
@@ -542,9 +504,7 @@ export default function RangeSessionPage() {
             <div className="bg-vault-surface border border-vault-border rounded-lg p-5">
               <div className="flex items-center gap-3">
                 <Shield className="w-4 h-4 text-vault-text-faint" />
-                <p className="text-sm text-vault-text-muted">
-                  This build has no accessories installed. Rounds fired won&apos;t be attributed to any parts.
-                </p>
+                <p className="text-sm text-vault-text-muted">This build has no accessories installed. Rounds fired won&apos;t be attributed to any parts.</p>
               </div>
             </div>
           )}
@@ -552,17 +512,13 @@ export default function RangeSessionPage() {
           {/* Session Note */}
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
             <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
-              Session Note
+              Session Notes
             </legend>
             <div>
               <label className={LABEL_CLASS}>Notes</label>
-              <textarea
-                rows={3}
-                value={sessionNote}
-                onChange={(e) => setSessionNote(e.target.value)}
+              <textarea rows={3} value={sessionNote} onChange={(e) => setSessionNote(e.target.value)}
                 placeholder="e.g. Sunday range trip, competition practice, zeroing optic..."
-                className={`${INPUT_CLASS} resize-none`}
-              />
+                className={`${INPUT_CLASS} resize-none`} />
             </div>
           </fieldset>
 
@@ -576,16 +532,9 @@ export default function RangeSessionPage() {
                 <p>Will deduct {formatNumber(parseInt(roundsFired) || 0)} rounds from stock</p>
               )}
             </div>
-            <button
-              type="submit"
-              disabled={submitting || !selectedFirearm || !roundsFired}
-              className="flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-2 rounded-md text-sm font-medium transition-colors"
-            >
-              {submitting ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Target className="w-4 h-4" />
-              )}
+            <button type="submit" disabled={submitting || !selectedFirearm || !roundsFired}
+              className="flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-2 rounded-md text-sm font-medium transition-colors">
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Target className="w-4 h-4" />}
               {submitting ? "Logging..." : "Log Session"}
             </button>
           </div>
