@@ -6,7 +6,8 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const firearmId = searchParams.get("firearmId");
-    const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!) : undefined;
+    const limitRaw = parseInt(searchParams.get("limit") ?? "", 10);
+    const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : undefined;
 
     const sessions = await prisma.rangeSession.findMany({
       where: firearmId ? { firearmId } : undefined,
@@ -31,21 +32,26 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { firearmId, buildId, roundsFired, rangeName, rangeLocation, notes, date } = body;
 
-    if (!firearmId || !roundsFired) {
+    if (!firearmId || roundsFired === undefined || roundsFired === null) {
       return NextResponse.json(
         { error: "Missing required fields: firearmId, roundsFired" },
         { status: 400 }
       );
     }
 
+    const rounds = parseInt(String(roundsFired), 10);
+    if (!Number.isFinite(rounds) || rounds < 0) {
+      return NextResponse.json({ error: "roundsFired must be a non-negative integer" }, { status: 400 });
+    }
+
     const session = await prisma.rangeSession.create({
       data: {
         firearmId,
         buildId: buildId || null,
-        roundsFired: parseInt(roundsFired),
-        rangeName: rangeName || null,
-        rangeLocation: rangeLocation || null,
-        notes: notes || null,
+        roundsFired: rounds,
+        rangeName: typeof rangeName === "string" ? rangeName.slice(0, 200) : null,
+        rangeLocation: typeof rangeLocation === "string" ? rangeLocation.slice(0, 200) : null,
+        notes: typeof notes === "string" ? notes.slice(0, 5000) : null,
         date: date ? new Date(date) : new Date(),
       },
       include: {

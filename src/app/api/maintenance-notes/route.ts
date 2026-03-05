@@ -5,7 +5,8 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const firearmId = searchParams.get("firearmId");
-    const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!) : undefined;
+    const limitRaw = parseInt(searchParams.get("limit") ?? "", 10);
+    const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : undefined;
 
     const notes = await prisma.maintenanceNote.findMany({
       where: firearmId ? { firearmId } : undefined,
@@ -33,13 +34,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const mileageInt = mileage !== undefined && mileage !== null
+      ? parseInt(String(mileage), 10)
+      : null;
+
+    if (mileageInt !== null && !Number.isFinite(mileageInt)) {
+      return NextResponse.json({ error: "mileage must be a valid integer" }, { status: 400 });
+    }
+
     const note = await prisma.maintenanceNote.create({
       data: {
         firearmId,
-        description,
-        type: type || "other",
+        description: typeof description === "string" ? description.slice(0, 5000) : String(description),
+        type: typeof type === "string" ? type.slice(0, 100) : "Other",
         date: date ? new Date(date) : new Date(),
-        mileage: mileage ? parseInt(mileage) : null,
+        mileage: mileageInt,
       },
       include: { firearm: { select: { id: true, name: true } } },
     });
