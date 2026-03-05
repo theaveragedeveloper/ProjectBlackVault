@@ -16,7 +16,19 @@ import {
   Target,
   Crosshair,
   Lock,
+  TrendingUp,
+  ChevronDown,
 } from "lucide-react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ReferenceLine,
+  ResponsiveContainer,
+} from "recharts";
 
 const INPUT_CLASS =
   "w-full bg-vault-surface border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint transition-colors";
@@ -341,6 +353,188 @@ export default function DrillLibraryPage() {
   );
 }
 
+interface DrillResult {
+  id: string;
+  sessionId: string;
+  sessionDate: string;
+  rangeName: string | null;
+  timeSeconds: number | null;
+  score: number | null;
+  accuracy: number | null;
+  hits: number | null;
+  totalShots: number | null;
+  notes: string | null;
+}
+
+interface DrillStats {
+  runCount: number;
+  bestTime: number | null;
+  avgTime: number | null;
+  bestScore: number | null;
+  avgScore: number | null;
+  bestAccuracy: number | null;
+  avgAccuracy: number | null;
+}
+
+function DrillProgressPanel({ template }: { template: DrillTemplate }) {
+  const [results, setResults] = useState<DrillResult[]>([]);
+  const [stats, setStats] = useState<DrillStats | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/drill-templates/${template.id}/results`)
+      .then((r) => r.json())
+      .then((data) => {
+        setResults(data.results ?? []);
+        setStats(data.stats ?? null);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [template.id]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8 border-t border-vault-border">
+        <Loader2 className="w-4 h-4 text-[#00C2FF] animate-spin" />
+      </div>
+    );
+  }
+
+  if (!stats || stats.runCount === 0) {
+    return (
+      <div className="border-t border-vault-border pt-4 pb-2 text-center">
+        <TrendingUp className="w-8 h-8 text-vault-text-faint mx-auto mb-2" />
+        <p className="text-xs text-vault-text-faint">No results yet. Log this drill in a range session to track progress.</p>
+      </div>
+    );
+  }
+
+  const showTime = ["TIME", "TIME_AND_SCORE"].includes(template.scoringType) && stats.bestTime != null;
+  const showScore = ["SCORE", "TIME_AND_SCORE"].includes(template.scoringType) && stats.bestScore != null;
+  const showAccuracy = stats.bestAccuracy != null;
+
+  const chartData = results.map((r) => ({
+    date: new Date(r.sessionDate).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+    time: r.timeSeconds,
+    score: r.score,
+    accuracy: r.accuracy,
+  }));
+
+  return (
+    <div className="border-t border-vault-border pt-4 space-y-4">
+      {/* Stat chips */}
+      <div className="flex flex-wrap gap-3">
+        <div className="text-xs bg-vault-bg border border-vault-border rounded-md px-3 py-1.5">
+          <span className="text-vault-text-faint">Runs </span>
+          <span className="text-vault-text font-semibold">{stats.runCount}</span>
+        </div>
+        {stats.bestTime != null && (
+          <div className="text-xs bg-vault-bg border border-vault-border rounded-md px-3 py-1.5">
+            <span className="text-vault-text-faint">Best Time </span>
+            <span className="text-[#00C2FF] font-semibold">{stats.bestTime.toFixed(2)}s</span>
+          </div>
+        )}
+        {stats.avgTime != null && (
+          <div className="text-xs bg-vault-bg border border-vault-border rounded-md px-3 py-1.5">
+            <span className="text-vault-text-faint">Avg Time </span>
+            <span className="text-vault-text font-semibold">{stats.avgTime.toFixed(2)}s</span>
+          </div>
+        )}
+        {stats.bestScore != null && (
+          <div className="text-xs bg-vault-bg border border-vault-border rounded-md px-3 py-1.5">
+            <span className="text-vault-text-faint">Best Score </span>
+            <span className="text-[#00C853] font-semibold">{stats.bestScore}</span>
+          </div>
+        )}
+        {stats.avgScore != null && (
+          <div className="text-xs bg-vault-bg border border-vault-border rounded-md px-3 py-1.5">
+            <span className="text-vault-text-faint">Avg Score </span>
+            <span className="text-vault-text font-semibold">{stats.avgScore.toFixed(1)}</span>
+          </div>
+        )}
+        {stats.bestAccuracy != null && (
+          <div className="text-xs bg-vault-bg border border-vault-border rounded-md px-3 py-1.5">
+            <span className="text-vault-text-faint">Best Acc </span>
+            <span className="text-[#F5A623] font-semibold">{stats.bestAccuracy.toFixed(1)}%</span>
+          </div>
+        )}
+      </div>
+
+      {/* Time chart */}
+      {showTime && (
+        <div>
+          <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-2">Time (seconds)</p>
+          <ResponsiveContainer width="100%" height={140}>
+            <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+              <XAxis dataKey="date" tick={{ fontSize: 10, fill: "#6B7280" }} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: "#6B7280" }} tickLine={false} axisLine={false} />
+              <Tooltip
+                contentStyle={{ background: "#1a1f2e", border: "1px solid #2a3042", fontSize: 12 }}
+                labelStyle={{ color: "#9CA3AF" }}
+                formatter={(v: unknown) => [`${Number(v).toFixed(2)}s`, "Time"]}
+              />
+              {template.parTime != null && (
+                <ReferenceLine y={template.parTime} stroke="#F5A623" strokeDasharray="4 2"
+                  label={{ value: `par ${template.parTime}s`, fill: "#F5A623", fontSize: 9, position: "insideTopRight" }} />
+              )}
+              <Line type="monotone" dataKey="time" stroke="#00C2FF" strokeWidth={2}
+                dot={{ fill: "#00C2FF", r: 3 }} activeDot={{ r: 5 }} connectNulls />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Score chart */}
+      {showScore && (
+        <div>
+          <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-2">Score</p>
+          <ResponsiveContainer width="100%" height={140}>
+            <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+              <XAxis dataKey="date" tick={{ fontSize: 10, fill: "#6B7280" }} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: "#6B7280" }} tickLine={false} axisLine={false} />
+              <Tooltip
+                contentStyle={{ background: "#1a1f2e", border: "1px solid #2a3042", fontSize: 12 }}
+                labelStyle={{ color: "#9CA3AF" }}
+                formatter={(v: unknown) => [Number(v).toFixed(1), "Score"]}
+              />
+              {template.maxScore != null && (
+                <ReferenceLine y={template.maxScore} stroke="#00C853" strokeDasharray="4 2"
+                  label={{ value: `max ${template.maxScore}`, fill: "#00C853", fontSize: 9, position: "insideTopRight" }} />
+              )}
+              <Line type="monotone" dataKey="score" stroke="#00C853" strokeWidth={2}
+                dot={{ fill: "#00C853", r: 3 }} activeDot={{ r: 5 }} connectNulls />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Accuracy chart */}
+      {showAccuracy && (
+        <div>
+          <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-2">Accuracy (%)</p>
+          <ResponsiveContainer width="100%" height={140}>
+            <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+              <XAxis dataKey="date" tick={{ fontSize: 10, fill: "#6B7280" }} tickLine={false} />
+              <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: "#6B7280" }} tickLine={false} axisLine={false} />
+              <Tooltip
+                contentStyle={{ background: "#1a1f2e", border: "1px solid #2a3042", fontSize: 12 }}
+                labelStyle={{ color: "#9CA3AF" }}
+                formatter={(v: unknown) => [`${Number(v).toFixed(1)}%`, "Accuracy"]}
+              />
+              <ReferenceLine y={100} stroke="rgba(255,255,255,0.1)" />
+              <Line type="monotone" dataKey="accuracy" stroke="#F5A623" strokeWidth={2}
+                dot={{ fill: "#F5A623", r: 3 }} activeDot={{ r: 5 }} connectNulls />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TemplateCard({ template, onEdit, onDelete, deleting, readOnly }: {
   template: DrillTemplate;
   onEdit?: () => void;
@@ -348,6 +542,8 @@ function TemplateCard({ template, onEdit, onDelete, deleting, readOnly }: {
   deleting?: boolean;
   readOnly?: boolean;
 }) {
+  const [showProgress, setShowProgress] = useState(false);
+
   return (
     <div className="bg-vault-surface border border-vault-border rounded-lg p-4">
       <div className="flex items-start justify-between gap-3">
@@ -383,19 +579,33 @@ function TemplateCard({ template, onEdit, onDelete, deleting, readOnly }: {
             )}
           </div>
         </div>
-        {!readOnly && (
-          <div className="flex items-center gap-1 shrink-0">
-            <button onClick={onEdit}
-              className="p-1.5 rounded hover:bg-vault-border/40 text-vault-text-faint hover:text-vault-text transition-colors">
-              <Pencil className="w-3.5 h-3.5" />
-            </button>
-            <button onClick={onDelete} disabled={deleting}
-              className="p-1.5 rounded hover:bg-[#E53935]/10 text-vault-text-faint hover:text-[#E53935] transition-colors disabled:opacity-50">
-              {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-            </button>
-          </div>
-        )}
+        <div className="flex items-center gap-1 shrink-0">
+          <button onClick={() => setShowProgress((v) => !v)}
+            title="Progress charts"
+            className={`flex items-center gap-1 px-2 py-1.5 rounded text-xs transition-colors ${
+              showProgress
+                ? "bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF]"
+                : "text-vault-text-faint hover:text-vault-text hover:bg-vault-border"
+            }`}>
+            <TrendingUp className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Progress</span>
+            <ChevronDown className={`w-3 h-3 transition-transform ${showProgress ? "rotate-180" : ""}`} />
+          </button>
+          {!readOnly && (
+            <>
+              <button onClick={onEdit}
+                className="p-1.5 rounded hover:bg-vault-border/40 text-vault-text-faint hover:text-vault-text transition-colors">
+                <Pencil className="w-3.5 h-3.5" />
+              </button>
+              <button onClick={onDelete} disabled={deleting}
+                className="p-1.5 rounded hover:bg-[#E53935]/10 text-vault-text-faint hover:text-[#E53935] transition-colors disabled:opacity-50">
+                {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+              </button>
+            </>
+          )}
+        </div>
       </div>
+      {showProgress && <DrillProgressPanel template={template} />}
     </div>
   );
 }
