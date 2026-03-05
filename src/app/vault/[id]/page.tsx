@@ -24,7 +24,10 @@ import {
   Loader2,
   MapPin,
   Clock,
+  Camera,
+  X,
 } from "lucide-react";
+import ImagePicker from "@/components/shared/ImagePicker";
 
 const FIREARM_TYPE_LABELS: Record<string, string> = {
   PISTOL: "Pistol",
@@ -126,6 +129,8 @@ export default function FirearmDetailPage() {
   const [firearm, setFirearm] = useState<Firearm | null>(null);
   const [loading, setLoading] = useState(true);
   const [sidebarTab, setSidebarTab] = useState<"range" | "maintenance">("range");
+  const [photoModalOpen, setPhotoModalOpen] = useState(false);
+  const [localImageUrl, setLocalImageUrl] = useState<string | null>(null);
 
   const [rangeSessions, setRangeSessions] = useState<RangeSession[]>([]);
   const [rangeLoading, setRangeLoading] = useState(true);
@@ -145,7 +150,7 @@ export default function FirearmDetailPage() {
     if (!id) return;
     fetch(`/api/firearms/${id}`)
       .then((r) => r.json())
-      .then((data) => { setFirearm(data); setLoading(false); })
+      .then((data) => { setFirearm(data); setLocalImageUrl(data.imageUrl ?? null); setLoading(false); })
       .catch(() => setLoading(false));
 
     fetch(`/api/range-sessions?firearmId=${id}&limit=10`)
@@ -214,17 +219,27 @@ export default function FirearmDetailPage() {
   const typeBadge = TYPE_BADGE_COLORS[firearm.type] ?? "border-vault-border text-vault-text-muted";
   const typeLabel = FIREARM_TYPE_LABELS[firearm.type] ?? firearm.type;
 
+  async function handlePhotoChange(url: string | null, source: string | null) {
+    await fetch(`/api/firearms/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageUrl: url, imageSource: source }),
+    });
+    setLocalImageUrl(url);
+    setPhotoModalOpen(false);
+  }
+
   return (
     <div className="min-h-full flex flex-col lg:flex-row">
       {/* Main content */}
       <div className="flex-1 min-w-0">
         {/* Hero Banner */}
         <div className="relative h-56 bg-vault-bg overflow-hidden">
-          {firearm.imageUrl ? (
+          {localImageUrl ? (
             <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={firearm.imageUrl}
+                src={localImageUrl}
                 alt={firearm.name}
                 className="w-full h-full object-cover object-center"
               />
@@ -235,6 +250,13 @@ export default function FirearmDetailPage() {
               <Shield className="w-16 h-16 text-vault-border" />
             </div>
           )}
+          <button
+            onClick={() => setPhotoModalOpen(true)}
+            className="absolute bottom-2 right-2 flex items-center gap-1.5 text-xs bg-vault-bg/70 backdrop-blur-sm border border-vault-border text-vault-text-muted hover:text-[#00C2FF] hover:border-[#00C2FF]/40 px-2.5 py-1.5 rounded-md transition-colors z-10"
+          >
+            <Camera className="w-3.5 h-3.5" />
+            Photo
+          </button>
 
           {/* Nav bar over image */}
           <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-4">
@@ -635,5 +657,30 @@ export default function FirearmDetailPage() {
         )}
       </div>
     </div>
+
+    {/* Photo upload modal */}
+    {photoModalOpen && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(5,7,9,0.85)" }}>
+        <div className="bg-vault-surface border border-vault-border rounded-xl w-full max-w-md shadow-2xl animate-slide-up">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-vault-border">
+            <div className="flex items-center gap-2">
+              <Camera className="w-4 h-4 text-[#00C2FF]" />
+              <h2 className="text-sm font-semibold text-vault-text">Update Photo</h2>
+            </div>
+            <button onClick={() => setPhotoModalOpen(false)} className="text-vault-text-faint hover:text-vault-text transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="p-5">
+            <ImagePicker
+              entityType="firearm"
+              entityId={id}
+              currentUrl={localImageUrl}
+              onChange={handlePhotoChange}
+            />
+          </div>
+        </div>
+      </div>
+    )}
   );
 }

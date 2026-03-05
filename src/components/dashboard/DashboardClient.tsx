@@ -140,34 +140,46 @@ function SortableWidget({
 function StatsWidget({ data }: { data: DashboardData }) {
   return (
     <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-      <StatCard
-        label="Total Firearms"
-        value={formatNumber(data.firearmCount)}
-        subValue="in vault"
-        icon={Shield}
-        accent="blue"
-      />
-      <StatCard
-        label="Total Accessories"
-        value={formatNumber(data.accessoryCount)}
-        subValue="parts & attachments"
-        icon={Crosshair}
-        accent="default"
-      />
-      <StatCard
-        label="Total Ammo Rounds"
-        value={formatNumber(data.totalAmmoRounds)}
-        subValue="across all calibers"
-        icon={Target}
-        accent="amber"
-      />
-      <StatCard
-        label="Total Investment"
-        value={formatCurrency(data.totalInvestment)}
-        subValue="firearms + accessories"
-        icon={DollarSign}
-        accent="green"
-      />
+      <Link href="/vault" className="block group">
+        <StatCard
+          label="Total Firearms"
+          value={formatNumber(data.firearmCount)}
+          subValue="in vault"
+          icon={Shield}
+          accent="blue"
+          className="cursor-pointer hover:bg-vault-surface-2 transition-colors"
+        />
+      </Link>
+      <Link href="/accessories" className="block group">
+        <StatCard
+          label="Total Accessories"
+          value={formatNumber(data.accessoryCount)}
+          subValue="parts & attachments"
+          icon={Crosshair}
+          accent="default"
+          className="cursor-pointer hover:bg-vault-surface-2 transition-colors"
+        />
+      </Link>
+      <Link href="/ammo" className="block group">
+        <StatCard
+          label="Total Ammo Rounds"
+          value={formatNumber(data.totalAmmoRounds)}
+          subValue="across all calibers"
+          icon={Target}
+          accent="amber"
+          className="cursor-pointer hover:bg-vault-surface-2 transition-colors"
+        />
+      </Link>
+      <Link href="/vault" className="block group">
+        <StatCard
+          label="Total Investment"
+          value={formatCurrency(data.totalInvestment)}
+          subValue="firearms + accessories"
+          icon={DollarSign}
+          accent="green"
+          className="cursor-pointer hover:bg-vault-surface-2 transition-colors"
+        />
+      </Link>
     </div>
   );
 }

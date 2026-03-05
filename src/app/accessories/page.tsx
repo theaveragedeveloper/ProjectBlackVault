@@ -6,20 +6,20 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/utils";
-import { Plus, Crosshair, Shield, ExternalLink, Loader2, Filter } from "lucide-react";
+import { Plus, Crosshair, Shield, ExternalLink, Loader2, ChevronDown } from "lucide-react";
 import { SLOT_TYPE_LABELS, SlotType, SLOT_TYPES } from "@/lib/types";
 
 const SLOT_TYPE_LABELS_LOCAL: Record<string, string> = SLOT_TYPE_LABELS as Record<string, string>;
 
 const BARREL_TYPES = new Set(["BARREL", "SUPPRESSOR", "MUZZLE", "COMPENSATOR"]);
 
-function roundCountColor(roundCount: number, slotType: string): { text: string; bar: string } {
+function roundCountColor(roundCount: number, slotType: string): { text: string; bar: string; badge: string } {
   const isHighWearPart = BARREL_TYPES.has(slotType);
   const threshold = isHighWearPart ? 5000 : 20000;
 
-  if (roundCount >= threshold) return { text: "text-[#E53935]", bar: "bg-[#E53935]" };
-  if (roundCount >= threshold * 0.6) return { text: "text-[#F5A623]", bar: "bg-[#F5A623]" };
-  return { text: "text-[#00C853]", bar: "bg-[#00C853]" };
+  if (roundCount >= threshold) return { text: "text-[#E53935]", bar: "bg-[#E53935]", badge: "border-[#E53935]/40 bg-[#E53935]/10 text-[#E53935]" };
+  if (roundCount >= threshold * 0.6) return { text: "text-[#F5A623]", bar: "bg-[#F5A623]", badge: "border-[#F5A623]/40 bg-[#F5A623]/10 text-[#F5A623]" };
+  return { text: "text-[#00C853]", bar: "bg-[#00C853]", badge: "border-[#00C853]/40 bg-[#00C853]/10 text-[#00C853]" };
 }
 
 interface Accessory {
@@ -91,35 +91,22 @@ export default function AccessoriesPage() {
         </div>
 
         {/* Type Filter */}
-        <div className="mb-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Filter className="w-3.5 h-3.5 text-vault-text-faint" />
-            <span className="text-[10px] uppercase tracking-widest text-vault-text-faint">Filter by Type</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setTypeFilter("ALL")}
-              className={`px-3 py-1.5 rounded-md text-xs font-mono border transition-colors ${
-                typeFilter === "ALL"
-                  ? "bg-[#00C2FF]/10 border-[#00C2FF]/40 text-[#00C2FF]"
-                  : "border-vault-border text-vault-text-muted hover:border-vault-text-muted/40 hover:text-vault-text"
-              }`}
+        <div className="mb-4 flex items-center gap-3">
+          <span className="text-[10px] uppercase tracking-widest text-vault-text-faint whitespace-nowrap">Filter by Type</span>
+          <div className="relative">
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="appearance-none bg-vault-surface border border-vault-border text-vault-text text-xs font-mono rounded-md pl-3 pr-8 py-1.5 focus:outline-none focus:border-[#00C2FF] cursor-pointer transition-colors hover:border-vault-text-muted/40"
             >
-              All
-            </button>
-            {(SLOT_TYPES as readonly SlotType[]).map((type) => (
-              <button
-                key={type}
-                onClick={() => setTypeFilter(type)}
-                className={`px-3 py-1.5 rounded-md text-xs font-mono border transition-colors ${
-                  typeFilter === type
-                    ? "bg-[#00C2FF]/10 border-[#00C2FF]/40 text-[#00C2FF]"
-                    : "border-vault-border text-vault-text-muted hover:border-vault-text-muted/40 hover:text-vault-text"
-                }`}
-              >
-                {SLOT_TYPE_LABELS_LOCAL[type] ?? type}
-              </button>
-            ))}
+              <option value="ALL">All Types</option>
+              {(SLOT_TYPES as readonly SlotType[]).map((type) => (
+                <option key={type} value={type}>
+                  {SLOT_TYPE_LABELS_LOCAL[type] ?? type}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="w-3 h-3 text-vault-text-faint absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
         </div>
 
@@ -169,8 +156,6 @@ export default function AccessoriesPage() {
                 <tbody className="divide-y divide-vault-border">
                   {accessories.map((accessory) => {
                     const colors = roundCountColor(accessory.roundCount, accessory.type);
-                    const maxRounds = BARREL_TYPES.has(accessory.type) ? 5000 : 20000;
-                    const pct = Math.min((accessory.roundCount / maxRounds) * 100, 100);
 
                     return (
                       <tr key={accessory.id} className="hover:bg-vault-surface-2 transition-colors group">
@@ -204,14 +189,9 @@ export default function AccessoriesPage() {
                           <p className="text-sm text-vault-text-muted truncate max-w-[120px]">{accessory.manufacturer}</p>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            <p className={`text-sm font-mono font-bold ${colors.text} w-14 shrink-0`}>
-                              {formatNumber(accessory.roundCount)}
-                            </p>
-                            <div className="w-20 bg-vault-border rounded-full h-1 hidden sm:block">
-                              <div className={`h-1 rounded-full ${colors.bar} transition-all`} style={{ width: `${pct}%` }} />
-                            </div>
-                          </div>
+                          <span className={`inline-flex items-center text-xs font-mono font-bold px-2 py-0.5 rounded border ${colors.badge}`}>
+                            {formatNumber(accessory.roundCount)} rds
+                          </span>
                         </td>
                         <td className="px-4 py-3 hidden xl:table-cell">
                           {accessory.currentBuild ? (
