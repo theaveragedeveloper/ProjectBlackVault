@@ -37,6 +37,9 @@ async function getAllBuilds() {
               id: true,
               slotType: true,
               accessoryId: true,
+              accessory: {
+                select: { roundCount: true },
+              },
             },
           },
         },
@@ -154,6 +157,9 @@ export default async function BuildsPage() {
                       <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium hidden lg:table-cell">
                         Accessories
                       </th>
+                      <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium hidden md:table-cell">
+                        Rounds
+                      </th>
                       <th className="text-right px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium">
                         Action
                       </th>
@@ -165,6 +171,9 @@ export default async function BuildsPage() {
                       const accessoryCount = build.slots.filter(
                         (s) => s.accessoryId !== null
                       ).length;
+                      const totalRounds = build.slots.reduce(
+                        (sum, s) => sum + (s.accessory?.roundCount ?? 0), 0
+                      );
 
                       return (
                         <tr
@@ -207,6 +216,13 @@ export default async function BuildsPage() {
                           <td className="px-4 py-3 hidden lg:table-cell">
                             <span className="text-sm font-mono text-vault-text-muted">
                               {accessoryCount} accessor{accessoryCount !== 1 ? "ies" : "y"}
+                            </span>
+                          </td>
+
+                          {/* Round count */}
+                          <td className="px-4 py-3 hidden md:table-cell">
+                            <span className="inline-flex items-center text-xs font-mono font-bold px-2 py-0.5 rounded border border-[#00C853]/40 bg-[#00C853]/10 text-[#00C853]">
+                              {totalRounds.toLocaleString()} rds
                             </span>
                           </td>
 

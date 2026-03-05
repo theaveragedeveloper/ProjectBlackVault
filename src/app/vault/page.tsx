@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatNumber } from "@/lib/utils";
 import {
   Shield,
   Plus,
@@ -46,7 +46,7 @@ interface ActiveBuild {
   id: string;
   name: string;
   isActive: boolean;
-  slots: { id: string; slotType: string; accessoryId: string | null }[];
+  slots: { id: string; slotType: string; accessoryId: string | null; accessory: { roundCount: number } | null }[];
 }
 
 interface Firearm {
@@ -103,6 +103,7 @@ function FirearmCard({ firearm, editMode, editBuilds, onDeleteBuild }: FirearmCa
   const typeLabel = FIREARM_TYPE_LABELS[firearm.type] ?? firearm.type;
   const activeBuild = firearm.activeBuild;
   const accessoryCount = activeBuild?.slots?.filter((s) => s.accessoryId).length ?? 0;
+  const totalRounds = activeBuild?.slots?.reduce((sum, s) => sum + (s.accessory?.roundCount ?? 0), 0) ?? 0;
 
   return (
     <div className="bg-vault-surface border border-vault-border rounded-lg overflow-hidden hover:border-[#00C2FF]/30 transition-colors group flex flex-col">
@@ -172,7 +173,7 @@ function FirearmCard({ firearm, editMode, editBuilds, onDeleteBuild }: FirearmCa
               <span className="text-xs text-[#00C853] font-medium truncate">{activeBuild.name}</span>
             </div>
             <p className="text-[10px] text-vault-text-faint mt-0.5 ml-4.5">
-              {accessoryCount} accessor{accessoryCount !== 1 ? "ies" : "y"}
+              {accessoryCount} accessor{accessoryCount !== 1 ? "ies" : "y"} · {formatNumber(totalRounds)} rds
             </p>
           </div>
         )}
