@@ -3,6 +3,8 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { DashboardClient } from "@/components/dashboard/DashboardClient";
 
 async function getDashboardData() {
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
   const [
     firearmCount,
     accessoryCount,
@@ -10,6 +12,9 @@ async function getDashboardData() {
     firearms,
     accessories,
     recentFirearms,
+    rangeSessionAggregate,
+    rangeSessionsLast30,
+    lastRangeSession,
   ] = await Promise.all([
     prisma.firearm.count(),
     prisma.accessory.count(),
@@ -46,6 +51,23 @@ async function getDashboardData() {
         createdAt: true,
       },
     }),
+    prisma.rangeSession.aggregate({
+      _sum: { roundsFired: true },
+      _count: { id: true },
+    }),
+    prisma.rangeSession.count({
+      where: { date: { gte: thirtyDaysAgo } },
+    }),
+    prisma.rangeSession.findFirst({
+      orderBy: { date: "desc" },
+      select: {
+        id: true,
+        date: true,
+        rangeName: true,
+        roundsFired: true,
+        firearm: { select: { name: true } },
+      },
+    }),
   ]);
 
   const totalAmmoRounds = ammoStocks.reduce((sum, s) => sum + s.quantity, 0);
@@ -65,6 +87,20 @@ async function getDashboardData() {
     lowStockItems,
     recentFirearms,
     ammoStocks,
+    rangeStats: {
+      count: rangeSessionAggregate._count.id,
+      totalRounds: rangeSessionAggregate._sum.roundsFired ?? 0,
+      sessionsLast30Days: rangeSessionsLast30,
+      lastSession: lastRangeSession
+        ? {
+            id: lastRangeSession.id,
+            date: lastRangeSession.date,
+            rangeName: lastRangeSession.rangeName,
+            roundsFired: lastRangeSession.roundsFired,
+            firearmName: lastRangeSession.firearm.name,
+          }
+        : null,
+    },
   };
 }
 
