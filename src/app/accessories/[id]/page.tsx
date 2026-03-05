@@ -18,7 +18,10 @@ import {
   ChevronDown,
   ChevronUp,
   Pencil,
+  Camera,
+  X,
 } from "lucide-react";
+import ImagePicker from "@/components/shared/ImagePicker";
 
 
 interface RoundCountLog {
@@ -70,6 +73,8 @@ export default function AccessoryDetailPage() {
   const [accessory, setAccessory] = useState<Accessory | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [photoModalOpen, setPhotoModalOpen] = useState(false);
+  const [localImageUrl, setLocalImageUrl] = useState<string | null>(null);
 
   // Log rounds form
   const [logOpen, setLogOpen] = useState(false);
@@ -89,6 +94,7 @@ export default function AccessoryDetailPage() {
           setError(data.error);
         } else {
           setAccessory(data);
+          setLocalImageUrl(data.imageUrl ?? null);
         }
         setLoading(false);
       })
@@ -157,15 +163,25 @@ export default function AccessoryDetailPage() {
   const roundColor = roundCountColor(accessory.roundCount, accessory.type);
   const visibleLogs = historyExpanded ? accessory.roundCountLogs : accessory.roundCountLogs.slice(0, 5);
 
+  async function handlePhotoChange(url: string | null, source: string | null) {
+    await fetch(`/api/accessories/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageUrl: url, imageSource: source }),
+    });
+    setLocalImageUrl(url);
+    setPhotoModalOpen(false);
+  }
+
   return (
     <div className="min-h-full">
       {/* Header with image */}
       <div className="relative h-44 bg-vault-bg overflow-hidden">
-        {accessory.imageUrl ? (
+        {localImageUrl ? (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={accessory.imageUrl}
+              src={localImageUrl}
               alt={accessory.name}
               className="w-full h-full object-cover"
             />
@@ -176,6 +192,13 @@ export default function AccessoryDetailPage() {
             <Shield className="w-12 h-12 text-vault-border" />
           </div>
         )}
+        <button
+          onClick={() => setPhotoModalOpen(true)}
+          className="absolute bottom-2 right-2 flex items-center gap-1.5 text-xs bg-vault-bg/70 backdrop-blur-sm border border-vault-border text-vault-text-muted hover:text-[#00C2FF] hover:border-[#00C2FF]/40 px-2.5 py-1.5 rounded-md transition-colors z-10"
+        >
+          <Camera className="w-3.5 h-3.5" />
+          Photo
+        </button>
 
         <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-4">
           <Link
@@ -457,5 +480,30 @@ export default function AccessoryDetailPage() {
         )}
       </div>
     </div>
+
+    {/* Photo upload modal */}
+    {photoModalOpen && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(5,7,9,0.85)" }}>
+        <div className="bg-vault-surface border border-vault-border rounded-xl w-full max-w-md shadow-2xl animate-slide-up">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-vault-border">
+            <div className="flex items-center gap-2">
+              <Camera className="w-4 h-4 text-[#00C2FF]" />
+              <h2 className="text-sm font-semibold text-vault-text">Update Photo</h2>
+            </div>
+            <button onClick={() => setPhotoModalOpen(false)} className="text-vault-text-faint hover:text-vault-text transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="p-5">
+            <ImagePicker
+              entityType="accessory"
+              entityId={id}
+              currentUrl={localImageUrl}
+              onChange={handlePhotoChange}
+            />
+          </div>
+        </div>
+      </div>
+    )}
   );
 }
