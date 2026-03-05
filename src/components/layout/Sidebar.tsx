@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   Shield,
   Crosshair,
@@ -84,7 +84,6 @@ interface SidebarProps {
 
 export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [rangeExpanded, setRangeExpanded] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -105,7 +104,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
     setLoggingOut(true);
     try {
       await fetch("/api/auth/logout", { method: "POST" });
-      router.push("/login");
+      window.location.href = "/login";
     } catch {
       setLoggingOut(false);
     }
