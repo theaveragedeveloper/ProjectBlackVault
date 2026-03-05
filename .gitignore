@@ -48,3 +48,5 @@ prisma/dev.db-journal
 
 # User uploads
 /uploads/
+prisma/prisma/dev.db
+prisma/prisma/dev.db-journal
