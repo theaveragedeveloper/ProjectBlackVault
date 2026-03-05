@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import crypto from "crypto";
 import { verifyPassword } from "@/lib/password";
+import { signToken } from "@/lib/session";
 
 // Simple in-memory rate limiter: max 10 attempts per IP per minute
 const attempts = new Map<string, { count: number; resetAt: number }>();
@@ -51,8 +52,10 @@ export async function POST(request: NextRequest) {
     // If no password is set, always allow access
     if (!settings.appPassword) {
       const token = crypto.randomBytes(32).toString("hex");
+      const secret = process.env.SESSION_SECRET;
+      const cookieValue = secret ? signToken(token, secret) : token;
       const cookieStore = await cookies();
-      cookieStore.set("vault_session", token, {
+      cookieStore.set("vault_session", cookieValue, {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
@@ -67,8 +70,10 @@ export async function POST(request: NextRequest) {
     }
 
     const token = crypto.randomBytes(32).toString("hex");
+    const secret = process.env.SESSION_SECRET;
+    const cookieValue = secret ? signToken(token, secret) : token;
     const cookieStore = await cookies();
-    cookieStore.set("vault_session", token, {
+    cookieStore.set("vault_session", cookieValue, {
       httpOnly: true,
       sameSite: "lax",
       path: "/",
