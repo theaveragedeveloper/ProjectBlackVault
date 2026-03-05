@@ -15,6 +15,8 @@ import {
   Link,
   Wind,
   Cog,
+  ToggleLeft,
+  SlidersHorizontal,
   LucideIcon,
 } from "lucide-react";
 import { SlotType } from "@/lib/types";
@@ -50,6 +52,13 @@ export const SLOT_ICONS: Record<SlotType, SlotIconConfig> = {
   UNDERBARREL: { icon: Layers, color: "#8B9DB0" },
   BIPOD: { icon: Layers, color: "#8B9DB0" },
   TRIGGER: { icon: Settings, color: "#8B9DB0" },
+  HAMMER: { icon: Settings, color: "#8B9DB0" },
+  DISCONNECTOR: { icon: Cog, color: "#8B9DB0" },
+  SAFETY_SELECTOR: { icon: ToggleLeft, color: "#F5A623" },
+  BOLT_CATCH: { icon: SlidersHorizontal, color: "#8B9DB0" },
+  MAGAZINE_CATCH: { icon: SlidersHorizontal, color: "#8B9DB0" },
+  TRIGGER_GUARD: { icon: Shield, color: "#8B9DB0" },
+  LOWER_PARTS_KIT: { icon: Package, color: "#00C853" },
   CHARGING_HANDLE: { icon: RefreshCw, color: "#8B9DB0" },
   SLIDE: { icon: ArrowLeftRight, color: "#8B9DB0" },
   LOWER_RECEIVER: { icon: Shield, color: "#8B9DB0" },
