@@ -84,11 +84,12 @@ Data is persisted in named Docker volumes:
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `DATABASE_URL` | Yes | `file:./prisma/dev.db` | SQLite connection string |
+| `SESSION_SECRET` | Recommended | — | Signs session cookies to prevent forgery. Generate: `openssl rand -hex 32` |
 | `NODE_ENV` | No | `development` | Set to `production` in deployed environments |
 | `PORT` | No | `3000` | Port exposed by Docker Compose |
 | `GOOGLE_CSE_API_KEY` | No | — | Google Custom Search API key for image lookup |
 | `GOOGLE_CSE_SEARCH_ENGINE_ID` | No | — | Google CSE search engine ID |
-| `APP_PASSWORD` | No | — | Optional app-level password protection |
+| `APP_PASSWORD` | — | — | Set via the Settings UI — not an environment variable |
 
 ---
 
