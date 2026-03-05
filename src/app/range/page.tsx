@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { formatNumber } from "@/lib/utils";
 import { SLOT_TYPE_LABELS as SLOT_TYPE_LABELS_IMPORT } from "@/lib/types";
@@ -12,6 +13,10 @@ import {
   CheckCircle2,
   Shield,
   MapPin,
+  ChevronRight,
+  Thermometer,
+  Wind,
+  Cloud,
 } from "lucide-react";
 
 const INPUT_CLASS =
@@ -58,6 +63,14 @@ const SLOT_TYPE_LABELS: Record<string, string> = SLOT_TYPE_LABELS_IMPORT as Reco
 // Slots that typically accumulate rounds (wear parts)
 const ROUND_COUNT_SLOTS = new Set(["BARREL", "SUPPRESSOR", "MUZZLE", "TRIGGER", "SLIDE", "FRAME"]);
 
+const LIGHT_CONDITIONS = ["BRIGHT", "OVERCAST", "LOW_LIGHT", "NIGHT"];
+const LIGHT_CONDITION_LABELS: Record<string, string> = {
+  BRIGHT: "Bright / Sunny",
+  OVERCAST: "Overcast",
+  LOW_LIGHT: "Low Light / Dusk",
+  NIGHT: "Night",
+};
+
 export default function RangeSessionPage() {
   const [firearms, setFirearms] = useState<Firearm[]>([]);
   const [builds, setBuilds] = useState<Build[]>([]);
@@ -72,6 +85,23 @@ export default function RangeSessionPage() {
   const [rangeLocation, setRangeLocation] = useState<string>("");
   const [selectedAccessories, setSelectedAccessories] = useState<Set<string>>(new Set());
 
+  // Environment / Weather
+  const [showEnvFieldset, setShowEnvFieldset] = useState(false);
+  const [environment, setEnvironment] = useState<"INDOOR" | "OUTDOOR" | "">("");
+  const [temperatureF, setTemperatureF] = useState<string>("");
+  const [windSpeedMph, setWindSpeedMph] = useState<string>("");
+  const [windDirection, setWindDirection] = useState<string>("");
+  const [humidity, setHumidity] = useState<string>("");
+  const [lightCondition, setLightCondition] = useState<string>("");
+  const [weatherNotes, setWeatherNotes] = useState<string>("");
+
+  // Shot Groups
+  const [showGroupFieldset, setShowGroupFieldset] = useState(false);
+  const [targetDistanceYd, setTargetDistanceYd] = useState<string>("");
+  const [groupSizeIn, setGroupSizeIn] = useState<string>("");
+  const [numberOfGroups, setNumberOfGroups] = useState<string>("");
+  const [groupNotes, setGroupNotes] = useState<string>("");
+
   const [loadingFirearms, setLoadingFirearms] = useState(true);
   const [loadingBuilds, setLoadingBuilds] = useState(false);
   const [loadingAmmo, setLoadingAmmo] = useState(true);
@@ -79,10 +109,17 @@ export default function RangeSessionPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [createdSessionId, setCreatedSessionId] = useState<string | null>(null);
   const [successDetails, setSuccessDetails] = useState<{ accessories: string[]; ammoLeft: number | null }>({
     accessories: [],
     ammoLeft: null,
   });
+
+  // MOA auto-computed
+  const groupSizeMoa =
+    targetDistanceYd && groupSizeIn && parseFloat(targetDistanceYd) > 0
+      ? ((parseFloat(groupSizeIn) * 95.5) / parseFloat(targetDistanceYd)).toFixed(2)
+      : null;
 
   // Load firearms
   useEffect(() => {
@@ -114,12 +151,9 @@ export default function RangeSessionPage() {
       const selectedB = active ?? (data.length > 0 ? data[0] : null);
       if (selectedB) {
         setSelectedBuild(selectedB.id);
-        // Pre-select ALL accessories in the build (not just wear parts)
         const autoSelect = new Set<string>();
         for (const slot of selectedB.slots) {
-          if (slot.accessory) {
-            autoSelect.add(slot.accessory.id);
-          }
+          if (slot.accessory) autoSelect.add(slot.accessory.id);
         }
         setSelectedAccessories(autoSelect);
       } else {
@@ -143,12 +177,9 @@ export default function RangeSessionPage() {
   useEffect(() => {
     const build = builds.find((b) => b.id === selectedBuild);
     if (!build) return;
-    // Pre-select ALL accessories in the build
     const autoSelect = new Set<string>();
     for (const slot of build.slots) {
-      if (slot.accessory) {
-        autoSelect.add(slot.accessory.id);
-      }
+      if (slot.accessory) autoSelect.add(slot.accessory.id);
     }
     setSelectedAccessories(autoSelect);
   }, [selectedBuild, builds]);
@@ -186,6 +217,7 @@ export default function RangeSessionPage() {
     try {
       const results: string[] = [];
       let ammoLeft: number | null = null;
+      let ammoTransactionId: string | null = null;
 
       // Log rounds to each selected accessory
       for (const accessoryId of selectedAccessories) {
@@ -206,7 +238,7 @@ export default function RangeSessionPage() {
         results.push(name);
       }
 
-      // Deduct ammo if stock selected
+      // Deduct ammo if stock selected — capture transaction ID for ammo link
       if (selectedAmmoStock) {
         const res = await fetch(`/api/ammo/${selectedAmmoStock}/transactions`, {
           method: "POST",
@@ -220,10 +252,11 @@ export default function RangeSessionPage() {
         const json = await res.json();
         if (!res.ok) throw new Error(json.error ?? "Failed to deduct ammo");
         ammoLeft = json.stock.quantity;
+        ammoTransactionId = json.transaction?.id ?? null;
       }
 
       // Save range session record
-      await fetch("/api/range-sessions", {
+      const sessionRes = await fetch("/api/range-sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -233,8 +266,27 @@ export default function RangeSessionPage() {
           rangeName: rangeName || null,
           rangeLocation: rangeLocation || null,
           notes: sessionNote || null,
+          // environment
+          environment: environment || null,
+          temperatureF: temperatureF ? parseFloat(temperatureF) : null,
+          windSpeedMph: windSpeedMph ? parseFloat(windSpeedMph) : null,
+          windDirection: windDirection || null,
+          humidity: humidity ? parseFloat(humidity) : null,
+          lightCondition: lightCondition || null,
+          weatherNotes: weatherNotes || null,
+          // shot groups
+          targetDistanceYd: targetDistanceYd ? parseFloat(targetDistanceYd) : null,
+          groupSizeIn: groupSizeIn ? parseFloat(groupSizeIn) : null,
+          groupSizeMoa: groupSizeMoa ? parseFloat(groupSizeMoa) : null,
+          numberOfGroups: numberOfGroups ? parseInt(numberOfGroups) : null,
+          groupNotes: groupNotes || null,
+          // ammo link
+          ammoTransactionIds: ammoTransactionId ? [ammoTransactionId] : [],
         }),
       });
+      const sessionJson = await sessionRes.json();
+      if (!sessionRes.ok) throw new Error(sessionJson.error ?? "Failed to save session");
+      setCreatedSessionId(sessionJson.id ?? null);
 
       setSuccessDetails({ accessories: results, ammoLeft });
       setSuccess(true);
@@ -254,6 +306,18 @@ export default function RangeSessionPage() {
     setRangeName("");
     setRangeLocation("");
     setSelectedAccessories(new Set());
+    setEnvironment("");
+    setTemperatureF("");
+    setWindSpeedMph("");
+    setWindDirection("");
+    setHumidity("");
+    setLightCondition("");
+    setWeatherNotes("");
+    setTargetDistanceYd("");
+    setGroupSizeIn("");
+    setNumberOfGroups("");
+    setGroupNotes("");
+    setCreatedSessionId(null);
     setSuccess(false);
     setError(null);
     setBuilds([]);
@@ -300,10 +364,18 @@ export default function RangeSessionPage() {
               )}
             </div>
           </div>
-          <button onClick={resetForm}
-            className="flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 px-5 py-2 rounded-md text-sm font-medium transition-colors">
-            Log Another Session
-          </button>
+          <div className="flex flex-col sm:flex-row items-center gap-3">
+            {createdSessionId && (
+              <Link href={`/range/${createdSessionId}`}
+                className="flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 px-5 py-2 rounded-md text-sm font-medium transition-colors">
+                View Session & Add Drills <ChevronRight className="w-4 h-4" />
+              </Link>
+            )}
+            <button onClick={resetForm}
+              className="flex items-center gap-2 bg-vault-surface border border-vault-border text-vault-text-muted hover:text-vault-text hover:border-vault-text-muted/50 px-5 py-2 rounded-md text-sm font-medium transition-colors">
+              Log Another Session
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -508,6 +580,139 @@ export default function RangeSessionPage() {
               </div>
             </div>
           )}
+
+          {/* Environment & Weather (collapsible) */}
+          <div className="bg-vault-surface border border-vault-border rounded-lg overflow-hidden">
+            <button type="button"
+              onClick={() => setShowEnvFieldset(!showEnvFieldset)}
+              className="w-full flex items-center justify-between px-5 py-3 text-left hover:bg-vault-border/20 transition-colors">
+              <div className="flex items-center gap-2">
+                <Thermometer className="w-4 h-4 text-[#00C2FF]" />
+                <span className="text-xs font-mono uppercase tracking-widest text-[#00C2FF]">Environment & Weather</span>
+                <span className="text-xs text-vault-text-faint">(optional)</span>
+              </div>
+              <ChevronDown className={`w-4 h-4 text-vault-text-faint transition-transform ${showEnvFieldset ? "rotate-180" : ""}`} />
+            </button>
+            {showEnvFieldset && (
+              <div className="px-5 pb-5 space-y-4 border-t border-vault-border">
+                {/* Indoor / Outdoor toggle */}
+                <div className="pt-4">
+                  <label className={LABEL_CLASS}>Environment</label>
+                  <div className="flex gap-2">
+                    {(["OUTDOOR", "INDOOR"] as const).map((env) => (
+                      <button key={env} type="button"
+                        onClick={() => setEnvironment(environment === env ? "" : env)}
+                        className={`flex-1 py-2 rounded-md text-sm font-medium border transition-colors ${
+                          environment === env
+                            ? "bg-[#00C2FF]/10 border-[#00C2FF]/40 text-[#00C2FF]"
+                            : "bg-vault-bg border-vault-border text-vault-text-muted hover:border-vault-text-muted/50"
+                        }`}>
+                        {env === "OUTDOOR" ? "Outdoor" : "Indoor"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className={LABEL_CLASS}>
+                      <Thermometer className="w-3 h-3 inline mr-1" />
+                      Temp (°F)
+                    </label>
+                    <input type="number" value={temperatureF} onChange={(e) => setTemperatureF(e.target.value)}
+                      placeholder="72" className={INPUT_CLASS} />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>
+                      <Wind className="w-3 h-3 inline mr-1" />
+                      Wind (mph)
+                    </label>
+                    <input type="number" min={0} value={windSpeedMph} onChange={(e) => setWindSpeedMph(e.target.value)}
+                      placeholder="5" className={INPUT_CLASS} />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>Wind Dir.</label>
+                    <input type="text" value={windDirection} onChange={(e) => setWindDirection(e.target.value)}
+                      placeholder="NW / Headwind" className={INPUT_CLASS} />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>
+                      <Cloud className="w-3 h-3 inline mr-1" />
+                      Humidity (%)
+                    </label>
+                    <input type="number" min={0} max={100} value={humidity} onChange={(e) => setHumidity(e.target.value)}
+                      placeholder="45" className={INPUT_CLASS} />
+                  </div>
+                  <div className="col-span-2">
+                    <label className={LABEL_CLASS}>Light Condition</label>
+                    <div className="relative">
+                      <select value={lightCondition} onChange={(e) => setLightCondition(e.target.value)} className={INPUT_CLASS}>
+                        <option value="">Select...</option>
+                        {LIGHT_CONDITIONS.map((lc) => (
+                          <option key={lc} value={lc}>{LIGHT_CONDITION_LABELS[lc]}</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-vault-text-faint pointer-events-none" />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className={LABEL_CLASS}>Weather Notes</label>
+                  <textarea rows={2} value={weatherNotes} onChange={(e) => setWeatherNotes(e.target.value)}
+                    placeholder="e.g. Windy at 200yd but calm at 100yd..."
+                    className={`${INPUT_CLASS} resize-none`} />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Shot Groups (collapsible) */}
+          <div className="bg-vault-surface border border-vault-border rounded-lg overflow-hidden">
+            <button type="button"
+              onClick={() => setShowGroupFieldset(!showGroupFieldset)}
+              className="w-full flex items-center justify-between px-5 py-3 text-left hover:bg-vault-border/20 transition-colors">
+              <div className="flex items-center gap-2">
+                <Target className="w-4 h-4 text-[#00C2FF]" />
+                <span className="text-xs font-mono uppercase tracking-widest text-[#00C2FF]">Shot Group Data</span>
+                <span className="text-xs text-vault-text-faint">(optional)</span>
+              </div>
+              <ChevronDown className={`w-4 h-4 text-vault-text-faint transition-transform ${showGroupFieldset ? "rotate-180" : ""}`} />
+            </button>
+            {showGroupFieldset && (
+              <div className="px-5 pb-5 space-y-4 border-t border-vault-border pt-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className={LABEL_CLASS}>Distance (yd)</label>
+                    <input type="number" min={0} value={targetDistanceYd} onChange={(e) => setTargetDistanceYd(e.target.value)}
+                      placeholder="100" className={INPUT_CLASS} />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>Best Group (in)</label>
+                    <input type="number" min={0} step={0.01} value={groupSizeIn} onChange={(e) => setGroupSizeIn(e.target.value)}
+                      placeholder="0.75" className={INPUT_CLASS} />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>Best Group (MOA)</label>
+                    <input type="text" readOnly value={groupSizeMoa ?? ""}
+                      placeholder="auto-computed"
+                      className={`${INPUT_CLASS} opacity-60 cursor-not-allowed`} />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}># of Groups</label>
+                    <input type="number" min={1} value={numberOfGroups} onChange={(e) => setNumberOfGroups(e.target.value)}
+                      placeholder="5" className={INPUT_CLASS} />
+                  </div>
+                </div>
+                <div>
+                  <label className={LABEL_CLASS}>Group Notes</label>
+                  <textarea rows={2} value={groupNotes} onChange={(e) => setGroupNotes(e.target.value)}
+                    placeholder="e.g. First group was cold bore, last group tightest..."
+                    className={`${INPUT_CLASS} resize-none`} />
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Session Note */}
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
