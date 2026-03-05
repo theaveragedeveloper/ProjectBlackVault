@@ -17,6 +17,7 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronUp,
+  Pencil,
 } from "lucide-react";
 
 
@@ -176,13 +177,20 @@ export default function AccessoryDetailPage() {
           </div>
         )}
 
-        <div className="absolute top-0 left-0 right-0 flex items-center px-6 py-4">
+        <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-4">
           <Link
             href="/accessories"
             className="flex items-center gap-1.5 text-[#E8EDF2]/80 hover:text-vault-text text-sm transition-colors bg-vault-bg/60 backdrop-blur-sm px-3 py-1.5 rounded-md border border-[#1C2530]/60"
           >
             <ArrowLeft className="w-4 h-4" />
             Accessories
+          </Link>
+          <Link
+            href={`/accessories/${id}/edit`}
+            className="flex items-center gap-1.5 text-[#E8EDF2]/80 hover:text-vault-text text-sm transition-colors bg-vault-bg/60 backdrop-blur-sm px-3 py-1.5 rounded-md border border-[#1C2530]/60"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+            Edit
           </Link>
         </div>
 
