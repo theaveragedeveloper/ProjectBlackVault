@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 // GET /api/accessories - List all accessories with current build name
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const typeFilter = searchParams.get("type");
+
     const accessories = await prisma.accessory.findMany({
+      where: typeFilter ? { type: typeFilter } : undefined,
       include: {
         buildSlots: {
           include: {
@@ -27,7 +31,6 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
-    // Attach the name of the currently active build (if any)
     const result = accessories.map((accessory) => {
       const activeSlot = accessory.buildSlots.find(
         (slot) => slot.build.isActive
@@ -75,9 +78,9 @@ export async function POST(request: NextRequest) {
       compatibleCalibers,
     } = body;
 
-    if (!name || !manufacturer || !type) {
+    if (!name || !type) {
       return NextResponse.json(
-        { error: "Missing required fields: name, manufacturer, type" },
+        { error: "Missing required fields: name, type" },
         { status: 400 }
       );
     }
@@ -85,7 +88,7 @@ export async function POST(request: NextRequest) {
     const accessory = await prisma.accessory.create({
       data: {
         name,
-        manufacturer,
+        manufacturer: manufacturer || "",
         model: model ?? null,
         type,
         caliber: caliber ?? null,

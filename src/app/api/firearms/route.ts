@@ -25,15 +25,19 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
-    const result = firearms.map((firearm) => ({
-      ...firearm,
-      serialNumber: decryptField(firearm.serialNumber) ?? firearm.serialNumber,
-      notes: decryptField(firearm.notes),
-      buildCount: firearm._count.builds,
-      activeBuild: firearm.builds[0] ?? null,
-      builds: undefined,
-      _count: undefined,
-    }));
+    const result = await Promise.all(
+      firearms.map(async (firearm) => ({
+        ...firearm,
+        serialNumber: firearm.serialNumber
+          ? ((await decryptField(firearm.serialNumber)) ?? firearm.serialNumber)
+          : null,
+        notes: await decryptField(firearm.notes),
+        buildCount: firearm._count.builds,
+        activeBuild: firearm.builds[0] ?? null,
+        builds: undefined,
+        _count: undefined,
+      }))
+    );
 
     return NextResponse.json(result);
   } catch (error) {
@@ -65,9 +69,9 @@ export async function POST(request: NextRequest) {
       imageSource,
     } = body;
 
-    if (!name || !manufacturer || !model || !caliber || !serialNumber || !type || !acquisitionDate) {
+    if (!name) {
       return NextResponse.json(
-        { error: "Missing required fields: name, manufacturer, model, caliber, serialNumber, type, acquisitionDate" },
+        { error: "Missing required field: name" },
         { status: 400 }
       );
     }
@@ -75,15 +79,15 @@ export async function POST(request: NextRequest) {
     const firearm = await prisma.firearm.create({
       data: {
         name,
-        manufacturer,
-        model,
-        caliber,
-        serialNumber: encryptField(serialNumber),
-        type,
-        acquisitionDate: new Date(acquisitionDate),
+        manufacturer: manufacturer || "",
+        model: model || "",
+        caliber: caliber || "",
+        serialNumber: serialNumber ? await encryptField(serialNumber) : null,
+        type: type || "",
+        acquisitionDate: acquisitionDate ? new Date(acquisitionDate) : null,
         purchasePrice: purchasePrice ?? null,
         currentValue: currentValue ?? null,
-        notes: notes ? encryptField(notes) : null,
+        notes: notes ? await encryptField(notes) : null,
         imageUrl: imageUrl ?? null,
         imageSource: imageSource ?? null,
       },

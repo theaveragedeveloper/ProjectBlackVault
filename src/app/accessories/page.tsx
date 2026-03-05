@@ -1,33 +1,15 @@
+"use client";
+
+export const dynamic = "force-dynamic";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/utils";
-import { Plus, Crosshair, Shield, ExternalLink } from "lucide-react";
+import { Plus, Crosshair, Shield, ExternalLink, Loader2, Filter } from "lucide-react";
+import { SLOT_TYPE_LABELS, SlotType, SLOT_TYPES } from "@/lib/types";
 
-const SLOT_TYPE_LABELS: Record<string, string> = {
-  MUZZLE: "Muzzle",
-  BARREL: "Barrel",
-  HANDGUARD: "Handguard",
-  STOCK: "Stock",
-  BUFFER_TUBE: "Buffer Tube",
-  GRIP: "Grip",
-  OPTIC: "Optic",
-  OPTIC_MOUNT: "Optic Mount",
-  UNDERBARREL: "Underbarrel",
-  MAGAZINE: "Magazine",
-  LIGHT: "Light",
-  LASER: "Laser",
-  CHARGING_HANDLE: "Charging Handle",
-  TRIGGER: "Trigger",
-  LOWER_RECEIVER: "Lower Receiver",
-  UPPER_RECEIVER: "Upper Receiver",
-  SLIDE: "Slide",
-  FRAME: "Frame",
-  SUPPRESSOR: "Suppressor",
-  BIPOD: "Bipod",
-  SLING: "Sling",
-  COMPENSATOR: "Compensator",
-};
+const SLOT_TYPE_LABELS_LOCAL: Record<string, string> = SLOT_TYPE_LABELS as Record<string, string>;
 
 const BARREL_TYPES = new Set(["BARREL", "SUPPRESSOR", "MUZZLE", "COMPENSATOR"]);
 
@@ -40,43 +22,42 @@ function roundCountColor(roundCount: number, slotType: string): { text: string; 
   return { text: "text-[#00C853]", bar: "bg-[#00C853]" };
 }
 
-async function getAccessories() {
-  const accessories = await prisma.accessory.findMany({
-    include: {
-      buildSlots: {
-        include: {
-          build: {
-            select: {
-              id: true,
-              name: true,
-              isActive: true,
-              firearm: { select: { id: true, name: true } },
-            },
-          },
-        },
-      },
-    },
-    orderBy: { roundCount: "desc" },
-  });
-
-  return accessories.map((accessory) => {
-    const activeSlot = accessory.buildSlots.find((slot) => slot.build.isActive);
-    return {
-      ...accessory,
-      currentBuild: activeSlot
-        ? {
-            id: activeSlot.build.id,
-            name: activeSlot.build.name,
-            slotType: activeSlot.slotType,
-            firearm: activeSlot.build.firearm,
-          }
-        : null,
-    };
-  });
+interface Accessory {
+  id: string;
+  name: string;
+  manufacturer: string;
+  model: string | null;
+  type: string;
+  caliber: string | null;
+  roundCount: number;
+  purchasePrice: number | null;
+  acquisitionDate: string | null;
+  imageUrl: string | null;
+  currentBuild: {
+    id: string;
+    name: string;
+    slotType: string;
+    firearm: { id: string; name: string };
+  } | null;
 }
 
-export default async function AccessoriesPage() {
-  const accessories = await getAccessories();
+export default function AccessoriesPage() {
+  const [accessories, setAccessories] = useState<Accessory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [typeFilter, setTypeFilter] = useState<string>("ALL");
+
+  useEffect(() => {
+    setLoading(true);
+    const url = typeFilter === "ALL" ? "/api/accessories" : `/api/accessories?type=${encodeURIComponent(typeFilter)}`;
+    fetch(url)
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) setAccessories(data);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [typeFilter]);
+
   const totalRounds = accessories.reduce((sum, a) => sum + a.roundCount, 0);
 
   return (
@@ -97,7 +78,7 @@ export default async function AccessoriesPage() {
 
       <div className="p-6">
         {/* Summary bar */}
-        <div className="flex items-center gap-6 mb-6 bg-vault-surface border border-vault-border rounded-lg px-5 py-3">
+        <div className="flex items-center gap-6 mb-4 bg-vault-surface border border-vault-border rounded-lg px-5 py-3">
           <div>
             <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-0.5">Total Parts</p>
             <p className="text-lg font-bold font-mono text-vault-text">{formatNumber(accessories.length)}</p>
@@ -109,23 +90,65 @@ export default async function AccessoriesPage() {
           </div>
         </div>
 
-        {/* Table */}
-        {accessories.length === 0 ? (
+        {/* Type Filter */}
+        <div className="mb-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Filter className="w-3.5 h-3.5 text-vault-text-faint" />
+            <span className="text-[10px] uppercase tracking-widest text-vault-text-faint">Filter by Type</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setTypeFilter("ALL")}
+              className={`px-3 py-1.5 rounded-md text-xs font-mono border transition-colors ${
+                typeFilter === "ALL"
+                  ? "bg-[#00C2FF]/10 border-[#00C2FF]/40 text-[#00C2FF]"
+                  : "border-vault-border text-vault-text-muted hover:border-vault-text-muted/40 hover:text-vault-text"
+              }`}
+            >
+              All
+            </button>
+            {(SLOT_TYPES as readonly SlotType[]).map((type) => (
+              <button
+                key={type}
+                onClick={() => setTypeFilter(type)}
+                className={`px-3 py-1.5 rounded-md text-xs font-mono border transition-colors ${
+                  typeFilter === type
+                    ? "bg-[#00C2FF]/10 border-[#00C2FF]/40 text-[#00C2FF]"
+                    : "border-vault-border text-vault-text-muted hover:border-vault-text-muted/40 hover:text-vault-text"
+                }`}
+              >
+                {SLOT_TYPE_LABELS_LOCAL[type] ?? type}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-24">
+            <Loader2 className="w-8 h-8 text-[#00C2FF] animate-spin" />
+          </div>
+        ) : accessories.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <div className="w-16 h-16 rounded-full bg-[#00C2FF]/10 border border-[#00C2FF]/20 flex items-center justify-center mb-4">
               <Crosshair className="w-8 h-8 text-[#00C2FF]" />
             </div>
-            <h3 className="text-lg font-semibold text-vault-text mb-2">No accessories yet</h3>
+            <h3 className="text-lg font-semibold text-vault-text mb-2">
+              {typeFilter === "ALL" ? "No accessories yet" : `No ${SLOT_TYPE_LABELS_LOCAL[typeFilter] ?? typeFilter} accessories`}
+            </h3>
             <p className="text-sm text-vault-text-muted mb-6 max-w-sm">
-              Add parts, optics, suppressors and other attachments to track round counts and build configurations.
+              {typeFilter === "ALL"
+                ? "Add parts, optics, suppressors and other attachments to track round counts and build configurations."
+                : "No accessories of this type found. Try a different filter or add one."}
             </p>
-            <Link
-              href="/accessories/new"
-              className="flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 px-4 py-2 rounded text-sm font-medium transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Add First Accessory
-            </Link>
+            {typeFilter === "ALL" && (
+              <Link
+                href="/accessories/new"
+                className="flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 px-4 py-2 rounded text-sm font-medium transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Add First Accessory
+              </Link>
+            )}
           </div>
         ) : (
           <div className="bg-vault-surface border border-vault-border rounded-lg overflow-hidden">
@@ -133,30 +156,14 @@ export default async function AccessoriesPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-vault-border">
-                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium w-12">
-                      Img
-                    </th>
-                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium">
-                      Name
-                    </th>
-                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium hidden md:table-cell">
-                      Type
-                    </th>
-                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium hidden lg:table-cell">
-                      Manufacturer
-                    </th>
-                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium">
-                      Rounds
-                    </th>
-                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium hidden xl:table-cell">
-                      Installed On
-                    </th>
-                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium hidden lg:table-cell">
-                      Price
-                    </th>
-                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium hidden xl:table-cell">
-                      Acquired
-                    </th>
+                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium w-12">Img</th>
+                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium">Name</th>
+                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium hidden md:table-cell">Type</th>
+                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium hidden lg:table-cell">Manufacturer</th>
+                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium">Rounds</th>
+                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium hidden xl:table-cell">Installed On</th>
+                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium hidden lg:table-cell">Price</th>
+                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium hidden xl:table-cell">Acquired</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-vault-border">
@@ -166,27 +173,17 @@ export default async function AccessoriesPage() {
                     const pct = Math.min((accessory.roundCount / maxRounds) * 100, 100);
 
                     return (
-                      <tr
-                        key={accessory.id}
-                        className="hover:bg-vault-surface-2 transition-colors group"
-                      >
-                        {/* Thumbnail */}
+                      <tr key={accessory.id} className="hover:bg-vault-surface-2 transition-colors group">
                         <td className="px-4 py-3">
                           <div className="w-9 h-9 rounded bg-vault-bg border border-vault-border overflow-hidden flex items-center justify-center shrink-0">
                             {accessory.imageUrl ? (
                               // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={accessory.imageUrl}
-                                alt={accessory.name}
-                                className="w-full h-full object-cover"
-                              />
+                              <img src={accessory.imageUrl} alt={accessory.name} className="w-full h-full object-cover" />
                             ) : (
                               <Shield className="w-4 h-4 text-vault-text-faint" />
                             )}
                           </div>
                         </td>
-
-                        {/* Name */}
                         <td className="px-4 py-3">
                           <Link href={`/accessories/${accessory.id}`} className="block">
                             <p className="font-semibold text-vault-text group-hover:text-[#00C2FF] transition-colors truncate max-w-[180px] flex items-center gap-1">
@@ -194,70 +191,43 @@ export default async function AccessoriesPage() {
                               <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 shrink-0" />
                             </p>
                             {accessory.model && (
-                              <p className="text-xs text-vault-text-faint truncate max-w-[180px]">
-                                {accessory.model}
-                              </p>
+                              <p className="text-xs text-vault-text-faint truncate max-w-[180px]">{accessory.model}</p>
                             )}
                           </Link>
                         </td>
-
-                        {/* Type */}
                         <td className="px-4 py-3 hidden md:table-cell">
                           <span className="text-xs px-2 py-0.5 rounded border border-vault-border text-vault-text-muted font-mono uppercase">
-                            {SLOT_TYPE_LABELS[accessory.type] ?? accessory.type}
+                            {SLOT_TYPE_LABELS_LOCAL[accessory.type] ?? accessory.type}
                           </span>
                         </td>
-
-                        {/* Manufacturer */}
                         <td className="px-4 py-3 hidden lg:table-cell">
-                          <p className="text-sm text-vault-text-muted truncate max-w-[120px]">
-                            {accessory.manufacturer}
-                          </p>
+                          <p className="text-sm text-vault-text-muted truncate max-w-[120px]">{accessory.manufacturer}</p>
                         </td>
-
-                        {/* Round count */}
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
                             <p className={`text-sm font-mono font-bold ${colors.text} w-14 shrink-0`}>
                               {formatNumber(accessory.roundCount)}
                             </p>
                             <div className="w-20 bg-vault-border rounded-full h-1 hidden sm:block">
-                              <div
-                                className={`h-1 rounded-full ${colors.bar} transition-all`}
-                                style={{ width: `${pct}%` }}
-                              />
+                              <div className={`h-1 rounded-full ${colors.bar} transition-all`} style={{ width: `${pct}%` }} />
                             </div>
                           </div>
                         </td>
-
-                        {/* Installed on */}
                         <td className="px-4 py-3 hidden xl:table-cell">
                           {accessory.currentBuild ? (
                             <div>
-                              <p className="text-xs text-[#00C853] truncate max-w-[140px]">
-                                {accessory.currentBuild.firearm.name}
-                              </p>
-                              <p className="text-[10px] text-vault-text-faint truncate max-w-[140px]">
-                                {accessory.currentBuild.name}
-                              </p>
+                              <p className="text-xs text-[#00C853] truncate max-w-[140px]">{accessory.currentBuild.firearm.name}</p>
+                              <p className="text-[10px] text-vault-text-faint truncate max-w-[140px]">{accessory.currentBuild.name}</p>
                             </div>
                           ) : (
                             <p className="text-xs text-vault-text-faint">Uninstalled</p>
                           )}
                         </td>
-
-                        {/* Price */}
                         <td className="px-4 py-3 hidden lg:table-cell">
-                          <p className="text-sm font-mono text-vault-text-muted">
-                            {formatCurrency(accessory.purchasePrice)}
-                          </p>
+                          <p className="text-sm font-mono text-vault-text-muted">{formatCurrency(accessory.purchasePrice)}</p>
                         </td>
-
-                        {/* Date */}
                         <td className="px-4 py-3 hidden xl:table-cell">
-                          <p className="text-xs text-vault-text-faint">
-                            {formatDate(accessory.acquisitionDate)}
-                          </p>
+                          <p className="text-xs text-vault-text-faint">{formatDate(accessory.acquisitionDate)}</p>
                         </td>
                       </tr>
                     );
