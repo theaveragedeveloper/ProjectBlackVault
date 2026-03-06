@@ -15,6 +15,9 @@ async function getDashboardData() {
     rangeSessionAggregate,
     rangeSessionsLast30,
     lastRangeSession,
+    maintenanceSchedulesRaw,
+    batteriesTracked,
+    roundsPerFirearmRaw,
   ] = await Promise.all([
     prisma.firearm.count(),
     prisma.accessory.count(),
@@ -68,6 +71,18 @@ async function getDashboardData() {
         firearm: { select: { name: true } },
       },
     }),
+    prisma.maintenanceSchedule.findMany({
+      include: { firearm: { select: { id: true, name: true } } },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.accessory.findMany({
+      where: { hasBattery: true, batteryIntervalDays: { not: null } },
+      select: { id: true, name: true, batteryChangedAt: true, batteryIntervalDays: true },
+    }),
+    prisma.rangeSession.groupBy({
+      by: ["firearmId"],
+      _sum: { roundsFired: true },
+    }),
   ]);
 
   const totalAmmoRounds = ammoStocks.reduce((sum, s) => sum + s.quantity, 0);
@@ -79,6 +94,72 @@ async function getDashboardData() {
     (s) => s.lowStockAlert != null && s.quantity <= s.lowStockAlert
   );
 
+  // Build a map of firearmId -> total rounds
+  const roundsByFirearm = new Map<string, number>();
+  for (const row of roundsPerFirearmRaw) {
+    roundsByFirearm.set(row.firearmId, row._sum.roundsFired ?? 0);
+  }
+
+  // Compute due info for each maintenance schedule
+  const now = Date.now();
+  const maintenanceDue = [
+    ...maintenanceSchedulesRaw.map((s) => {
+      let daysUntilDue: number | null = null;
+      let roundsUntilDue: number | null = null;
+      let overdue = false;
+      if (s.intervalType === "ROUNDS") {
+        const currentRounds = roundsByFirearm.get(s.firearmId) ?? 0;
+        const base = s.lastRoundCount ?? 0;
+        const remaining = base + s.intervalValue - currentRounds;
+        roundsUntilDue = remaining;
+        overdue = remaining <= 0;
+      } else {
+        const base = s.lastCompletedAt ? new Date(s.lastCompletedAt) : new Date(s.createdAt);
+        const nextDueMs = base.getTime() + s.intervalValue * 86400000;
+        daysUntilDue = Math.ceil((nextDueMs - now) / 86400000);
+        overdue = daysUntilDue <= 0;
+      }
+      return {
+        id: s.id,
+        type: "schedule" as const,
+        name: s.taskName,
+        entityName: s.firearm.name,
+        entityId: s.firearmId,
+        entityHref: `/vault/${s.firearmId}`,
+        intervalType: s.intervalType as "ROUNDS" | "DAYS",
+        daysUntilDue,
+        roundsUntilDue,
+        overdue,
+      };
+    }),
+    ...batteriesTracked.map((a) => {
+      const base = a.batteryChangedAt ? new Date(a.batteryChangedAt) : null;
+      const daysUntilDue = base && a.batteryIntervalDays
+        ? Math.ceil((base.getTime() + a.batteryIntervalDays * 86400000 - now) / 86400000)
+        : null;
+      return {
+        id: `battery-${a.id}`,
+        type: "battery" as const,
+        name: "Battery Change",
+        entityName: a.name,
+        entityId: a.id,
+        entityHref: `/accessories/${a.id}`,
+        intervalType: "DAYS" as const,
+        daysUntilDue,
+        roundsUntilDue: null,
+        overdue: daysUntilDue != null ? daysUntilDue <= 0 : false,
+      };
+    }),
+  ]
+    .filter((item) => item.overdue || (item.daysUntilDue != null && item.daysUntilDue <= 60) || (item.roundsUntilDue != null && item.roundsUntilDue <= 500))
+    .sort((a, b) => {
+      if (a.overdue && !b.overdue) return -1;
+      if (!a.overdue && b.overdue) return 1;
+      const aVal = a.daysUntilDue ?? (a.roundsUntilDue ?? 0);
+      const bVal = b.daysUntilDue ?? (b.roundsUntilDue ?? 0);
+      return aVal - bVal;
+    });
+
   return {
     firearmCount,
     accessoryCount,
@@ -87,6 +168,7 @@ async function getDashboardData() {
     lowStockItems,
     recentFirearms,
     ammoStocks,
+    maintenanceDue,
     rangeStats: {
       count: rangeSessionAggregate._count.id,
       totalRounds: rangeSessionAggregate._sum.roundsFired ?? 0,

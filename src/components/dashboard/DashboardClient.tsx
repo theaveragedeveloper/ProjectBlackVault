@@ -31,6 +31,7 @@ import {
   Settings2,
   X,
   Package,
+  Wrench,
 } from "lucide-react";
 
 const FIREARM_TYPE_LABELS: Record<string, string> = {
@@ -55,7 +56,7 @@ const TYPE_BADGE_COLORS: Record<string, string> = {
   LEVER_ACTION: "border-[#FF7043]/40 text-[#FF7043]",
 };
 
-const DEFAULT_ORDER = ["stats", "range-sessions", "low-ammo", "recent", "ammo-summary"];
+const DEFAULT_ORDER = ["stats", "range-sessions", "maintenance-due", "low-ammo", "recent", "ammo-summary"];
 const STORAGE_KEY = "vault-dashboard-layout";
 
 interface AmmoStockItem {
@@ -94,6 +95,19 @@ interface RangeStats {
   } | null;
 }
 
+interface MaintenanceDueItem {
+  id: string;
+  type: "schedule" | "battery";
+  name: string;
+  entityName: string;
+  entityId: string;
+  entityHref: string;
+  intervalType: "ROUNDS" | "DAYS";
+  daysUntilDue: number | null;
+  roundsUntilDue: number | null;
+  overdue: boolean;
+}
+
 interface DashboardData {
   firearmCount: number;
   accessoryCount: number;
@@ -103,6 +117,7 @@ interface DashboardData {
   recentFirearms: RecentFirearm[];
   ammoStocks: AmmoStockItem[];
   rangeStats: RangeStats;
+  maintenanceDue: MaintenanceDueItem[];
 }
 
 // ── Sortable wrapper ──────────────────────────────────────────
@@ -512,6 +527,71 @@ function AmmoSummaryWidget({ ammoStocks }: { ammoStocks: AmmoStockItem[] }) {
   );
 }
 
+function MaintenanceDueWidget({ items }: { items: MaintenanceDueItem[] }) {
+  return (
+    <section>
+      <div className="flex items-center gap-2 mb-3">
+        <Wrench className="w-4 h-4 text-[#F5A623]" />
+        <h2 className="text-sm font-semibold tracking-widest uppercase text-[#F5A623]">
+          Maintenance Due
+        </h2>
+      </div>
+      <div className="bg-vault-surface border border-vault-border rounded-lg overflow-hidden">
+        {items.length === 0 ? (
+          <div className="p-8 text-center">
+            <div className="w-10 h-10 rounded-full bg-[#00C853]/10 border border-[#00C853]/20 flex items-center justify-center mx-auto mb-3">
+              <Wrench className="w-5 h-5 text-[#00C853]" />
+            </div>
+            <p className="text-sm text-vault-text-muted">No upcoming maintenance</p>
+            <p className="text-xs text-vault-text-faint mt-1">All schedules are current</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-vault-border">
+            {items.map((item) => {
+              const isOverdue = item.overdue;
+              const isDueSoon = !isOverdue && (
+                (item.daysUntilDue != null && item.daysUntilDue <= 14) ||
+                (item.roundsUntilDue != null && item.roundsUntilDue <= 100)
+              );
+              const statusColor = isOverdue ? "text-red-400" : isDueSoon ? "text-orange-400" : "text-[#F5A623]";
+              const dueText = item.intervalType === "ROUNDS" && item.roundsUntilDue != null
+                ? isOverdue ? `Overdue by ${Math.abs(item.roundsUntilDue)} rounds` : `${item.roundsUntilDue} rounds`
+                : item.daysUntilDue != null
+                ? isOverdue ? `Overdue by ${Math.abs(item.daysUntilDue)} days` : `${item.daysUntilDue} days`
+                : "Due";
+
+              return (
+                <Link
+                  key={item.id}
+                  href={item.entityHref}
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-vault-surface-2 transition-colors group"
+                >
+                  <div className={`w-2 h-2 rounded-full shrink-0 ${isOverdue ? "bg-red-400" : isDueSoon ? "bg-orange-400" : "bg-[#F5A623]"}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-vault-text truncate group-hover:text-[#00C2FF] transition-colors">
+                      {item.entityName}
+                    </p>
+                    <p className="text-xs text-vault-text-faint">{item.name}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className={`text-xs font-semibold ${statusColor}`}>{dueText}</p>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-vault-text-faint group-hover:text-[#00C2FF] transition-colors shrink-0" />
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </div>
+      <div className="mt-2 text-right">
+        <Link href="/vault" className="text-xs text-[#00C2FF] hover:text-[#00C2FF]/80 flex items-center gap-1 justify-end">
+          View Firearms <ChevronRight className="w-3 h-3" />
+        </Link>
+      </div>
+    </section>
+  );
+}
+
 // ── Main client component ─────────────────────────────────────
 export function DashboardClient({ data }: { data: DashboardData }) {
   const [order, setOrder] = useState<string[]>(DEFAULT_ORDER);
@@ -560,6 +640,8 @@ export function DashboardClient({ data }: { data: DashboardData }) {
         return <StatsWidget data={data} />;
       case "range-sessions":
         return <RangeSessionsWidget stats={data.rangeStats} />;
+      case "maintenance-due":
+        return <MaintenanceDueWidget items={data.maintenanceDue} />;
       case "low-ammo":
         return <LowAmmoWidget items={data.lowStockItems} />;
       case "recent":

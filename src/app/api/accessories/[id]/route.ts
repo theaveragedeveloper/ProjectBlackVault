@@ -91,6 +91,9 @@ export async function PUT(
       imageSource,
       compatibleFirearmTypes,
       compatibleCalibers,
+      hasBattery,
+      batteryType,
+      batteryIntervalDays,
     } = body;
 
     const existing = await prisma.accessory.findUnique({ where: { id } });
@@ -118,6 +121,9 @@ export async function PUT(
         ...(imageSource !== undefined && { imageSource }),
         ...(compatibleFirearmTypes !== undefined && { compatibleFirearmTypes }),
         ...(compatibleCalibers !== undefined && { compatibleCalibers }),
+        ...(hasBattery !== undefined && { hasBattery }),
+        ...(batteryType !== undefined && { batteryType: batteryType || null }),
+        ...(batteryIntervalDays !== undefined && { batteryIntervalDays: batteryIntervalDays !== "" && batteryIntervalDays !== null ? parseInt(batteryIntervalDays) : null }),
       },
       include: {
         roundCountLogs: {
