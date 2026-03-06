@@ -20,8 +20,12 @@ import {
   Pencil,
   Camera,
   X,
+  FileText,
+  Upload,
+  ExternalLink,
 } from "lucide-react";
 import ImagePicker from "@/components/shared/ImagePicker";
+import { DocumentUploader, type UploadedDocument } from "@/components/shared/DocumentUploader";
 
 
 interface RoundCountLog {
@@ -54,6 +58,18 @@ interface Accessory {
   roundCount: number;
   roundCountLogs: RoundCountLog[];
   currentBuild: CurrentBuild | null;
+  hasBattery: boolean;
+  batteryType: string | null;
+  batteryChangedAt: string | null;
+  batteryIntervalDays: number | null;
+}
+
+function computeBatteryDue(changedAt: string | null, intervalDays: number | null) {
+  if (!changedAt || !intervalDays) return null;
+  const base = new Date(changedAt);
+  const nextDue = new Date(base.getTime() + intervalDays * 86400000);
+  const daysRemaining = Math.ceil((nextDue.getTime() - Date.now()) / 86400000);
+  return { daysRemaining, overdue: daysRemaining <= 0, nextDue };
 }
 
 const BARREL_TYPES = new Set(["BARREL", "SUPPRESSOR", "MUZZLE", "COMPENSATOR"]);
@@ -86,6 +102,17 @@ export default function AccessoryDetailPage() {
   // History expand
   const [historyExpanded, setHistoryExpanded] = useState(false);
 
+  // Documents
+  const [documents, setDocuments] = useState<UploadedDocument[]>([]);
+  const [docsLoading, setDocsLoading] = useState(false);
+  const [showDocUploader, setShowDocUploader] = useState(false);
+
+  // Battery tracking
+  const [showBatterySettings, setShowBatterySettings] = useState(false);
+  const [batteryForm, setBatteryForm] = useState({ hasBattery: false, batteryType: "", batteryIntervalDays: "" });
+  const [savingBattery, setSavingBattery] = useState(false);
+  const [loggingBatteryChange, setLoggingBatteryChange] = useState(false);
+
   useEffect(() => {
     fetch(`/api/accessories/${id}`)
       .then((r) => r.json())
@@ -95,6 +122,7 @@ export default function AccessoryDetailPage() {
         } else {
           setAccessory(data);
           setLocalImageUrl(data.imageUrl ?? null);
+          setBatteryForm({ hasBattery: data.hasBattery ?? false, batteryType: data.batteryType ?? "", batteryIntervalDays: data.batteryIntervalDays?.toString() ?? "" });
         }
         setLoading(false);
       })
@@ -102,6 +130,12 @@ export default function AccessoryDetailPage() {
         setError("Failed to load accessory");
         setLoading(false);
       });
+
+    setDocsLoading(true);
+    fetch(`/api/documents?accessoryId=${id}`)
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data)) setDocuments(data); setDocsLoading(false); })
+      .catch(() => setDocsLoading(false));
   }, [id]);
 
   async function submitLogRounds(e: React.FormEvent) {
@@ -138,6 +172,36 @@ export default function AccessoryDetailPage() {
     } finally {
       setLogSubmitting(false);
     }
+  }
+
+  async function handleSaveBatterySettings(e: React.FormEvent) {
+    e.preventDefault();
+    setSavingBattery(true);
+    try {
+      const res = await fetch(`/api/accessories/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hasBattery: batteryForm.hasBattery, batteryType: batteryForm.batteryType || null, batteryIntervalDays: batteryForm.batteryIntervalDays || null }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setAccessory((prev) => prev ? { ...prev, hasBattery: updated.hasBattery, batteryType: updated.batteryType, batteryIntervalDays: updated.batteryIntervalDays } : prev);
+        setShowBatterySettings(false);
+      }
+    } catch { /* ignore */ }
+    finally { setSavingBattery(false); }
+  }
+
+  async function handleLogBatteryChange() {
+    setLoggingBatteryChange(true);
+    try {
+      const res = await fetch(`/api/accessories/${id}/battery`, { method: "POST" });
+      if (res.ok) {
+        const updated = await res.json();
+        setAccessory((prev) => prev ? { ...prev, batteryChangedAt: updated.batteryChangedAt } : prev);
+      }
+    } catch { /* ignore */ }
+    finally { setLoggingBatteryChange(false); }
   }
 
   if (loading) {
@@ -479,6 +543,159 @@ export default function AccessoryDetailPage() {
             </div>
           </div>
         )}
+
+        {/* Documents */}
+        <div className="bg-vault-surface border border-vault-border rounded-lg overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-vault-border">
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-vault-text-muted flex items-center gap-2">
+              <FileText className="w-3.5 h-3.5" />
+              Documents
+            </h2>
+            <button
+              onClick={() => setShowDocUploader((v) => !v)}
+              className="flex items-center gap-1 text-xs text-[#00C2FF] hover:underline"
+            >
+              <Upload className="w-3 h-3" />
+              {showDocUploader ? "Cancel" : "Upload"}
+            </button>
+          </div>
+
+          {showDocUploader && (
+            <div className="p-4 border-b border-vault-border">
+              <DocumentUploader
+                entityType="accessory"
+                entityId={id}
+                onUploadComplete={(doc) => {
+                  setDocuments((prev) => [doc, ...prev]);
+                  setShowDocUploader(false);
+                }}
+                onCancel={() => setShowDocUploader(false)}
+              />
+            </div>
+          )}
+
+          {docsLoading ? (
+            <div className="flex justify-center py-6">
+              <Loader2 className="w-5 h-5 text-[#00C2FF] animate-spin" />
+            </div>
+          ) : documents.length === 0 && !showDocUploader ? (
+            <div className="text-center py-6">
+              <p className="text-xs text-vault-text-faint">No documents yet. Upload receipts or other files.</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-vault-border">
+              {documents.map((doc) => (
+                <a
+                  key={doc.id}
+                  href={doc.fileUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-vault-border/20 transition-colors group"
+                >
+                  <FileText className="w-4 h-4 text-vault-text-faint shrink-0 group-hover:text-[#00C2FF]" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-vault-text truncate">{doc.name}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded border font-mono ${
+                        doc.type === "NFA_TAX_STAMP"
+                          ? "border-[#F5A623]/30 text-[#F5A623]"
+                          : doc.type === "RECEIPT"
+                          ? "border-[#00C2FF]/30 text-[#00C2FF]"
+                          : "border-vault-border text-vault-text-faint"
+                      }`}>
+                        {doc.type === "NFA_TAX_STAMP" ? "NFA" : doc.type === "RECEIPT" ? "Receipt" : "Doc"}
+                      </span>
+                      <span className="text-[10px] text-vault-text-faint">
+                        {new Date(doc.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                  <ExternalLink className="w-3.5 h-3.5 text-vault-text-faint shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+        {/* Battery Tracking */}
+        <div className="bg-vault-surface border border-vault-border rounded-lg overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-vault-border">
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-vault-text-muted flex items-center gap-2">
+              Battery
+            </h2>
+            <button onClick={() => setShowBatterySettings((v) => !v)} className="text-xs text-[#00C2FF] hover:underline flex items-center gap-1">
+              <Pencil className="w-3 h-3" />
+              {showBatterySettings ? "Cancel" : "Settings"}
+            </button>
+          </div>
+
+          {showBatterySettings && (
+            <form onSubmit={handleSaveBatterySettings} className="p-4 border-b border-vault-border space-y-3">
+              <div className="flex items-center gap-2">
+                <input type="checkbox" id="hasBattery" checked={batteryForm.hasBattery} onChange={(e) => setBatteryForm((p) => ({ ...p, hasBattery: e.target.checked }))} className="w-4 h-4 accent-[#00C2FF]" />
+                <label htmlFor="hasBattery" className="text-sm text-vault-text">This accessory uses a battery</label>
+              </div>
+              {batteryForm.hasBattery && (
+                <>
+                  <div>
+                    <label className="text-[10px] uppercase text-vault-text-faint block mb-1">Battery Type</label>
+                    <input type="text" value={batteryForm.batteryType} onChange={(e) => setBatteryForm((p) => ({ ...p, batteryType: e.target.value }))} placeholder="e.g. CR2032, AA" className="w-full bg-vault-bg border border-vault-border rounded px-2 py-1.5 text-sm text-vault-text placeholder:text-vault-text-faint" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase text-vault-text-faint block mb-1">Replace Every (days)</label>
+                    <input type="number" min="1" value={batteryForm.batteryIntervalDays} onChange={(e) => setBatteryForm((p) => ({ ...p, batteryIntervalDays: e.target.value }))} placeholder="e.g. 365" className="w-full bg-vault-bg border border-vault-border rounded px-2 py-1.5 text-sm text-vault-text placeholder:text-vault-text-faint" />
+                  </div>
+                </>
+              )}
+              <button type="submit" disabled={savingBattery} className="w-full flex items-center justify-center gap-1.5 text-xs bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 px-3 py-1.5 rounded transition-colors disabled:opacity-50">
+                {savingBattery ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                Save Settings
+              </button>
+            </form>
+          )}
+
+          {!accessory.hasBattery && !showBatterySettings ? (
+            <div className="px-4 py-4 text-center">
+              <p className="text-xs text-vault-text-faint">Battery tracking not enabled. Click Settings to configure.</p>
+            </div>
+          ) : accessory.hasBattery && !showBatterySettings ? (
+            <div className="p-4 space-y-3">
+              {accessory.batteryType && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-vault-text-faint">Type</span>
+                  <span className="text-sm font-mono text-vault-text">{accessory.batteryType}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-vault-text-faint">Last Changed</span>
+                <span className="text-sm text-vault-text">{accessory.batteryChangedAt ? new Date(accessory.batteryChangedAt).toLocaleDateString() : "Never"}</span>
+              </div>
+              {accessory.batteryIntervalDays && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-vault-text-faint">Interval</span>
+                  <span className="text-sm text-vault-text">Every {accessory.batteryIntervalDays} days</span>
+                </div>
+              )}
+              {(() => {
+                const due = computeBatteryDue(accessory.batteryChangedAt, accessory.batteryIntervalDays);
+                if (!due) return null;
+                const dueColor = due.overdue ? "text-red-400" : due.daysRemaining <= 30 ? "text-orange-400" : "text-[#00C853]";
+                return (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-vault-text-faint">Next Due</span>
+                    <span className={`text-sm font-semibold ${dueColor}`}>
+                      {due.overdue ? `Overdue by ${Math.abs(due.daysRemaining)} days` : `In ${due.daysRemaining} days`}
+                    </span>
+                  </div>
+                );
+              })()}
+              <button onClick={handleLogBatteryChange} disabled={loggingBatteryChange} className="w-full flex items-center justify-center gap-1.5 text-xs bg-[#00C853]/10 border border-[#00C853]/30 text-[#00C853] hover:bg-[#00C853]/20 px-3 py-2 rounded transition-colors disabled:opacity-50">
+                {loggingBatteryChange ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                Log Battery Change
+              </button>
+            </div>
+          ) : null}
+        </div>
+
       </div>
     </div>
 

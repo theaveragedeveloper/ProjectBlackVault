@@ -26,8 +26,11 @@ import {
   Clock,
   Camera,
   X,
+  Upload,
+  ExternalLink,
 } from "lucide-react";
 import ImagePicker from "@/components/shared/ImagePicker";
+import { DocumentUploader, type UploadedDocument } from "@/components/shared/DocumentUploader";
 
 const FIREARM_TYPE_LABELS: Record<string, string> = {
   PISTOL: "Pistol",
@@ -117,6 +120,33 @@ interface MaintenanceNote {
   mileage: number | null;
 }
 
+interface MaintenanceSchedule {
+  id: string;
+  taskName: string;
+  intervalType: "ROUNDS" | "DAYS";
+  intervalValue: number;
+  lastCompletedAt: string | null;
+  lastRoundCount: number | null;
+  notes: string | null;
+}
+
+function computeDue(schedule: MaintenanceSchedule, currentRoundCount: number) {
+  if (schedule.intervalType === "ROUNDS") {
+    const base = schedule.lastRoundCount ?? 0;
+    const nextDueAt = base + schedule.intervalValue;
+    const remaining = nextDueAt - currentRoundCount;
+    return { remaining, unit: "rounds" as const, overdue: remaining <= 0 };
+  } else {
+    const base = schedule.lastCompletedAt ? new Date(schedule.lastCompletedAt) : null;
+    if (!base) {
+      return { remaining: 0, unit: "days" as const, overdue: false, noHistory: true };
+    }
+    const nextDueAt = new Date(base.getTime() + schedule.intervalValue * 86400000);
+    const daysRemaining = Math.ceil((nextDueAt.getTime() - Date.now()) / 86400000);
+    return { remaining: daysRemaining, unit: "days" as const, overdue: daysRemaining <= 0 };
+  }
+}
+
 function formatSessionDate(dateStr: string): string {
   const d = new Date(dateStr);
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -128,7 +158,7 @@ export default function FirearmDetailPage() {
 
   const [firearm, setFirearm] = useState<Firearm | null>(null);
   const [loading, setLoading] = useState(true);
-  const [sidebarTab, setSidebarTab] = useState<"range" | "maintenance">("range");
+  const [sidebarTab, setSidebarTab] = useState<"range" | "maintenance" | "documents">("range");
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
   const [localImageUrl, setLocalImageUrl] = useState<string | null>(null);
 
@@ -137,6 +167,21 @@ export default function FirearmDetailPage() {
 
   const [maintenanceNotes, setMaintenanceNotes] = useState<MaintenanceNote[]>([]);
   const [maintLoading, setMaintLoading] = useState(true);
+
+  // Documents
+  const [documents, setDocuments] = useState<UploadedDocument[]>([]);
+  const [docsLoading, setDocsLoading] = useState(false);
+  const [showDocUploader, setShowDocUploader] = useState(false);
+
+  // Maintenance schedules
+  const [schedules, setSchedules] = useState<MaintenanceSchedule[]>([]);
+  const [currentRoundCount, setCurrentRoundCount] = useState(0);
+  const [schedulesLoading, setSchedulesLoading] = useState(true);
+  const [showAddSchedule, setShowAddSchedule] = useState(false);
+  const [scheduleForm, setScheduleForm] = useState({ taskName: "", intervalType: "DAYS" as "ROUNDS" | "DAYS", intervalValue: "", notes: "" });
+  const [savingSchedule, setSavingSchedule] = useState(false);
+  const [completingSchedule, setCompletingSchedule] = useState<string | null>(null);
+  const [deletingSchedule, setDeletingSchedule] = useState<string | null>(null);
 
   // Add maintenance note form
   const [addingNote, setAddingNote] = useState(false);
@@ -162,6 +207,21 @@ export default function FirearmDetailPage() {
       .then((r) => r.json())
       .then((data) => { if (Array.isArray(data)) setMaintenanceNotes(data); setMaintLoading(false); })
       .catch(() => setMaintLoading(false));
+
+    setDocsLoading(true);
+    fetch(`/api/documents?firearmId=${id}`)
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data)) setDocuments(data); setDocsLoading(false); })
+      .catch(() => setDocsLoading(false));
+
+    fetch(`/api/maintenance-schedules?firearmId=${id}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.schedules) setSchedules(data.schedules);
+        if (data.currentRoundCount != null) setCurrentRoundCount(data.currentRoundCount);
+        setSchedulesLoading(false);
+      })
+      .catch(() => setSchedulesLoading(false));
   }, [id]);
 
   async function handleAddNote(e: React.FormEvent) {
@@ -193,6 +253,47 @@ export default function FirearmDetailPage() {
       setMaintenanceNotes((prev) => prev.filter((n) => n.id !== noteId));
     } catch { /* ignore */ }
     finally { setDeletingNote(null); }
+  }
+
+  async function handleAddSchedule(e: React.FormEvent) {
+    e.preventDefault();
+    if (!scheduleForm.taskName.trim() || !scheduleForm.intervalValue) return;
+    setSavingSchedule(true);
+    try {
+      const res = await fetch("/api/maintenance-schedules", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ firearmId: id, taskName: scheduleForm.taskName.trim(), intervalType: scheduleForm.intervalType, intervalValue: parseInt(scheduleForm.intervalValue), notes: scheduleForm.notes.trim() || null }),
+      });
+      if (res.ok) {
+        const created = await res.json();
+        setSchedules((prev) => [...prev, created]);
+        setScheduleForm({ taskName: "", intervalType: "DAYS", intervalValue: "", notes: "" });
+        setShowAddSchedule(false);
+      }
+    } catch { /* ignore */ }
+    finally { setSavingSchedule(false); }
+  }
+
+  async function handleCompleteSchedule(scheduleId: string) {
+    setCompletingSchedule(scheduleId);
+    try {
+      const res = await fetch(`/api/maintenance-schedules/${scheduleId}/complete`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
+      if (res.ok) {
+        const { schedule } = await res.json();
+        setSchedules((prev) => prev.map((s) => s.id === scheduleId ? schedule : s));
+      }
+    } catch { /* ignore */ }
+    finally { setCompletingSchedule(null); }
+  }
+
+  async function handleDeleteSchedule(scheduleId: string) {
+    setDeletingSchedule(scheduleId);
+    try {
+      await fetch(`/api/maintenance-schedules/${scheduleId}`, { method: "DELETE" });
+      setSchedules((prev) => prev.filter((s) => s.id !== scheduleId));
+    } catch { /* ignore */ }
+    finally { setDeletingSchedule(null); }
   }
 
   if (loading) {
@@ -500,7 +601,18 @@ export default function FirearmDetailPage() {
             }`}
           >
             <Wrench className="w-3.5 h-3.5" />
-            Maintenance
+            Maint.
+          </button>
+          <button
+            onClick={() => setSidebarTab("documents")}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-mono uppercase tracking-wider transition-colors ${
+              sidebarTab === "documents"
+                ? "text-[#00C2FF] border-b-2 border-[#00C2FF]"
+                : "text-vault-text-faint hover:text-vault-text-muted"
+            }`}
+          >
+            <FileText className="w-3.5 h-3.5" />
+            Docs
           </button>
         </div>
 
@@ -560,7 +672,97 @@ export default function FirearmDetailPage() {
         {/* Maintenance Tab */}
         {sidebarTab === "maintenance" && (
           <div className="flex-1 overflow-y-auto">
-            <div className="p-4">
+            <div className="p-4 space-y-4">
+
+              {/* Maintenance Schedules */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[10px] uppercase tracking-widest text-vault-text-faint">Service Schedules</p>
+                  <button onClick={() => setShowAddSchedule((v) => !v)} className="text-[10px] text-[#00C2FF] hover:underline">
+                    {showAddSchedule ? "Cancel" : "+ Add"}
+                  </button>
+                </div>
+
+                {showAddSchedule && (
+                  <form onSubmit={handleAddSchedule} className="bg-vault-bg border border-vault-border rounded-lg p-3 mb-3 space-y-2">
+                    <div>
+                      <label className="text-[10px] uppercase text-vault-text-faint block mb-1">Task Name</label>
+                      <input type="text" value={scheduleForm.taskName} onChange={(e) => setScheduleForm((p) => ({ ...p, taskName: e.target.value }))} placeholder="e.g. Full Clean" className="w-full bg-vault-surface border border-vault-border rounded px-2 py-1 text-xs text-vault-text placeholder:text-vault-text-faint" required />
+                    </div>
+                    <div>
+                      <label className="text-[10px] uppercase text-vault-text-faint block mb-1">Interval Type</label>
+                      <div className="flex gap-2">
+                        {(["DAYS", "ROUNDS"] as const).map((v) => (
+                          <button key={v} type="button" onClick={() => setScheduleForm((p) => ({ ...p, intervalType: v }))} className={`flex-1 py-1 rounded text-[10px] font-medium border transition-colors ${scheduleForm.intervalType === v ? "bg-[#00C2FF]/10 border-[#00C2FF]/30 text-[#00C2FF]" : "border-vault-border text-vault-text-muted hover:bg-vault-border"}`}>
+                            {v === "DAYS" ? "By Days" : "By Rounds"}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[10px] uppercase text-vault-text-faint block mb-1">Every {scheduleForm.intervalType === "DAYS" ? "N Days" : "N Rounds"}</label>
+                      <input type="number" min="1" value={scheduleForm.intervalValue} onChange={(e) => setScheduleForm((p) => ({ ...p, intervalValue: e.target.value }))} placeholder={scheduleForm.intervalType === "DAYS" ? "e.g. 90" : "e.g. 500"} className="w-full bg-vault-surface border border-vault-border rounded px-2 py-1 text-xs text-vault-text placeholder:text-vault-text-faint" required />
+                    </div>
+                    <div>
+                      <label className="text-[10px] uppercase text-vault-text-faint block mb-1">Notes (optional)</label>
+                      <input type="text" value={scheduleForm.notes} onChange={(e) => setScheduleForm((p) => ({ ...p, notes: e.target.value }))} placeholder="e.g. Use CLP lubricant" className="w-full bg-vault-surface border border-vault-border rounded px-2 py-1 text-xs text-vault-text placeholder:text-vault-text-faint" />
+                    </div>
+                    <button type="submit" disabled={savingSchedule || !scheduleForm.taskName.trim() || !scheduleForm.intervalValue} className="w-full flex items-center justify-center gap-1.5 text-xs bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 px-3 py-1.5 rounded transition-colors disabled:opacity-50">
+                      {savingSchedule ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                      Save Schedule
+                    </button>
+                  </form>
+                )}
+
+                {schedulesLoading ? (
+                  <div className="flex justify-center py-4"><Loader2 className="w-4 h-4 text-[#00C2FF] animate-spin" /></div>
+                ) : schedules.length === 0 ? (
+                  <p className="text-[10px] text-vault-text-faint text-center py-3">No schedules yet. Add one to track service intervals.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {schedules.map((s) => {
+                      const due = computeDue(s, currentRoundCount);
+                      const dueColor = due.overdue ? "text-red-400" : due.remaining <= (s.intervalType === "DAYS" ? 30 : s.intervalValue * 0.2) ? "text-orange-400" : "text-[#00C853]";
+                      return (
+                        <div key={s.id} className="bg-vault-bg border border-vault-border rounded-lg p-3">
+                          <div className="flex items-start justify-between gap-2 mb-1.5">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-vault-text truncate">{s.taskName}</p>
+                              <p className="text-[10px] text-vault-text-faint">Every {s.intervalValue} {s.intervalType === "DAYS" ? "days" : "rounds"}</p>
+                            </div>
+                            <button onClick={() => handleDeleteSchedule(s.id)} disabled={deletingSchedule === s.id} className="shrink-0 w-5 h-5 flex items-center justify-center text-vault-text-faint hover:text-red-400 rounded transition-colors disabled:opacity-50">
+                              {deletingSchedule === s.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                            </button>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              {(due as { noHistory?: boolean }).noHistory ? (
+                                <p className="text-[10px] text-vault-text-faint">Never completed</p>
+                              ) : (
+                                <p className={`text-[10px] font-semibold ${dueColor}`}>
+                                  {due.overdue ? `Overdue by ${Math.abs(due.remaining)} ${due.unit}` : `Due in ${due.remaining} ${due.unit}`}
+                                </p>
+                              )}
+                              {s.lastCompletedAt && (
+                                <p className="text-[10px] text-vault-text-faint">Last: {new Date(s.lastCompletedAt).toLocaleDateString()}</p>
+                              )}
+                            </div>
+                            <button onClick={() => handleCompleteSchedule(s.id)} disabled={completingSchedule === s.id} className="flex items-center gap-1 text-[10px] bg-[#00C853]/10 border border-[#00C853]/30 text-[#00C853] hover:bg-[#00C853]/20 px-2 py-1 rounded transition-colors disabled:opacity-50">
+                              {completingSchedule === s.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+                              Done
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-vault-border" />
+
+              {/* Maintenance Log */}
+              <div>
               <div className="flex items-center justify-between mb-3">
                 <p className="text-[10px] uppercase tracking-widest text-vault-text-faint">Maintenance Log</p>
                 <button
@@ -650,6 +852,83 @@ export default function FirearmDetailPage() {
                         </button>
                       </div>
                     </div>
+                  ))}
+                </div>
+              )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Documents Tab */}
+        {sidebarTab === "documents" && (
+          <div className="flex-1 overflow-y-auto">
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-[10px] uppercase tracking-widest text-vault-text-faint">Documents</p>
+                <button
+                  onClick={() => setShowDocUploader((v) => !v)}
+                  className="text-[10px] text-[#00C2FF] hover:underline flex items-center gap-1"
+                >
+                  <Upload className="w-3 h-3" />
+                  {showDocUploader ? "Cancel" : "Upload"}
+                </button>
+              </div>
+
+              {showDocUploader && (
+                <div className="mb-4 bg-vault-bg border border-vault-border rounded-lg p-3">
+                  <DocumentUploader
+                    entityType="firearm"
+                    entityId={id}
+                    onUploadComplete={(doc) => {
+                      setDocuments((prev) => [doc, ...prev]);
+                      setShowDocUploader(false);
+                    }}
+                    onCancel={() => setShowDocUploader(false)}
+                  />
+                </div>
+              )}
+
+              {docsLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="w-5 h-5 text-[#00C2FF] animate-spin" />
+                </div>
+              ) : documents.length === 0 && !showDocUploader ? (
+                <div className="text-center py-8">
+                  <FileText className="w-8 h-8 text-vault-border mx-auto mb-2" />
+                  <p className="text-xs text-vault-text-faint">No documents yet</p>
+                  <p className="text-[10px] text-vault-text-faint mt-1">Upload receipts or other documents</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {documents.map((doc) => (
+                    <a
+                      key={doc.id}
+                      href={doc.fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-start gap-2.5 bg-vault-bg border border-vault-border rounded-lg p-3 hover:border-[#00C2FF]/30 transition-colors group"
+                    >
+                      <FileText className="w-4 h-4 text-vault-text-faint shrink-0 mt-0.5 group-hover:text-[#00C2FF]" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-vault-text truncate">{doc.name}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded border font-mono ${
+                            doc.type === "NFA_TAX_STAMP"
+                              ? "border-[#F5A623]/30 text-[#F5A623]"
+                              : doc.type === "RECEIPT"
+                              ? "border-[#00C2FF]/30 text-[#00C2FF]"
+                              : "border-vault-border text-vault-text-faint"
+                          }`}>
+                            {doc.type === "NFA_TAX_STAMP" ? "NFA" : doc.type === "RECEIPT" ? "Receipt" : "Doc"}
+                          </span>
+                          <span className="text-[10px] text-vault-text-faint">
+                            {new Date(doc.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
+                      <ExternalLink className="w-3 h-3 text-vault-text-faint shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </a>
                   ))}
                 </div>
               )}
