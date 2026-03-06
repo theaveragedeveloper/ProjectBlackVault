@@ -30,6 +30,7 @@ model Firearm {
   builds          Build[]
   rangeSessions   RangeSession[]
   maintenanceNotes MaintenanceNote[]
+  maintenanceSchedules MaintenanceSchedule[]
   documents       Document[]
 
   createdAt       DateTime @default(now())
@@ -106,6 +107,12 @@ model Accessory {
 
   buildSlots             BuildSlot[]
   documents              Document[]
+
+  // Battery tracking
+  hasBattery             Boolean         @default(false)
+  batteryType            String?         // e.g. "CR2032", "AA"
+  batteryChangedAt       DateTime?
+  batteryIntervalDays    Int?            // how often to replace in days
 
   // Comma-separated compatible values, e.g. "RIFLE,SMG"
   compatibleFirearmTypes String?
@@ -243,6 +250,40 @@ model MaintenanceNote {
 
   @@index([firearmId])
   @@index([date])
+}
+
+// ─── MAINTENANCE SCHEDULES ────────────────────────────────────
+
+model MaintenanceSchedule {
+  id              String                  @id @default(cuid())
+  firearmId       String
+  firearm         Firearm                 @relation(fields: [firearmId], references: [id], onDelete: Cascade)
+  taskName        String
+  // intervalType: "ROUNDS" | "DAYS"
+  intervalType    String
+  intervalValue   Int
+  lastCompletedAt DateTime?
+  lastRoundCount  Int?                    // firearm round count at last completion (for ROUNDS type)
+  notes           String?
+  completions     MaintenanceCompletion[]
+
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  @@index([firearmId])
+}
+
+model MaintenanceCompletion {
+  id                     String              @id @default(cuid())
+  scheduleId             String
+  schedule               MaintenanceSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  completedAt            DateTime            @default(now())
+  roundCountAtCompletion Int?
+  notes                  String?
+
+  createdAt              DateTime            @default(now())
+
+  @@index([scheduleId])
 }
 
 // ─── AMMO ─────────────────────────────────────────────────────
