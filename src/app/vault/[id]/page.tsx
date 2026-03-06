@@ -26,8 +26,11 @@ import {
   Clock,
   Camera,
   X,
+  Upload,
+  ExternalLink,
 } from "lucide-react";
 import ImagePicker from "@/components/shared/ImagePicker";
+import { DocumentUploader, type UploadedDocument } from "@/components/shared/DocumentUploader";
 
 const FIREARM_TYPE_LABELS: Record<string, string> = {
   PISTOL: "Pistol",
@@ -128,7 +131,7 @@ export default function FirearmDetailPage() {
 
   const [firearm, setFirearm] = useState<Firearm | null>(null);
   const [loading, setLoading] = useState(true);
-  const [sidebarTab, setSidebarTab] = useState<"range" | "maintenance">("range");
+  const [sidebarTab, setSidebarTab] = useState<"range" | "maintenance" | "documents">("range");
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
   const [localImageUrl, setLocalImageUrl] = useState<string | null>(null);
 
@@ -137,6 +140,11 @@ export default function FirearmDetailPage() {
 
   const [maintenanceNotes, setMaintenanceNotes] = useState<MaintenanceNote[]>([]);
   const [maintLoading, setMaintLoading] = useState(true);
+
+  // Documents
+  const [documents, setDocuments] = useState<UploadedDocument[]>([]);
+  const [docsLoading, setDocsLoading] = useState(false);
+  const [showDocUploader, setShowDocUploader] = useState(false);
 
   // Add maintenance note form
   const [addingNote, setAddingNote] = useState(false);
@@ -162,6 +170,12 @@ export default function FirearmDetailPage() {
       .then((r) => r.json())
       .then((data) => { if (Array.isArray(data)) setMaintenanceNotes(data); setMaintLoading(false); })
       .catch(() => setMaintLoading(false));
+
+    setDocsLoading(true);
+    fetch(`/api/documents?firearmId=${id}`)
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data)) setDocuments(data); setDocsLoading(false); })
+      .catch(() => setDocsLoading(false));
   }, [id]);
 
   async function handleAddNote(e: React.FormEvent) {
@@ -500,7 +514,18 @@ export default function FirearmDetailPage() {
             }`}
           >
             <Wrench className="w-3.5 h-3.5" />
-            Maintenance
+            Maint.
+          </button>
+          <button
+            onClick={() => setSidebarTab("documents")}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-mono uppercase tracking-wider transition-colors ${
+              sidebarTab === "documents"
+                ? "text-[#00C2FF] border-b-2 border-[#00C2FF]"
+                : "text-vault-text-faint hover:text-vault-text-muted"
+            }`}
+          >
+            <FileText className="w-3.5 h-3.5" />
+            Docs
           </button>
         </div>
 
@@ -650,6 +675,82 @@ export default function FirearmDetailPage() {
                         </button>
                       </div>
                     </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Documents Tab */}
+        {sidebarTab === "documents" && (
+          <div className="flex-1 overflow-y-auto">
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-[10px] uppercase tracking-widest text-vault-text-faint">Documents</p>
+                <button
+                  onClick={() => setShowDocUploader((v) => !v)}
+                  className="text-[10px] text-[#00C2FF] hover:underline flex items-center gap-1"
+                >
+                  <Upload className="w-3 h-3" />
+                  {showDocUploader ? "Cancel" : "Upload"}
+                </button>
+              </div>
+
+              {showDocUploader && (
+                <div className="mb-4 bg-vault-bg border border-vault-border rounded-lg p-3">
+                  <DocumentUploader
+                    entityType="firearm"
+                    entityId={id}
+                    onUploadComplete={(doc) => {
+                      setDocuments((prev) => [doc, ...prev]);
+                      setShowDocUploader(false);
+                    }}
+                    onCancel={() => setShowDocUploader(false)}
+                  />
+                </div>
+              )}
+
+              {docsLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="w-5 h-5 text-[#00C2FF] animate-spin" />
+                </div>
+              ) : documents.length === 0 && !showDocUploader ? (
+                <div className="text-center py-8">
+                  <FileText className="w-8 h-8 text-vault-border mx-auto mb-2" />
+                  <p className="text-xs text-vault-text-faint">No documents yet</p>
+                  <p className="text-[10px] text-vault-text-faint mt-1">Upload receipts or other documents</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {documents.map((doc) => (
+                    <a
+                      key={doc.id}
+                      href={doc.fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-start gap-2.5 bg-vault-bg border border-vault-border rounded-lg p-3 hover:border-[#00C2FF]/30 transition-colors group"
+                    >
+                      <FileText className="w-4 h-4 text-vault-text-faint shrink-0 mt-0.5 group-hover:text-[#00C2FF]" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-vault-text truncate">{doc.name}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded border font-mono ${
+                            doc.type === "NFA_TAX_STAMP"
+                              ? "border-[#F5A623]/30 text-[#F5A623]"
+                              : doc.type === "RECEIPT"
+                              ? "border-[#00C2FF]/30 text-[#00C2FF]"
+                              : "border-vault-border text-vault-text-faint"
+                          }`}>
+                            {doc.type === "NFA_TAX_STAMP" ? "NFA" : doc.type === "RECEIPT" ? "Receipt" : "Doc"}
+                          </span>
+                          <span className="text-[10px] text-vault-text-faint">
+                            {new Date(doc.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
+                      <ExternalLink className="w-3 h-3 text-vault-text-faint shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </a>
                   ))}
                 </div>
               )}

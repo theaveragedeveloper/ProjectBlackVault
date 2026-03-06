@@ -18,6 +18,9 @@ import {
   ChevronDown,
   BookOpen,
   Calculator,
+  ClipboardList,
+  TrendingUp,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
@@ -62,16 +65,24 @@ const NAV_ITEMS: NavItem[] = [
     description: "Ammunition storage",
   },
   {
-    label: "Range",
+    label: "Training",
     href: "/range",
     icon: Package,
-    description: "Log range sessions",
+    description: "Training & drill tracking",
     children: [
       { label: "Log Session", href: "/range", icon: Package },
       { label: "Session History", href: "/range/history", icon: Clock },
+      { label: "Log a Drill", href: "/range/log-drill", icon: ClipboardList },
+      { label: "Drill Performance", href: "/range/drill-performance", icon: TrendingUp },
       { label: "Drill Library", href: "/range/drills", icon: BookOpen },
       { label: "Hit Factor Calc", href: "/range/hit-factor", icon: Calculator },
     ],
+  },
+  {
+    label: "Documents",
+    href: "/documents",
+    icon: FileText,
+    description: "Receipts & NFA stamps",
   },
   {
     label: "Settings",

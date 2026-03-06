@@ -20,8 +20,12 @@ import {
   Pencil,
   Camera,
   X,
+  FileText,
+  Upload,
+  ExternalLink,
 } from "lucide-react";
 import ImagePicker from "@/components/shared/ImagePicker";
+import { DocumentUploader, type UploadedDocument } from "@/components/shared/DocumentUploader";
 
 
 interface RoundCountLog {
@@ -86,6 +90,11 @@ export default function AccessoryDetailPage() {
   // History expand
   const [historyExpanded, setHistoryExpanded] = useState(false);
 
+  // Documents
+  const [documents, setDocuments] = useState<UploadedDocument[]>([]);
+  const [docsLoading, setDocsLoading] = useState(false);
+  const [showDocUploader, setShowDocUploader] = useState(false);
+
   useEffect(() => {
     fetch(`/api/accessories/${id}`)
       .then((r) => r.json())
@@ -102,6 +111,12 @@ export default function AccessoryDetailPage() {
         setError("Failed to load accessory");
         setLoading(false);
       });
+
+    setDocsLoading(true);
+    fetch(`/api/documents?accessoryId=${id}`)
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data)) setDocuments(data); setDocsLoading(false); })
+      .catch(() => setDocsLoading(false));
   }, [id]);
 
   async function submitLogRounds(e: React.FormEvent) {
@@ -479,6 +494,79 @@ export default function AccessoryDetailPage() {
             </div>
           </div>
         )}
+
+        {/* Documents */}
+        <div className="bg-vault-surface border border-vault-border rounded-lg overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-vault-border">
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-vault-text-muted flex items-center gap-2">
+              <FileText className="w-3.5 h-3.5" />
+              Documents
+            </h2>
+            <button
+              onClick={() => setShowDocUploader((v) => !v)}
+              className="flex items-center gap-1 text-xs text-[#00C2FF] hover:underline"
+            >
+              <Upload className="w-3 h-3" />
+              {showDocUploader ? "Cancel" : "Upload"}
+            </button>
+          </div>
+
+          {showDocUploader && (
+            <div className="p-4 border-b border-vault-border">
+              <DocumentUploader
+                entityType="accessory"
+                entityId={id}
+                onUploadComplete={(doc) => {
+                  setDocuments((prev) => [doc, ...prev]);
+                  setShowDocUploader(false);
+                }}
+                onCancel={() => setShowDocUploader(false)}
+              />
+            </div>
+          )}
+
+          {docsLoading ? (
+            <div className="flex justify-center py-6">
+              <Loader2 className="w-5 h-5 text-[#00C2FF] animate-spin" />
+            </div>
+          ) : documents.length === 0 && !showDocUploader ? (
+            <div className="text-center py-6">
+              <p className="text-xs text-vault-text-faint">No documents yet. Upload receipts or other files.</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-vault-border">
+              {documents.map((doc) => (
+                <a
+                  key={doc.id}
+                  href={doc.fileUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-vault-border/20 transition-colors group"
+                >
+                  <FileText className="w-4 h-4 text-vault-text-faint shrink-0 group-hover:text-[#00C2FF]" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-vault-text truncate">{doc.name}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded border font-mono ${
+                        doc.type === "NFA_TAX_STAMP"
+                          ? "border-[#F5A623]/30 text-[#F5A623]"
+                          : doc.type === "RECEIPT"
+                          ? "border-[#00C2FF]/30 text-[#00C2FF]"
+                          : "border-vault-border text-vault-text-faint"
+                      }`}>
+                        {doc.type === "NFA_TAX_STAMP" ? "NFA" : doc.type === "RECEIPT" ? "Receipt" : "Doc"}
+                      </span>
+                      <span className="text-[10px] text-vault-text-faint">
+                        {new Date(doc.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                  <ExternalLink className="w-3.5 h-3.5 text-vault-text-faint shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
 
