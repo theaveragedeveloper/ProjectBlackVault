@@ -30,6 +30,7 @@ model Firearm {
   builds          Build[]
   rangeSessions   RangeSession[]
   maintenanceNotes MaintenanceNote[]
+  documents       Document[]
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -104,6 +105,7 @@ model Accessory {
   roundCountLogs         RoundCountLog[]
 
   buildSlots             BuildSlot[]
+  documents              Document[]
 
   // Comma-separated compatible values, e.g. "RIFLE,SMG"
   compatibleFirearmTypes String?
@@ -184,6 +186,7 @@ model DrillTemplate {
   isBuiltIn   Boolean        @default(false)
 
   sessionDrills SessionDrill[]
+  drillLogs     DrillLog[]
 
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
@@ -300,6 +303,53 @@ model ImageCache {
   cachedAt    DateTime @default(now())
 
   @@index([entityType, entityId])
+}
+
+// ─── DRILL LOGS ───────────────────────────────────────────────
+
+model DrillLog {
+  id          String         @id @default(cuid())
+  templateId  String?
+  template    DrillTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  drillName   String         // denormalized; preserved if template is deleted
+  performedAt DateTime       @default(now())
+  timeSeconds Float?
+  hits        Int?
+  totalShots  Int?
+  accuracy    Float?         // 0-100 percentage
+  score       Float?
+  notes       String?
+
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([templateId])
+  @@index([performedAt])
+}
+
+// ─── DOCUMENTS ────────────────────────────────────────────────
+
+model Document {
+  id          String   @id @default(cuid())
+  name        String
+  // type: "RECEIPT" | "NFA_TAX_STAMP" | "OTHER"
+  type        String   @default("RECEIPT")
+  fileUrl     String
+  fileSize    Int?
+  mimeType    String?
+  notes       String?
+
+  firearmId   String?
+  firearm     Firearm?    @relation(fields: [firearmId], references: [id], onDelete: SetNull)
+  accessoryId String?
+  accessory   Accessory?  @relation(fields: [accessoryId], references: [id], onDelete: SetNull)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([firearmId])
+  @@index([accessoryId])
+  @@index([type])
 }
 
 // ─── SETTINGS ─────────────────────────────────────────────────

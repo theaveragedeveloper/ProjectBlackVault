@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 // GET /api/drill-templates/[id]/results
-// Returns all SessionDrill records for a template with session dates, sorted chronologically
+// Returns merged SessionDrill + DrillLog records for a template, sorted chronologically
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -15,18 +15,25 @@ export async function GET(
       return NextResponse.json({ error: "Template not found" }, { status: 404 });
     }
 
-    const drills = await prisma.sessionDrill.findMany({
-      where: { templateId: id },
-      include: {
-        session: { select: { id: true, date: true, rangeName: true } },
-      },
-      orderBy: { session: { date: "asc" } },
-    });
+    const [sessionDrills, drillLogs] = await Promise.all([
+      prisma.sessionDrill.findMany({
+        where: { templateId: id },
+        include: {
+          session: { select: { id: true, date: true, rangeName: true } },
+        },
+        orderBy: { session: { date: "asc" } },
+      }),
+      prisma.drillLog.findMany({
+        where: { templateId: id },
+        orderBy: { performedAt: "asc" },
+      }),
+    ]);
 
-    const results = drills.map((d) => ({
+    const sessionResults = sessionDrills.map((d) => ({
       id: d.id,
-      sessionId: d.sessionId,
-      sessionDate: d.session.date,
+      source: "session" as const,
+      sourceId: d.sessionId,
+      date: d.session.date,
       rangeName: d.session.rangeName,
       timeSeconds: d.timeSeconds,
       score: d.score,
@@ -35,6 +42,24 @@ export async function GET(
       totalShots: d.totalShots,
       notes: d.notes,
     }));
+
+    const logResults = drillLogs.map((d) => ({
+      id: d.id,
+      source: "drill_log" as const,
+      sourceId: d.id,
+      date: d.performedAt,
+      rangeName: null,
+      timeSeconds: d.timeSeconds,
+      score: d.score,
+      accuracy: d.accuracy,
+      hits: d.hits,
+      totalShots: d.totalShots,
+      notes: d.notes,
+    }));
+
+    const results = [...sessionResults, ...logResults].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
 
     const times = results.filter((r) => r.timeSeconds != null).map((r) => r.timeSeconds!);
     const scores = results.filter((r) => r.score != null).map((r) => r.score!);
