@@ -17,6 +17,9 @@ import {
   Thermometer,
   Wind,
   Cloud,
+  ClipboardList,
+  Plus,
+  X,
 } from "lucide-react";
 
 const INPUT_CLASS =
@@ -63,6 +66,35 @@ const SLOT_TYPE_LABELS: Record<string, string> = SLOT_TYPE_LABELS_IMPORT as Reco
 // Slots that typically accumulate rounds (wear parts)
 const ROUND_COUNT_SLOTS = new Set(["BARREL", "SUPPRESSOR", "MUZZLE", "TRIGGER", "SLIDE", "FRAME"]);
 
+interface DrillTemplate {
+  id: string;
+  name: string;
+  category: string;
+  scoringType: string;
+  parTime: number | null;
+  maxScore: number | null;
+}
+
+interface InlineDrill {
+  key: string; // client-side unique key
+  templateId: string;
+  drillName: string;
+  timeSeconds: string;
+  hits: string;
+  totalShots: string;
+  score: string;
+  notes: string;
+  passFail: "PASS" | "FAIL";
+}
+
+const DRILL_CATEGORY_LABELS: Record<string, string> = {
+  ACCURACY: "Accuracy",
+  SPEED: "Speed",
+  TACTICAL: "Tactical",
+  FUNDAMENTALS: "Fundamentals",
+  CUSTOM: "Custom",
+};
+
 const LIGHT_CONDITIONS = ["BRIGHT", "OVERCAST", "LOW_LIGHT", "NIGHT"];
 const LIGHT_CONDITION_LABELS: Record<string, string> = {
   BRIGHT: "Bright / Sunny",
@@ -94,6 +126,22 @@ export default function RangeSessionPage() {
   const [humidity, setHumidity] = useState<string>("");
   const [lightCondition, setLightCondition] = useState<string>("");
   const [weatherNotes, setWeatherNotes] = useState<string>("");
+
+  // Drills
+  const [drillTemplates, setDrillTemplates] = useState<DrillTemplate[]>([]);
+  const [showDrillFieldset, setShowDrillFieldset] = useState(false);
+  const [inlineDrills, setInlineDrills] = useState<InlineDrill[]>([]);
+  const [addingDrill, setAddingDrill] = useState(false);
+  const [newDrill, setNewDrill] = useState<Omit<InlineDrill, "key">>({
+    templateId: "",
+    drillName: "",
+    timeSeconds: "",
+    hits: "",
+    totalShots: "",
+    score: "",
+    notes: "",
+    passFail: "PASS",
+  });
 
   // Shot Groups
   const [showGroupFieldset, setShowGroupFieldset] = useState(false);
@@ -127,6 +175,14 @@ export default function RangeSessionPage() {
       .then((r) => r.json())
       .then((data) => { setFirearms(data); setLoadingFirearms(false); })
       .catch(() => setLoadingFirearms(false));
+  }, []);
+
+  // Load drill templates
+  useEffect(() => {
+    fetch("/api/drill-templates")
+      .then((r) => r.json())
+      .then((data) => setDrillTemplates(Array.isArray(data) ? data : []))
+      .catch(() => {});
   }, []);
 
   // Load ammo stocks
@@ -286,7 +342,42 @@ export default function RangeSessionPage() {
       });
       const sessionJson = await sessionRes.json();
       if (!sessionRes.ok) throw new Error(sessionJson.error ?? "Failed to save session");
-      setCreatedSessionId(sessionJson.id ?? null);
+      const sessionId = sessionJson.id ?? null;
+      setCreatedSessionId(sessionId);
+
+      // Save inline drills
+      if (sessionId && inlineDrills.length > 0) {
+        for (let i = 0; i < inlineDrills.length; i++) {
+          const d = inlineDrills[i];
+          const st = drillTemplates.find((t) => t.id === d.templateId)?.scoringType ?? "NOTES_ONLY";
+          let score: number | null = null;
+          if (st === "PASS_FAIL") {
+            score = d.passFail === "PASS" ? 1 : 0;
+          } else if (d.score !== "") {
+            score = parseFloat(d.score);
+          }
+          const hits = d.hits !== "" ? parseInt(d.hits) : null;
+          const totalShots = d.totalShots !== "" ? parseInt(d.totalShots) : null;
+          const accuracy = hits != null && totalShots != null && totalShots > 0
+            ? Math.round((hits / totalShots) * 1000) / 10
+            : null;
+          await fetch(`/api/range-sessions/${sessionId}/drills`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              templateId: d.templateId || null,
+              drillName: d.drillName,
+              timeSeconds: d.timeSeconds !== "" ? parseFloat(d.timeSeconds) : null,
+              hits,
+              totalShots,
+              accuracy,
+              score,
+              notes: d.notes || null,
+              sortOrder: i,
+            }),
+          });
+        }
+      }
 
       setSuccessDetails({ accessories: results, ammoLeft });
       setSuccess(true);
@@ -321,6 +412,9 @@ export default function RangeSessionPage() {
     setSuccess(false);
     setError(null);
     setBuilds([]);
+    setInlineDrills([]);
+    setAddingDrill(false);
+    setNewDrill({ templateId: "", drillName: "", timeSeconds: "", hits: "", totalShots: "", score: "", notes: "", passFail: "PASS" });
   }
 
   if (success) {
@@ -710,6 +804,180 @@ export default function RangeSessionPage() {
                     placeholder="e.g. First group was cold bore, last group tightest..."
                     className={`${INPUT_CLASS} resize-none`} />
                 </div>
+              </div>
+            )}
+          </div>
+
+          {/* Drills (collapsible) */}
+          <div className="bg-vault-surface border border-vault-border rounded-lg overflow-hidden">
+            <button type="button"
+              onClick={() => setShowDrillFieldset(!showDrillFieldset)}
+              className="w-full flex items-center justify-between px-5 py-3 text-left hover:bg-vault-border/20 transition-colors">
+              <div className="flex items-center gap-2">
+                <ClipboardList className="w-4 h-4 text-[#00C2FF]" />
+                <span className="text-xs font-mono uppercase tracking-widest text-[#00C2FF]">Drills</span>
+                {inlineDrills.length > 0 && (
+                  <span className="text-xs text-[#00C853] ml-1">{inlineDrills.length} logged</span>
+                )}
+                <span className="text-xs text-vault-text-faint">(optional)</span>
+              </div>
+              <ChevronDown className={`w-4 h-4 text-vault-text-faint transition-transform ${showDrillFieldset ? "rotate-180" : ""}`} />
+            </button>
+            {showDrillFieldset && (
+              <div className="px-5 pb-5 border-t border-vault-border">
+                {/* Existing drills */}
+                {inlineDrills.length > 0 && (
+                  <div className="space-y-2 mt-4">
+                    {inlineDrills.map((d, idx) => {
+                      const st = drillTemplates.find((t) => t.id === d.templateId)?.scoringType ?? "NOTES_ONLY";
+                      return (
+                        <div key={d.key} className="flex items-start gap-3 p-3 rounded-md border border-vault-border bg-vault-bg">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-vault-text">{d.drillName}</p>
+                            <p className="text-xs text-vault-text-faint mt-0.5">
+                              {(st === "TIME" || st === "TIME_AND_SCORE") && d.timeSeconds && `${d.timeSeconds}s `}
+                              {(st === "SCORE" || st === "TIME_AND_SCORE") && d.score && `Score: ${d.score} `}
+                              {st === "PASS_FAIL" && `${d.passFail} `}
+                              {d.hits && d.totalShots && `${d.hits}/${d.totalShots} hits`}
+                            </p>
+                          </div>
+                          <button type="button"
+                            onClick={() => setInlineDrills((prev) => prev.filter((_, i) => i !== idx))}
+                            className="text-vault-text-faint hover:text-red-400 transition-colors shrink-0">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Add drill form */}
+                {addingDrill ? (
+                  <div className="mt-4 rounded-md border border-[#00C2FF]/20 bg-[#00C2FF]/5 p-4 space-y-3">
+                    <p className="text-xs font-semibold text-[#00C2FF] uppercase tracking-widest">Add Drill</p>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="sm:col-span-2">
+                        <label className={LABEL_CLASS}>Drill Template</label>
+                        <select
+                          value={newDrill.templateId}
+                          onChange={(e) => {
+                            const t = drillTemplates.find((t) => t.id === e.target.value);
+                            setNewDrill((p) => ({ ...p, templateId: e.target.value, drillName: t ? t.name : p.drillName }));
+                          }}
+                          className={INPUT_CLASS}>
+                          <option value="">— No template —</option>
+                          {Object.entries(DRILL_CATEGORY_LABELS).map(([cat, lbl]) => {
+                            const grp = drillTemplates.filter((t) => t.category === cat);
+                            if (!grp.length) return null;
+                            return (
+                              <optgroup key={cat} label={lbl}>
+                                {grp.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                              </optgroup>
+                            );
+                          })}
+                        </select>
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <label className={LABEL_CLASS}>Drill Name <span className="text-[#E53935]">*</span></label>
+                        <input type="text" value={newDrill.drillName}
+                          onChange={(e) => setNewDrill((p) => ({ ...p, drillName: e.target.value }))}
+                          placeholder="e.g. Bill Drill" className={INPUT_CLASS} />
+                      </div>
+
+                      {(() => {
+                        const st = drillTemplates.find((t) => t.id === newDrill.templateId)?.scoringType ?? "NOTES_ONLY";
+                        const tpl = drillTemplates.find((t) => t.id === newDrill.templateId);
+                        return (
+                          <>
+                            {(st === "TIME" || st === "TIME_AND_SCORE") && (
+                              <div>
+                                <label className={LABEL_CLASS}>Time (s){tpl?.parTime && <span className="text-vault-text-faint ml-1">par: {tpl.parTime}s</span>}</label>
+                                <input type="number" step="0.01" min="0" value={newDrill.timeSeconds}
+                                  onChange={(e) => setNewDrill((p) => ({ ...p, timeSeconds: e.target.value }))}
+                                  placeholder="4.32" className={INPUT_CLASS} />
+                              </div>
+                            )}
+                            {(st === "SCORE" || st === "TIME_AND_SCORE") && (
+                              <div>
+                                <label className={LABEL_CLASS}>Score{tpl?.maxScore && <span className="text-vault-text-faint ml-1">max: {tpl.maxScore}</span>}</label>
+                                <input type="number" step="0.1" min="0" value={newDrill.score}
+                                  onChange={(e) => setNewDrill((p) => ({ ...p, score: e.target.value }))}
+                                  placeholder="85" className={INPUT_CLASS} />
+                              </div>
+                            )}
+                            {st === "PASS_FAIL" && (
+                              <div className="sm:col-span-2">
+                                <label className={LABEL_CLASS}>Result</label>
+                                <div className="flex gap-2">
+                                  {(["PASS", "FAIL"] as const).map((v) => (
+                                    <button key={v} type="button"
+                                      onClick={() => setNewDrill((p) => ({ ...p, passFail: v }))}
+                                      className={`flex-1 py-2 rounded-md text-sm font-medium border transition-colors ${
+                                        newDrill.passFail === v
+                                          ? v === "PASS" ? "bg-green-500/20 border-green-500/40 text-green-400" : "bg-red-500/20 border-red-500/40 text-red-400"
+                                          : "border-vault-border text-vault-text-muted hover:bg-vault-border"
+                                      }`}>{v}</button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {st !== "NOTES_ONLY" && (
+                              <>
+                                <div>
+                                  <label className={LABEL_CLASS}>Hits</label>
+                                  <input type="number" min="0" value={newDrill.hits}
+                                    onChange={(e) => setNewDrill((p) => ({ ...p, hits: e.target.value }))}
+                                    placeholder="6" className={INPUT_CLASS} />
+                                </div>
+                                <div>
+                                  <label className={LABEL_CLASS}>Total Shots</label>
+                                  <input type="number" min="0" value={newDrill.totalShots}
+                                    onChange={(e) => setNewDrill((p) => ({ ...p, totalShots: e.target.value }))}
+                                    placeholder="6" className={INPUT_CLASS} />
+                                </div>
+                              </>
+                            )}
+                          </>
+                        );
+                      })()}
+
+                      <div className="sm:col-span-2">
+                        <label className={LABEL_CLASS}>Notes</label>
+                        <textarea rows={2} value={newDrill.notes}
+                          onChange={(e) => setNewDrill((p) => ({ ...p, notes: e.target.value }))}
+                          placeholder="Observations..." className={`${INPUT_CLASS} resize-none`} />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 pt-1">
+                      <button type="button"
+                        disabled={!newDrill.drillName.trim()}
+                        onClick={() => {
+                          if (!newDrill.drillName.trim()) return;
+                          setInlineDrills((prev) => [...prev, { ...newDrill, key: Math.random().toString(36).slice(2) }]);
+                          setNewDrill({ templateId: newDrill.templateId, drillName: drillTemplates.find(t => t.id === newDrill.templateId)?.name ?? "", timeSeconds: "", hits: "", totalShots: "", score: "", notes: "", passFail: "PASS" });
+                          setAddingDrill(false);
+                        }}
+                        className="px-4 py-1.5 rounded-md bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] text-sm hover:bg-[#00C2FF]/20 transition-colors disabled:opacity-50">
+                        Add
+                      </button>
+                      <button type="button" onClick={() => setAddingDrill(false)}
+                        className="px-4 py-1.5 rounded-md border border-vault-border text-vault-text-muted text-sm hover:bg-vault-border transition-colors">
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button type="button"
+                    onClick={() => setAddingDrill(true)}
+                    className="mt-4 flex items-center gap-2 px-3 py-2 rounded-md border border-dashed border-vault-border text-vault-text-faint text-sm hover:border-[#00C2FF]/40 hover:text-[#00C2FF] transition-colors w-full justify-center">
+                    <Plus className="w-4 h-4" />
+                    Add Drill
+                  </button>
+                )}
               </div>
             )}
           </div>
