@@ -7,6 +7,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 
   const accessory = await prisma.accessory.findUnique({ where: { id } });
   if (!accessory) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!accessory.hasBattery) return NextResponse.json({ error: "Battery tracking not enabled for this accessory" }, { status: 400 });
 
   const updated = await prisma.accessory.update({
     where: { id },
