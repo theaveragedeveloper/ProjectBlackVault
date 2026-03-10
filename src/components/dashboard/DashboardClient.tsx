@@ -32,6 +32,7 @@ import {
   X,
   Package,
   Wrench,
+  Award,
 } from "lucide-react";
 
 const FIREARM_TYPE_LABELS: Record<string, string> = {
@@ -56,7 +57,7 @@ const TYPE_BADGE_COLORS: Record<string, string> = {
   LEVER_ACTION: "border-[#FF7043]/40 text-[#FF7043]",
 };
 
-const DEFAULT_ORDER = ["stats", "range-sessions", "maintenance-due", "low-ammo", "recent", "ammo-summary"];
+const DEFAULT_ORDER = ["stats", "range-sessions", "personal-records", "maintenance-due", "low-ammo", "recent", "ammo-summary"];
 const STORAGE_KEY = "vault-dashboard-layout";
 
 interface AmmoStockItem {
@@ -527,6 +528,102 @@ function AmmoSummaryWidget({ ammoStocks }: { ammoStocks: AmmoStockItem[] }) {
   );
 }
 
+interface PersonalRecord {
+  templateId: string;
+  templateName: string;
+  metric: "time" | "score" | "accuracy";
+  value: number;
+  unit: string;
+  date: string;
+  source: string;
+  sourceId: string;
+}
+
+function PersonalRecordsWidget() {
+  const [records, setRecords] = useState<PersonalRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/personal-records?limit=5")
+      .then((r) => r.json())
+      .then((data) => {
+        setRecords(Array.isArray(data) ? data : []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  const METRIC_LABELS: Record<string, string> = { time: "Best Time", score: "Best Score", accuracy: "Best Accuracy" };
+
+  return (
+    <section>
+      <div className="flex items-center gap-2 mb-3">
+        <Award className="w-4 h-4 text-[#F5A623]" />
+        <h2 className="text-sm font-semibold tracking-widest uppercase text-[#F5A623]">
+          Personal Records
+        </h2>
+      </div>
+      <div className="bg-vault-surface border border-vault-border rounded-lg overflow-hidden">
+        {loading ? (
+          <div className="p-8 text-center">
+            <div className="w-5 h-5 border-2 border-[#F5A623]/30 border-t-[#F5A623] rounded-full animate-spin mx-auto" />
+          </div>
+        ) : records.length === 0 ? (
+          <div className="p-8 text-center">
+            <div className="w-10 h-10 rounded-full bg-[#F5A623]/10 border border-[#F5A623]/20 flex items-center justify-center mx-auto mb-3">
+              <Award className="w-5 h-5 text-[#F5A623]" />
+            </div>
+            <p className="text-sm text-vault-text-muted">No personal records yet</p>
+            <p className="text-xs text-vault-text-faint mt-1">Log drills to track your bests</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-vault-border">
+            {records.map((pr, i) => {
+              const href =
+                pr.source === "drill_log"
+                  ? `/range/log-drill/${pr.sourceId}`
+                  : `/range/${pr.sourceId}`;
+              const valueDisplay =
+                pr.metric === "time"
+                  ? `${pr.value}${pr.unit}`
+                  : pr.metric === "accuracy"
+                  ? `${pr.value.toFixed(1)}${pr.unit}`
+                  : `${pr.value}${pr.unit}`;
+              return (
+                <Link
+                  key={i}
+                  href={href}
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-vault-surface-2 transition-colors group"
+                >
+                  <Award className="w-4 h-4 text-[#F5A623] shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-vault-text truncate group-hover:text-[#00C2FF] transition-colors">
+                      {pr.templateName}
+                    </p>
+                    <p className="text-xs text-vault-text-faint">{METRIC_LABELS[pr.metric]}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-bold font-mono text-[#F5A623]">{valueDisplay}</p>
+                    <p className="text-xs text-vault-text-faint">
+                      {new Date(pr.date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                    </p>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-vault-text-faint group-hover:text-[#00C2FF] transition-colors shrink-0" />
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </div>
+      <div className="mt-2 text-right">
+        <Link href="/range/drill-performance" className="text-xs text-[#00C2FF] hover:text-[#00C2FF]/80 flex items-center gap-1 justify-end">
+          View Drill Performance <ChevronRight className="w-3 h-3" />
+        </Link>
+      </div>
+    </section>
+  );
+}
+
 function MaintenanceDueWidget({ items }: { items: MaintenanceDueItem[] }) {
   return (
     <section>
@@ -640,6 +737,8 @@ export function DashboardClient({ data }: { data: DashboardData }) {
         return <StatsWidget data={data} />;
       case "range-sessions":
         return <RangeSessionsWidget stats={data.rangeStats} />;
+      case "personal-records":
+        return <PersonalRecordsWidget />;
       case "maintenance-due":
         return <MaintenanceDueWidget items={data.maintenanceDue} />;
       case "low-ammo":

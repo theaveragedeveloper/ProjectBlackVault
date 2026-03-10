@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
-import { ClipboardList, Trash2, ChevronLeft, TrendingUp } from "lucide-react";
+import { ClipboardList, Trash2, ChevronLeft, TrendingUp, Award } from "lucide-react";
 import Link from "next/link";
 
 interface DrillLog {
@@ -25,13 +25,27 @@ export default function DrillLogDetailPage({ params }: { params: Promise<{ id: s
   const [log, setLog] = useState<DrillLog | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [isPR, setIsPR] = useState(false);
 
   useEffect(() => {
     fetch(`/api/drill-logs/${id}`)
       .then((r) => r.json())
-      .then((data) => {
+      .then((data: DrillLog) => {
         setLog(data);
         setLoading(false);
+        // Check if this entry holds any personal record
+        if (data.templateId) {
+          fetch(`/api/drill-templates/${data.templateId}/results`)
+            .then((r) => r.json())
+            .then((res) => {
+              const s = res.stats;
+              const isTimePR = s.bestTime != null && data.timeSeconds === s.bestTime;
+              const isScorePR = s.bestScore != null && data.score === s.bestScore;
+              const isAccuracyPR = s.bestAccuracy != null && data.accuracy === s.bestAccuracy;
+              setIsPR(isTimePR || isScorePR || isAccuracyPR);
+            })
+            .catch(() => {});
+        }
       })
       .catch(() => setLoading(false));
   }, [id]);
@@ -109,6 +123,14 @@ export default function DrillLogDetailPage({ params }: { params: Promise<{ id: s
         <ChevronLeft className="w-3 h-3" />
         Back
       </Link>
+
+      {isPR && (
+        <div className="flex items-center gap-2 rounded-lg border border-[#F5A623]/40 bg-[#F5A623]/10 px-4 py-2.5">
+          <Award className="w-4 h-4 text-[#F5A623] shrink-0" />
+          <p className="text-sm font-semibold text-[#F5A623]">Personal Best</p>
+          <p className="text-xs text-[#F5A623]/70">This entry holds an all-time record for this drill.</p>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
