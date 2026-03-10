@@ -60,6 +60,7 @@ export default function NewAccessoryPage() {
         return;
       }
 
+      setLoading(false);
       router.push(`/accessories/${json.id}`);
     } catch {
       setError("Network error. Please try again.");
