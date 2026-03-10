@@ -190,6 +190,7 @@ export default function FirearmDetailPage() {
   const [noteDate, setNoteDate] = useState(new Date().toISOString().split("T")[0]);
   const [savingNote, setSavingNote] = useState(false);
   const [deletingNote, setDeletingNote] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -227,6 +228,7 @@ export default function FirearmDetailPage() {
   async function handleAddNote(e: React.FormEvent) {
     e.preventDefault();
     if (!noteDescription.trim()) return;
+    setActionError(null);
     setSavingNote(true);
     try {
       const res = await fetch("/api/maintenance-notes", {
@@ -241,23 +243,28 @@ export default function FirearmDetailPage() {
         setNoteType("Cleaning");
         setNoteDate(new Date().toISOString().split("T")[0]);
         setAddingNote(false);
+      } else {
+        const json = await res.json().catch(() => ({}));
+        setActionError(json.error ?? "Failed to add note.");
       }
-    } catch { /* ignore */ }
+    } catch { setActionError("Something went wrong. Please try again."); }
     finally { setSavingNote(false); }
   }
 
   async function handleDeleteNote(noteId: string) {
     setDeletingNote(noteId);
+    setActionError(null);
     try {
       await fetch(`/api/maintenance-notes/${noteId}`, { method: "DELETE" });
       setMaintenanceNotes((prev) => prev.filter((n) => n.id !== noteId));
-    } catch { /* ignore */ }
+    } catch { setActionError("Failed to delete note. Please try again."); }
     finally { setDeletingNote(null); }
   }
 
   async function handleAddSchedule(e: React.FormEvent) {
     e.preventDefault();
     if (!scheduleForm.taskName.trim() || !scheduleForm.intervalValue) return;
+    setActionError(null);
     setSavingSchedule(true);
     try {
       const res = await fetch("/api/maintenance-schedules", {
@@ -270,29 +277,37 @@ export default function FirearmDetailPage() {
         setSchedules((prev) => [...prev, created]);
         setScheduleForm({ taskName: "", intervalType: "DAYS", intervalValue: "", notes: "" });
         setShowAddSchedule(false);
+      } else {
+        const json = await res.json().catch(() => ({}));
+        setActionError(json.error ?? "Failed to add schedule.");
       }
-    } catch { /* ignore */ }
+    } catch { setActionError("Something went wrong. Please try again."); }
     finally { setSavingSchedule(false); }
   }
 
   async function handleCompleteSchedule(scheduleId: string) {
     setCompletingSchedule(scheduleId);
+    setActionError(null);
     try {
       const res = await fetch(`/api/maintenance-schedules/${scheduleId}/complete`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
       if (res.ok) {
         const { schedule } = await res.json();
         setSchedules((prev) => prev.map((s) => s.id === scheduleId ? schedule : s));
+      } else {
+        const json = await res.json().catch(() => ({}));
+        setActionError(json.error ?? "Failed to mark complete.");
       }
-    } catch { /* ignore */ }
+    } catch { setActionError("Something went wrong. Please try again."); }
     finally { setCompletingSchedule(null); }
   }
 
   async function handleDeleteSchedule(scheduleId: string) {
     setDeletingSchedule(scheduleId);
+    setActionError(null);
     try {
       await fetch(`/api/maintenance-schedules/${scheduleId}`, { method: "DELETE" });
       setSchedules((prev) => prev.filter((s) => s.id !== scheduleId));
-    } catch { /* ignore */ }
+    } catch { setActionError("Failed to delete schedule. Please try again."); }
     finally { setDeletingSchedule(null); }
   }
 
@@ -321,13 +336,15 @@ export default function FirearmDetailPage() {
   const typeLabel = FIREARM_TYPE_LABELS[firearm.type] ?? firearm.type;
 
   async function handlePhotoChange(url: string | null, source: string | null) {
-    await fetch(`/api/firearms/${id}`, {
+    const res = await fetch(`/api/firearms/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ imageUrl: url, imageSource: source }),
     });
-    setLocalImageUrl(url);
-    setPhotoModalOpen(false);
+    if (res.ok) {
+      setLocalImageUrl(url);
+      setPhotoModalOpen(false);
+    }
   }
 
   return (
@@ -673,6 +690,10 @@ export default function FirearmDetailPage() {
         {sidebarTab === "maintenance" && (
           <div className="flex-1 overflow-y-auto">
             <div className="p-4 space-y-4">
+
+              {actionError && (
+                <p className="text-xs text-[#E53935] bg-[#E53935]/10 border border-[#E53935]/20 rounded-md px-3 py-2">{actionError}</p>
+              )}
 
               {/* Maintenance Schedules */}
               <div>
