@@ -112,6 +112,7 @@ export default function AccessoryDetailPage() {
   const [batteryForm, setBatteryForm] = useState({ hasBattery: false, batteryType: "", batteryIntervalDays: "" });
   const [savingBattery, setSavingBattery] = useState(false);
   const [loggingBatteryChange, setLoggingBatteryChange] = useState(false);
+  const [batteryError, setBatteryError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/accessories/${id}`)
@@ -176,6 +177,7 @@ export default function AccessoryDetailPage() {
 
   async function handleSaveBatterySettings(e: React.FormEvent) {
     e.preventDefault();
+    setBatteryError(null);
     setSavingBattery(true);
     try {
       const res = await fetch(`/api/accessories/${id}`, {
@@ -187,20 +189,27 @@ export default function AccessoryDetailPage() {
         const updated = await res.json();
         setAccessory((prev) => prev ? { ...prev, hasBattery: updated.hasBattery, batteryType: updated.batteryType, batteryIntervalDays: updated.batteryIntervalDays } : prev);
         setShowBatterySettings(false);
+      } else {
+        const json = await res.json().catch(() => ({}));
+        setBatteryError(json.error ?? "Failed to save battery settings.");
       }
-    } catch { /* ignore */ }
+    } catch { setBatteryError("Something went wrong. Please try again."); }
     finally { setSavingBattery(false); }
   }
 
   async function handleLogBatteryChange() {
+    setBatteryError(null);
     setLoggingBatteryChange(true);
     try {
       const res = await fetch(`/api/accessories/${id}/battery`, { method: "POST" });
       if (res.ok) {
         const updated = await res.json();
         setAccessory((prev) => prev ? { ...prev, batteryChangedAt: updated.batteryChangedAt } : prev);
+      } else {
+        const json = await res.json().catch(() => ({}));
+        setBatteryError(json.error ?? "Failed to log battery change.");
       }
-    } catch { /* ignore */ }
+    } catch { setBatteryError("Something went wrong. Please try again."); }
     finally { setLoggingBatteryChange(false); }
   }
 
@@ -228,13 +237,15 @@ export default function AccessoryDetailPage() {
   const visibleLogs = historyExpanded ? accessory.roundCountLogs : accessory.roundCountLogs.slice(0, 5);
 
   async function handlePhotoChange(url: string | null, source: string | null) {
-    await fetch(`/api/accessories/${id}`, {
+    const res = await fetch(`/api/accessories/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ imageUrl: url, imageSource: source }),
     });
-    setLocalImageUrl(url);
-    setPhotoModalOpen(false);
+    if (res.ok) {
+      setLocalImageUrl(url);
+      setPhotoModalOpen(false);
+    }
   }
 
   return (
@@ -651,6 +662,10 @@ export default function AccessoryDetailPage() {
                 Save Settings
               </button>
             </form>
+          )}
+
+          {batteryError && (
+            <p className="text-xs text-[#E53935] bg-[#E53935]/10 border border-[#E53935]/20 rounded-md mx-4 mt-2 px-3 py-2">{batteryError}</p>
           )}
 
           {!accessory.hasBattery && !showBatterySettings ? (

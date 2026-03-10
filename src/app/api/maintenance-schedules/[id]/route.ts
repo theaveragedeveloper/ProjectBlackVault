@@ -20,21 +20,32 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const body = await req.json();
   const { taskName, intervalType, intervalValue, notes } = body;
 
-  const schedule = await prisma.maintenanceSchedule.update({
-    where: { id },
-    data: {
-      ...(taskName !== undefined && { taskName }),
-      ...(intervalType !== undefined && { intervalType }),
-      ...(intervalValue !== undefined && { intervalValue: parseInt(intervalValue) }),
-      ...(notes !== undefined && { notes: notes || null }),
-    },
-  });
+  if (intervalType !== undefined && intervalType !== "ROUNDS" && intervalType !== "DAYS") {
+    return NextResponse.json({ error: "intervalType must be ROUNDS or DAYS" }, { status: 400 });
+  }
 
-  return NextResponse.json(schedule);
+  try {
+    const schedule = await prisma.maintenanceSchedule.update({
+      where: { id },
+      data: {
+        ...(taskName !== undefined && { taskName }),
+        ...(intervalType !== undefined && { intervalType }),
+        ...(intervalValue !== undefined && { intervalValue: parseInt(intervalValue) }),
+        ...(notes !== undefined && { notes: notes || null }),
+      },
+    });
+    return NextResponse.json(schedule);
+  } catch {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  await prisma.maintenanceSchedule.delete({ where: { id } });
-  return NextResponse.json({ success: true });
+  try {
+    await prisma.maintenanceSchedule.delete({ where: { id } });
+    return NextResponse.json({ success: true });
+  } catch {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 }

@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   LineChart,
   Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -13,7 +15,7 @@ import {
   ReferenceLine,
   Dot,
 } from "recharts";
-import { TrendingUp } from "lucide-react";
+import { TrendingUp, Award } from "lucide-react";
 
 interface DrillTemplate {
   id: string;
@@ -30,12 +32,28 @@ interface DrillResult {
   sourceId: string;
   date: string;
   rangeName: string | null;
+  buildId: string | null;
+  buildName: string | null;
   timeSeconds: number | null;
   score: number | null;
   accuracy: number | null;
   hits: number | null;
   totalShots: number | null;
   notes: string | null;
+  isTimePR: boolean;
+  isScorePR: boolean;
+  isAccuracyPR: boolean;
+}
+
+interface BuildStat {
+  buildName: string;
+  runs: number;
+  bestTime: number | null;
+  avgTime: number | null;
+  bestScore: number | null;
+  avgScore: number | null;
+  bestAccuracy: number | null;
+  avgAccuracy: number | null;
 }
 
 interface ResultsData {
@@ -50,6 +68,7 @@ interface ResultsData {
     bestAccuracy: number | null;
     avgAccuracy: number | null;
   };
+  byBuild: Record<string, BuildStat>;
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -69,24 +88,26 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "2-digit" });
 }
 
-// Custom clickable dot
+// Custom clickable dot — gold and larger for PR entries
 function ClickableDot(props: {
   cx?: number;
   cy?: number;
   payload?: DrillResult;
   onNavigate: (r: DrillResult) => void;
   fill?: string;
+  isPRField: "isTimePR" | "isScorePR" | "isAccuracyPR";
 }) {
-  const { cx, cy, payload, onNavigate, fill } = props;
+  const { cx, cy, payload, onNavigate, fill, isPRField } = props;
   if (!cx || !cy || !payload) return null;
+  const isPR = payload[isPRField];
   return (
     <Dot
       cx={cx}
       cy={cy}
-      r={5}
-      fill={fill ?? "#00C2FF"}
-      stroke="#0a1929"
-      strokeWidth={1.5}
+      r={isPR ? 7 : 5}
+      fill={isPR ? "#F5A623" : (fill ?? "#00C2FF")}
+      stroke={isPR ? "#7a4e00" : "#0a1929"}
+      strokeWidth={isPR ? 2 : 1.5}
       style={{ cursor: "pointer" }}
       onClick={() => onNavigate(payload)}
     />
@@ -148,6 +169,9 @@ function DrillPerformanceContent() {
   const showPassFail = scoringType === "PASS_FAIL";
   const showAccuracy = data?.results.some((r) => r.accuracy != null) ?? false;
 
+  const buildEntries = data ? Object.entries(data.byBuild) : [];
+  const showByBuild = buildEntries.length >= 2;
+
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       {/* Header */}
@@ -201,20 +225,20 @@ function DrillPerformanceContent() {
 
       {data && !loading && (
         <>
-          {/* Stats row */}
+          {/* Stats row — PR chips get gold border + trophy icon */}
           <div className="flex flex-wrap gap-2">
             {[
-              { label: "Runs", value: String(data.stats.runCount) },
+              { label: "Runs", value: String(data.stats.runCount), isPR: false },
               ...(showTime
                 ? [
-                    { label: "Best Time", value: data.stats.bestTime != null ? `${fmt(data.stats.bestTime)}s` : "—" },
-                    { label: "Avg Time", value: data.stats.avgTime != null ? `${fmt(data.stats.avgTime)}s` : "—" },
+                    { label: "Best Time", value: data.stats.bestTime != null ? `${fmt(data.stats.bestTime)}s` : "—", isPR: data.stats.bestTime != null },
+                    { label: "Avg Time", value: data.stats.avgTime != null ? `${fmt(data.stats.avgTime)}s` : "—", isPR: false },
                   ]
                 : []),
               ...(showScore || showPassFail
                 ? [
-                    { label: "Best Score", value: data.stats.bestScore != null ? fmt(data.stats.bestScore, 1) : "—" },
-                    { label: "Avg Score", value: data.stats.avgScore != null ? fmt(data.stats.avgScore, 1) : "—" },
+                    { label: "Best Score", value: data.stats.bestScore != null ? fmt(data.stats.bestScore, 1) : "—", isPR: data.stats.bestScore != null },
+                    { label: "Avg Score", value: data.stats.avgScore != null ? fmt(data.stats.avgScore, 1) : "—", isPR: false },
                   ]
                 : []),
               ...(showAccuracy
@@ -222,16 +246,22 @@ function DrillPerformanceContent() {
                     {
                       label: "Best Accuracy",
                       value: data.stats.bestAccuracy != null ? `${fmt(data.stats.bestAccuracy, 1)}%` : "—",
+                      isPR: data.stats.bestAccuracy != null,
                     },
                   ]
                 : []),
             ].map((s) => (
               <div
                 key={s.label}
-                className="rounded-md border border-vault-border bg-vault-surface px-3 py-1.5 text-center"
+                className={`rounded-md border bg-vault-surface px-3 py-1.5 text-center ${
+                  s.isPR ? "border-[#F5A623]/50" : "border-vault-border"
+                }`}
               >
-                <p className="text-[10px] text-vault-text-faint uppercase tracking-widest">{s.label}</p>
-                <p className="text-sm font-bold text-vault-text">{s.value}</p>
+                <p className="text-[10px] text-vault-text-faint uppercase tracking-widest flex items-center justify-center gap-1">
+                  {s.isPR && <Award className="w-2.5 h-2.5 text-[#F5A623]" />}
+                  {s.label}
+                </p>
+                <p className={`text-sm font-bold ${s.isPR ? "text-[#F5A623]" : "text-vault-text"}`}>{s.value}</p>
               </div>
             ))}
           </div>
@@ -276,7 +306,7 @@ function DrillPerformanceContent() {
                     dataKey="timeSeconds"
                     stroke="#00C2FF"
                     strokeWidth={2}
-                    dot={(props) => <ClickableDot {...props} onNavigate={navigateTo} fill="#00C2FF" />}
+                    dot={(props) => <ClickableDot {...props} onNavigate={navigateTo} fill="#00C2FF" isPRField="isTimePR" />}
                     activeDot={false}
                     connectNulls
                   />
@@ -322,7 +352,7 @@ function DrillPerformanceContent() {
                     dataKey="score"
                     stroke="#00C853"
                     strokeWidth={2}
-                    dot={(props) => <ClickableDot {...props} onNavigate={navigateTo} fill="#00C853" />}
+                    dot={(props) => <ClickableDot {...props} onNavigate={navigateTo} fill="#00C853" isPRField="isScorePR" />}
                     activeDot={false}
                     connectNulls
                   />
@@ -351,12 +381,80 @@ function DrillPerformanceContent() {
                     dataKey="accuracy"
                     stroke="#F5A623"
                     strokeWidth={2}
-                    dot={(props) => <ClickableDot {...props} onNavigate={navigateTo} fill="#F5A623" />}
+                    dot={(props) => <ClickableDot {...props} onNavigate={navigateTo} fill="#F5A623" isPRField="isAccuracyPR" />}
                     activeDot={false}
                     connectNulls
                   />
                 </LineChart>
               </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* By Build comparison */}
+          {showByBuild && (
+            <div className="rounded-lg border border-vault-border bg-vault-surface overflow-hidden">
+              <div className="px-4 py-2.5 border-b border-vault-border">
+                <p className="text-xs font-semibold text-vault-text-faint uppercase tracking-widest">By Build</p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-vault-border text-vault-text-faint">
+                      <th className="text-left px-4 py-2 font-normal">Build</th>
+                      <th className="text-right px-3 py-2 font-normal">Runs</th>
+                      {showTime && <th className="text-right px-3 py-2 font-normal">Best Time</th>}
+                      {showTime && <th className="text-right px-3 py-2 font-normal">Avg Time</th>}
+                      {(showScore || showPassFail) && <th className="text-right px-3 py-2 font-normal">Best Score</th>}
+                      {(showScore || showPassFail) && <th className="text-right px-3 py-2 font-normal">Avg Score</th>}
+                      {showAccuracy && <th className="text-right px-3 py-2 font-normal">Best Acc.</th>}
+                      {showAccuracy && <th className="text-right px-3 py-2 font-normal">Avg Acc.</th>}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-vault-border">
+                    {buildEntries.map(([key, b]) => {
+                      const bestTimeOverall = showTime ? Math.min(...buildEntries.map(([, x]) => x.bestTime ?? Infinity)) : null;
+                      const bestScoreOverall = showScore || showPassFail ? Math.max(...buildEntries.map(([, x]) => x.bestScore ?? -Infinity)) : null;
+                      const bestAccOverall = showAccuracy ? Math.max(...buildEntries.map(([, x]) => x.bestAccuracy ?? -Infinity)) : null;
+                      return (
+                        <tr key={key} className="hover:bg-vault-border/20 transition-colors">
+                          <td className="px-4 py-2.5 font-medium text-vault-text">{b.buildName}</td>
+                          <td className="px-3 py-2.5 text-right text-vault-text-muted">{b.runs}</td>
+                          {showTime && (
+                            <td className={`px-3 py-2.5 text-right font-mono ${b.bestTime === bestTimeOverall ? "text-[#00C2FF]" : "text-vault-text"}`}>
+                              {b.bestTime != null ? `${b.bestTime.toFixed(2)}s` : "—"}
+                            </td>
+                          )}
+                          {showTime && (
+                            <td className="px-3 py-2.5 text-right font-mono text-vault-text-muted">
+                              {b.avgTime != null ? `${b.avgTime.toFixed(2)}s` : "—"}
+                            </td>
+                          )}
+                          {(showScore || showPassFail) && (
+                            <td className={`px-3 py-2.5 text-right font-mono ${b.bestScore === bestScoreOverall ? "text-[#00C2FF]" : "text-vault-text"}`}>
+                              {b.bestScore != null ? (showPassFail ? (b.bestScore === 1 ? "Pass" : "Fail") : fmt(b.bestScore, 1)) : "—"}
+                            </td>
+                          )}
+                          {(showScore || showPassFail) && (
+                            <td className="px-3 py-2.5 text-right font-mono text-vault-text-muted">
+                              {b.avgScore != null ? fmt(b.avgScore, 1) : "—"}
+                            </td>
+                          )}
+                          {showAccuracy && (
+                            <td className={`px-3 py-2.5 text-right font-mono ${b.bestAccuracy === bestAccOverall ? "text-[#00C2FF]" : "text-vault-text"}`}>
+                              {b.bestAccuracy != null ? `${b.bestAccuracy.toFixed(1)}%` : "—"}
+                            </td>
+                          )}
+                          {showAccuracy && (
+                            <td className="px-3 py-2.5 text-right font-mono text-vault-text-muted">
+                              {b.avgAccuracy != null ? `${b.avgAccuracy.toFixed(1)}%` : "—"}
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
@@ -367,37 +465,44 @@ function DrillPerformanceContent() {
                 <p className="text-xs font-semibold text-vault-text-faint uppercase tracking-widest">All Entries</p>
               </div>
               <div className="divide-y divide-vault-border">
-                {[...data.results].reverse().map((r) => (
-                  <button
-                    key={r.id}
-                    onClick={() => navigateTo(r)}
-                    className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-vault-border/30 transition-colors"
-                  >
-                    <div>
-                      <p className="text-sm text-vault-text">{formatDate(r.date)}</p>
-                      <p className="text-xs text-vault-text-faint">
-                        {r.source === "session" ? "Session" : "Standalone drill"}
-                        {r.rangeName ? ` · ${r.rangeName}` : ""}
-                      </p>
-                    </div>
-                    <div className="flex gap-4 text-right">
-                      {r.timeSeconds != null && (
-                        <span className="text-sm text-[#00C2FF]">{r.timeSeconds}s</span>
-                      )}
-                      {r.score != null && scoringType !== "PASS_FAIL" && (
-                        <span className="text-sm text-[#00C853]">{r.score}</span>
-                      )}
-                      {r.score != null && scoringType === "PASS_FAIL" && (
-                        <span className={`text-sm ${r.score === 1 ? "text-green-400" : "text-red-400"}`}>
-                          {r.score === 1 ? "Pass" : "Fail"}
-                        </span>
-                      )}
-                      {r.accuracy != null && (
-                        <span className="text-sm text-[#F5A623]">{r.accuracy.toFixed(1)}%</span>
-                      )}
-                    </div>
-                  </button>
-                ))}
+                {[...data.results].reverse().map((r) => {
+                  const isPR = r.isTimePR || r.isScorePR || r.isAccuracyPR;
+                  return (
+                    <button
+                      key={r.id}
+                      onClick={() => navigateTo(r)}
+                      className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-vault-border/30 transition-colors"
+                    >
+                      <div>
+                        <p className="text-sm text-vault-text flex items-center gap-1.5">
+                          {isPR && <Award className="w-3 h-3 text-[#F5A623] shrink-0" />}
+                          {formatDate(r.date)}
+                        </p>
+                        <p className="text-xs text-vault-text-faint">
+                          {r.source === "session" ? "Session" : "Standalone drill"}
+                          {r.rangeName ? ` · ${r.rangeName}` : ""}
+                          {r.buildName ? ` · ${r.buildName}` : ""}
+                        </p>
+                      </div>
+                      <div className="flex gap-4 text-right">
+                        {r.timeSeconds != null && (
+                          <span className={`text-sm ${r.isTimePR ? "text-[#F5A623]" : "text-[#00C2FF]"}`}>{r.timeSeconds}s</span>
+                        )}
+                        {r.score != null && scoringType !== "PASS_FAIL" && (
+                          <span className={`text-sm ${r.isScorePR ? "text-[#F5A623]" : "text-[#00C853]"}`}>{r.score}</span>
+                        )}
+                        {r.score != null && scoringType === "PASS_FAIL" && (
+                          <span className={`text-sm ${r.score === 1 ? "text-green-400" : "text-red-400"}`}>
+                            {r.score === 1 ? "Pass" : "Fail"}
+                          </span>
+                        )}
+                        {r.accuracy != null && (
+                          <span className={`text-sm ${r.isAccuracyPR ? "text-[#F5A623]" : "text-[#F5A623]/70"}`}>{r.accuracy.toFixed(1)}%</span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}

@@ -52,7 +52,7 @@ export default function DocumentLibraryPage() {
   }
 
   const isPdf = (doc: UploadedDocument) =>
-    doc.mimeType === "application/pdf" || doc.fileUrl.endsWith(".pdf");
+    doc.mimeType === "application/pdf" || (doc.fileUrl ?? "").endsWith(".pdf");
 
   return (
     <div className="min-h-full">

@@ -3,8 +3,8 @@
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { formatNumber } from "@/lib/utils";
-import { Target, MapPin, Calendar, Loader2, ChevronDown, Clock, BarChart2, ListIcon } from "lucide-react";
+import { formatNumber, formatCurrency } from "@/lib/utils";
+import { Target, MapPin, Calendar, Loader2, ChevronDown, Clock, BarChart2, ListIcon, DollarSign, CalendarDays } from "lucide-react";
 import * as Tabs from "@radix-ui/react-tabs";
 import {
   LineChart,
@@ -37,6 +37,30 @@ interface RangeSession {
   sessionDrills?: { accuracy: number | null; drillName: string; templateId: string | null; timeSeconds: number | null; score: number | null }[];
 }
 
+interface AmmoCostData {
+  monthlyPurchases: { month: string; amount: number; rounds: number }[];
+  inventoryValue: number;
+  costPerRound: { caliber: string; avgCostPerRound: number }[];
+  allTimeSpend: number;
+}
+
+interface CalendarDay {
+  date: string;
+  sessionCount: number;
+  drillCount: number;
+}
+
+interface CalendarData {
+  year: number;
+  days: CalendarDay[];
+  currentStreak: number;
+  longestStreak: number;
+  totalActiveDays: number;
+  totalSessions: number;
+  totalDrills: number;
+  avgSessionsPerWeek: number;
+}
+
 function formatSessionDate(dateStr: string): string {
   const d = new Date(dateStr);
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -62,11 +86,63 @@ const CHART_STYLE = {
   tickStyle: { fill: "#6b7280", fontSize: 10 },
 };
 
+// Build 52-week calendar grid from days data
+function buildCalendarGrid(days: CalendarDay[], year: number) {
+  const dayMap = new Map(days.map((d) => [d.date, d]));
+
+  // Start from Monday of the first week that contains Jan 1 of the year
+  const jan1 = new Date(year, 0, 1);
+  // Go back to Monday
+  const startDay = new Date(jan1);
+  const dayOfWeek = (jan1.getDay() + 6) % 7; // Mon=0
+  startDay.setDate(jan1.getDate() - dayOfWeek);
+
+  const weeks: { date: string; count: number; isCurrentYear: boolean }[][] = [];
+  let current = new Date(startDay);
+
+  for (let w = 0; w < 53; w++) {
+    const week: { date: string; count: number; isCurrentYear: boolean }[] = [];
+    for (let d = 0; d < 7; d++) {
+      const iso = current.toISOString().split("T")[0];
+      const entry = dayMap.get(iso);
+      week.push({
+        date: iso,
+        count: entry ? entry.sessionCount + entry.drillCount : 0,
+        isCurrentYear: current.getFullYear() === year,
+      });
+      current.setDate(current.getDate() + 1);
+    }
+    weeks.push(week);
+    if (current.getFullYear() > year && current.getMonth() > 0) break;
+  }
+
+  return weeks;
+}
+
+function cellColor(count: number, isCurrentYear: boolean) {
+  if (!isCurrentYear) return "bg-transparent";
+  if (count === 0) return "bg-vault-border/60";
+  if (count === 1) return "bg-[#00C2FF]/35";
+  if (count === 2) return "bg-[#00C2FF]/65";
+  return "bg-[#00C2FF]";
+}
+
 export default function RangeHistoryPage() {
   const [sessions, setSessions] = useState<RangeSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [firearmFilter, setFirearmFilter] = useState<string>("ALL");
   const [activeTab, setActiveTab] = useState("history");
+
+  // Cost tab state (lazy load)
+  const [costData, setCostData] = useState<AmmoCostData | null>(null);
+  const [costLoading, setCostLoading] = useState(false);
+  const [costLoaded, setCostLoaded] = useState(false);
+
+  // Calendar tab state (lazy load)
+  const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
+  const [calendarData, setCalendarData] = useState<CalendarData | null>(null);
+  const [calendarLoading, setCalendarLoading] = useState(false);
+  const [calendarLoaded, setCalendarLoaded] = useState(false);
 
   const uniqueFirearms = useMemo(
     () => Array.from(new Map(sessions.map((s) => [s.firearm.id, s.firearm])).values()),
@@ -87,10 +163,33 @@ export default function RangeHistoryPage() {
       .catch(() => setLoading(false));
   }, []);
 
+  // Lazy load cost data when tab is first activated
+  useEffect(() => {
+    if (activeTab === "cost" && !costLoaded) {
+      setCostLoading(true);
+      setCostLoaded(true);
+      fetch("/api/analytics/ammo-cost")
+        .then((r) => r.json())
+        .then((d) => { setCostData(d); setCostLoading(false); })
+        .catch(() => setCostLoading(false));
+    }
+  }, [activeTab, costLoaded]);
+
+  // Lazy load calendar data when tab is first activated or year changes
+  useEffect(() => {
+    if (activeTab === "calendar") {
+      setCalendarLoading(true);
+      setCalendarLoaded(true);
+      fetch(`/api/training-calendar?year=${calendarYear}`)
+        .then((r) => r.json())
+        .then((d) => { setCalendarData(d); setCalendarLoading(false); })
+        .catch(() => setCalendarLoading(false));
+    }
+  }, [activeTab, calendarYear]);
+
   // ── Analytics aggregations ───────────────────────────────────────
   const roundsByMonth = useMemo(() => {
     const map = new Map<string, { rounds: number; sessions: number }>();
-    // Last 12 months
     for (let i = 11; i >= 0; i--) {
       const d = new Date();
       d.setDate(1);
@@ -131,6 +230,31 @@ export default function RangeHistoryPage() {
   const avgRoundsPerSession = filtered.length > 0
     ? Math.round(totalRounds / filtered.length)
     : 0;
+
+  const calendarGrid = useMemo(
+    () => calendarData ? buildCalendarGrid(calendarData.days, calendarYear) : [],
+    [calendarData, calendarYear]
+  );
+
+  // Month labels for calendar
+  const calendarMonths = useMemo(() => {
+    if (!calendarGrid.length) return [];
+    const labels: { label: string; weekIndex: number }[] = [];
+    let lastMonth = -1;
+    calendarGrid.forEach((week, wi) => {
+      const firstDay = week.find((d) => d.isCurrentYear);
+      if (!firstDay) return;
+      const month = new Date(firstDay.date).getMonth();
+      if (month !== lastMonth) {
+        labels.push({ label: new Date(firstDay.date).toLocaleDateString("en-US", { month: "short" }), weekIndex: wi });
+        lastMonth = month;
+      }
+    });
+    return labels;
+  }, [calendarGrid]);
+
+  const currentYear = new Date().getFullYear();
+  const yearOptions = [currentYear, currentYear - 1, currentYear - 2];
 
   return (
     <div className="min-h-full">
@@ -202,9 +326,9 @@ export default function RangeHistoryPage() {
           </div>
         )}
 
-        {/* History / Analytics tabs */}
+        {/* Tabs */}
         <Tabs.Root value={activeTab} onValueChange={setActiveTab}>
-          <Tabs.List className="flex gap-1 mb-5 bg-vault-surface border border-vault-border rounded-lg p-1 w-fit">
+          <Tabs.List className="flex gap-1 mb-5 bg-vault-surface border border-vault-border rounded-lg p-1 w-fit flex-wrap">
             <Tabs.Trigger value="history"
               className="flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-colors data-[state=active]:bg-[#00C2FF]/10 data-[state=active]:text-[#00C2FF] data-[state=inactive]:text-vault-text-muted hover:text-vault-text">
               <ListIcon className="w-3.5 h-3.5" /> History
@@ -212,6 +336,14 @@ export default function RangeHistoryPage() {
             <Tabs.Trigger value="analytics"
               className="flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-colors data-[state=active]:bg-[#00C2FF]/10 data-[state=active]:text-[#00C2FF] data-[state=inactive]:text-vault-text-muted hover:text-vault-text">
               <BarChart2 className="w-3.5 h-3.5" /> Analytics
+            </Tabs.Trigger>
+            <Tabs.Trigger value="cost"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-colors data-[state=active]:bg-[#00C2FF]/10 data-[state=active]:text-[#00C2FF] data-[state=inactive]:text-vault-text-muted hover:text-vault-text">
+              <DollarSign className="w-3.5 h-3.5" /> Cost
+            </Tabs.Trigger>
+            <Tabs.Trigger value="calendar"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-colors data-[state=active]:bg-[#00C2FF]/10 data-[state=active]:text-[#00C2FF] data-[state=inactive]:text-vault-text-muted hover:text-vault-text">
+              <CalendarDays className="w-3.5 h-3.5" /> Calendar
             </Tabs.Trigger>
           </Tabs.List>
 
@@ -237,64 +369,56 @@ export default function RangeHistoryPage() {
                 </Link>
               </div>
             ) : (
-              <>
-                <div className="space-y-3">
-                  {filtered.map((session) => (
-                    <Link key={session.id} href={`/range/${session.id}`}
-                      className="block bg-vault-surface border border-vault-border rounded-lg p-4 hover:border-[#00C2FF]/30 hover:bg-[#00C2FF]/5 transition-colors">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-3 mb-2 flex-wrap">
-                            <span className="text-sm font-semibold text-vault-text">{session.firearm.name}</span>
-                            {session.build && (
-                              <span className="text-[10px] font-mono text-vault-text-faint border border-vault-border px-1.5 py-0.5 rounded">
-                                {session.build.name}
-                              </span>
-                            )}
-                            <span className="text-[10px] font-mono font-bold text-[#00C2FF] bg-[#00C2FF]/10 border border-[#00C2FF]/20 px-2 py-0.5 rounded">
-                              {formatNumber(session.roundsFired)} rds
+              <div className="space-y-3">
+                {filtered.map((session) => (
+                  <Link key={session.id} href={`/range/${session.id}`}
+                    className="block bg-vault-surface border border-vault-border rounded-lg p-4 hover:border-[#00C2FF]/30 hover:bg-[#00C2FF]/5 transition-colors">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 mb-2 flex-wrap">
+                          <span className="text-sm font-semibold text-vault-text">{session.firearm.name}</span>
+                          {session.build && (
+                            <span className="text-[10px] font-mono text-vault-text-faint border border-vault-border px-1.5 py-0.5 rounded">
+                              {session.build.name}
                             </span>
-                            {session._count.sessionDrills > 0 && (
-                              <span className="text-[10px] font-mono text-[#F5A623] border border-[#F5A623]/20 px-1.5 py-0.5 rounded">
-                                {session._count.sessionDrills} drill{session._count.sessionDrills !== 1 ? "s" : ""}
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="flex items-center gap-4 text-xs text-vault-text-faint flex-wrap">
-                            <div className="flex items-center gap-1">
-                              <Calendar className="w-3 h-3" />
-                              <span>{formatSessionDate(session.date)}</span>
-                            </div>
-                            {session.rangeName && (
-                              <div className="flex items-center gap-1">
-                                <MapPin className="w-3 h-3" />
-                                <span>{session.rangeName}{session.rangeLocation ? ` · ${session.rangeLocation}` : ""}</span>
-                              </div>
-                            )}
-                            {session.groupSizeIn != null && (
-                              <span className="text-[10px] font-mono text-[#00C853]">
-                                {session.groupSizeIn}&quot; group
-                              </span>
-                            )}
-                          </div>
-
-                          {session.notes && (
-                            <p className="text-xs text-vault-text-muted mt-2 line-clamp-2">{session.notes}</p>
+                          )}
+                          <span className="text-[10px] font-mono font-bold text-[#00C2FF] bg-[#00C2FF]/10 border border-[#00C2FF]/20 px-2 py-0.5 rounded">
+                            {formatNumber(session.roundsFired)} rds
+                          </span>
+                          {session._count.sessionDrills > 0 && (
+                            <span className="text-[10px] font-mono text-[#F5A623] border border-[#F5A623]/20 px-1.5 py-0.5 rounded">
+                              {session._count.sessionDrills} drill{session._count.sessionDrills !== 1 ? "s" : ""}
+                            </span>
                           )}
                         </div>
-                        <ChevronDown className="w-4 h-4 text-vault-text-faint shrink-0 -rotate-90" />
-                      </div>
-                    </Link>
-                  ))}
-                </div>
 
-                {filtered.length > 5 && (
-                  <div className="flex justify-center mt-6">
-                    <ChevronDown className="w-4 h-4 text-vault-text-faint" />
-                  </div>
-                )}
-              </>
+                        <div className="flex items-center gap-4 text-xs text-vault-text-faint flex-wrap">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-3 h-3" />
+                            <span>{formatSessionDate(session.date)}</span>
+                          </div>
+                          {session.rangeName && (
+                            <div className="flex items-center gap-1">
+                              <MapPin className="w-3 h-3" />
+                              <span>{session.rangeName}{session.rangeLocation ? ` · ${session.rangeLocation}` : ""}</span>
+                            </div>
+                          )}
+                          {session.groupSizeIn != null && (
+                            <span className="text-[10px] font-mono text-[#00C853]">
+                              {session.groupSizeIn}&quot; group
+                            </span>
+                          )}
+                        </div>
+
+                        {session.notes && (
+                          <p className="text-xs text-vault-text-muted mt-2 line-clamp-2">{session.notes}</p>
+                        )}
+                      </div>
+                      <ChevronDown className="w-4 h-4 text-vault-text-faint shrink-0 -rotate-90" />
+                    </div>
+                  </Link>
+                ))}
+              </div>
             )}
           </Tabs.Content>
 
@@ -311,7 +435,6 @@ export default function RangeHistoryPage() {
               </div>
             ) : (
               <div className="space-y-6">
-                {/* Rounds over time */}
                 <div className="bg-vault-surface border border-vault-border rounded-lg p-4">
                   <p className="text-xs font-mono uppercase tracking-widest text-vault-text-muted mb-4">
                     Rounds Fired — Last 12 Months
@@ -327,7 +450,6 @@ export default function RangeHistoryPage() {
                   </ResponsiveContainer>
                 </div>
 
-                {/* Sessions per month */}
                 <div className="bg-vault-surface border border-vault-border rounded-lg p-4">
                   <p className="text-xs font-mono uppercase tracking-widest text-vault-text-muted mb-4">
                     Sessions Per Month
@@ -343,7 +465,6 @@ export default function RangeHistoryPage() {
                   </ResponsiveContainer>
                 </div>
 
-                {/* Group size trend */}
                 {groupTrend.length >= 2 && (
                   <div className="bg-vault-surface border border-vault-border rounded-lg p-4">
                     <p className="text-xs font-mono uppercase tracking-widest text-vault-text-muted mb-4">
@@ -370,6 +491,175 @@ export default function RangeHistoryPage() {
                     )}
                   </div>
                 )}
+              </div>
+            )}
+          </Tabs.Content>
+
+          {/* COST TAB */}
+          <Tabs.Content value="cost">
+            {costLoading ? (
+              <div className="flex items-center justify-center py-24">
+                <Loader2 className="w-8 h-8 text-[#00C2FF] animate-spin" />
+              </div>
+            ) : !costData ? (
+              <div className="flex flex-col items-center justify-center py-24 text-center">
+                <DollarSign className="w-10 h-10 text-vault-text-faint mx-auto mb-3" />
+                <p className="text-vault-text-muted">No ammo cost data available yet.</p>
+                <p className="text-xs text-vault-text-faint mt-1">Add ammo stocks with a purchase price to track spending.</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Summary chips */}
+                <div className="flex flex-wrap gap-3">
+                  {[
+                    { label: "All-Time Spend", value: formatCurrency(costData.allTimeSpend), color: "text-[#E53935]" },
+                    { label: "Inventory Value", value: formatCurrency(costData.inventoryValue), color: "text-[#00C853]" },
+                    ...(costData.costPerRound.length > 0
+                      ? [{
+                          label: "Avg Cost/Round",
+                          value: `$${(costData.costPerRound.reduce((s, c) => s + c.avgCostPerRound, 0) / costData.costPerRound.length).toFixed(3)}`,
+                          color: "text-[#F5A623]",
+                        }]
+                      : []),
+                  ].map((chip) => (
+                    <div key={chip.label} className="rounded-md border border-vault-border bg-vault-surface px-4 py-2 text-center">
+                      <p className="text-[10px] uppercase tracking-widest text-vault-text-faint">{chip.label}</p>
+                      <p className={`text-base font-bold font-mono ${chip.color}`}>{chip.value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Monthly spend chart */}
+                {costData.monthlyPurchases.some((m) => m.amount > 0) && (
+                  <div className="bg-vault-surface border border-vault-border rounded-lg p-4">
+                    <p className="text-xs font-mono uppercase tracking-widest text-vault-text-muted mb-4">
+                      Monthly Ammo Spend — Last 12 Months
+                    </p>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <BarChart data={costData.monthlyPurchases}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                        <XAxis dataKey="month" tick={CHART_STYLE.tickStyle} />
+                        <YAxis tick={CHART_STYLE.tickStyle} tickFormatter={(v) => `$${v}`} />
+                        <Tooltip
+                          contentStyle={CHART_STYLE.contentStyle}
+                          formatter={(v: unknown) => [`$${Number(v).toFixed(2)}`, "Spend"]}
+                        />
+                        <Bar dataKey="amount" fill="#E53935" fillOpacity={0.7} name="Spend" radius={[2, 2, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+
+                {/* Cost per round by caliber */}
+                {costData.costPerRound.length > 0 && (
+                  <div className="bg-vault-surface border border-vault-border rounded-lg overflow-hidden">
+                    <div className="px-4 py-2.5 border-b border-vault-border">
+                      <p className="text-xs font-semibold text-vault-text-faint uppercase tracking-widest">Cost Per Round by Caliber</p>
+                    </div>
+                    <div className="divide-y divide-vault-border">
+                      {costData.costPerRound.map((c) => (
+                        <div key={c.caliber} className="flex items-center justify-between px-4 py-3">
+                          <span className="text-sm text-vault-text font-mono">{c.caliber}</span>
+                          <span className="text-sm font-bold text-[#F5A623] font-mono">
+                            ${c.avgCostPerRound.toFixed(3)} / rd
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </Tabs.Content>
+
+          {/* CALENDAR TAB */}
+          <Tabs.Content value="calendar">
+            {/* Year selector */}
+            <div className="flex items-center gap-2 mb-5">
+              <span className="text-xs text-vault-text-muted">Year</span>
+              {yearOptions.map((y) => (
+                <button
+                  key={y}
+                  onClick={() => setCalendarYear(y)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-mono border transition-colors ${
+                    calendarYear === y
+                      ? "bg-[#00C2FF]/10 border-[#00C2FF]/40 text-[#00C2FF]"
+                      : "border-vault-border text-vault-text-muted hover:border-vault-text-muted/40"
+                  }`}
+                >
+                  {y}
+                </button>
+              ))}
+            </div>
+
+            {calendarLoading ? (
+              <div className="flex items-center justify-center py-24">
+                <Loader2 className="w-8 h-8 text-[#00C2FF] animate-spin" />
+              </div>
+            ) : !calendarData ? null : (
+              <div className="space-y-6">
+                {/* Streak stats */}
+                <div className="flex flex-wrap gap-3">
+                  {[
+                    { label: "Current Streak", value: `${calendarData.currentStreak}d`, color: calendarData.currentStreak > 0 ? "text-[#00C2FF]" : "text-vault-text" },
+                    { label: "Longest Streak", value: `${calendarData.longestStreak}d`, color: "text-[#F5A623]" },
+                    { label: "Active Days", value: String(calendarData.totalActiveDays), color: "text-vault-text" },
+                    { label: "Avg / Week", value: String(calendarData.avgSessionsPerWeek), color: "text-vault-text" },
+                  ].map((chip) => (
+                    <div key={chip.label} className="rounded-md border border-vault-border bg-vault-surface px-4 py-2 text-center">
+                      <p className="text-[10px] uppercase tracking-widest text-vault-text-faint">{chip.label}</p>
+                      <p className={`text-base font-bold font-mono ${chip.color}`}>{chip.value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Calendar heatmap */}
+                <div className="bg-vault-surface border border-vault-border rounded-lg p-4 overflow-x-auto">
+                  <p className="text-xs font-mono uppercase tracking-widest text-vault-text-muted mb-3">
+                    Training Activity — {calendarYear}
+                  </p>
+
+                  {/* Month labels */}
+                  <div className="flex mb-1" style={{ gap: "3px" }}>
+                    {calendarGrid.map((_, wi) => {
+                      const label = calendarMonths.find((m) => m.weekIndex === wi);
+                      return (
+                        <div key={wi} className="w-3 shrink-0 text-[9px] text-vault-text-faint text-center" style={{ minWidth: "12px" }}>
+                          {label ? label.label : ""}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Grid: 7 rows (Mon–Sun), N columns (weeks) */}
+                  <div className="flex flex-col" style={{ gap: "3px" }}>
+                    {[0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => (
+                      <div key={dayOfWeek} className="flex" style={{ gap: "3px" }}>
+                        {calendarGrid.map((week, wi) => {
+                          const cell = week[dayOfWeek];
+                          if (!cell) return <div key={wi} className="w-3 h-3 shrink-0" style={{ minWidth: "12px" }} />;
+                          return (
+                            <div
+                              key={wi}
+                              title={`${cell.date}${cell.count > 0 ? ` · ${cell.count} activit${cell.count === 1 ? "y" : "ies"}` : ""}`}
+                              className={`w-3 h-3 rounded-sm shrink-0 transition-opacity hover:opacity-80 ${cellColor(cell.count, cell.isCurrentYear)}`}
+                              style={{ minWidth: "12px" }}
+                            />
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Legend */}
+                  <div className="flex items-center gap-2 mt-3">
+                    <span className="text-[9px] text-vault-text-faint">Less</span>
+                    {["bg-vault-border/60", "bg-[#00C2FF]/35", "bg-[#00C2FF]/65", "bg-[#00C2FF]"].map((cls) => (
+                      <div key={cls} className={`w-3 h-3 rounded-sm ${cls}`} />
+                    ))}
+                    <span className="text-[9px] text-vault-text-faint">More</span>
+                  </div>
+                </div>
               </div>
             )}
           </Tabs.Content>
