@@ -286,6 +286,9 @@ export default function AmmoPage() {
   }
 
   const totalRounds = groups.reduce((sum, g) => sum + g.totalQuantity, 0);
+  const inventoryValue = groups
+    .flatMap((g) => g.stocks)
+    .reduce((sum, s) => sum + s.quantity * (s.purchasePrice ?? 0), 0);
 
   return (
     <div className="min-h-full">
@@ -315,6 +318,15 @@ export default function AmmoPage() {
             <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-0.5">Total Rounds</p>
             <p className="text-lg font-bold font-mono text-[#F5A623]">{formatNumber(totalRounds)}</p>
           </div>
+          {inventoryValue > 0 && (
+            <>
+              <div className="w-px h-8 bg-vault-border" />
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-0.5">Inventory Value</p>
+                <p className="text-lg font-bold font-mono text-[#00C2FF]">{formatCurrency(inventoryValue)}</p>
+              </div>
+            </>
+          )}
         </div>
 
         {loading ? (
