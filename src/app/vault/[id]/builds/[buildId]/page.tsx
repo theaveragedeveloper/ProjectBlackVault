@@ -628,6 +628,152 @@ function AccessoryBrowserModal({
   );
 }
 
+// ─── Gun Silhouette ─────────────────────────────────────────────
+
+function GunSilhouette({ type }: { type: string }) {
+  const svgProps = {
+    viewBox: "0 0 100 100",
+    fill: "none" as const,
+    stroke: "#00C2FF",
+    strokeWidth: "0.7",
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    className: "w-full h-full opacity-[0.10]",
+  };
+
+  switch (type) {
+    case "RIFLE":
+    case "SMG":
+    case "PCC":
+      return (
+        <svg {...svgProps}>
+          {/* Muzzle brake */}
+          <rect x="2" y="41" width="5" height="8" rx="0.5" />
+          {/* Barrel */}
+          <rect x="7" y="43" width="40" height="4" rx="0.5" />
+          {/* Handguard */}
+          <rect x="14" y="39" width="32" height="12" rx="1" />
+          {/* Gas block */}
+          <rect x="25" y="36" width="4" height="5" rx="0.5" />
+          {/* Upper receiver */}
+          <rect x="44" y="36" width="22" height="10" rx="1" />
+          {/* Optic rail */}
+          <line x1="44" y1="36" x2="64" y2="36" />
+          {/* Lower receiver */}
+          <rect x="44" y="46" width="22" height="14" rx="1" />
+          {/* Trigger guard */}
+          <path d="M 52 60 Q 58 67 64 60" />
+          {/* Pistol grip */}
+          <rect x="60" y="56" width="8" height="15" rx="1" />
+          {/* Buffer tube */}
+          <rect x="64" y="38" width="20" height="8" rx="0.5" />
+          {/* Stock */}
+          <path d="M 82 36 L 90 36 L 92 44 L 90 50 L 82 48 Z" />
+          {/* Magazine */}
+          <rect x="46" y="58" width="13" height="18" rx="1" />
+        </svg>
+      );
+
+    case "PISTOL":
+    case "REVOLVER":
+      return (
+        <svg {...svgProps}>
+          {/* Barrel extension */}
+          <rect x="5" y="41" width="26" height="6" rx="0.5" />
+          {/* Slide */}
+          <rect x="12" y="30" width="50" height="18" rx="1.5" />
+          {/* Ejection port */}
+          <rect x="30" y="31" width="22" height="5" rx="0.5" />
+          {/* Frame */}
+          <rect x="28" y="48" width="32" height="14" rx="1" />
+          {/* Trigger guard */}
+          <path d="M 33 62 Q 40 70 48 62" />
+          {/* Grip */}
+          <rect x="42" y="56" width="20" height="24" rx="1.5" />
+          {/* Magazine (bottom of grip) */}
+          <rect x="45" y="62" width="14" height="16" rx="1" />
+          {/* Rail under barrel */}
+          <rect x="18" y="59" width="12" height="4" rx="0.5" />
+        </svg>
+      );
+
+    case "SHOTGUN":
+      return (
+        <svg {...svgProps}>
+          {/* Muzzle */}
+          <rect x="2" y="41" width="5" height="9" rx="0.5" />
+          {/* Barrel */}
+          <rect x="7" y="43" width="45" height="5" rx="0.5" />
+          {/* Magazine tube under barrel */}
+          <rect x="7" y="49" width="38" height="4" rx="0.5" />
+          {/* Forend */}
+          <rect x="14" y="40" width="26" height="14" rx="1" />
+          {/* Receiver */}
+          <rect x="50" y="36" width="22" height="16" rx="1" />
+          {/* Trigger guard */}
+          <path d="M 55 52 Q 62 60 68 52" />
+          {/* Grip */}
+          <rect x="62" y="50" width="9" height="16" rx="1" />
+          {/* Stock */}
+          <path d="M 70 37 L 90 37 L 92 52 L 70 52 Z" />
+        </svg>
+      );
+
+    case "BOLT_ACTION":
+      return (
+        <svg {...svgProps}>
+          {/* Muzzle */}
+          <rect x="2" y="42" width="6" height="8" rx="0.5" />
+          {/* Barrel */}
+          <rect x="8" y="44" width="48" height="5" rx="0.5" />
+          {/* Receiver */}
+          <rect x="54" y="36" width="18" height="14" rx="1" />
+          {/* Scope rail */}
+          <line x1="54" y1="36" x2="70" y2="36" />
+          {/* Bolt handle */}
+          <path d="M 68 38 L 74 34" />
+          <circle cx="74" cy="33" r="1.5" />
+          {/* Trigger guard */}
+          <path d="M 58 50 Q 64 58 70 50" />
+          {/* Stock */}
+          <path d="M 54 50 L 90 48 L 90 58 L 54 58 Z" />
+          {/* Magazine */}
+          <rect x="54" y="58" width="14" height="12" rx="1" />
+        </svg>
+      );
+
+    case "LEVER_ACTION":
+      return (
+        <svg {...svgProps}>
+          {/* Muzzle */}
+          <rect x="2" y="42" width="6" height="8" rx="0.5" />
+          {/* Barrel */}
+          <rect x="8" y="44" width="48" height="5" rx="0.5" />
+          {/* Tubular magazine under barrel */}
+          <rect x="8" y="50" width="40" height="3" rx="0.5" />
+          {/* Receiver */}
+          <rect x="54" y="37" width="18" height="14" rx="1" />
+          {/* Lever loop */}
+          <path d="M 56 51 Q 56 68 65 68 Q 74 68 74 51" />
+          {/* Stock */}
+          <path d="M 70 38 L 90 42 L 90 56 L 70 54 Z" />
+          {/* Wrist */}
+          <rect x="60" y="38" width="12" height="16" rx="1" />
+        </svg>
+      );
+
+    default:
+      return (
+        <svg {...svgProps}>
+          <rect x="5" y="41" width="60" height="12" rx="1" />
+          <rect x="44" y="36" width="22" height="10" rx="1" />
+          <rect x="60" y="50" width="10" height="16" rx="1" />
+          <path d="M 70 37 L 88 37 L 88 50 L 70 50 Z" />
+        </svg>
+      );
+  }
+}
+
 // ─── Weapon Canvas ─────────────────────────────────────────────
 
 interface WeaponCanvasProps {
@@ -648,34 +794,21 @@ function WeaponCanvas({ build, onSlotClick, onRemoveSlot }: WeaponCanvasProps) {
 
   return (
     <div className="relative w-full h-full bg-vault-canvas overflow-hidden">
+      {/* Tactical grid */}
       <div className="absolute inset-0 tactical-grid opacity-60" />
+
+      {/* Corner brackets */}
       <div className="absolute top-4 left-4 w-8 h-8 border-t-2 border-l-2 border-[#00C2FF]/20" />
       <div className="absolute top-4 right-4 w-8 h-8 border-t-2 border-r-2 border-[#00C2FF]/20" />
       <div className="absolute bottom-4 left-4 w-8 h-8 border-b-2 border-l-2 border-[#00C2FF]/20" />
       <div className="absolute bottom-4 right-4 w-8 h-8 border-b-2 border-r-2 border-[#00C2FF]/20" />
 
-      <div className="absolute inset-0 flex items-center justify-center p-16">
-        {build.firearm.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={build.firearm.imageUrl}
-            alt={build.firearm.name}
-            className="w-full h-full object-contain"
-            style={{ filter: "drop-shadow(0 0 24px rgba(0,194,255,0.12))" }}
-          />
-        ) : (
-          <div className="flex flex-col items-center gap-4 text-center select-none">
-            <Shield className="w-20 h-20 text-vault-border" />
-            <div>
-              <p className="text-lg font-bold text-vault-border">{build.firearm.name}</p>
-              <p className="text-xs text-vault-surface-2 font-mono mt-1 uppercase tracking-widest">
-                {build.firearm.type}
-              </p>
-            </div>
-          </div>
-        )}
+      {/* Blueprint gun silhouette — always shown, no photo dependency */}
+      <div className="absolute inset-0 flex items-center justify-center p-10 pointer-events-none select-none">
+        <GunSilhouette type={build.firearm.type} />
       </div>
 
+      {/* Slot nodes */}
       {availableSlots.map((slotType) => {
         const pos = positions[slotType];
         if (!pos) return null;
@@ -684,49 +817,73 @@ function WeaponCanvas({ build, onSlotClick, onRemoveSlot }: WeaponCanvasProps) {
         const hasAccessory = !!slot?.accessory;
         const slotIconConfig = SLOT_ICONS[slotType];
         const SlotIcon = slotIconConfig?.icon ?? Shield;
+        const color = slotIconConfig?.color ?? "#8B9DB0";
 
         if (hasAccessory && slot?.accessory) {
           const acc = slot.accessory;
           return (
-            <div key={slotType} className="absolute z-10 group" style={{ left: `${pos.x}%`, top: `${pos.y}%`, transform: "translate(-50%, -50%)" }}>
-              <div className="relative">
-                <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border text-[10px] font-medium cursor-default whitespace-nowrap max-w-[140px]"
-                  style={{ backgroundColor: "var(--vault-canvas)", borderColor: `${slotIconConfig?.color ?? "#00C2FF"}40`, color: slotIconConfig?.color ?? "#00C2FF", boxShadow: `0 0 10px ${slotIconConfig?.color ?? "#00C2FF"}20` }}>
-                  <SlotIcon className="w-2.5 h-2.5 shrink-0" />
-                  <span className="truncate">{acc.name}</span>
+            <div
+              key={slotType}
+              className="absolute z-10 group"
+              style={{ left: `${pos.x}%`, top: `${pos.y}%`, transform: "translate(-50%, -50%)" }}
+            >
+              <div className="flex flex-col items-center gap-1">
+                <div
+                  className="relative w-9 h-9 rounded-full border-2 flex items-center justify-center transition-transform group-hover:scale-110 cursor-default"
+                  style={{
+                    borderColor: color,
+                    backgroundColor: `${color}20`,
+                    boxShadow: `0 0 14px ${color}40`,
+                  }}
+                >
+                  <SlotIcon className="w-4 h-4" style={{ color }} />
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onRemoveSlot(slotType); }}
+                    className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-[#E53935] text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                    title="Remove"
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </button>
                 </div>
-                <div className="absolute -bottom-3.5 left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded text-[9px] font-mono whitespace-nowrap"
-                  style={{ backgroundColor: "var(--vault-canvas)", color: "#F5A623", border: "1px solid rgba(245,166,35,0.3)" }}>
-                  {acc.roundCount.toLocaleString()}r
-                </div>
-                <button onClick={(e) => { e.stopPropagation(); onRemoveSlot(slotType); }}
-                  className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-[#E53935] text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center" title="Remove">
-                  <X className="w-2.5 h-2.5" />
-                </button>
+                <span
+                  className="text-[8px] font-mono text-center leading-tight max-w-[72px] truncate text-vault-text-muted"
+                  title={acc.name}
+                >
+                  {acc.name}
+                </span>
               </div>
             </div>
           );
         }
 
         return (
-          <button key={slotType} onClick={() => onSlotClick(slotType)} className="absolute z-10 group"
+          <button
+            key={slotType}
+            onClick={() => onSlotClick(slotType)}
+            className="absolute z-10 group"
             style={{ left: `${pos.x}%`, top: `${pos.y}%`, transform: "translate(-50%, -50%)" }}
-            title={`Add ${SLOT_TYPE_LABELS[slotType]}`}>
-            <div className="relative flex items-center justify-center w-5 h-5">
-              <div className="absolute w-5 h-5 rounded-full animate-pulse-ring"
-                style={{ backgroundColor: `${slotIconConfig?.color ?? "#8B9DB0"}18`, border: `1px solid ${slotIconConfig?.color ?? "#8B9DB0"}50` }} />
-              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: `${slotIconConfig?.color ?? "#8B9DB0"}80` }} />
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-vault-canvas border border-vault-border rounded text-[10px] text-vault-text-muted whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                {SLOT_TYPE_LABELS[slotType]}
+            title={`Add ${SLOT_TYPE_LABELS[slotType]}`}
+          >
+            <div className="flex flex-col items-center gap-1">
+              <div
+                className="w-8 h-8 rounded-full border-2 border-dashed flex items-center justify-center transition-all group-hover:scale-110 group-hover:border-solid"
+                style={{
+                  borderColor: `${color}50`,
+                  backgroundColor: `${color}08`,
+                }}
+              >
+                <SlotIcon className="w-3.5 h-3.5" style={{ color: `${color}70` }} />
               </div>
+              <span
+                className="text-[8px] font-mono text-center leading-tight max-w-[56px] truncate"
+                style={{ color: `${color}80` }}
+              >
+                {SLOT_TYPE_LABELS[slotType]}
+              </span>
             </div>
           </button>
         );
       })}
-
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-center pointer-events-none">
-        <p className="text-[10px] font-mono text-vault-border uppercase tracking-[0.3em]">{build.name}</p>
-      </div>
     </div>
   );
 }
@@ -1002,7 +1159,7 @@ export default function BuildConfiguratorPage() {
 
       {/* Main split layout */}
       <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
-        <div className="relative h-64 md:h-auto shrink-0 md:shrink md:[flex:0_0_65%]">
+        <div className="relative h-80 md:h-auto shrink-0 md:shrink md:[flex:0_0_65%]">
           <WeaponCanvas build={build} onSlotClick={(slotType) => setBrowserSlot(slotType)} onRemoveSlot={handleRemoveSlot} />
         </div>
         <div className="flex-1 md:[flex:0_0_35%] overflow-hidden">
