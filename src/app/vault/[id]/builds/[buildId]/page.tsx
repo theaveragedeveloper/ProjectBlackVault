@@ -638,7 +638,7 @@ function GunSilhouette({ type }: { type: string }) {
     strokeWidth: "0.7",
     strokeLinecap: "round" as const,
     strokeLinejoin: "round" as const,
-    className: "w-full h-full opacity-[0.10]",
+    className: "w-full h-full opacity-[0.15]",
   };
 
   switch (type) {
@@ -792,6 +792,8 @@ function WeaponCanvas({ build, onSlotClick, onRemoveSlot }: WeaponCanvasProps) {
     slotMap[slot.slotType as SlotType] = slot;
   }
 
+  const filledCount = build.slots.filter((s) => s.accessoryId).length;
+
   return (
     <div className="relative w-full h-full bg-vault-canvas overflow-hidden">
       {/* Tactical grid */}
@@ -808,6 +810,32 @@ function WeaponCanvas({ build, onSlotClick, onRemoveSlot }: WeaponCanvasProps) {
         <GunSilhouette type={build.firearm.type} />
       </div>
 
+      {/* SVG connector lines — tactical diagram layer */}
+      <svg
+        className="absolute inset-0 w-full h-full pointer-events-none"
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
+      >
+        {availableSlots.map((slotType) => {
+          const pos = positions[slotType];
+          if (!pos) return null;
+          const slot = slotMap[slotType];
+          const color = SLOT_ICONS[slotType]?.color ?? "#8B9DB0";
+          const isEquipped = !!slot?.accessory;
+          return (
+            <line
+              key={slotType}
+              x1="50" y1="50"
+              x2={pos.x} y2={pos.y}
+              stroke={color}
+              strokeWidth={isEquipped ? "0.5" : "0.3"}
+              strokeOpacity={isEquipped ? 0.4 : 0.12}
+              strokeDasharray={isEquipped ? undefined : "1.5,2"}
+            />
+          );
+        })}
+      </svg>
+
       {/* Slot nodes */}
       {availableSlots.map((slotType) => {
         const pos = positions[slotType];
@@ -821,36 +849,65 @@ function WeaponCanvas({ build, onSlotClick, onRemoveSlot }: WeaponCanvasProps) {
 
         if (hasAccessory && slot?.accessory) {
           const acc = slot.accessory;
+          const labelOnLeft = pos.x > 50;
           return (
             <div
               key={slotType}
               className="absolute z-10 group"
               style={{ left: `${pos.x}%`, top: `${pos.y}%`, transform: "translate(-50%, -50%)" }}
             >
-              <div className="flex flex-col items-center gap-1">
+              {/* Outer ambient ring */}
+              <div
+                className="absolute rounded-full pointer-events-none"
+                style={{
+                  width: "calc(100% + 10px)",
+                  height: "calc(100% + 10px)",
+                  top: "-5px",
+                  left: "-5px",
+                  border: `1px solid ${color}26`,
+                }}
+              />
+              {/* Pulse ring */}
+              <span
+                className="absolute inset-0 rounded-full animate-ping pointer-events-none"
+                style={{ borderColor: color, border: "1px solid", opacity: 0.15, animationDuration: "3s" }}
+              />
+              {/* Main node */}
+              <div
+                className="relative w-10 h-10 rounded-full border-2 flex items-center justify-center transition-transform group-hover:scale-110 cursor-default"
+                style={{
+                  borderColor: color,
+                  backgroundColor: `${color}20`,
+                  boxShadow: `0 0 20px ${color}60`,
+                }}
+              >
+                <SlotIcon className="w-4 h-4" style={{ color }} />
+                <button
+                  onClick={(e) => { e.stopPropagation(); onRemoveSlot(slotType); }}
+                  className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-[#E53935] text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                  title="Remove"
+                >
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              </div>
+              {/* Side label card */}
+              <div
+                className={`absolute top-1/2 -translate-y-1/2 pointer-events-none ${
+                  labelOnLeft ? "right-full mr-2" : "left-full ml-2"
+                }`}
+              >
                 <div
-                  className="relative w-9 h-9 rounded-full border-2 flex items-center justify-center transition-transform group-hover:scale-110 cursor-default"
-                  style={{
-                    borderColor: color,
-                    backgroundColor: `${color}20`,
-                    boxShadow: `0 0 14px ${color}40`,
-                  }}
+                  className="bg-vault-bg/80 rounded px-1.5 py-0.5 whitespace-nowrap max-w-[80px] overflow-hidden"
+                  style={{ border: `1px solid ${color}4D` }}
                 >
-                  <SlotIcon className="w-4 h-4" style={{ color }} />
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onRemoveSlot(slotType); }}
-                    className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-[#E53935] text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                    title="Remove"
+                  <span
+                    className="text-[9px] font-mono leading-tight block truncate"
+                    style={{ color }}
+                    title={acc.name}
                   >
-                    <X className="w-2.5 h-2.5" />
-                  </button>
+                    {acc.name}
+                  </span>
                 </div>
-                <span
-                  className="text-[8px] font-mono text-center leading-tight max-w-[72px] truncate text-vault-text-muted"
-                  title={acc.name}
-                >
-                  {acc.name}
-                </span>
               </div>
             </div>
           );
@@ -875,7 +932,7 @@ function WeaponCanvas({ build, onSlotClick, onRemoveSlot }: WeaponCanvasProps) {
                 <SlotIcon className="w-3.5 h-3.5" style={{ color: `${color}70` }} />
               </div>
               <span
-                className="text-[8px] font-mono text-center leading-tight max-w-[56px] truncate"
+                className="text-[9px] font-mono text-center leading-tight max-w-[60px] truncate"
                 style={{ color: `${color}80` }}
               >
                 {SLOT_TYPE_LABELS[slotType]}
@@ -884,6 +941,13 @@ function WeaponCanvas({ build, onSlotClick, onRemoveSlot }: WeaponCanvasProps) {
           </button>
         );
       })}
+
+      {/* Build summary HUD */}
+      <div className="absolute bottom-6 left-6 pointer-events-none">
+        <span className="text-[9px] font-mono text-[#00C2FF]/40 tracking-widest uppercase">
+          {filledCount}/{availableSlots.length} MODULES
+        </span>
+      </div>
     </div>
   );
 }
