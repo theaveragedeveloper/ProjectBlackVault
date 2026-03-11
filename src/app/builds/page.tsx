@@ -4,6 +4,8 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Settings2, Layers, CheckCircle2, Circle } from "lucide-react";
+import { SLOT_ICONS } from "@/lib/configurator/slot-icons";
+import type { SlotType } from "@/lib/types";
 
 const FIREARM_TYPE_LABELS: Record<string, string> = {
   PISTOL: "Pistol",
@@ -26,6 +28,13 @@ const TYPE_BADGE_COLORS: Record<string, string> = {
   BOLT_ACTION: "border-[#8B9DB0]/40 text-vault-text-muted",
   LEVER_ACTION: "border-[#FF7043]/40 text-[#FF7043]",
 };
+
+function formatSlotType(type: string): string {
+  return type
+    .split("_")
+    .map((w) => w[0] + w.slice(1).toLowerCase())
+    .join(" ");
+}
 
 async function getAllBuilds() {
   const firearms = await prisma.firearm.findMany({
@@ -121,7 +130,7 @@ export default async function BuildsPage() {
           return (
             <section key={firearm.id}>
               {/* Firearm group header */}
-              <div className="flex items-center gap-3 mb-3">
+              <div className="flex items-center gap-3 mb-4">
                 <Link
                   href={`/vault/${firearm.id}`}
                   className="text-base font-bold text-vault-text hover:text-[#00C2FF] transition-colors"
@@ -140,107 +149,122 @@ export default async function BuildsPage() {
                 </span>
               </div>
 
-              {/* Builds table */}
-              <div className="bg-vault-surface border border-vault-border rounded-lg overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-vault-border">
-                      <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium">
-                        Build Name
-                      </th>
-                      <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium hidden sm:table-cell">
-                        Status
-                      </th>
-                      <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium hidden md:table-cell">
-                        Slots
-                      </th>
-                      <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium hidden lg:table-cell">
-                        Accessories
-                      </th>
-                      <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium hidden md:table-cell">
-                        Rounds
-                      </th>
-                      <th className="text-right px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium">
-                        Action
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-vault-border">
-                    {firearm.builds.map((build) => {
-                      const slotCount = build.slots.length;
-                      const accessoryCount = build.slots.filter(
-                        (s) => s.accessoryId !== null
-                      ).length;
-                      const totalRounds = build.slots.reduce(
-                        (sum, s) => sum + (s.accessory?.roundCount ?? 0), 0
-                      );
+              {/* Build cards grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {firearm.builds.map((build) => {
+                  const slotCount = build.slots.length;
+                  const equippedSlots = build.slots.filter((s) => s.accessoryId !== null);
+                  const accessoryCount = equippedSlots.length;
+                  const totalRounds = build.slots.reduce(
+                    (sum, s) => sum + (s.accessory?.roundCount ?? 0),
+                    0
+                  );
+                  const fillPct = slotCount > 0 ? Math.round((accessoryCount / slotCount) * 100) : 0;
 
-                      return (
-                        <tr
-                          key={build.id}
-                          className="hover:bg-vault-surface-2 transition-colors group"
-                        >
-                          {/* Build name */}
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <Layers className="w-3.5 h-3.5 text-vault-text-faint shrink-0" />
-                              <span className="font-medium text-vault-text group-hover:text-[#00C2FF] transition-colors">
-                                {build.name}
-                              </span>
+                  return (
+                    <div
+                      key={build.id}
+                      className={`bg-vault-surface border rounded-lg overflow-hidden flex flex-col transition-colors hover:border-[#00C2FF]/40 group ${
+                        build.isActive
+                          ? "border-[#00C853]/40"
+                          : "border-vault-border"
+                      }`}
+                    >
+                      {/* Active top bar */}
+                      {build.isActive && (
+                        <div className="h-0.5 bg-[#00C853]" />
+                      )}
+
+                      <div className="p-4 flex flex-col flex-1 gap-3">
+                        {/* Header: name + status */}
+                        <div className="flex items-start justify-between gap-2">
+                          <h3 className="font-bold text-sm text-vault-text group-hover:text-[#00C2FF] transition-colors leading-snug">
+                            {build.name}
+                          </h3>
+                          {build.isActive ? (
+                            <span className="shrink-0 inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded border border-[#00C853]/40 text-[#00C853] font-mono uppercase bg-[#00C853]/5">
+                              <CheckCircle2 className="w-2.5 h-2.5" />
+                              Active
+                            </span>
+                          ) : (
+                            <span className="shrink-0 inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded border border-vault-border text-vault-text-faint font-mono uppercase">
+                              <Circle className="w-2.5 h-2.5" />
+                              Inactive
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Slot icon grid */}
+                        {slotCount > 0 ? (
+                          <div className="flex flex-wrap gap-1.5">
+                            {build.slots.map((slot) => {
+                              const iconCfg = SLOT_ICONS[slot.slotType as SlotType];
+                              if (!iconCfg) return null;
+                              const IconComp = iconCfg.icon;
+                              const equipped = slot.accessoryId !== null;
+
+                              return equipped ? (
+                                <div
+                                  key={slot.id}
+                                  title={formatSlotType(slot.slotType)}
+                                  className="w-7 h-7 rounded flex items-center justify-center border transition-colors"
+                                  style={{
+                                    borderColor: `${iconCfg.color}50`,
+                                    backgroundColor: `${iconCfg.color}15`,
+                                  }}
+                                >
+                                  <IconComp
+                                    className="w-3.5 h-3.5"
+                                    style={{ color: iconCfg.color }}
+                                  />
+                                </div>
+                              ) : (
+                                <div
+                                  key={slot.id}
+                                  title={formatSlotType(slot.slotType)}
+                                  className="w-7 h-7 rounded flex items-center justify-center border border-vault-border bg-vault-bg/50 transition-colors"
+                                >
+                                  <IconComp className="w-3.5 h-3.5 text-vault-text-faint opacity-40" />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-vault-text-faint italic">No slots configured</p>
+                        )}
+
+                        {/* Progress bar */}
+                        {slotCount > 0 && (
+                          <div className="space-y-1">
+                            <div className="w-full h-1.5 rounded-full bg-vault-bg overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-[#00C2FF] transition-all"
+                                style={{ width: `${fillPct}%` }}
+                              />
                             </div>
-                          </td>
+                            <p className="text-[10px] font-mono text-vault-text-faint">
+                              {accessoryCount} / {slotCount} equipped
+                            </p>
+                          </div>
+                        )}
 
-                          {/* Active badge */}
-                          <td className="px-4 py-3 hidden sm:table-cell">
-                            {build.isActive ? (
-                              <span className="inline-flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded border border-[#00C853]/40 text-[#00C853] font-mono uppercase bg-[#00C853]/5">
-                                <CheckCircle2 className="w-3 h-3" />
-                                Active
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded border border-vault-border text-vault-text-faint font-mono uppercase">
-                                <Circle className="w-3 h-3" />
-                                Inactive
-                              </span>
-                            )}
-                          </td>
-
-                          {/* Slot count */}
-                          <td className="px-4 py-3 hidden md:table-cell">
-                            <span className="text-sm font-mono text-vault-text-muted">
-                              {slotCount} slot{slotCount !== 1 ? "s" : ""}
-                            </span>
-                          </td>
-
-                          {/* Accessory count */}
-                          <td className="px-4 py-3 hidden lg:table-cell">
-                            <span className="text-sm font-mono text-vault-text-muted">
-                              {accessoryCount} accessor{accessoryCount !== 1 ? "ies" : "y"}
-                            </span>
-                          </td>
-
-                          {/* Round count */}
-                          <td className="px-4 py-3 hidden md:table-cell">
-                            <span className="inline-flex items-center text-xs font-mono font-bold px-2 py-0.5 rounded border border-[#00C853]/40 bg-[#00C853]/10 text-[#00C853]">
-                              {totalRounds.toLocaleString()} rds
-                            </span>
-                          </td>
-
-                          {/* Configure link */}
-                          <td className="px-4 py-3 text-right">
-                            <Link
-                              href={`/vault/${firearm.id}/builds/${build.id}`}
-                              className="inline-flex items-center gap-1.5 text-xs bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 px-2.5 py-1 rounded transition-colors"
-                            >
-                              <Settings2 className="w-3 h-3" />
-                              Configure
-                            </Link>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                        {/* Footer: rounds + configure */}
+                        <div className="flex items-center justify-between mt-auto pt-1">
+                          <span className="inline-flex items-center text-xs font-mono font-bold px-2 py-0.5 rounded border border-[#00C853]/30 bg-[#00C853]/8 text-[#00C853]">
+                            {totalRounds.toLocaleString()} rds
+                          </span>
+                          <Link
+                            href={`/vault/${firearm.id}/builds/${build.id}`}
+                            className="inline-flex items-center gap-1.5 text-xs bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 px-2.5 py-1 rounded transition-colors"
+                          >
+                            <Settings2 className="w-3 h-3" />
+                            Configure
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </section>
           );
