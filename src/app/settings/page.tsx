@@ -10,7 +10,7 @@ import {
   Lock,
   Eye,
   EyeOff,
-  Image,
+  Image as ImageIcon,
   Settings,
   ShieldCheck,
   HardDrive,
@@ -540,7 +540,7 @@ export default function SettingsPage() {
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-5">
             <div className="flex items-center justify-between">
               <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
-                <Image className="w-3.5 h-3.5" />
+                <ImageIcon className="w-3.5 h-3.5" />
                 Image Search
               </legend>
               <span className={`text-[10px] font-mono px-2 py-0.5 rounded border uppercase ${imageSearchConfigured ? "text-[#00C853] border-[#00C853]/40" : "text-vault-text-faint border-vault-border"}`}>

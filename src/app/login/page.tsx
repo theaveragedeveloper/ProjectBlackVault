@@ -11,7 +11,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [passwordRequired, setPasswordRequired] = useState(false);
 
   useEffect(() => {
     // Check if password is required
@@ -29,12 +28,10 @@ export default function LoginPage() {
         } else if (data.authenticated) {
           router.replace("/");
         } else {
-          setPasswordRequired(true);
           setLoading(false);
         }
       })
       .catch(() => {
-        setPasswordRequired(false);
         setLoading(false);
       });
   }, [router]);

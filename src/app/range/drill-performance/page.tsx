@@ -1,12 +1,11 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   LineChart,
   Line,
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -136,18 +135,21 @@ function DrillPerformanceContent() {
   }, []);
 
   useEffect(() => {
-    if (!selectedId) {
-      setData(null);
-      return;
-    }
-    setLoading(true);
-    fetch(`/api/drill-templates/${selectedId}/results`)
-      .then((r) => r.json())
-      .then((d) => {
-        setData(d);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+    const timer = setTimeout(() => {
+      if (!selectedId) {
+        setData(null);
+        return;
+      }
+      setLoading(true);
+      fetch(`/api/drill-templates/${selectedId}/results`)
+        .then((r) => r.json())
+        .then((d) => {
+          setData(d);
+          setLoading(false);
+        })
+        .catch(() => setLoading(false));
+    }, 0);
+    return () => clearTimeout(timer);
   }, [selectedId]);
 
   function navigateTo(result: DrillResult) {
@@ -269,9 +271,9 @@ function DrillPerformanceContent() {
           {data.results.length === 0 && (
             <div className="rounded-lg border border-vault-border bg-vault-surface p-10 text-center text-vault-text-faint text-sm">
               No results yet. Log a session or use{" "}
-              <a href="/range/log-drill" className="text-[#00C2FF] hover:underline">
+              <Link href="/range/log-drill" className="text-[#00C2FF] hover:underline">
                 Log a Drill
-              </a>{" "}
+              </Link>{" "}
               to start tracking.
             </div>
           )}
