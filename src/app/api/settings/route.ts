@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/password";
+import { encryptField, decryptField } from "@/lib/crypto";
 
 // GET /api/settings - Get the singleton AppSettings
 export async function GET() {
@@ -19,15 +20,16 @@ export async function GET() {
       });
     }
 
-    // Mask the API key in the response — return only whether it's set
+    const decryptedKey = await decryptField(settings.googleCseApiKey);
+
+    // Mask the API key; never return password hash or raw key to the client
     return NextResponse.json({
       ...settings,
-      googleCseApiKey: settings.googleCseApiKey ? "***configured***" : null,
-      _googleCseApiKeyIsSet: !!settings.googleCseApiKey,
+      googleCseApiKey: decryptedKey ? "***configured***" : null,
+      _googleCseApiKeyIsSet: !!decryptedKey,
       appPassword: settings.appPassword ? "***set***" : null,
-      encryptionEnabled: !!(process.env.VAULT_ENCRYPTION_KEY || settings.encryptionKey),
+      encryptionEnabled: !!process.env.VAULT_ENCRYPTION_KEY,
       encryptionViaEnv: !!process.env.VAULT_ENCRYPTION_KEY,
-      encryptionKey: undefined, // never expose the raw key
     });
   } catch (error) {
     console.error("GET /api/settings error:", error);
@@ -55,9 +57,9 @@ export async function PUT(request: NextRequest) {
     const updateData: Record<string, unknown> = {};
 
     if (googleCseApiKey !== undefined) {
-      // Allow clearing the key by passing null or empty string
+      // Allow clearing the key by passing null or empty string; encrypt non-empty values
       updateData.googleCseApiKey =
-        googleCseApiKey === "" ? null : googleCseApiKey;
+        googleCseApiKey === "" ? null : await encryptField(googleCseApiKey);
     }
 
     if (googleCseSearchEngineId !== undefined) {
@@ -91,14 +93,15 @@ export async function PUT(request: NextRequest) {
       update: updateData,
     });
 
+    const savedDecryptedKey = await decryptField(settings.googleCseApiKey);
+
     return NextResponse.json({
       ...settings,
-      googleCseApiKey: settings.googleCseApiKey ? "***configured***" : null,
-      _googleCseApiKeyIsSet: !!settings.googleCseApiKey,
+      googleCseApiKey: savedDecryptedKey ? "***configured***" : null,
+      _googleCseApiKeyIsSet: !!savedDecryptedKey,
       appPassword: settings.appPassword ? "***set***" : null,
-      encryptionEnabled: !!(process.env.VAULT_ENCRYPTION_KEY || settings.encryptionKey),
+      encryptionEnabled: !!process.env.VAULT_ENCRYPTION_KEY,
       encryptionViaEnv: !!process.env.VAULT_ENCRYPTION_KEY,
-      encryptionKey: undefined,
     });
   } catch (error) {
     console.error("PUT /api/settings error:", error);

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { formatCurrency, formatNumber } from "@/lib/utils";
 import {
@@ -257,6 +258,7 @@ function FirearmCard({ firearm, editMode, editBuilds, onDeleteBuild }: FirearmCa
 }
 
 export default function VaultPage() {
+  const router = useRouter();
   const [firearms, setFirearms] = useState<Firearm[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<string>("ALL");
@@ -469,9 +471,17 @@ export default function VaultPage() {
                   onDeleteBuild={openDeleteModal}
                 />
               ) : (
-                <Link key={firearm.id} href={`/vault/${firearm.id}`} className="block">
+                <div
+                  key={firearm.id}
+                  onClick={(e) => {
+                    // Only navigate to detail if the click wasn't on an inner link
+                    if ((e.target as HTMLElement).closest("a")) return;
+                    router.push(`/vault/${firearm.id}`);
+                  }}
+                  className="block cursor-pointer"
+                >
                   <FirearmCard firearm={firearm} />
-                </Link>
+                </div>
               )
             )}
           </div>

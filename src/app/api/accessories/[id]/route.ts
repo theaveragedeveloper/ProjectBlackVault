@@ -106,6 +106,10 @@ export async function PUT(
       );
     }
 
+    if (purchasePrice !== undefined && purchasePrice !== null && purchasePrice < 0) {
+      return NextResponse.json({ error: "purchasePrice cannot be negative" }, { status: 400 });
+    }
+
     const updated = await prisma.accessory.update({
       where: { id },
       data: {

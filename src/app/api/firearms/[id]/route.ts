@@ -83,6 +83,13 @@ export async function PUT(
       return NextResponse.json({ error: "Firearm not found" }, { status: 404 });
     }
 
+    if (purchasePrice !== undefined && purchasePrice !== null && purchasePrice < 0) {
+      return NextResponse.json({ error: "purchasePrice cannot be negative" }, { status: 400 });
+    }
+    if (currentValue !== undefined && currentValue !== null && currentValue < 0) {
+      return NextResponse.json({ error: "currentValue cannot be negative" }, { status: 400 });
+    }
+
     const updated = await prisma.firearm.update({
       where: { id },
       data: {

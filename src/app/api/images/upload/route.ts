@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
     // Build paths
     // entityType = "firearm" -> directory = "firearms"
     const entityTypeDir = `${entityType}s`;
-    const fileName = `${sanitizedEntityId}.${ext}`;
+    const fileName = `${sanitizedEntityId}_${Date.now()}.${ext}`;
     const relativeUrl = `/uploads/${entityTypeDir}/${fileName}`;
 
     // Resolve the absolute path within the project's public directory

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { SLOT_TYPES } from "@/lib/types";
 
 // PUT /api/builds/[id]/slots - Assign or remove an accessory from a slot
 // Body: { slotType: string, accessoryId: string | null }
@@ -17,6 +18,13 @@ export async function PUT(
     if (!slotType) {
       return NextResponse.json(
         { error: "Missing required field: slotType" },
+        { status: 400 }
+      );
+    }
+
+    if (!SLOT_TYPES.includes(slotType)) {
+      return NextResponse.json(
+        { error: `Invalid slotType. Must be one of: ${SLOT_TYPES.join(", ")}` },
         { status: 400 }
       );
     }
