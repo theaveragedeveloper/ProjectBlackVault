@@ -169,3 +169,59 @@ body {
   background: rgba(0, 194, 255, 0.25);
   color: var(--vault-text);
 }
+
+/* ── DOPE Card Print Styles ─────────────────────────────── */
+@media print {
+  @page {
+    size: letter portrait;
+    margin: 0.35in;
+  }
+
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  .print\:hidden {
+    display: none !important;
+  }
+
+  .dope-print-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    border: 1px solid #000 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: #fff !important;
+  }
+
+  .dope-print-index {
+    width: 5in;
+    min-height: 3in;
+  }
+
+  .dope-print-half {
+    width: 8.5in;
+    min-height: 5.5in;
+  }
+
+  .dope-print-monochrome,
+  .dope-print-monochrome * {
+    color: #000 !important;
+    background: #fff !important;
+    border-color: #000 !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+  }
+
+  .dope-print-card input,
+  .dope-print-card select,
+  .dope-print-card textarea {
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0.1rem 0.2rem !important;
+    background: transparent !important;
+    color: #000 !important;
+    appearance: none;
+  }
+}
