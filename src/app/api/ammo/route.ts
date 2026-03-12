@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { revalidateDashboardCaches } from "@/lib/server/dashboard";
 
 // GET /api/ammo - List all AmmoStock grouped by caliber
 export async function GET() {
@@ -49,6 +50,7 @@ export async function GET() {
     return NextResponse.json(result);
   } catch (error) {
     console.error("GET /api/ammo error:", error);
+
     return NextResponse.json(
       { error: "Failed to fetch ammo stock" },
       { status: 500 }
@@ -101,9 +103,12 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    revalidateDashboardCaches(["ammo"]);
+
     return NextResponse.json(stock, { status: 201 });
   } catch (error) {
     console.error("POST /api/ammo error:", error);
+
     return NextResponse.json(
       { error: "Failed to create ammo stock" },
       { status: 500 }

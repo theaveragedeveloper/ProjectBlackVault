@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { revalidateDashboardCaches } from "@/lib/server/dashboard";
 
 // GET /api/accessories - List all accessories with current build name
 export async function GET(request: NextRequest) {
@@ -51,6 +52,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(result);
   } catch (error) {
     console.error("GET /api/accessories error:", error);
+
     return NextResponse.json(
       { error: "Failed to fetch accessories" },
       { status: 500 }
@@ -102,9 +104,12 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    revalidateDashboardCaches(["accessories"]);
+
     return NextResponse.json(accessory, { status: 201 });
   } catch (error) {
     console.error("POST /api/accessories error:", error);
+
     return NextResponse.json(
       { error: "Failed to create accessory" },
       { status: 500 }
