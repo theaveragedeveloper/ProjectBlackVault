@@ -255,7 +255,10 @@ export default function AmmoPage() {
   }, []);
 
   useEffect(() => {
-    fetchAmmo();
+    const timer = setTimeout(() => {
+      void fetchAmmo();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [fetchAmmo]);
 
   function handleQtyUpdate(stockId: string, newQty: number) {

@@ -10,7 +10,6 @@ import {
   ArrowLeft,
   Thermometer,
   Wind,
-  Cloud,
   Droplets,
   Sun,
   Crosshair,

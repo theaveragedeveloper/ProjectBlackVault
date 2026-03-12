@@ -23,7 +23,7 @@ import {
   FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 
 interface NavItem {
   label: string;
@@ -100,15 +100,8 @@ interface SidebarProps {
 export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
-  const [rangeExpanded, setRangeExpanded] = useState(false);
+  const [rangeExpandedManual, setRangeExpandedManual] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
-
-  // Auto-expand Range if on a range path
-  useEffect(() => {
-    if (pathname.startsWith("/range")) {
-      setRangeExpanded(true);
-    }
-  }, [pathname]);
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -124,6 +117,8 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
       setLoggingOut(false);
     }
   }
+
+  const rangeExpanded = useMemo(() => pathname.startsWith("/range") || rangeExpandedManual, [pathname, rangeExpandedManual]);
 
   const navContent = (
     <>
@@ -168,7 +163,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
             return (
               <div key={item.href}>
                 <button
-                  onClick={() => !collapsed && setRangeExpanded((v) => !v)}
+                  onClick={() => !collapsed && setRangeExpandedManual((v) => !v)}
                   title={collapsed ? item.label : undefined}
                   className={cn(
                     "w-full flex items-center gap-3 px-2.5 py-2 rounded-md text-sm transition-all duration-150 group relative",
