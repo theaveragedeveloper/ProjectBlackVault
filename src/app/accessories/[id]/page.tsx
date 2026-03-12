@@ -110,6 +110,7 @@ export default function AccessoryDetailPage() {
   // Battery tracking
   const [showBatterySettings, setShowBatterySettings] = useState(false);
   const [batteryForm, setBatteryForm] = useState({ hasBattery: false, batteryType: "", batteryIntervalDays: "" });
+  const [batteryChangedAtInput, setBatteryChangedAtInput] = useState("");
   const [savingBattery, setSavingBattery] = useState(false);
   const [loggingBatteryChange, setLoggingBatteryChange] = useState(false);
   const [batteryError, setBatteryError] = useState<string | null>(null);
@@ -124,6 +125,7 @@ export default function AccessoryDetailPage() {
           setAccessory(data);
           setLocalImageUrl(data.imageUrl ?? null);
           setBatteryForm({ hasBattery: data.hasBattery ?? false, batteryType: data.batteryType ?? "", batteryIntervalDays: data.batteryIntervalDays?.toString() ?? "" });
+          setBatteryChangedAtInput(data.batteryChangedAt ? new Date(data.batteryChangedAt).toISOString().slice(0, 10) : "");
         }
         setLoading(false);
       })
@@ -201,10 +203,15 @@ export default function AccessoryDetailPage() {
     setBatteryError(null);
     setLoggingBatteryChange(true);
     try {
-      const res = await fetch(`/api/accessories/${id}/battery`, { method: "POST" });
+      const res = await fetch(`/api/accessories/${id}/battery`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ changedAt: batteryChangedAtInput || undefined }),
+      });
       if (res.ok) {
         const updated = await res.json();
         setAccessory((prev) => prev ? { ...prev, batteryChangedAt: updated.batteryChangedAt } : prev);
+        setBatteryChangedAtInput(updated.batteryChangedAt ? new Date(updated.batteryChangedAt).toISOString().slice(0, 10) : "");
       } else {
         const json = await res.json().catch(() => ({}));
         setBatteryError(json.error ?? "Failed to log battery change.");
@@ -703,9 +710,18 @@ export default function AccessoryDetailPage() {
                   </div>
                 );
               })()}
+              <div>
+                <label className="text-[10px] uppercase text-vault-text-faint block mb-1">Last Changed Date</label>
+                <input
+                  type="date"
+                  value={batteryChangedAtInput}
+                  onChange={(e) => setBatteryChangedAtInput(e.target.value)}
+                  className="w-full bg-vault-bg border border-vault-border rounded px-2 py-1.5 text-sm text-vault-text"
+                />
+              </div>
               <button onClick={handleLogBatteryChange} disabled={loggingBatteryChange} className="w-full flex items-center justify-center gap-1.5 text-xs bg-[#00C853]/10 border border-[#00C853]/30 text-[#00C853] hover:bg-[#00C853]/20 px-3 py-2 rounded transition-colors disabled:opacity-50">
                 {loggingBatteryChange ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
-                Log Battery Change
+                Save Last Changed Date
               </button>
             </div>
           ) : null}
