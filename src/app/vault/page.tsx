@@ -73,6 +73,10 @@ interface Build {
   slots: { id: string; slotType: string; accessory: { id: string; name: string } | null }[];
 }
 
+interface BatchedBuild extends Build {
+  firearmId: string;
+}
+
 function FirearmTypeIcon({ type }: { type: string }) {
   switch (type) {
     case "PISTOL":
@@ -261,6 +265,38 @@ export default function VaultPage() {
   } | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  async function fetchBuildsForFirearms(firearmIds: string[]) {
+    if (firearmIds.length === 0) {
+      setBuildsByFirearm({});
+      return;
+    }
+
+    const data = await fetch(`/api/builds?firearmIds=${firearmIds.join(",")}`)
+      .then((r) => r.json())
+      .catch(() => []);
+
+    const map = firearmIds.reduce((acc, id) => {
+      acc[id] = [];
+      return acc;
+    }, {} as Record<string, Build[]>);
+
+    if (Array.isArray(data)) {
+      data.forEach((build) => {
+        const typedBuild = build as BatchedBuild;
+        if (!typedBuild.firearmId || !map[typedBuild.firearmId]) return;
+        map[typedBuild.firearmId].push({
+          id: typedBuild.id,
+          name: typedBuild.name,
+          isActive: typedBuild.isActive,
+          sortOrder: typedBuild.sortOrder,
+          slots: typedBuild.slots,
+        });
+      });
+    }
+
+    setBuildsByFirearm(map);
+  }
+
   useEffect(() => {
     fetch("/api/firearms")
       .then((r) => r.json())
@@ -273,17 +309,7 @@ export default function VaultPage() {
 
   useEffect(() => {
     if (!editMode) return;
-    Promise.all(
-      firearms.map(f =>
-        fetch(`/api/builds?firearmId=${f.id}`)
-          .then(r => r.json())
-          .then(data => ({ firearmId: f.id, builds: Array.isArray(data) ? data : [] }))
-      )
-    ).then(results => {
-      const map: Record<string, Build[]> = {};
-      results.forEach(r => { map[r.firearmId] = r.builds; });
-      setBuildsByFirearm(map);
-    });
+    fetchBuildsForFirearms(firearms.map((f) => f.id));
   }, [editMode, firearms]);
 
   function openDeleteModal(build: Build & { firearmId: string }, accessories: { id: string; name: string }[]) {
@@ -306,16 +332,19 @@ export default function VaultPage() {
         );
       }
 
-      // Refresh firearms list
-      const res = await fetch("/api/firearms");
-      const data = await res.json();
-      if (Array.isArray(data)) setFirearms(data);
+      // Refresh only the affected firearm card data
+      const firearmRes = await fetch(`/api/firearms/${deleteTarget.build.firearmId}`);
+      const firearmData = await firearmRes.json();
+      if (firearmRes.ok && firearmData?.id) {
+        setFirearms((prev) =>
+          prev.map((firearm) =>
+            firearm.id === firearmData.id ? ({ ...firearm, ...firearmData } as Firearm) : firearm
+          )
+        );
+      }
 
-      // Update buildsByFirearm state
-      const newBuilds = await fetch(`/api/builds?firearmId=${deleteTarget.build.firearmId}`)
-        .then(r => r.json())
-        .then(d => Array.isArray(d) ? d : []);
-      setBuildsByFirearm(prev => ({ ...prev, [deleteTarget.build.firearmId]: newBuilds }));
+      // Refresh only affected firearm builds in edit mode map
+      await fetchBuildsForFirearms([deleteTarget.build.firearmId]);
 
       setDeleteTarget(null);
     } catch (err) {
