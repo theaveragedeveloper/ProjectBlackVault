@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { revalidateDashboardCaches } from "@/lib/server/dashboard";
 
 // GET /api/range-sessions/[id]
 export async function GET(
@@ -131,6 +132,8 @@ export async function PUT(
       return updated;
     });
 
+    revalidateDashboardCaches(["range", "ammo"]);
+
     return NextResponse.json(session);
   } catch (error) {
     console.error("PUT /api/range-sessions/[id] error:", error);
@@ -146,6 +149,9 @@ export async function DELETE(
   try {
     const { id } = await params;
     await prisma.rangeSession.delete({ where: { id } });
+
+    revalidateDashboardCaches(["range", "ammo"]);
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("DELETE /api/range-sessions/[id] error:", error);

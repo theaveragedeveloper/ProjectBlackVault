@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { revalidateDashboardCaches } from "@/lib/server/dashboard";
 
 // POST /api/accessories/[id]/battery - Log a battery change
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -27,6 +28,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     where: { id },
     data: { batteryChangedAt: changedAt },
   });
+
+  revalidateDashboardCaches(["accessories"]);
 
   return NextResponse.json(updated);
 }
