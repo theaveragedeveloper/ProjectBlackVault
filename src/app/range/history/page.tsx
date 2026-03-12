@@ -98,7 +98,7 @@ function buildCalendarGrid(days: CalendarDay[], year: number) {
   startDay.setDate(jan1.getDate() - dayOfWeek);
 
   const weeks: { date: string; count: number; isCurrentYear: boolean }[][] = [];
-  let current = new Date(startDay);
+  const current = new Date(startDay);
 
   for (let w = 0; w < 53; w++) {
     const week: { date: string; count: number; isCurrentYear: boolean }[] = [];
@@ -142,7 +142,6 @@ export default function RangeHistoryPage() {
   const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
   const [calendarData, setCalendarData] = useState<CalendarData | null>(null);
   const [calendarLoading, setCalendarLoading] = useState(false);
-  const [calendarLoaded, setCalendarLoaded] = useState(false);
 
   const uniqueFirearms = useMemo(
     () => Array.from(new Map(sessions.map((s) => [s.firearm.id, s.firearm])).values()),
@@ -165,26 +164,33 @@ export default function RangeHistoryPage() {
 
   // Lazy load cost data when tab is first activated
   useEffect(() => {
-    if (activeTab === "cost" && !costLoaded) {
+    if (activeTab !== "cost" || costLoaded) return;
+
+    const timer = setTimeout(() => {
       setCostLoading(true);
       setCostLoaded(true);
       fetch("/api/analytics/ammo-cost")
         .then((r) => r.json())
         .then((d) => { setCostData(d); setCostLoading(false); })
         .catch(() => setCostLoading(false));
-    }
+    }, 0);
+
+    return () => clearTimeout(timer);
   }, [activeTab, costLoaded]);
 
   // Lazy load calendar data when tab is first activated or year changes
   useEffect(() => {
-    if (activeTab === "calendar") {
+    if (activeTab !== "calendar") return;
+
+    const timer = setTimeout(() => {
       setCalendarLoading(true);
-      setCalendarLoaded(true);
       fetch(`/api/training-calendar?year=${calendarYear}`)
         .then((r) => r.json())
         .then((d) => { setCalendarData(d); setCalendarLoading(false); })
         .catch(() => setCalendarLoading(false));
-    }
+    }, 0);
+
+    return () => clearTimeout(timer);
   }, [activeTab, calendarYear]);
 
   // ── Analytics aggregations ───────────────────────────────────────
