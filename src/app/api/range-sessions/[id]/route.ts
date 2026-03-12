@@ -2,6 +2,34 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { revalidateDashboardCaches } from "@/lib/server/dashboard";
 
+type FirearmPayload = {
+  firearmId?: unknown;
+  roundsFired?: unknown;
+  buildId?: unknown;
+};
+
+const sessionInclude = {
+  sessionFirearms: {
+    include: {
+      firearm: { select: { id: true, name: true, caliber: true } },
+      build: { select: { id: true, name: true } },
+    },
+  },
+  sessionDrills: {
+    include: { template: true },
+    orderBy: { sortOrder: "asc" as const },
+  },
+  ammoLinks: {
+    include: {
+      transaction: {
+        include: {
+          stock: { select: { caliber: true, brand: true, grainWeight: true, bulletType: true } },
+        },
+      },
+    },
+  },
+};
+
 // GET /api/range-sessions/[id]
 export async function GET(
   _request: NextRequest,
@@ -11,23 +39,7 @@ export async function GET(
     const { id } = await params;
     const session = await prisma.rangeSession.findUnique({
       where: { id },
-      include: {
-        firearm: { select: { id: true, name: true, caliber: true } },
-        build: { select: { id: true, name: true } },
-        sessionDrills: {
-          include: { template: true },
-          orderBy: { sortOrder: "asc" },
-        },
-        ammoLinks: {
-          include: {
-            transaction: {
-              include: {
-                stock: { select: { caliber: true, brand: true, grainWeight: true, bulletType: true } },
-              },
-            },
-          },
-        },
-      },
+      include: sessionInclude,
     });
 
     if (!session) {
@@ -50,8 +62,7 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
     const {
-      buildId,
-      roundsFired,
+      firearms,
       rangeName,
       rangeLocation,
       notes,
@@ -82,12 +93,33 @@ export async function PUT(
       return Number.isFinite(n) ? n : null;
     };
 
+    let parsedFirearms: { firearmId: string; buildId: string | null; roundsFired: number }[] | null = null;
+    if (firearms !== undefined) {
+      if (!Array.isArray(firearms) || firearms.length === 0) {
+        return NextResponse.json({ error: "At least one firearm entry is required" }, { status: 400 });
+      }
+      parsedFirearms = (firearms as FirearmPayload[]).map((entry) => ({
+        firearmId: typeof entry.firearmId === "string" ? entry.firearmId : "",
+        buildId: typeof entry.buildId === "string" && entry.buildId ? entry.buildId : null,
+        roundsFired: parseInt(String(entry.roundsFired), 10),
+      }));
+      if (parsedFirearms.some((entry) => !entry.firearmId || !Number.isFinite(entry.roundsFired) || entry.roundsFired <= 0)) {
+        return NextResponse.json(
+          { error: "Each firearm entry must include firearmId and a roundsFired value greater than 0" },
+          { status: 400 }
+        );
+      }
+    }
+
     const session = await prisma.$transaction(async (tx) => {
       const updated = await tx.rangeSession.update({
         where: { id },
         data: {
-          buildId: buildId !== undefined ? (buildId || null) : undefined,
-          roundsFired: roundsFired !== undefined ? parseInt(String(roundsFired), 10) : undefined,
+          firearmId: parsedFirearms ? parsedFirearms[0].firearmId : undefined,
+          buildId: parsedFirearms ? parsedFirearms[0].buildId : undefined,
+          roundsFired: parsedFirearms
+            ? parsedFirearms.reduce((sum, entry) => sum + entry.roundsFired, 0)
+            : undefined,
           rangeName: typeof rangeName === "string" ? rangeName.slice(0, 200) : null,
           rangeLocation: typeof rangeLocation === "string" ? rangeLocation.slice(0, 200) : null,
           notes: typeof notes === "string" ? notes.slice(0, 5000) : null,
@@ -105,21 +137,19 @@ export async function PUT(
           numberOfGroups: parseInt_(numberOfGroups),
           groupNotes: typeof groupNotes === "string" && groupNotes ? groupNotes.slice(0, 1000) : null,
         },
-        include: {
-          firearm: { select: { id: true, name: true, caliber: true } },
-          build: { select: { id: true, name: true } },
-          sessionDrills: { include: { template: true }, orderBy: { sortOrder: "asc" } },
-          ammoLinks: {
-            include: {
-              transaction: {
-                include: {
-                  stock: { select: { caliber: true, brand: true, grainWeight: true, bulletType: true } },
-                },
-              },
-            },
-          },
-        },
       });
+
+      if (parsedFirearms) {
+        await tx.sessionFirearm.deleteMany({ where: { sessionId: id } });
+        await tx.sessionFirearm.createMany({
+          data: parsedFirearms.map((entry) => ({
+            sessionId: id,
+            firearmId: entry.firearmId,
+            buildId: entry.buildId,
+            roundsFired: entry.roundsFired,
+          })),
+        });
+      }
 
       // Update ammo links if provided
       if (Array.isArray(ammoTransactionIds)) {
@@ -132,9 +162,11 @@ export async function PUT(
       return updated;
     });
 
+    const hydrated = await prisma.rangeSession.findUnique({ where: { id: session.id }, include: sessionInclude });
+
     revalidateDashboardCaches(["range", "ammo"]);
 
-    return NextResponse.json(session);
+    return NextResponse.json(hydrated);
   } catch (error) {
     console.error("PUT /api/range-sessions/[id] error:", error);
     return NextResponse.json({ error: "Failed to update session" }, { status: 500 });

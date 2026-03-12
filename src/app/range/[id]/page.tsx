@@ -73,6 +73,14 @@ interface AmmoLink {
   };
 }
 
+interface SessionFirearm {
+  id: string;
+  firearmId: string;
+  roundsFired: number;
+  firearm: { id: string; name: string; caliber: string };
+  build: { id: string; name: string } | null;
+}
+
 interface RangeSession {
   id: string;
   date: string;
@@ -92,8 +100,7 @@ interface RangeSession {
   groupSizeMoa: number | null;
   numberOfGroups: number | null;
   groupNotes: string | null;
-  firearm: { id: string; name: string; caliber: string };
-  build: { id: string; name: string } | null;
+  sessionFirearms: SessionFirearm[];
   sessionDrills: SessionDrill[];
   ammoLinks: AmmoLink[];
 }
@@ -489,7 +496,7 @@ export default function RangeSessionDetailPage() {
   return (
     <div className="min-h-full">
       <PageHeader
-        title={session.firearm.name.toUpperCase()}
+        title={session.sessionFirearms.map((sf) => sf.firearm.name).join(" + ").toUpperCase()}
         subtitle={formatDate(session.date)}
       />
 
@@ -537,8 +544,8 @@ export default function RangeSessionDetailPage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
             { label: "Rounds Fired", value: formatNumber(session.roundsFired), unit: "rds", color: "text-[#00C2FF]" },
-            { label: "Caliber", value: session.firearm.caliber, color: "text-vault-text" },
-            { label: "Build", value: session.build?.name ?? "—", color: "text-vault-text" },
+            { label: "Calibers", value: Array.from(new Set(session.sessionFirearms.map((sf) => sf.firearm.caliber))).join(", "), color: "text-vault-text" },
+            { label: "Builds", value: session.sessionFirearms.filter((sf) => sf.build).map((sf) => sf.build!.name).join(", ") || "—", color: "text-vault-text" },
             { label: "Range", value: session.rangeName ?? "—", color: "text-vault-text" },
           ].map(({ label, value, color }) => (
             <div key={label} className="bg-vault-surface border border-vault-border rounded-lg p-3">
