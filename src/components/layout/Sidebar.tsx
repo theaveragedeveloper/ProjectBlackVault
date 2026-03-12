@@ -76,6 +76,7 @@ const NAV_ITEMS: NavItem[] = [
       { label: "Drill Performance", href: "/range/drill-performance", icon: TrendingUp },
       { label: "Drill Library", href: "/range/drills", icon: BookOpen },
       { label: "Hit Factor Calc", href: "/range/hit-factor", icon: Calculator },
+      { label: "Ballistics DOPE", href: "/range/ballistics", icon: Crosshair },
     ],
   },
   {
