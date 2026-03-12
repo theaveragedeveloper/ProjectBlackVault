@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { revalidateDashboardCaches } from "@/lib/server/dashboard";
 
 // GET /api/accessories/[id] - Get a single accessory with roundCountLogs and current buildSlots
 export async function GET(
@@ -62,6 +63,7 @@ export async function GET(
     });
   } catch (error) {
     console.error("GET /api/accessories/[id] error:", error);
+
     return NextResponse.json(
       { error: "Failed to fetch accessory" },
       { status: 500 }
@@ -147,9 +149,12 @@ export async function PUT(
       },
     });
 
+    revalidateDashboardCaches(["accessories"]);
+
     return NextResponse.json(updated);
   } catch (error) {
     console.error("PUT /api/accessories/[id] error:", error);
+
     return NextResponse.json(
       { error: "Failed to update accessory" },
       { status: 500 }
@@ -175,9 +180,12 @@ export async function DELETE(
 
     await prisma.accessory.delete({ where: { id } });
 
+    revalidateDashboardCaches(["accessories"]);
+
     return NextResponse.json({ success: true, id });
   } catch (error) {
     console.error("DELETE /api/accessories/[id] error:", error);
+
     return NextResponse.json(
       { error: "Failed to delete accessory" },
       { status: 500 }

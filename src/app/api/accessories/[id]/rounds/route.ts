@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { revalidateDashboardCaches } from "@/lib/server/dashboard";
 
 // POST /api/accessories/[id]/rounds - Log round count for an accessory
 // Body: { rounds: number, note?: string }
@@ -55,6 +56,8 @@ export async function POST(
       }),
     ]);
 
+    revalidateDashboardCaches(["accessories"]);
+
     return NextResponse.json(
       {
         accessory: updatedAccessory,
@@ -64,6 +67,7 @@ export async function POST(
     );
   } catch (error) {
     console.error("POST /api/accessories/[id]/rounds error:", error);
+
     return NextResponse.json(
       { error: "Failed to log round count" },
       { status: 500 }
