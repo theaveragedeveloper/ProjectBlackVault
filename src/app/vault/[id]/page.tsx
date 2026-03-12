@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/utils";
 import { SLOT_TYPE_LABELS } from "@/lib/types";
 import {
@@ -356,10 +357,12 @@ export default function FirearmDetailPage() {
         <div className="relative h-56 bg-vault-bg overflow-hidden">
           {localImageUrl ? (
             <>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <Image
                 src={localImageUrl}
                 alt={firearm.name}
+                fill
+                sizes="100vw"
+                priority
                 className="w-full h-full object-cover object-center"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-vault-bg via-vault-bg/60 to-transparent" />
