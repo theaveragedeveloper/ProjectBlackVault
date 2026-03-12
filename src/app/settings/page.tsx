@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Save,
   Loader2,
@@ -22,6 +22,11 @@ import {
   ChevronDown,
   ChevronUp,
   Shield,
+  FileText,
+  DownloadCloud,
+  Archive,
+  Rocket,
+  RefreshCw,
 } from "lucide-react";
 
 const INPUT_CLASS =
@@ -63,6 +68,24 @@ export default function SettingsPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
 
+  const [exportPreset, setExportPreset] = useState<"CLAIMS" | "BACKUP">("CLAIMS");
+  const [exportBusy, setExportBusy] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [exportSuccess, setExportSuccess] = useState<string | null>(null);
+
+  const [backupBusy, setBackupBusy] = useState(false);
+  const [backupError, setBackupError] = useState<string | null>(null);
+  const [backupSuccess, setBackupSuccess] = useState<string | null>(null);
+  const [backupPassphrase, setBackupPassphrase] = useState("");
+  const [backupConfirm, setBackupConfirm] = useState("");
+  const [includeDocumentFilesInBackup, setIncludeDocumentFilesInBackup] = useState(true);
+  const [wizardStep, setWizardStep] = useState(0);
+  const [autoBackupEnabled, setAutoBackupEnabled] = useState(false);
+  const [autoBackupIntervalMin, setAutoBackupIntervalMin] = useState(15);
+  const [autoBackupStatus, setAutoBackupStatus] = useState<string | null>(null);
+  const [autoBackupError, setAutoBackupError] = useState<string | null>(null);
+  const [autoBackupRunning, setAutoBackupRunning] = useState(false);
+
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -101,6 +124,20 @@ export default function SettingsPage() {
         setDataLoading(false);
       });
   }, []);
+
+  useEffect(() => {
+    const enabled = localStorage.getItem("blackvault:auto-backup-enabled");
+    const interval = localStorage.getItem("blackvault:auto-backup-interval");
+    if (enabled === "true") setAutoBackupEnabled(true);
+    if (interval && !Number.isNaN(Number(interval))) {
+      setAutoBackupIntervalMin(Math.max(5, Number(interval)));
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("blackvault:auto-backup-enabled", String(autoBackupEnabled));
+    localStorage.setItem("blackvault:auto-backup-interval", String(autoBackupIntervalMin));
+  }, [autoBackupEnabled, autoBackupIntervalMin]);
 
   function handleCopyUrl(url: string) {
     navigator.clipboard.writeText(url).then(() => {
@@ -258,6 +295,173 @@ export default function SettingsPage() {
     URL.revokeObjectURL(url);
   }
 
+  async function handleDownloadFullArmoryExport() {
+    setExportBusy(true);
+    setExportError(null);
+    setExportSuccess(null);
+
+    try {
+      const res = await fetch(`/api/exports/full-armory?preset=${exportPreset}`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Failed to generate export");
+
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+
+      const files: Array<{ name: string; content: string }> = [
+        { name: `full-armory-export-${timestamp}.json`, content: JSON.stringify(json, null, 2) },
+        { name: `inventory-items-${timestamp}.csv`, content: json.csv?.inventoryItems ?? "" },
+        { name: `attachments-index-${timestamp}.csv`, content: json.csv?.attachmentsIndex ?? "" },
+        { name: `valuation-summary-${timestamp}.csv`, content: json.csv?.valuationSummary ?? "" },
+      ];
+
+      for (const file of files) {
+        const blob = new Blob([file.content], { type: file.name.endsWith(".json") ? "application/json" : "text/csv" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = file.name;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+
+      setExportSuccess("Full Armory Export generated. JSON + CSV files downloaded.");
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : "Failed to generate export");
+    } finally {
+      setExportBusy(false);
+    }
+  }
+
+
+  async function encryptBackupPayload(payload: unknown, passphrase: string) {
+    const encoder = new TextEncoder();
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const iterations = 250000;
+
+    const baseKey = await crypto.subtle.importKey(
+      "raw",
+      encoder.encode(passphrase),
+      { name: "PBKDF2" },
+      false,
+      ["deriveKey"]
+    );
+
+    const key = await crypto.subtle.deriveKey(
+      { name: "PBKDF2", salt, iterations, hash: "SHA-256" },
+      baseKey,
+      { name: "AES-GCM", length: 256 },
+      false,
+      ["encrypt"]
+    );
+
+    const plaintext = encoder.encode(JSON.stringify(payload));
+    const encryptedBuffer = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, plaintext);
+    const encrypted = new Uint8Array(encryptedBuffer);
+
+    const b64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
+
+    return {
+      type: "blackvault-encrypted-backup",
+      version: 1,
+      generatedAt: new Date().toISOString(),
+      kdf: { algorithm: "PBKDF2", hash: "SHA-256", iterations, salt: b64(salt) },
+      cipher: { algorithm: "AES-GCM", iv: b64(iv), ciphertext: b64(encrypted) },
+    };
+  }
+
+  async function handleCreateSecureBackup() {
+    setBackupError(null);
+    setBackupSuccess(null);
+
+    if (!backupPassphrase || backupPassphrase.length < 12) {
+      setBackupError("Use a backup passphrase with at least 12 characters.");
+      return;
+    }
+
+    if (backupPassphrase !== backupConfirm) {
+      setBackupError("Passphrase confirmation does not match.");
+      return;
+    }
+
+    setBackupBusy(true);
+
+    try {
+      const res = await fetch("/api/backup/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ includeDocumentFiles: includeDocumentFilesInBackup }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Failed to generate backup");
+
+      const encryptedPayload = await encryptBackupPayload(json, backupPassphrase);
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const blob = new Blob([JSON.stringify(encryptedPayload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `blackvault-backup-${timestamp}.bvault`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      setBackupPassphrase("");
+      setBackupConfirm("");
+      setBackupSuccess("Encrypted backup created. Save the file and your passphrase in separate safe locations.");
+    } catch (error) {
+      setBackupError(error instanceof Error ? error.message : "Failed to create backup");
+    } finally {
+      setBackupBusy(false);
+    }
+  }
+
+  const runAutoBackupCheck = useCallback(async (force = false) => {
+    setAutoBackupError(null);
+    setAutoBackupRunning(true);
+    try {
+      const res = await fetch("/api/backup/auto", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          includeDocumentFiles: includeDocumentFilesInBackup,
+          force,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Automatic backup failed");
+
+      if (json.created) {
+        setAutoBackupStatus(`Automatic backup created: ${json.fileName}`);
+      } else {
+        setAutoBackupStatus(json.reason ?? "No changes detected since last backup.");
+      }
+    } catch (error) {
+      setAutoBackupError(error instanceof Error ? error.message : "Automatic backup failed");
+    } finally {
+      setAutoBackupRunning(false);
+    }
+  }, [includeDocumentFilesInBackup]);
+
+  useEffect(() => {
+    if (!autoBackupEnabled) return;
+
+    if (typeof document !== "undefined" && document.visibilityState === "visible") {
+      runAutoBackupCheck(false);
+    }
+
+    const ms = Math.max(5, autoBackupIntervalMin) * 60 * 1000;
+    const timer = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      runAutoBackupCheck(false);
+    }, ms);
+
+    return () => clearInterval(timer);
+  }, [autoBackupEnabled, autoBackupIntervalMin, runAutoBackupCheck]);
+
+
+
   if (dataLoading) {
     return (
       <div className="flex items-center justify-center min-h-full">
@@ -277,6 +481,31 @@ export default function SettingsPage() {
 
   const imageSearchConfigured =
     settings?._googleCseApiKeyIsSet && !!settings?.googleCseSearchEngineId;
+
+  const wizardSteps = [
+    {
+      title: "Secure Access",
+      description: "Set an app password so the vault is protected on startup.",
+      done: !!settings?.appPassword,
+    },
+    {
+      title: "Encryption",
+      description: "Enable encryption at rest and save your encryption key offline.",
+      done: !!settings?.encryptionEnabled,
+    },
+    {
+      title: "Backups",
+      description: "Create your first encrypted .bvault backup with document files included.",
+      done: !!backupSuccess,
+    },
+    {
+      title: "Auto-Backup",
+      description: "Enable automatic backup checks to protect new changes automatically.",
+      done: autoBackupEnabled,
+    },
+  ] as const;
+
+  const completedWizardSteps = wizardSteps.filter((step) => step.done).length;
 
   return (
     <div className="min-h-full">
@@ -674,6 +903,285 @@ export default function SettingsPage() {
               <p className="text-xs text-vault-text-faint leading-relaxed">
                 Ensure the container port is mapped with <code className="font-mono">-p 3000:3000</code> or equivalent in docker-compose.yml.
               </p>
+            </div>
+          </fieldset>
+
+          {/* ── Setup Wizard ───────────────────────────────── */}
+          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
+            <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
+              <Rocket className="w-3.5 h-3.5" />
+              Setup Wizard
+            </legend>
+
+            <p className="text-xs text-vault-text-muted leading-relaxed">
+              Guided onboarding for non-technical users. Complete each step to harden security and automate backup protection.
+            </p>
+
+            <div className="bg-vault-bg border border-vault-border rounded-md p-3">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] uppercase tracking-widest text-vault-text-faint font-mono">Progress</p>
+                <p className="text-xs text-vault-text-muted">{completedWizardSteps} / {wizardSteps.length} complete</p>
+              </div>
+              <div className="h-2 rounded bg-vault-border overflow-hidden">
+                <div className="h-full bg-[#00C2FF] transition-all" style={{ width: `${(completedWizardSteps / wizardSteps.length) * 100}%` }} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {wizardSteps.map((step, idx) => (
+                <button
+                  key={step.title}
+                  type="button"
+                  onClick={() => setWizardStep(idx)}
+                  className={`text-left rounded-md border px-3 py-2 text-xs transition-colors ${wizardStep === idx ? "border-[#00C2FF]/40 bg-[#00C2FF]/10" : "border-vault-border hover:border-vault-text-muted/30"}`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <p className={`font-medium ${wizardStep === idx ? "text-[#00C2FF]" : "text-vault-text"}`}>{idx + 1}. {step.title}</p>
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono border ${step.done ? "text-[#00C853] border-[#00C853]/40" : "text-vault-text-faint border-vault-border"}`}>
+                      {step.done ? "DONE" : "PENDING"}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-vault-text-faint mt-1">{step.description}</p>
+                </button>
+              ))}
+            </div>
+
+            <div className="bg-vault-bg border border-vault-border rounded-md p-4 space-y-2">
+              <p className="text-xs text-vault-text font-medium">Current Step: {wizardSteps[wizardStep].title}</p>
+              <p className="text-xs text-vault-text-faint">{wizardSteps[wizardStep].description}</p>
+              {wizardStep === 3 && (
+                <button
+                  type="button"
+                  onClick={() => runAutoBackupCheck(true)}
+                  className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs border border-vault-border text-vault-text-muted hover:text-[#00C2FF] hover:border-[#00C2FF]/30"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Run First Auto-Backup Check
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setWizardStep((s) => Math.max(0, s - 1))}
+                disabled={wizardStep === 0}
+                className="px-3 py-1.5 text-xs rounded-md border border-vault-border text-vault-text-faint disabled:opacity-40"
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                onClick={() => setWizardStep((s) => Math.min(wizardSteps.length - 1, s + 1))}
+                disabled={wizardStep === wizardSteps.length - 1}
+                className="px-3 py-1.5 text-xs rounded-md border border-[#00C2FF]/30 text-[#00C2FF] disabled:opacity-40"
+              >
+                Next
+              </button>
+            </div>
+          </fieldset>
+
+          {/* ── Full Armory Export ─────────────────────────── */}
+          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
+            <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
+              <FileText className="w-3.5 h-3.5" />
+              Full Armory Export
+            </legend>
+
+            <p className="text-xs text-vault-text-muted leading-relaxed">
+              Build a claim-ready package with missing-evidence flags, uploaded receipts, and CSV companion files.
+            </p>
+
+            {exportError && (
+              <div className="flex items-center gap-2 rounded-md border border-[#E53935]/30 bg-[#E53935]/10 px-3 py-2">
+                <AlertCircle className="h-3.5 w-3.5 text-[#E53935]" />
+                <p className="text-xs text-[#E53935]">{exportError}</p>
+              </div>
+            )}
+
+            {exportSuccess && (
+              <div className="flex items-center gap-2 rounded-md border border-[#00C853]/30 bg-[#00C853]/10 px-3 py-2">
+                <CheckCircle2 className="h-3.5 w-3.5 text-[#00C853]" />
+                <p className="text-xs text-[#00C853]">{exportSuccess}</p>
+              </div>
+            )}
+
+            <div className="bg-vault-bg border border-vault-border rounded-md p-4 space-y-3">
+              <p className="text-[10px] text-vault-text-faint font-mono uppercase tracking-widest">Claims Preset</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setExportPreset("CLAIMS")}
+                  className={`rounded-md border px-3 py-2 text-left transition-colors ${
+                    exportPreset === "CLAIMS"
+                      ? "border-[#00C2FF]/40 bg-[#00C2FF]/10 text-[#00C2FF]"
+                      : "border-vault-border text-vault-text-muted hover:border-vault-text-muted/30"
+                  }`}
+                >
+                  <p className="text-xs font-medium">Insurance / Law Enforcement</p>
+                  <p className="text-[11px] mt-1">Full details, unmasked serials, all receipts included.</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setExportPreset("BACKUP")}
+                  className={`rounded-md border px-3 py-2 text-left transition-colors ${
+                    exportPreset === "BACKUP"
+                      ? "border-[#00C2FF]/40 bg-[#00C2FF]/10 text-[#00C2FF]"
+                      : "border-vault-border text-vault-text-muted hover:border-vault-text-muted/30"
+                  }`}
+                >
+                  <p className="text-xs font-medium">General Backup</p>
+                  <p className="text-[11px] mt-1">Masked serials with the same document/receipt coverage.</p>
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-vault-bg border border-vault-border rounded-md p-4 space-y-3">
+              <p className="text-[10px] text-vault-text-faint font-mono uppercase tracking-widest">What gets generated</p>
+              <ul className="space-y-1.5 text-xs text-vault-text-muted">
+                <li>• `full-armory-export-*.json` with complete item + attachment data.</li>
+                <li>• `inventory-items-*.csv` for line-item adjuster workflows.</li>
+                <li>• `attachments-index-*.csv` with uploaded receipt/document linkage.</li>
+                <li>• `valuation-summary-*.csv` including missing evidence counters.</li>
+              </ul>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={handleDownloadFullArmoryExport}
+                disabled={exportBusy}
+                className="flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 rounded-md text-sm font-medium transition-colors"
+              >
+                {exportBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <DownloadCloud className="w-4 h-4" />}
+                {exportBusy ? "Generating Export..." : "Generate Full Armory Export"}
+              </button>
+              <p className="text-xs text-vault-text-faint">Includes all uploaded receipts in the attachment index output.</p>
+            </div>
+
+            <p className="text-xs text-vault-text-faint">
+              Specification reference: <code className="font-mono">docs/full-armory-export-format.md</code>
+            </p>
+          </fieldset>
+
+          {/* ── Secure System Backup ─────────────────────────── */}
+          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
+            <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
+              <Archive className="w-3.5 h-3.5" />
+              Secure System Backup
+            </legend>
+
+            <p className="text-xs text-vault-text-muted leading-relaxed">
+              One-click encrypted backup for self-hosted deployments. Great for non-technical users: enter a passphrase, click create, and save one backup file.
+            </p>
+
+            {backupError && (
+              <div className="flex items-center gap-2 rounded-md border border-[#E53935]/30 bg-[#E53935]/10 px-3 py-2">
+                <AlertCircle className="h-3.5 w-3.5 text-[#E53935]" />
+                <p className="text-xs text-[#E53935]">{backupError}</p>
+              </div>
+            )}
+
+            {backupSuccess && (
+              <div className="flex items-center gap-2 rounded-md border border-[#00C853]/30 bg-[#00C853]/10 px-3 py-2">
+                <CheckCircle2 className="h-3.5 w-3.5 text-[#00C853]" />
+                <p className="text-xs text-[#00C853]">{backupSuccess}</p>
+              </div>
+            )}
+
+            <div className="bg-vault-bg border border-vault-border rounded-md p-4 space-y-3">
+              <label className={LABEL_CLASS}>Backup Passphrase</label>
+              <input
+                type="password"
+                value={backupPassphrase}
+                onChange={(e) => setBackupPassphrase(e.target.value)}
+                placeholder="At least 12 characters"
+                className={INPUT_CLASS}
+              />
+
+              <label className={LABEL_CLASS}>Confirm Passphrase</label>
+              <input
+                type="password"
+                value={backupConfirm}
+                onChange={(e) => setBackupConfirm(e.target.value)}
+                placeholder="Re-enter passphrase"
+                className={INPUT_CLASS}
+              />
+
+              <button
+                type="button"
+                onClick={() => setIncludeDocumentFilesInBackup((v) => !v)}
+                className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-md border transition-all ${includeDocumentFilesInBackup ? "border-[#00C2FF]/40 bg-[#00C2FF]/5" : "border-vault-border hover:border-vault-text-muted/20"}`}
+              >
+                <div className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${includeDocumentFilesInBackup ? "bg-[#00C2FF]" : "bg-vault-border"}`}>
+                  <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${includeDocumentFilesInBackup ? "left-4" : "left-0.5"}`} />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-vault-text">Include uploaded document files</p>
+                  <p className="text-xs text-vault-text-faint mt-0.5">Keeps receipts and other uploaded files inside the encrypted backup.</p>
+                </div>
+              </button>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={handleCreateSecureBackup}
+                disabled={backupBusy}
+                className="flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 rounded-md text-sm font-medium transition-colors"
+              >
+                {backupBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Archive className="w-4 h-4" />}
+                {backupBusy ? "Creating Secure Backup..." : "Create Encrypted Backup"}
+              </button>
+              <p className="text-xs text-vault-text-faint">Uses AES-256-GCM encryption in your browser with PBKDF2 key stretching.</p>
+            </div>
+
+            <div className="bg-vault-bg border border-vault-border rounded-md p-4 space-y-3">
+              <p className="text-[10px] text-vault-text-faint font-mono uppercase tracking-widest">Automatic Backup (After Changes)</p>
+
+              {autoBackupError && (
+                <p className="text-xs text-[#E53935]">{autoBackupError}</p>
+              )}
+              {autoBackupStatus && (
+                <p className="text-xs text-[#00C853]">{autoBackupStatus}</p>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setAutoBackupEnabled((v) => !v)}
+                className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-md border transition-all ${autoBackupEnabled ? "border-[#00C2FF]/40 bg-[#00C2FF]/5" : "border-vault-border hover:border-vault-text-muted/20"}`}
+              >
+                <div className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${autoBackupEnabled ? "bg-[#00C2FF]" : "bg-vault-border"}`}>
+                  <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${autoBackupEnabled ? "left-4" : "left-0.5"}`} />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-vault-text">Enable automatic backup checks</p>
+                  <p className="text-xs text-vault-text-faint mt-0.5">When enabled, the app checks for data changes and triggers a secure server backup.</p>
+                </div>
+              </button>
+
+              <div>
+                <label className={LABEL_CLASS}>Check Interval (minutes)</label>
+                <input
+                  type="number"
+                  min={5}
+                  value={autoBackupIntervalMin}
+                  onChange={(e) => setAutoBackupIntervalMin(Math.max(5, Number(e.target.value || 5)))}
+                  className={INPUT_CLASS}
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={() => runAutoBackupCheck(true)}
+                disabled={autoBackupRunning}
+                className="flex items-center gap-2 px-4 py-2 rounded-md text-sm border border-vault-border text-vault-text-muted hover:text-[#00C2FF] hover:border-[#00C2FF]/30 disabled:opacity-50"
+              >
+                {autoBackupRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                {autoBackupRunning ? "Running..." : "Run Backup Check Now"}
+              </button>
+
+              <p className="text-xs text-vault-text-faint">Server requirement: set <code className="font-mono">AUTO_BACKUP_PASSPHRASE</code> for automatic encrypted backup files in <code className="font-mono">/backups</code>.</p>
             </div>
           </fieldset>
 
