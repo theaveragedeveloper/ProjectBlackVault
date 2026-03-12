@@ -1,32 +1,69 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// GET /api/builds - List all builds, optional ?firearmId= filter
+// GET /api/builds - List all builds, optional ?firearmId= filter and batched ?firearmIds=id1,id2
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const firearmId = searchParams.get("firearmId");
+    const firearmIdsParam = searchParams.get("firearmIds");
+    const firearmIds = firearmIdsParam
+      ?.split(",")
+      .map((id) => id.trim())
+      .filter(Boolean);
+
+    const where = firearmIds?.length
+      ? { firearmId: { in: firearmIds } }
+      : firearmId
+        ? { firearmId }
+        : undefined;
+
+    const isBatchedFilter = Boolean(firearmIds?.length);
 
     const builds = await prisma.build.findMany({
-      where: firearmId ? { firearmId } : undefined,
-      include: {
-        firearm: {
-          select: {
-            id: true,
-            name: true,
-            manufacturer: true,
-            model: true,
-            type: true,
-            caliber: true,
-            imageUrl: true,
-          },
-        },
-        slots: {
-          include: {
-            accessory: true,
-          },
-        },
-      },
+      where,
+      ...(isBatchedFilter
+        ? {
+            select: {
+              id: true,
+              firearmId: true,
+              name: true,
+              isActive: true,
+              sortOrder: true,
+              slots: {
+                select: {
+                  id: true,
+                  slotType: true,
+                  accessory: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
+                },
+              },
+            },
+          }
+        : {
+            include: {
+              firearm: {
+                select: {
+                  id: true,
+                  name: true,
+                  manufacturer: true,
+                  model: true,
+                  type: true,
+                  caliber: true,
+                  imageUrl: true,
+                },
+              },
+              slots: {
+                include: {
+                  accessory: true,
+                },
+              },
+            },
+          }),
       orderBy: [{ isActive: "desc" }, { updatedAt: "desc" }],
     });
 
