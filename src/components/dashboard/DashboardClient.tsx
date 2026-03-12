@@ -699,21 +699,25 @@ export function DashboardClient({ data }: { data: DashboardData }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed: string[] = JSON.parse(saved);
-        // Ensure all default widgets are present (in case new ones were added)
-        const merged = [
-          ...parsed.filter((id) => DEFAULT_ORDER.includes(id)),
-          ...DEFAULT_ORDER.filter((id) => !parsed.includes(id)),
-        ];
-        setOrder(merged);
+    const timer = setTimeout(() => {
+      setMounted(true);
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed: string[] = JSON.parse(saved);
+          // Ensure all default widgets are present (in case new ones were added)
+          const merged = [
+            ...parsed.filter((id) => DEFAULT_ORDER.includes(id)),
+            ...DEFAULT_ORDER.filter((id) => !parsed.includes(id)),
+          ];
+          setOrder(merged);
+        }
+      } catch {
+        // ignore
       }
-    } catch {
-      // ignore
-    }
+    }, 0);
+
+    return () => clearTimeout(timer);
   }, []);
 
   const sensors = useSensors(

@@ -48,7 +48,6 @@ export default function AccessoriesPage() {
   const [typeFilter, setTypeFilter] = useState<string>("ALL");
 
   useEffect(() => {
-    setLoading(true);
     const url = typeFilter === "ALL" ? "/api/accessories" : `/api/accessories?type=${encodeURIComponent(typeFilter)}`;
     fetch(url)
       .then((r) => r.json())
@@ -97,7 +96,10 @@ export default function AccessoriesPage() {
           <div className="relative">
             <select
               value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
+              onChange={(e) => {
+                setLoading(true);
+                setTypeFilter(e.target.value);
+              }}
               className="appearance-none bg-vault-surface border border-vault-border text-vault-text text-xs font-mono rounded-md pl-3 pr-8 py-1.5 focus:outline-none focus:border-[#00C2FF] cursor-pointer transition-colors hover:border-vault-text-muted/40"
             >
               <option value="ALL">All Types</option>
