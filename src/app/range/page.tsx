@@ -61,6 +61,12 @@ interface AmmoStock {
   quantity: number;
 }
 
+interface AmmoUsageEntry {
+  key: string;
+  stockId: string;
+  quantity: string;
+}
+
 const SLOT_TYPE_LABELS: Record<string, string> = SLOT_TYPE_LABELS_IMPORT as Record<string, string>;
 
 // Slots that typically accumulate rounds (wear parts)
@@ -111,7 +117,9 @@ export default function RangeSessionPage() {
   const [selectedFirearm, setSelectedFirearm] = useState<string>("");
   const [selectedBuild, setSelectedBuild] = useState<string>("");
   const [roundsFired, setRoundsFired] = useState<string>("");
-  const [selectedAmmoStock, setSelectedAmmoStock] = useState<string>("");
+  const [ammoUsageEntries, setAmmoUsageEntries] = useState<AmmoUsageEntry[]>([
+    { key: crypto.randomUUID(), stockId: "", quantity: "" },
+  ]);
   const [sessionNote, setSessionNote] = useState<string>("");
   const [rangeName, setRangeName] = useState<string>("");
   const [rangeLocation, setRangeLocation] = useState<string>("");
@@ -158,9 +166,9 @@ export default function RangeSessionPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [createdSessionId, setCreatedSessionId] = useState<string | null>(null);
-  const [successDetails, setSuccessDetails] = useState<{ accessories: string[]; ammoLeft: number | null }>({
+  const [successDetails, setSuccessDetails] = useState<{ accessories: string[]; ammoLeft: string[] }>({
     accessories: [],
-    ammoLeft: null,
+    ammoLeft: [],
   });
 
   // MOA auto-computed
@@ -249,6 +257,14 @@ export default function RangeSessionPage() {
     ? ammoStocks.filter((a) => a.caliber === selectedFirearmData.caliber)
     : ammoStocks;
 
+  const totalAmmoToDeduct = ammoUsageEntries.reduce((sum, entry) => {
+    if (!entry.stockId || entry.quantity === "") return sum;
+    const parsed = parseInt(entry.quantity, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? sum + parsed : sum;
+  }, 0);
+
+  const hasAmmoDeduction = ammoUsageEntries.some((entry) => entry.stockId && entry.quantity !== "");
+
   function toggleAccessory(accessoryId: string) {
     setSelectedAccessories((prev) => {
       const next = new Set(prev);
@@ -272,8 +288,19 @@ export default function RangeSessionPage() {
 
     try {
       const results: string[] = [];
-      let ammoLeft: number | null = null;
-      let ammoTransactionId: string | null = null;
+      const ammoLeft: string[] = [];
+      const ammoTransactionIds: string[] = [];
+
+      const selectedAmmoEntries = ammoUsageEntries.filter((entry) => entry.stockId && entry.quantity !== "");
+      if (selectedAmmoEntries.length > 0) {
+        if (selectedAmmoEntries.some((entry) => !Number.isFinite(parseInt(entry.quantity, 10)) || parseInt(entry.quantity, 10) <= 0)) {
+          throw new Error("Ammo deduction quantities must be whole numbers greater than 0.");
+        }
+        const totalSelectedAmmoRounds = selectedAmmoEntries.reduce((sum, entry) => sum + parseInt(entry.quantity, 10), 0);
+        if (totalSelectedAmmoRounds > rounds) {
+          throw new Error("Ammo deduction total cannot exceed rounds fired.");
+        }
+      }
 
       // Log rounds to each selected accessory
       for (const accessoryId of selectedAccessories) {
@@ -294,21 +321,29 @@ export default function RangeSessionPage() {
         results.push(name);
       }
 
-      // Deduct ammo if stock selected — capture transaction ID for ammo link
-      if (selectedAmmoStock) {
-        const res = await fetch(`/api/ammo/${selectedAmmoStock}/transactions`, {
+      // Deduct ammo for each selected stock — capture transaction IDs for session links
+      for (const entry of selectedAmmoEntries) {
+        const stockId = entry.stockId;
+        const quantity = parseInt(entry.quantity, 10);
+        const stock = compatibleAmmo.find((ammo) => ammo.id === stockId) ?? ammoStocks.find((ammo) => ammo.id === stockId);
+
+        const res = await fetch(`/api/ammo/${stockId}/transactions`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             type: "RANGE_USE",
-            quantity: rounds,
+            quantity,
             note: sessionNote || (rangeName ? `Range session at ${rangeName}` : "Range session"),
           }),
         });
         const json = await res.json();
         if (!res.ok) throw new Error(json.error ?? "Failed to deduct ammo");
-        ammoLeft = json.stock.quantity;
-        ammoTransactionId = json.transaction?.id ?? null;
+
+        if (json.transaction?.id) ammoTransactionIds.push(json.transaction.id);
+        const label = stock
+          ? `${stock.caliber} · ${stock.brand}${stock.grainWeight ? ` ${stock.grainWeight}gr` : ""}${stock.bulletType ? ` ${stock.bulletType}` : ""}`
+          : "Ammo stock";
+        ammoLeft.push(`${label}: ${formatNumber(json.stock.quantity)} rds left`);
       }
 
       // Save range session record
@@ -337,7 +372,7 @@ export default function RangeSessionPage() {
           numberOfGroups: numberOfGroups ? parseInt(numberOfGroups) : null,
           groupNotes: groupNotes || null,
           // ammo link
-          ammoTransactionIds: ammoTransactionId ? [ammoTransactionId] : [],
+          ammoTransactionIds,
         }),
       });
       const sessionJson = await sessionRes.json();
@@ -392,7 +427,7 @@ export default function RangeSessionPage() {
     setSelectedFirearm("");
     setSelectedBuild("");
     setRoundsFired("");
-    setSelectedAmmoStock("");
+    setAmmoUsageEntries([{ key: crypto.randomUUID(), stockId: "", quantity: "" }]);
     setSessionNote("");
     setRangeName("");
     setRangeLocation("");
@@ -450,10 +485,14 @@ export default function RangeSessionPage() {
                   ))}
                 </div>
               )}
-              {successDetails.ammoLeft != null && (
-                <div className="flex justify-between">
-                  <span className="text-sm text-vault-text-muted">Ammo remaining</span>
-                  <span className="text-sm font-mono text-[#F5A623]">{formatNumber(successDetails.ammoLeft)} rds</span>
+              {successDetails.ammoLeft.length > 0 && (
+                <div>
+                  <p className="text-sm text-vault-text-muted mb-1">Ammo remaining:</p>
+                  <div className="space-y-1">
+                    {successDetails.ammoLeft.map((summary) => (
+                      <p key={summary} className="text-xs text-[#F5A623] font-mono ml-2">{summary}</p>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -504,7 +543,7 @@ export default function RangeSessionPage() {
               ) : (
                 <div className="relative">
                   <select required value={selectedFirearm}
-                    onChange={(e) => { setSelectedFirearm(e.target.value); setSelectedBuild(""); setSelectedAmmoStock(""); }}
+                    onChange={(e) => { setSelectedFirearm(e.target.value); setSelectedBuild(""); setAmmoUsageEntries([{ key: crypto.randomUUID(), stockId: "", quantity: "" }]); }}
                     className={INPUT_CLASS}>
                     <option value="">Select firearm...</option>
                     {firearms.map((f) => (
@@ -586,7 +625,7 @@ export default function RangeSessionPage() {
             </div>
 
             <div>
-              <label className={LABEL_CLASS}>Ammo Stock to Deduct From</label>
+              <label className={LABEL_CLASS}>Ammo to Deduct</label>
               {loadingAmmo ? (
                 <div className="flex items-center gap-2 h-10">
                   <Loader2 className="w-4 h-4 text-[#F5A623] animate-spin" />
@@ -598,19 +637,52 @@ export default function RangeSessionPage() {
                     : "Select a firearm to filter compatible ammo."}
                 </p>
               ) : (
-                <div className="relative">
-                  <select value={selectedAmmoStock} onChange={(e) => setSelectedAmmoStock(e.target.value)} className={INPUT_CLASS}>
-                    <option value="">No deduction</option>
-                    {compatibleAmmo.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.caliber} · {a.brand}{a.grainWeight ? ` ${a.grainWeight}gr` : ""}{a.bulletType ? ` ${a.bulletType}` : ""} — {formatNumber(a.quantity)} rds
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-vault-text-faint pointer-events-none" />
+                <div className="space-y-2">
+                  {ammoUsageEntries.map((entry, idx) => (
+                    <div key={entry.key} className="grid grid-cols-1 sm:grid-cols-[1fr_120px_auto] gap-2 items-start">
+                      <div className="relative">
+                        <select
+                          value={entry.stockId}
+                          onChange={(e) => setAmmoUsageEntries((prev) => prev.map((item) => item.key === entry.key ? { ...item, stockId: e.target.value } : item))}
+                          className={INPUT_CLASS}
+                        >
+                          <option value="">No deduction</option>
+                          {compatibleAmmo.map((a) => (
+                            <option key={a.id} value={a.id}>
+                              {a.caliber} · {a.brand}{a.grainWeight ? ` ${a.grainWeight}gr` : ""}{a.bulletType ? ` ${a.bulletType}` : ""} — {formatNumber(a.quantity)} rds
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-vault-text-faint pointer-events-none" />
+                      </div>
+                      <input
+                        type="number"
+                        min={1}
+                        value={entry.quantity}
+                        onChange={(e) => setAmmoUsageEntries((prev) => prev.map((item) => item.key === entry.key ? { ...item, quantity: e.target.value } : item))}
+                        placeholder="Rounds"
+                        className={INPUT_CLASS}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setAmmoUsageEntries((prev) => prev.length > 1 ? prev.filter((item) => item.key !== entry.key) : prev)}
+                        disabled={idx === 0 && ammoUsageEntries.length === 1}
+                        className="h-10 px-3 rounded-md border border-vault-border text-vault-text-muted hover:text-vault-text hover:border-vault-text-muted/50 disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setAmmoUsageEntries((prev) => [...prev, { key: crypto.randomUUID(), stockId: "", quantity: "" }])}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md border border-dashed border-vault-border text-vault-text-faint hover:text-[#00C2FF] hover:border-[#00C2FF]/40"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add ammo type
+                  </button>
                 </div>
               )}
-              <p className="text-xs text-vault-text-faint mt-1">This will deduct rounds from the selected stock.</p>
+              <p className="text-xs text-vault-text-faint mt-1">You can log multiple ammo types/loadouts for one session.</p>
             </div>
           </fieldset>
 
@@ -1001,8 +1073,11 @@ export default function RangeSessionPage() {
               {selectedAccessories.size > 0 && (
                 <p>Will log rounds to {selectedAccessories.size} accessor{selectedAccessories.size !== 1 ? "ies" : "y"}</p>
               )}
-              {selectedAmmoStock && roundsFired && (
-                <p>Will deduct {formatNumber(parseInt(roundsFired) || 0)} rounds from stock</p>
+              {hasAmmoDeduction && (
+                <p>
+                  Will deduct {formatNumber(totalAmmoToDeduct)} rounds across ammo selection
+                  {roundsFired && totalAmmoToDeduct > parseInt(roundsFired, 10) ? " (exceeds rounds fired)" : ""}
+                </p>
               )}
             </div>
             <button type="submit" disabled={submitting || !selectedFirearm || !roundsFired}
