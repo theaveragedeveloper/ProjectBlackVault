@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { decryptField } from "@/lib/crypto";
 
 interface GoogleCseItem {
   title: string;
@@ -39,7 +40,10 @@ export async function POST(request: NextRequest) {
       where: { id: "singleton" },
     });
 
-    if (!settings?.googleCseApiKey || !settings?.googleCseSearchEngineId) {
+    const googleCseApiKey = await decryptField(settings?.googleCseApiKey ?? null);
+    const googleCseSearchEngineId = settings?.googleCseSearchEngineId ?? null;
+
+    if (!settings || !googleCseApiKey || !googleCseSearchEngineId) {
       return NextResponse.json(
         {
           error:
@@ -60,8 +64,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    const { googleCseApiKey, googleCseSearchEngineId } = settings;
 
     const searchUrl = new URL(
       "https://www.googleapis.com/customsearch/v1"
