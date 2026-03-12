@@ -12,10 +12,20 @@ export async function GET(request: NextRequest) {
     const includeAnalytics = searchParams.get("include") === "analytics";
 
     const sessions = await prisma.rangeSession.findMany({
-      where: firearmId ? { firearmId } : undefined,
+      where: firearmId
+        ? {
+            sessionFirearms: {
+              some: { firearmId },
+            },
+          }
+        : undefined,
       include: {
-        firearm: { select: { id: true, name: true, caliber: true } },
-        build: { select: { id: true, name: true } },
+        sessionFirearms: {
+          include: {
+            firearm: { select: { id: true, name: true, caliber: true } },
+            build: { select: { id: true, name: true } },
+          },
+        },
         _count: { select: { sessionDrills: true } },
         ...(includeAnalytics
           ? {
@@ -29,7 +39,17 @@ export async function GET(request: NextRequest) {
       take: limit,
     });
 
-    return NextResponse.json(sessions);
+    return NextResponse.json(
+      sessions.map((session) => {
+        const primaryFirearm = session.sessionFirearms[0] ?? null;
+        return {
+          ...session,
+          roundsFired: session.sessionFirearms.reduce((sum, sf) => sum + sf.roundsFired, 0),
+          firearm: primaryFirearm?.firearm ?? null,
+          build: primaryFirearm?.build ?? null,
+        };
+      })
+    );
   } catch (error) {
     console.error("GET /api/range-sessions error:", error);
     return NextResponse.json({ error: "Failed to fetch range sessions" }, { status: 500 });
@@ -92,9 +112,6 @@ export async function POST(request: NextRequest) {
     const session = await prisma.$transaction(async (tx) => {
       const created = await tx.rangeSession.create({
         data: {
-          firearmId,
-          buildId: buildId || null,
-          roundsFired: rounds,
           rangeName: typeof rangeName === "string" ? rangeName.slice(0, 200) : null,
           rangeLocation: typeof rangeLocation === "string" ? rangeLocation.slice(0, 200) : null,
           notes: typeof notes === "string" ? notes.slice(0, 5000) : null,
@@ -113,10 +130,21 @@ export async function POST(request: NextRequest) {
           groupSizeMoa: parseFloat_(groupSizeMoa),
           numberOfGroups: parseInt_(numberOfGroups),
           groupNotes: typeof groupNotes === "string" && groupNotes ? groupNotes.slice(0, 1000) : null,
+          sessionFirearms: {
+            create: {
+              firearmId,
+              buildId: buildId || null,
+              roundsFired: rounds,
+            },
+          },
         },
         include: {
-          firearm: { select: { id: true, name: true, caliber: true } },
-          build: { select: { id: true, name: true } },
+          sessionFirearms: {
+            include: {
+              firearm: { select: { id: true, name: true, caliber: true } },
+              build: { select: { id: true, name: true } },
+            },
+          },
         },
       });
 
@@ -135,7 +163,16 @@ export async function POST(request: NextRequest) {
 
     revalidateDashboardCaches(["range", "ammo"]);
 
-    return NextResponse.json(session, { status: 201 });
+    const primaryFirearm = session.sessionFirearms[0] ?? null;
+    return NextResponse.json(
+      {
+        ...session,
+        roundsFired: session.sessionFirearms.reduce((sum, sf) => sum + sf.roundsFired, 0),
+        firearm: primaryFirearm?.firearm ?? null,
+        build: primaryFirearm?.build ?? null,
+      },
+      { status: 201 }
+    );
   } catch (error) {
     console.error("POST /api/range-sessions error:", error);
     return NextResponse.json({ error: "Failed to create range session" }, { status: 500 });

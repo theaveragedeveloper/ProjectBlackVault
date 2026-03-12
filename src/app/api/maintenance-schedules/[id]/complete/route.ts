@@ -14,7 +14,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!schedule) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   // Compute current firearm round count (sum of all session rounds fired)
-  const roundAgg = await prisma.rangeSession.aggregate({
+  const roundAgg = await prisma.rangeSessionFirearm.aggregate({
     where: { firearmId: schedule.firearmId },
     _sum: { roundsFired: true },
   });

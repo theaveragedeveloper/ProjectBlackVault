@@ -12,8 +12,12 @@ export async function GET(
     const session = await prisma.rangeSession.findUnique({
       where: { id },
       include: {
-        firearm: { select: { id: true, name: true, caliber: true } },
-        build: { select: { id: true, name: true } },
+        sessionFirearms: {
+          include: {
+            firearm: { select: { id: true, name: true, caliber: true } },
+            build: { select: { id: true, name: true } },
+          },
+        },
         sessionDrills: {
           include: { template: true },
           orderBy: { sortOrder: "asc" },
@@ -34,7 +38,13 @@ export async function GET(
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
     }
 
-    return NextResponse.json(session);
+    const primaryFirearm = session.sessionFirearms[0] ?? null;
+    return NextResponse.json({
+      ...session,
+      roundsFired: session.sessionFirearms.reduce((sum, sf) => sum + sf.roundsFired, 0),
+      firearm: primaryFirearm?.firearm ?? null,
+      build: primaryFirearm?.build ?? null,
+    });
   } catch (error) {
     console.error("GET /api/range-sessions/[id] error:", error);
     return NextResponse.json({ error: "Failed to fetch session" }, { status: 500 });
@@ -83,11 +93,14 @@ export async function PUT(
     };
 
     const session = await prisma.$transaction(async (tx) => {
-      const updated = await tx.rangeSession.update({
+      const existing = await tx.rangeSessionFirearm.findFirst({
+        where: { sessionId: id },
+        select: { id: true },
+      });
+
+      await tx.rangeSession.update({
         where: { id },
         data: {
-          buildId: buildId !== undefined ? (buildId || null) : undefined,
-          roundsFired: roundsFired !== undefined ? parseInt(String(roundsFired), 10) : undefined,
           rangeName: typeof rangeName === "string" ? rangeName.slice(0, 200) : null,
           rangeLocation: typeof rangeLocation === "string" ? rangeLocation.slice(0, 200) : null,
           notes: typeof notes === "string" ? notes.slice(0, 5000) : null,
@@ -106,8 +119,12 @@ export async function PUT(
           groupNotes: typeof groupNotes === "string" && groupNotes ? groupNotes.slice(0, 1000) : null,
         },
         include: {
-          firearm: { select: { id: true, name: true, caliber: true } },
-          build: { select: { id: true, name: true } },
+          sessionFirearms: {
+            include: {
+              firearm: { select: { id: true, name: true, caliber: true } },
+              build: { select: { id: true, name: true } },
+            },
+          },
           sessionDrills: { include: { template: true }, orderBy: { sortOrder: "asc" } },
           ammoLinks: {
             include: {
@@ -121,6 +138,16 @@ export async function PUT(
         },
       });
 
+      if (existing && (roundsFired !== undefined || buildId !== undefined)) {
+        await tx.rangeSessionFirearm.update({
+          where: { id: existing.id },
+          data: {
+            roundsFired: roundsFired !== undefined ? parseInt(String(roundsFired), 10) : undefined,
+            buildId: buildId !== undefined ? (buildId || null) : undefined,
+          },
+        });
+      }
+
       // Update ammo links if provided
       if (Array.isArray(ammoTransactionIds)) {
         await tx.sessionAmmoLink.deleteMany({ where: { sessionId: id } });
@@ -129,12 +156,38 @@ export async function PUT(
         }
       }
 
-      return updated;
+      return tx.rangeSession.findUniqueOrThrow({
+        where: { id },
+        include: {
+          sessionFirearms: {
+            include: {
+              firearm: { select: { id: true, name: true, caliber: true } },
+              build: { select: { id: true, name: true } },
+            },
+          },
+          sessionDrills: { include: { template: true }, orderBy: { sortOrder: "asc" } },
+          ammoLinks: {
+            include: {
+              transaction: {
+                include: {
+                  stock: { select: { caliber: true, brand: true, grainWeight: true, bulletType: true } },
+                },
+              },
+            },
+          },
+        },
+      });
     });
 
     revalidateDashboardCaches(["range", "ammo"]);
 
-    return NextResponse.json(session);
+    const primaryFirearm = session.sessionFirearms[0] ?? null;
+    return NextResponse.json({
+      ...session,
+      roundsFired: session.sessionFirearms.reduce((sum, sf) => sum + sf.roundsFired, 0),
+      firearm: primaryFirearm?.firearm ?? null,
+      build: primaryFirearm?.build ?? null,
+    });
   } catch (error) {
     console.error("PUT /api/range-sessions/[id] error:", error);
     return NextResponse.json({ error: "Failed to update session" }, { status: 500 });

@@ -28,7 +28,7 @@ model Firearm {
   imageSource     String?
 
   builds          Build[]
-  rangeSessions   RangeSession[]
+  rangeSessionFirearms RangeSessionFirearm[]
   maintenanceNotes MaintenanceNote[]
   maintenanceSchedules MaintenanceSchedule[]
   documents       Document[]
@@ -53,7 +53,7 @@ model Build {
   firearm     Firearm     @relation(fields: [firearmId], references: [id], onDelete: Cascade)
 
   slots       BuildSlot[]
-  rangeSessions RangeSession[]
+  rangeSessionFirearms RangeSessionFirearm[]
 
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
@@ -148,12 +148,7 @@ model RoundCountLog {
 
 model RangeSession {
   id            String   @id @default(cuid())
-  firearmId     String
-  firearm       Firearm  @relation(fields: [firearmId], references: [id], onDelete: Cascade)
-  buildId       String?
-  build         Build?   @relation(fields: [buildId], references: [id], onDelete: SetNull)
   date          DateTime @default(now())
-  roundsFired   Int
   rangeName     String?
   rangeLocation String?
   notes         String?
@@ -175,14 +170,32 @@ model RangeSession {
   groupNotes       String?
 
   // ── Relations ─────────────────────────────────────────
+  sessionFirearms RangeSessionFirearm[]
   sessionDrills  SessionDrill[]
   ammoLinks      SessionAmmoLink[]
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  @@index([firearmId])
   @@index([date])
+}
+
+model RangeSessionFirearm {
+  id          String       @id @default(cuid())
+  sessionId   String
+  session     RangeSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  firearmId   String
+  firearm     Firearm      @relation(fields: [firearmId], references: [id], onDelete: Cascade)
+  roundsFired Int
+  buildId     String?
+  build       Build?       @relation(fields: [buildId], references: [id], onDelete: SetNull)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@unique([sessionId, firearmId])
+  @@index([sessionId])
+  @@index([firearmId])
+  @@index([buildId])
 }
 
 model DrillTemplate {

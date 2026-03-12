@@ -92,8 +92,15 @@ interface RangeSession {
   groupSizeMoa: number | null;
   numberOfGroups: number | null;
   groupNotes: string | null;
-  firearm: { id: string; name: string; caliber: string };
+  firearm: { id: string; name: string; caliber: string } | null;
   build: { id: string; name: string } | null;
+  sessionFirearms: {
+    firearmId: string;
+    roundsFired: number;
+    buildId: string | null;
+    firearm: { id: string; name: string; caliber: string };
+    build: { id: string; name: string } | null;
+  }[];
   sessionDrills: SessionDrill[];
   ammoLinks: AmmoLink[];
 }
@@ -489,7 +496,7 @@ export default function RangeSessionDetailPage() {
   return (
     <div className="min-h-full">
       <PageHeader
-        title={session.firearm.name.toUpperCase()}
+        title={(session.firearm?.name ?? session.sessionFirearms[0]?.firearm.name ?? "SESSION").toUpperCase()}
         subtitle={formatDate(session.date)}
       />
 
@@ -537,7 +544,7 @@ export default function RangeSessionDetailPage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
             { label: "Rounds Fired", value: formatNumber(session.roundsFired), unit: "rds", color: "text-[#00C2FF]" },
-            { label: "Caliber", value: session.firearm.caliber, color: "text-vault-text" },
+            { label: "Caliber", value: session.firearm?.caliber ?? session.sessionFirearms[0]?.firearm.caliber ?? "—", color: "text-vault-text" },
             { label: "Build", value: session.build?.name ?? "—", color: "text-vault-text" },
             { label: "Range", value: session.rangeName ?? "—", color: "text-vault-text" },
           ].map(({ label, value, color }) => (

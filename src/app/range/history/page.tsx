@@ -21,8 +21,6 @@ import {
 
 interface RangeSession {
   id: string;
-  firearmId: string;
-  buildId: string | null;
   date: string;
   roundsFired: number;
   rangeName: string | null;
@@ -31,8 +29,15 @@ interface RangeSession {
   groupSizeIn: number | null;
   groupSizeMoa: number | null;
   targetDistanceYd: number | null;
-  firearm: { id: string; name: string; caliber: string };
+  firearm: { id: string; name: string; caliber: string } | null;
   build: { id: string; name: string } | null;
+  sessionFirearms: {
+    firearmId: string;
+    roundsFired: number;
+    buildId: string | null;
+    firearm: { id: string; name: string; caliber: string };
+    build: { id: string; name: string } | null;
+  }[];
   _count: { sessionDrills: number };
   sessionDrills?: { accuracy: number | null; drillName: string; templateId: string | null; timeSeconds: number | null; score: number | null }[];
 }
@@ -144,12 +149,19 @@ export default function RangeHistoryPage() {
   const [calendarLoading, setCalendarLoading] = useState(false);
 
   const uniqueFirearms = useMemo(
-    () => Array.from(new Map(sessions.map((s) => [s.firearm.id, s.firearm])).values()),
+    () => Array.from(new Map(
+      sessions
+        .map((s) => s.firearm ?? s.sessionFirearms[0]?.firearm ?? null)
+        .filter((f): f is { id: string; name: string; caliber: string } => Boolean(f))
+        .map((f) => [f.id, f])
+    ).values()),
     [sessions]
   );
 
   const filtered = useMemo(
-    () => firearmFilter === "ALL" ? sessions : sessions.filter((s) => s.firearm.id === firearmFilter),
+    () => firearmFilter === "ALL"
+      ? sessions
+      : sessions.filter((s) => (s.firearm?.id ?? s.sessionFirearms[0]?.firearm.id) === firearmFilter),
     [sessions, firearmFilter]
   );
 
@@ -224,7 +236,7 @@ export default function RangeHistoryPage() {
         date: formatSessionDate(s.date),
         groupSizeIn: s.groupSizeIn!,
         distanceYd: s.targetDistanceYd!,
-        firearm: s.firearm.name,
+        firearm: s.firearm?.name ?? s.sessionFirearms[0]?.firearm.name ?? "Unknown",
       }));
   }, [filtered]);
 
@@ -382,7 +394,7 @@ export default function RangeHistoryPage() {
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-3 mb-2 flex-wrap">
-                          <span className="text-sm font-semibold text-vault-text">{session.firearm.name}</span>
+                          <span className="text-sm font-semibold text-vault-text">{session.firearm?.name ?? session.sessionFirearms[0]?.firearm.name ?? "Unknown Firearm"}</span>
                           {session.build && (
                             <span className="text-[10px] font-mono text-vault-text-faint border border-vault-border px-1.5 py-0.5 rounded">
                               {session.build.name}
