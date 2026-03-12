@@ -10,15 +10,15 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, subtitle, actions, className }: PageHeaderProps) {
   return (
-    <div className={cn("flex items-center justify-between py-6 px-6 border-b border-vault-border", className)}>
+    <div className={cn("flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-4 sm:py-6 px-4 sm:px-6 border-b border-vault-border", className)}>
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-vault-text">{title}</h1>
+        <h1 className="text-lg sm:text-xl font-bold tracking-tight text-vault-text">{title}</h1>
         {subtitle && (
-          <p className="text-sm text-vault-text-muted mt-0.5">{subtitle}</p>
+          <p className="text-xs sm:text-sm text-vault-text-muted mt-0.5">{subtitle}</p>
         )}
       </div>
       {actions && (
-        <div className="flex items-center gap-2">{actions}</div>
+        <div className="flex w-full sm:w-auto items-center gap-2">{actions}</div>
       )}
     </div>
   );
