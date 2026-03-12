@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { formatCurrency, formatNumber } from "@/lib/utils";
 import {
@@ -114,10 +115,12 @@ function FirearmCard({ firearm, editMode, editBuilds, onDeleteBuild }: FirearmCa
       {/* Image / Placeholder */}
       <div className="h-40 bg-vault-bg relative overflow-hidden border-b border-vault-border">
         {firearm.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <Image
             src={firearm.imageUrl}
             alt={firearm.name}
+            fill
+            sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
+            loading="lazy"
             className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
           />
         ) : (

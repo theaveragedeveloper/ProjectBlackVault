@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/utils";
 import { Plus, Crosshair, Shield, ExternalLink, Loader2, ChevronDown } from "lucide-react";
@@ -160,10 +161,9 @@ export default function AccessoriesPage() {
                     return (
                       <tr key={accessory.id} className="hover:bg-vault-surface-2 transition-colors group">
                         <td className="px-4 py-3">
-                          <div className="w-9 h-9 rounded bg-vault-bg border border-vault-border overflow-hidden flex items-center justify-center shrink-0">
+                          <div className="relative w-9 h-9 rounded bg-vault-bg border border-vault-border overflow-hidden flex items-center justify-center shrink-0">
                             {accessory.imageUrl ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={accessory.imageUrl} alt={accessory.name} className="w-full h-full object-cover" />
+                              <Image src={accessory.imageUrl} alt={accessory.name} fill sizes="36px" loading="lazy" className="w-full h-full object-cover" />
                             ) : (
                               <Shield className="w-4 h-4 text-vault-text-faint" />
                             )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Image from "next/image";
 import { Camera, Link, Loader2, X, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
 
 interface ImagePickerProps {
@@ -99,11 +100,13 @@ export default function ImagePicker({
       {/* Preview */}
       {preview ? (
         <div className="relative rounded-md overflow-hidden border border-vault-border bg-vault-bg">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <Image
             src={preview}
             alt="Preview"
-            className="w-full max-h-48 object-contain"
+            width={1200}
+            height={800}
+            loading="lazy"
+            className="w-full max-h-48 h-auto object-contain"
             onError={() => {
               setError("Could not load this image URL. Please check the link.");
             }}
