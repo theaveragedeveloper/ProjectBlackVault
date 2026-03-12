@@ -93,6 +93,29 @@ Data is persisted in named Docker volumes:
 
 ---
 
+
+## CI Quality Gates (Blocking)
+
+All pull requests must pass the **Quality Gate** workflow before merge. Failures are blocking.
+
+Current policy:
+- `src/app/api/*` and `src/components/*` are strict modules and must be lint-clean (`eslint --max-warnings=0`).
+- Repository-wide lint and typecheck are enforced with a temporary baseline to prevent new debt from being introduced.
+- CI fails if total lint/type errors exceed `.quality-baseline.json`.
+
+Burn-down plan:
+1. Reduce baseline totals module-by-module.
+2. Update `.quality-baseline.json` downward in the same PR as each cleanup.
+3. Remove baseline gating once global lint and typecheck both reach zero.
+
+Local commands:
+
+```bash
+npm run lint
+npm run typecheck
+npm run ci:quality-gate
+```
+
 ## Tech Stack
 
 | Layer | Technology |

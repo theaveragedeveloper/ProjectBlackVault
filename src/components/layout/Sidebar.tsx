@@ -100,15 +100,9 @@ interface SidebarProps {
 export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
-  const [rangeExpanded, setRangeExpanded] = useState(false);
+  const [rangeExpanded, setRangeExpanded] = useState(pathname.startsWith("/range"));
   const [loggingOut, setLoggingOut] = useState(false);
 
-  // Auto-expand Range if on a range path
-  useEffect(() => {
-    if (pathname.startsWith("/range")) {
-      setRangeExpanded(true);
-    }
-  }, [pathname]);
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -163,6 +157,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
               : pathname === item.href || (item.href !== "/range" && pathname.startsWith(item.href));
           const isRangeParent = item.href === "/range";
           const isRangeActive = pathname.startsWith("/range");
+          const isRangeExpanded = isRangeActive || rangeExpanded;
 
           if (isRangeParent && item.children) {
             return (
@@ -195,13 +190,13 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
                       <ChevronDown
                         className={cn(
                           "w-3 h-3 shrink-0 transition-transform",
-                          rangeExpanded ? "rotate-180" : ""
+                          isRangeExpanded ? "rotate-180" : ""
                         )}
                       />
                     </>
                   )}
                 </button>
-                {!collapsed && rangeExpanded && (
+                {!collapsed && isRangeExpanded && (
                   <div className="ml-3 mt-0.5 space-y-0.5 border-l border-vault-border pl-3">
                     {item.children.map((child) => {
                       const ChildIcon = child.icon;

@@ -551,6 +551,7 @@ function PersonalRecordsWidget() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
+
   }, []);
 
   const METRIC_LABELS: Record<string, string> = { time: "Best Time", score: "Best Score", accuracy: "Best Accuracy" };
@@ -696,7 +697,10 @@ export function DashboardClient({ data }: { data: DashboardData }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
+    const hydrationTick = window.requestAnimationFrame(() => {
+      setMounted(true);
+    });
+
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
@@ -706,11 +710,17 @@ export function DashboardClient({ data }: { data: DashboardData }) {
           ...parsed.filter((id) => DEFAULT_ORDER.includes(id)),
           ...DEFAULT_ORDER.filter((id) => !parsed.includes(id)),
         ];
-        setOrder(merged);
+        queueMicrotask(() => {
+          setOrder(merged);
+        });
       }
     } catch {
       // ignore
     }
+
+    return () => {
+      window.cancelAnimationFrame(hydrationTick);
+    };
   }, []);
 
   const sensors = useSensors(
