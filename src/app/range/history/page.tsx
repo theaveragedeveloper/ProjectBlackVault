@@ -19,10 +19,16 @@ import {
   ReferenceLine,
 } from "recharts";
 
-interface RangeSession {
+interface RangeSessionFirearm {
   id: string;
   firearmId: string;
-  buildId: string | null;
+  roundsFired: number;
+  firearm: { id: string; name: string; caliber: string };
+  build: { id: string; name: string } | null;
+}
+
+interface RangeSession {
+  id: string;
   date: string;
   roundsFired: number;
   rangeName: string | null;
@@ -31,8 +37,7 @@ interface RangeSession {
   groupSizeIn: number | null;
   groupSizeMoa: number | null;
   targetDistanceYd: number | null;
-  firearm: { id: string; name: string; caliber: string };
-  build: { id: string; name: string } | null;
+  sessionFirearms: RangeSessionFirearm[];
   _count: { sessionDrills: number };
   sessionDrills?: { accuracy: number | null; drillName: string; templateId: string | null; timeSeconds: number | null; score: number | null }[];
 }
@@ -144,12 +149,12 @@ export default function RangeHistoryPage() {
   const [calendarLoading, setCalendarLoading] = useState(false);
 
   const uniqueFirearms = useMemo(
-    () => Array.from(new Map(sessions.map((s) => [s.firearm.id, s.firearm])).values()),
+    () => Array.from(new Map(sessions.flatMap((s) => s.sessionFirearms.map((sf) => [sf.firearm.id, sf.firearm]))).values()),
     [sessions]
   );
 
   const filtered = useMemo(
-    () => firearmFilter === "ALL" ? sessions : sessions.filter((s) => s.firearm.id === firearmFilter),
+    () => firearmFilter === "ALL" ? sessions : sessions.filter((s) => s.sessionFirearms.some((sf) => sf.firearm.id === firearmFilter)),
     [sessions, firearmFilter]
   );
 
@@ -224,7 +229,7 @@ export default function RangeHistoryPage() {
         date: formatSessionDate(s.date),
         groupSizeIn: s.groupSizeIn!,
         distanceYd: s.targetDistanceYd!,
-        firearm: s.firearm.name,
+        firearm: s.sessionFirearms.map((sf) => sf.firearm.name).join(", "),
       }));
   }, [filtered]);
 
@@ -382,10 +387,10 @@ export default function RangeHistoryPage() {
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-3 mb-2 flex-wrap">
-                          <span className="text-sm font-semibold text-vault-text">{session.firearm.name}</span>
-                          {session.build && (
+                          <span className="text-sm font-semibold text-vault-text">{session.sessionFirearms.map((sf) => sf.firearm.name).join(", ")}</span>
+                          {session.sessionFirearms.some((sf) => sf.build) && (
                             <span className="text-[10px] font-mono text-vault-text-faint border border-vault-border px-1.5 py-0.5 rounded">
-                              {session.build.name}
+                              {session.sessionFirearms.filter((sf) => sf.build).map((sf) => sf.build!.name).join(", ")}
                             </span>
                           )}
                           <span className="text-[10px] font-mono font-bold text-[#00C2FF] bg-[#00C2FF]/10 border border-[#00C2FF]/20 px-2 py-0.5 rounded">

@@ -29,6 +29,7 @@ model Firearm {
 
   builds          Build[]
   rangeSessions   RangeSession[]
+  sessionFirearms SessionFirearm[]
   maintenanceNotes MaintenanceNote[]
   maintenanceSchedules MaintenanceSchedule[]
   documents       Document[]
@@ -54,6 +55,7 @@ model Build {
 
   slots       BuildSlot[]
   rangeSessions RangeSession[]
+  sessionFirearms SessionFirearm[]
 
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
@@ -175,6 +177,7 @@ model RangeSession {
   groupNotes       String?
 
   // ── Relations ─────────────────────────────────────────
+  sessionFirearms SessionFirearm[]
   sessionDrills  SessionDrill[]
   ammoLinks      SessionAmmoLink[]
 
@@ -183,6 +186,21 @@ model RangeSession {
 
   @@index([firearmId])
   @@index([date])
+}
+
+model SessionFirearm {
+  id          String       @id @default(cuid())
+  sessionId   String
+  session     RangeSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  firearmId   String
+  firearm     Firearm      @relation(fields: [firearmId], references: [id], onDelete: Cascade)
+  buildId     String?
+  build       Build?       @relation(fields: [buildId], references: [id], onDelete: SetNull)
+  roundsFired Int
+
+  @@index([sessionId])
+  @@index([firearmId])
+  @@unique([sessionId, firearmId, buildId])
 }
 
 model DrillTemplate {
