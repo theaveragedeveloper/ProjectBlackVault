@@ -15,9 +15,19 @@ export async function GET(
       return NextResponse.json({ error: "Template not found" }, { status: 404 });
     }
 
+    const nameMatchFilter = {
+      templateId: null,
+      drillName: template.name,
+    };
+
     const [sessionDrills, drillLogs] = await Promise.all([
       prisma.sessionDrill.findMany({
-        where: { templateId: id },
+        where: {
+          OR: [
+            { templateId: id },
+            ...(template.isBuiltIn ? [nameMatchFilter] : []),
+          ],
+        },
         include: {
           session: {
             select: {
@@ -32,7 +42,12 @@ export async function GET(
         orderBy: { session: { date: "asc" } },
       }),
       prisma.drillLog.findMany({
-        where: { templateId: id },
+        where: {
+          OR: [
+            { templateId: id },
+            ...(template.isBuiltIn ? [nameMatchFilter] : []),
+          ],
+        },
         orderBy: { performedAt: "asc" },
       }),
     ]);
