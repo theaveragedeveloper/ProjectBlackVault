@@ -6,6 +6,7 @@ import Link from "next/link";
 import { SLOT_TYPES, SLOT_TYPE_LABELS, COMMON_CALIBERS } from "@/lib/types";
 import { ArrowLeft, Plus, Loader2, AlertCircle } from "lucide-react";
 import ImagePicker from "@/components/shared/ImagePicker";
+import ReceiptUploader from "@/components/shared/ReceiptUploader";
 
 const INPUT_CLASS =
   "w-full bg-vault-surface border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint transition-colors";
@@ -19,6 +20,8 @@ export default function NewAccessoryPage() {
   const [caliberDropdownOpen, setCaliberDropdownOpen] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [imageSource, setImageSource] = useState<string | null>(null);
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptError, setReceiptError] = useState<string | null>(null);
 
   const filteredCalibers = COMMON_CALIBERS.filter((c) =>
     c.toLowerCase().includes(caliberInput.toLowerCase())
@@ -58,6 +61,30 @@ export default function NewAccessoryPage() {
         setError(json.error ?? "Failed to create accessory");
         setLoading(false);
         return;
+      }
+
+      if (receiptFile) {
+        const receiptName = `${payload.name.trim() || "Accessory"} Receipt`;
+        const receiptFormData = new FormData();
+        receiptFormData.append("file", receiptFile);
+        receiptFormData.append("name", receiptName);
+        receiptFormData.append("type", "RECEIPT");
+        receiptFormData.append("accessoryId", json.id);
+
+        const receiptRes = await fetch("/api/documents/upload", {
+          method: "POST",
+          body: receiptFormData,
+        });
+
+        if (!receiptRes.ok) {
+          const receiptJson = await receiptRes.json();
+          setError(
+            receiptJson.error ??
+              "Accessory created, but receipt upload failed. You can upload it later from Documents."
+          );
+          setLoading(false);
+          return;
+        }
       }
 
       setLoading(false);
@@ -171,6 +198,17 @@ export default function NewAccessoryPage() {
               entityType="accessory"
               currentUrl={imageUrl}
               onChange={(url, source) => { setImageUrl(url); setImageSource(source); }}
+            />
+          </fieldset>
+
+          {/* Receipt */}
+          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
+            <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">Receipt</legend>
+            <ReceiptUploader
+              file={receiptFile}
+              onFileChange={setReceiptFile}
+              onValidationError={setReceiptError}
+              error={receiptError}
             />
           </fieldset>
 
