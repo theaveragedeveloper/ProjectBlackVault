@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { revalidateDashboardCaches } from "@/lib/server/dashboard";
 
 // GET /api/ammo/[id] - Get a single AmmoStock entry
 export async function GET(
@@ -28,6 +29,7 @@ export async function GET(
     return NextResponse.json(stock);
   } catch (error) {
     console.error("GET /api/ammo/[id] error:", error);
+
     return NextResponse.json(
       { error: "Failed to fetch ammo stock" },
       { status: 500 }
@@ -89,9 +91,12 @@ export async function PUT(
       },
     });
 
+    revalidateDashboardCaches(["ammo"]);
+
     return NextResponse.json(updated);
   } catch (error) {
     console.error("PUT /api/ammo/[id] error:", error);
+
     return NextResponse.json(
       { error: "Failed to update ammo stock" },
       { status: 500 }
@@ -117,9 +122,12 @@ export async function DELETE(
 
     await prisma.ammoStock.delete({ where: { id } });
 
+    revalidateDashboardCaches(["ammo"]);
+
     return NextResponse.json({ success: true, id });
   } catch (error) {
     console.error("DELETE /api/ammo/[id] error:", error);
+
     return NextResponse.json(
       { error: "Failed to delete ammo stock" },
       { status: 500 }

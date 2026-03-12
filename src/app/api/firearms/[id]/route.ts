@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { encryptField, decryptField } from "@/lib/crypto";
+import { revalidateDashboardCaches } from "@/lib/server/dashboard";
 
 // GET /api/firearms/[id] - Get a single firearm with active build, slots, and accessories
 export async function GET(
@@ -45,6 +46,7 @@ export async function GET(
     });
   } catch (error) {
     console.error("GET /api/firearms/[id] error:", error);
+
     return NextResponse.json(
       { error: "Failed to fetch firearm" },
       { status: 500 }
@@ -117,6 +119,8 @@ export async function PUT(
       },
     });
 
+    revalidateDashboardCaches(["firearms"]);
+
     return NextResponse.json({
       ...updated,
       buildCount: updated._count.builds,
@@ -136,6 +140,7 @@ export async function PUT(
         { status: 409 }
       );
     }
+
     return NextResponse.json(
       { error: "Failed to update firearm" },
       { status: 500 }
@@ -158,9 +163,12 @@ export async function DELETE(
 
     await prisma.firearm.delete({ where: { id } });
 
+    revalidateDashboardCaches(["firearms"]);
+
     return NextResponse.json({ success: true, id });
   } catch (error) {
     console.error("DELETE /api/firearms/[id] error:", error);
+
     return NextResponse.json(
       { error: "Failed to delete firearm" },
       { status: 500 }

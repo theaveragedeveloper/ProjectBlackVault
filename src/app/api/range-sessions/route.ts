@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { revalidateDashboardCaches } from "@/lib/server/dashboard";
 
 // GET /api/range-sessions - List range sessions, optional ?firearmId= filter, ?include=analytics
 export async function GET(request: NextRequest) {
@@ -131,6 +132,8 @@ export async function POST(request: NextRequest) {
 
       return created;
     });
+
+    revalidateDashboardCaches(["range", "ammo"]);
 
     return NextResponse.json(session, { status: 201 });
   } catch (error) {
