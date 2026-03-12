@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   DndContext,
   closestCenter,
@@ -324,12 +325,14 @@ function RecentWidget({ firearms }: { firearms: RecentFirearm[] }) {
                 href={`/vault/${firearm.id}`}
                 className="flex items-center gap-3 px-4 py-3 hover:bg-vault-surface-2 transition-colors group"
               >
-                <div className="w-10 h-10 rounded bg-vault-border border border-vault-border overflow-hidden shrink-0 flex items-center justify-center">
+                <div className="relative w-10 h-10 rounded bg-vault-border border border-vault-border overflow-hidden shrink-0 flex items-center justify-center">
                   {firearm.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
+                    <Image
                       src={firearm.imageUrl}
                       alt={firearm.name}
+                      fill
+                      sizes="40px"
+                      loading="lazy"
                       className="w-full h-full object-cover"
                     />
                   ) : (
