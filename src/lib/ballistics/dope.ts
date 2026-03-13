@@ -1,3 +1,5 @@
+import { inchesToMil, inchesToMoa, roundTo } from "@/lib/ballistics/conversions";
+
 export interface DistanceRow {
   distanceYd: number;
 }
@@ -22,22 +24,7 @@ export interface DopeRowCorrection {
   confirmed?: boolean;
 }
 
-const INCHES_PER_100YD_PER_MIL = 3.6;
-const INCHES_PER_100YD_PER_MOA = 1.047;
 const DISTANCE_EPSILON = 1e-6;
-
-function roundTo(value: number, digits: number): number {
-  const factor = 10 ** digits;
-  return Math.round(value * factor) / factor;
-}
-
-function toMil(inches: number, distanceYd: number): number {
-  return inches / ((distanceYd / 100) * INCHES_PER_100YD_PER_MIL);
-}
-
-function toMoa(inches: number, distanceYd: number): number {
-  return inches / ((distanceYd / 100) * INCHES_PER_100YD_PER_MOA);
-}
 
 function safeInches(value: number): number {
   // Keep conversions stable even if a caller passes invalid correction/input values.
@@ -88,10 +75,10 @@ export function convertDropWindToAngular(rows: BallisticOutputRow[]): AngularDop
         ...row,
         dropIn,
         windIn,
-        dropMil: roundTo(toMil(dropIn, row.distanceYd), 2),
-        dropMoa: roundTo(toMoa(dropIn, row.distanceYd), 2),
-        windMil: roundTo(toMil(windIn, row.distanceYd), 2),
-        windMoa: roundTo(toMoa(windIn, row.distanceYd), 2),
+        dropMil: roundTo(inchesToMil(dropIn, row.distanceYd), 2),
+        dropMoa: roundTo(inchesToMoa(dropIn, row.distanceYd), 2),
+        windMil: roundTo(inchesToMil(windIn, row.distanceYd), 2),
+        windMoa: roundTo(inchesToMoa(windIn, row.distanceYd), 2),
         confirmed: false,
       };
     });
@@ -112,10 +99,10 @@ export function applyDopeCorrections(
       ...row,
       dropIn,
       windIn,
-      dropMil: roundTo(toMil(dropIn, row.distanceYd), 2),
-      dropMoa: roundTo(toMoa(dropIn, row.distanceYd), 2),
-      windMil: roundTo(toMil(windIn, row.distanceYd), 2),
-      windMoa: roundTo(toMoa(windIn, row.distanceYd), 2),
+      dropMil: roundTo(inchesToMil(dropIn, row.distanceYd), 2),
+      dropMoa: roundTo(inchesToMoa(dropIn, row.distanceYd), 2),
+      windMil: roundTo(inchesToMil(windIn, row.distanceYd), 2),
+      windMoa: roundTo(inchesToMoa(windIn, row.distanceYd), 2),
       confirmed: correction.confirmed ?? row.confirmed,
     };
   });
