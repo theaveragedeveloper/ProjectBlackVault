@@ -53,6 +53,26 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
+
+---
+
+## Maintenance: Refresh stale merge-request branches
+
+Use `scripts/refresh-mr-branches.sh` to update old MR branches with the latest target branch and push them back to origin.
+
+```bash
+# Merge latest main into one or more MR branches
+scripts/refresh-mr-branches.sh feature/old-1 feature/old-2
+
+# Rebase workflow (force-with-lease push)
+scripts/refresh-mr-branches.sh --rebase -t main mr/legacy-123
+
+# Preview actions only
+scripts/refresh-mr-branches.sh --dry-run mr/legacy-123
+```
+
+If a conflict occurs, the script stops on the first conflicted branch so you can resolve it, complete the merge/rebase, and push.
+
 ---
 
 ## Docker Deployment
