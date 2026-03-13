@@ -36,6 +36,7 @@ export default function NewAmmoStockPage() {
       bulletType: (data.get("bulletType") as string) || null,
       quantity: Number(data.get("quantity")) || 0,
       purchasePrice: data.get("purchasePrice") ? Number(data.get("purchasePrice")) : null,
+      purchasePriceTotal: data.get("purchasePriceTotal") ? Number(data.get("purchasePriceTotal")) : null,
       purchaseDate: (data.get("purchaseDate") as string) || null,
       storageLocation: (data.get("storageLocation") as string) || null,
       lowStockAlert: data.get("lowStockAlert") ? Number(data.get("lowStockAlert")) : null,
@@ -215,7 +216,7 @@ export default function NewAmmoStockPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="purchasePrice" className={LABEL_CLASS}>
-                  Purchase Price (total)
+                  Price per Round
                 </label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-vault-text-faint text-sm">$</span>
@@ -225,10 +226,29 @@ export default function NewAmmoStockPage() {
                     type="number"
                     min="0"
                     step="0.01"
-                    placeholder="0.00"
+                    placeholder="e.g. 0.28"
                     className={`${INPUT_CLASS} pl-7`}
                   />
                 </div>
+                <p className="text-xs text-vault-text-faint mt-1">Optional if total price is provided.</p>
+              </div>
+              <div>
+                <label htmlFor="purchasePriceTotal" className={LABEL_CLASS}>
+                  Purchase Price (total)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-vault-text-faint text-sm">$</span>
+                  <input
+                    id="purchasePriceTotal"
+                    name="purchasePriceTotal"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="e.g. 140.00"
+                    className={`${INPUT_CLASS} pl-7`}
+                  />
+                </div>
+                <p className="text-xs text-vault-text-faint mt-1">If entered alone, cost per round will be calculated from quantity.</p>
               </div>
               <div>
                 <label htmlFor="purchaseDate" className={LABEL_CLASS}>
