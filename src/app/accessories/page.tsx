@@ -43,20 +43,26 @@ interface Accessory {
 }
 
 export default function AccessoriesPage() {
-  const [accessories, setAccessories] = useState<Accessory[]>([]);
+  const [allAccessories, setAllAccessories] = useState<Accessory[]>([]);
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState<string>("ALL");
 
   useEffect(() => {
-    const url = typeFilter === "ALL" ? "/api/accessories" : `/api/accessories?type=${encodeURIComponent(typeFilter)}`;
-    fetch(url)
+    fetch("/api/accessories")
       .then((r) => r.json())
       .then((data) => {
-        if (Array.isArray(data)) setAccessories(data);
+        if (Array.isArray(data)) setAllAccessories(data);
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [typeFilter]);
+  }, []);
+
+  const accessories = typeFilter === "ALL"
+    ? allAccessories
+    : allAccessories.filter((accessory) => accessory.type === typeFilter);
+
+  const availableTypes = Array.from(new Set(allAccessories.map((accessory) => accessory.type)))
+    .filter((type): type is SlotType => (SLOT_TYPES as readonly string[]).includes(type));
 
   const totalRounds = accessories.reduce((sum, a) => sum + a.roundCount, 0);
 
@@ -97,13 +103,12 @@ export default function AccessoriesPage() {
             <select
               value={typeFilter}
               onChange={(e) => {
-                setLoading(true);
                 setTypeFilter(e.target.value);
               }}
               className="appearance-none bg-vault-surface border border-vault-border text-vault-text text-xs font-mono rounded-md pl-3 pr-8 py-1.5 focus:outline-none focus:border-[#00C2FF] cursor-pointer transition-colors hover:border-vault-text-muted/40"
             >
               <option value="ALL">All Types</option>
-              {(SLOT_TYPES as readonly SlotType[]).map((type) => (
+              {availableTypes.map((type) => (
                 <option key={type} value={type}>
                   {SLOT_TYPE_LABELS_LOCAL[type] ?? type}
                 </option>
