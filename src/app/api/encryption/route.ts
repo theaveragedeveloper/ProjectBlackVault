@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { parseJsonBody, validationErrorResponse } from "@/lib/validation/request";
+import { encryptionSchemas } from "@/lib/validation/schemas/api";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import { clearKeyCache } from "@/lib/crypto";
 import crypto from "crypto";
 
@@ -26,8 +29,12 @@ export async function GET() {
 }
 
 // POST /api/encryption — generate a new random key and save it
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const rate = await enforceRateLimit({ key: `encryption:generate:${ip}`, windowMs: 60_000, maxAttempts: 5 });
+    if (!rate.allowed) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+
     if (process.env.VAULT_ENCRYPTION_KEY) {
       return NextResponse.json(
         { error: "Encryption is already active via environment variable. Remove VAULT_ENCRYPTION_KEY to use the UI setup instead." },
@@ -63,6 +70,10 @@ export async function POST() {
 // PUT /api/encryption — save a user-supplied key
 export async function PUT(request: NextRequest) {
   try {
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const rate = await enforceRateLimit({ key: `encryption:import:${ip}`, windowMs: 60_000, maxAttempts: 5 });
+    if (!rate.allowed) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+
     if (process.env.VAULT_ENCRYPTION_KEY) {
       return NextResponse.json(
         { error: "Encryption is managed via environment variable" },
@@ -70,8 +81,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
-    const { key } = body;
+    const { key } = await parseJsonBody(request, encryptionSchemas.importKey, { maxBytes: 16 * 1024 });
 
     if (typeof key !== "string" || !HEX_KEY_RE.test(key)) {
       return NextResponse.json(
@@ -90,14 +100,21 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    if (error instanceof Error && (error as { status?: number }).status) {
+      return validationErrorResponse(error, "Invalid encryption payload");
+    }
     console.error("PUT /api/encryption error:", error);
     return NextResponse.json({ error: "Failed to save key" }, { status: 500 });
   }
 }
 
 // DELETE /api/encryption — remove the DB-stored key (disables encryption)
-export async function DELETE() {
+export async function DELETE(request: NextRequest) {
   try {
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const rate = await enforceRateLimit({ key: `encryption:delete:${ip}`, windowMs: 60_000, maxAttempts: 5 });
+    if (!rate.allowed) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+
     if (process.env.VAULT_ENCRYPTION_KEY) {
       return NextResponse.json(
         { error: "Encryption is managed via environment variable. Remove VAULT_ENCRYPTION_KEY from your environment to disable it." },

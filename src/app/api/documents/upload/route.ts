@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import { promises as fs } from "fs";
 import path from "path";
 import { prisma } from "@/lib/prisma";
@@ -21,6 +22,14 @@ const MAX_SIZE = 20 * 1024 * 1024; // 20MB
 // Creates a Document record and returns it.
 export async function POST(request: NextRequest) {
   try {
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const rate = await enforceRateLimit({ key: `documents:upload:${ip}`, windowMs: 60_000, maxAttempts: 10 });
+    if (!rate.allowed) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+
+    const contentLength = Number(request.headers.get("content-length") ?? "0");
+    if (Number.isFinite(contentLength) && contentLength > 23068672) {
+      return NextResponse.json({ error: "Request body too large" }, { status: 413 });
+    }
     const formData = await request.formData();
 
     const file = formData.get("file") as File | null;

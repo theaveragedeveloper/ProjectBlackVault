@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { parseJsonBody, validationErrorResponse } from "@/lib/validation/request";
+import { imagesSchemas } from "@/lib/validation/schemas/api";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import { prisma } from "@/lib/prisma";
 import { decryptField } from "@/lib/crypto";
 
@@ -25,8 +28,10 @@ interface GoogleCseItem {
 // If no API key, returns 400 with helpful message.
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { query } = body;
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const rate = await enforceRateLimit({ key: `images:search:${ip}`, windowMs: 60_000, maxAttempts: 10 });
+    if (!rate.allowed) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+    const { query } = await parseJsonBody(request, imagesSchemas.search, { maxBytes: 16 * 1024 });
 
     if (!query || typeof query !== "string" || query.trim() === "") {
       return NextResponse.json(
@@ -113,6 +118,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ results, query: query.trim() });
   } catch (error) {
+    if (error instanceof Error && (error as { status?: number }).status) return validationErrorResponse(error);
     console.error("POST /api/images/search error:", error);
     return NextResponse.json(
       { error: "Failed to perform image search" },
