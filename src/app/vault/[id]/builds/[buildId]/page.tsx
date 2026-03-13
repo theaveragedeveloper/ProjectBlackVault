@@ -18,6 +18,7 @@ import {
   Save,
 } from "lucide-react";
 import { SLOTS_BY_FIREARM_TYPE, SLOT_TYPE_LABELS, FirearmType, SlotType } from "@/lib/types";
+import { SafeImage } from "@/components/shared/SafeImage";
 import { SLOT_ICONS } from "@/lib/configurator/slot-icons";
 
 // ─── Types ────────────────────────────────────────────────────
@@ -506,12 +507,15 @@ function AccessoryBrowserModal({
                       className="flex items-center gap-3 text-left w-full bg-vault-bg border border-vault-border hover:border-[#00C2FF]/40 hover:bg-[#00C2FF]/5 rounded-lg p-3 transition-all disabled:opacity-60 disabled:cursor-not-allowed group"
                     >
                       <div className="w-14 h-14 shrink-0 rounded-md overflow-hidden bg-vault-surface border border-vault-border flex items-center justify-center">
-                        {acc.imageUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={acc.imageUrl} alt={acc.name} className="w-full h-full object-contain p-1" />
-                        ) : (
-                          <SlotIcon className="w-6 h-6" style={{ color: slotIconConfig?.color ?? "#4A5A6B" }} />
-                        )}
+                        <SafeImage
+                          src={acc.imageUrl}
+                          alt={acc.name}
+                          width={56}
+                          height={56}
+                          loading="lazy"
+                          className="w-full h-full object-contain p-1"
+                          fallback={<SlotIcon className="w-6 h-6" style={{ color: slotIconConfig?.color ?? "#4A5A6B" }} />}
+                        />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-vault-text truncate group-hover:text-[#00C2FF] transition-colors">
