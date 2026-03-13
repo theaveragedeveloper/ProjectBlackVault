@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import {
   Save,
   Loader2,
@@ -54,6 +54,17 @@ interface SystemInfo {
   platform: string;
 }
 
+type SectionKey =
+  | "imageSearch"
+  | "security"
+  | "encryption"
+  | "storage"
+  | "network"
+  | "updates"
+  | "wizard"
+  | "export"
+  | "backup";
+
 export default function SettingsPage() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [sysInfo, setSysInfo] = useState<SystemInfo | null>(null);
@@ -105,6 +116,21 @@ export default function SettingsPage() {
   const [disableInput, setDisableInput] = useState("");
   const [exportedKey, setExportedKey] = useState<string | null>(null);
   const [keyCopied, setKeyCopied] = useState(false);
+  const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
+    imageSearch: false,
+    security: true,
+    encryption: false,
+    storage: false,
+    network: false,
+    updates: false,
+    wizard: false,
+    export: false,
+    backup: true,
+  });
+
+  const toggleSection = (key: SectionKey) => {
+    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   useEffect(() => {
     Promise.all([
@@ -586,16 +612,18 @@ export default function SettingsPage() {
 
         <form onSubmit={handleSave} className="space-y-6">
           {/* ── Image Search ────────────────────────────────── */}
-          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-5">
-            <div className="flex items-center justify-between">
-              <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
-                <ImageIcon className="w-3.5 h-3.5" />
-                Image Search
-              </legend>
+          <SettingsSection
+            sectionKey="image-search"
+            title="Image Search"
+            icon={<ImageIcon className="w-3.5 h-3.5" />}
+            badge={
               <span className={`text-[10px] font-mono px-2 py-0.5 rounded border uppercase ${imageSearchConfigured ? "text-[#00C853] border-[#00C853]/40" : "text-vault-text-faint border-vault-border"}`}>
                 {imageSearchConfigured ? "Configured" : "Not Configured"}
               </span>
-            </div>
+            }
+            isOpen={openSections.imageSearch}
+            onToggle={() => toggleSection("imageSearch")}
+          >
 
             <p className="text-xs text-vault-text-muted leading-relaxed">
               Enable Google Custom Search to automatically find images for firearms and accessories. Requires a Google Cloud CSE API key and a configured search engine.
@@ -643,19 +671,21 @@ export default function SettingsPage() {
                 placeholder="e.g. 017576662512468239146:omuauf_lfve" className={`${INPUT_CLASS} font-mono`} />
               <p className="text-xs text-vault-text-faint mt-1">The &quot;cx&quot; parameter from your Programmable Search Engine dashboard.</p>
             </div>
-          </fieldset>
+          </SettingsSection>
 
           {/* ── Security ────────────────────────────────────── */}
-          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-5">
-            <div className="flex items-center justify-between">
-              <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
-                <Lock className="w-3.5 h-3.5" />
-                Security
-              </legend>
+          <SettingsSection
+            sectionKey="security"
+            title="Security"
+            icon={<Lock className="w-3.5 h-3.5" />}
+            badge={
               <span className={`text-[10px] font-mono px-2 py-0.5 rounded border uppercase ${settings?.appPassword ? "text-[#F5A623] border-[#F5A623]/40" : "text-vault-text-faint border-vault-border"}`}>
                 {settings?.appPassword ? "Password Set" : "No Password"}
               </span>
-            </div>
+            }
+            isOpen={openSections.security}
+            onToggle={() => toggleSection("security")}
+          >
 
             <p className="text-xs text-vault-text-muted leading-relaxed">
               Set an optional app password to restrict access to the vault. Leave blank to disable password protection.
@@ -673,19 +703,21 @@ export default function SettingsPage() {
               </div>
               <p className="text-xs text-vault-text-faint mt-1">Note: This is a simple access restriction, not end-to-end encryption.</p>
             </div>
-          </fieldset>
+          </SettingsSection>
 
           {/* ── Encryption at Rest ──────────────────────────── */}
-          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                Encryption at Rest
-              </legend>
+          <SettingsSection
+            sectionKey="encryption"
+            title="Encryption at Rest"
+            icon={<ShieldCheck className="w-3.5 h-3.5" />}
+            badge={
               <span className={`text-[10px] font-mono px-2 py-0.5 rounded border uppercase ${settings?.encryptionEnabled ? "text-[#00C853] border-[#00C853]/40" : "text-vault-text-faint border-vault-border"}`}>
                 {settings?.encryptionEnabled ? "Active" : "Not Active"}
               </span>
-            </div>
+            }
+            isOpen={openSections.encryption}
+            onToggle={() => toggleSection("encryption")}
+          >
 
             {encError && (
               <div className="flex items-center gap-2 bg-[#E53935]/10 border border-[#E53935]/30 rounded-md px-3 py-2">
@@ -874,14 +906,16 @@ export default function SettingsPage() {
                 )}
               </div>
             )}
-          </fieldset>
+          </SettingsSection>
 
           {/* ── Data Storage ────────────────────────────────── */}
-          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
-            <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
-              <HardDrive className="w-3.5 h-3.5" />
-              Data Storage
-            </legend>
+          <SettingsSection
+            sectionKey="storage"
+            title="Data Storage"
+            icon={<HardDrive className="w-3.5 h-3.5" />}
+            isOpen={openSections.storage}
+            onToggle={() => toggleSection("storage")}
+          >
 
             <p className="text-xs text-vault-text-muted leading-relaxed">
               BlackVault stores all data in a local SQLite database file. No data is sent to external servers.
@@ -903,14 +937,16 @@ export default function SettingsPage() {
                 </div>
               </div>
             </div>
-          </fieldset>
+          </SettingsSection>
 
           {/* ── Network Access ───────────────────────────────── */}
-          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
-            <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
-              <Network className="w-3.5 h-3.5" />
-              Network Access
-            </legend>
+          <SettingsSection
+            sectionKey="network"
+            title="Network Access"
+            icon={<Network className="w-3.5 h-3.5" />}
+            isOpen={openSections.network}
+            onToggle={() => toggleSection("network")}
+          >
 
             <p className="text-xs text-vault-text-muted leading-relaxed">
               Access BlackVault from any device on your local network using the addresses below.
@@ -953,14 +989,16 @@ export default function SettingsPage() {
                 Ensure the container port is mapped with <code className="font-mono">-p 3000:3000</code> or equivalent in docker-compose.yml.
               </p>
             </div>
-          </fieldset>
+          </SettingsSection>
 
           {/* ── GitHub Updates ─────────────────────────────── */}
-          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
-            <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
-              <DownloadCloud className="w-3.5 h-3.5" />
-              GitHub Updates
-            </legend>
+          <SettingsSection
+            sectionKey="updates"
+            title="GitHub Updates"
+            icon={<DownloadCloud className="w-3.5 h-3.5" />}
+            isOpen={openSections.updates}
+            onToggle={() => toggleSection("updates")}
+          >
 
             <p className="text-xs text-vault-text-muted leading-relaxed">
               Pull the latest commits from your configured <code className="font-mono text-vault-text-faint">origin</code> remote with one click.
@@ -996,14 +1034,16 @@ export default function SettingsPage() {
             <p className="text-[11px] text-vault-text-faint">
               This performs a fast-forward-only <code className="font-mono">git pull origin &lt;current-branch&gt;</code>. If files changed, restart BlackVault to apply updates.
             </p>
-          </fieldset>
+          </SettingsSection>
 
           {/* ── Setup Wizard ───────────────────────────────── */}
-          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
-            <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
-              <Rocket className="w-3.5 h-3.5" />
-              Setup Wizard
-            </legend>
+          <SettingsSection
+            sectionKey="wizard"
+            title="Setup Wizard"
+            icon={<Rocket className="w-3.5 h-3.5" />}
+            isOpen={openSections.wizard}
+            onToggle={() => toggleSection("wizard")}
+          >
 
             <p className="text-xs text-vault-text-muted leading-relaxed">
               Guided onboarding for non-technical users. Complete each step to harden security and automate backup protection.
@@ -1071,14 +1111,16 @@ export default function SettingsPage() {
                 Next
               </button>
             </div>
-          </fieldset>
+          </SettingsSection>
 
           {/* ── Full Armory Export ─────────────────────────── */}
-          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
-            <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
-              <FileText className="w-3.5 h-3.5" />
-              Full Armory Export
-            </legend>
+          <SettingsSection
+            sectionKey="export"
+            title="Full Armory Export"
+            icon={<FileText className="w-3.5 h-3.5" />}
+            isOpen={openSections.export}
+            onToggle={() => toggleSection("export")}
+          >
 
             <p className="text-xs text-vault-text-muted leading-relaxed">
               Build a claim-ready package with missing-evidence flags, uploaded receipts, and CSV companion files.
@@ -1154,14 +1196,16 @@ export default function SettingsPage() {
             <p className="text-xs text-vault-text-faint">
               Specification reference: <code className="font-mono">docs/full-armory-export-format.md</code>
             </p>
-          </fieldset>
+          </SettingsSection>
 
           {/* ── Secure System Backup ─────────────────────────── */}
-          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
-            <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
-              <Archive className="w-3.5 h-3.5" />
-              Secure System Backup
-            </legend>
+          <SettingsSection
+            sectionKey="backup"
+            title="Secure System Backup"
+            icon={<Archive className="w-3.5 h-3.5" />}
+            isOpen={openSections.backup}
+            onToggle={() => toggleSection("backup")}
+          >
 
             <p className="text-xs text-vault-text-muted leading-relaxed">
               One-click encrypted backup for self-hosted deployments. Great for non-technical users: enter a passphrase, click create, and save one backup file.
@@ -1275,7 +1319,7 @@ export default function SettingsPage() {
 
               <p className="text-xs text-vault-text-faint">Server requirement: set <code className="font-mono">AUTO_BACKUP_PASSPHRASE</code> for automatic encrypted backup files in <code className="font-mono">/backups</code>.</p>
             </div>
-          </fieldset>
+          </SettingsSection>
 
           {/* ── Status Summary ──────────────────────────────── */}
           <div className="bg-vault-bg border border-vault-border rounded-lg p-4">
@@ -1300,6 +1344,59 @@ export default function SettingsPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+function SettingsSection({
+  sectionKey,
+  title,
+  icon,
+  badge,
+  isOpen,
+  onToggle,
+  children,
+}: {
+  sectionKey: string;
+  title: string;
+  icon: ReactNode;
+  badge?: ReactNode;
+  isOpen: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  const contentId = `settings-section-${sectionKey}`;
+
+  return (
+    <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5">
+      <button
+        type="button"
+        onClick={onToggle}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onToggle();
+          }
+        }}
+        aria-expanded={isOpen}
+        aria-controls={contentId}
+        className="w-full"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
+            {icon}
+            {title}
+          </div>
+          <div className="flex items-center gap-2">
+            {badge}
+            {isOpen ? <ChevronUp className="w-4 h-4 text-vault-text-faint" /> : <ChevronDown className="w-4 h-4 text-vault-text-faint" />}
+          </div>
+        </div>
+      </button>
+
+      <div id={contentId} hidden={!isOpen} className="mt-5 space-y-4">
+        {children}
+      </div>
+    </fieldset>
   );
 }
 
