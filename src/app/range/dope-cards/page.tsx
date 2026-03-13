@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { Plus, Printer, Trash2 } from "lucide-react";
+import { FileDown, Plus, Printer, RotateCcw, Trash2 } from "lucide-react";
 
 interface Firearm {
   id: string;
@@ -42,6 +42,8 @@ const PRESET_TEMPLATES = {
   "50-500 yd (50 yd)": Array.from({ length: 10 }, (_, i) => 50 + i * 50),
   "25-300 yd (25 yd)": Array.from({ length: 12 }, (_, i) => 25 + i * 25),
 };
+
+const DEFAULT_TEMPLATE_NAME = "100-1000 yd (100 yd)";
 
 function buildRowsFromDistances(distances: number[]): DopeRow[] {
   return distances.map((distance) => ({
@@ -129,6 +131,25 @@ export default function DopeCardsPage() {
     setRows((current) => current.filter((row) => row.id !== id));
   };
 
+  const resetCard = () => {
+    setSelectedFirearm("");
+    setBuilds([]);
+    setSelectedBuild("");
+    setSelectedAmmo("");
+    setZeroDistance("100");
+    setUnit("yd");
+    setTemperature("59");
+    setAltitude("0");
+    setWind("0");
+    setCardSize("index");
+    setMonochrome(true);
+    setRows(buildRowsFromDistances(PRESET_TEMPLATES[DEFAULT_TEMPLATE_NAME]));
+  };
+
+  const exportPdf = () => {
+    window.print();
+  };
+
   return (
     <main className="min-h-screen bg-vault-bg pb-10">
       <PageHeader
@@ -146,6 +167,14 @@ export default function DopeCardsPage() {
             >
               <Printer className="h-3.5 w-3.5" />
               Print Card
+            </button>
+            <button
+              type="button"
+              onClick={exportPdf}
+              className="inline-flex items-center gap-2 rounded-md border border-vault-border px-3 py-2 text-xs text-vault-text hover:bg-vault-muted"
+            >
+              <FileDown className="h-3.5 w-3.5" />
+              Export PDF
             </button>
           </>
         }
@@ -242,6 +271,14 @@ export default function DopeCardsPage() {
                     {name}
                   </button>
                 ))}
+                <button
+                  type="button"
+                  onClick={resetCard}
+                  className="inline-flex items-center gap-1 rounded-md border border-vault-border px-2.5 py-1.5 text-xs text-vault-text hover:bg-vault-muted"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Reset Card
+                </button>
               </div>
             </div>
 
