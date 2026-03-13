@@ -103,7 +103,6 @@ export default function SettingsPage() {
   const [ownKeyError, setOwnKeyError] = useState<string | null>(null);
   const [showDisableConfirm, setShowDisableConfirm] = useState(false);
   const [disableInput, setDisableInput] = useState("");
-  const [exportedKey, setExportedKey] = useState<string | null>(null);
   const [keyCopied, setKeyCopied] = useState(false);
 
   useEffect(() => {
@@ -241,21 +240,6 @@ export default function SettingsPage() {
     }
   }
 
-  async function handleExportKey() {
-    setEncError(null);
-    try {
-      const res = await fetch("/api/encryption");
-      const json = await res.json();
-      if (!res.ok) {
-        setEncError(json.error ?? "Could not retrieve key.");
-        return;
-      }
-      setExportedKey(json.key);
-    } catch {
-      setEncError("Network error. Please try again.");
-    }
-  }
-
   async function handleDisableEncryption() {
     if (disableInput !== "DISABLE") return;
     setEncBusy(true);
@@ -269,7 +253,6 @@ export default function SettingsPage() {
       setSettings((s) => s ? { ...s, encryptionEnabled: false } : s);
       setShowDisableConfirm(false);
       setDisableInput("");
-      setExportedKey(null);
       setGeneratedKey(null);
     } catch {
       setEncError("Network error. Please try again.");
@@ -809,37 +792,11 @@ export default function SettingsPage() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {/* Export key panel */}
-                    {exportedKey ? (
-                      <div className="space-y-3 bg-vault-bg border border-vault-border rounded-md p-4">
-                        <p className="text-xs font-semibold text-vault-text">Your Encryption Key</p>
-                        <div className="flex items-center gap-2 bg-vault-surface border border-vault-border rounded-md px-3 py-2">
-                          <code className="text-xs font-mono text-vault-text flex-1 break-all select-all">{exportedKey}</code>
-                        </div>
-                        <div className="flex gap-2 flex-wrap">
-                          <button type="button" onClick={() => copyKey(exportedKey)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-vault-surface border border-vault-border text-vault-text-muted hover:text-vault-text rounded-md text-xs transition-colors">
-                            {keyCopied ? <CheckCircle2 className="w-3.5 h-3.5 text-[#00C853]" /> : <Copy className="w-3.5 h-3.5" />}
-                            {keyCopied ? "Copied!" : "Copy Key"}
-                          </button>
-                          <button type="button" onClick={() => downloadKey(exportedKey)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-vault-surface border border-vault-border text-vault-text-muted hover:text-vault-text rounded-md text-xs transition-colors">
-                            <Download className="w-3.5 h-3.5" />
-                            Download Key File
-                          </button>
-                          <button type="button" onClick={() => setExportedKey(null)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-vault-surface border border-vault-border text-vault-text-faint hover:text-vault-text rounded-md text-xs transition-colors">
-                            Hide
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <button type="button" onClick={handleExportKey}
-                        className="flex items-center gap-1.5 text-xs text-vault-text-muted hover:text-[#00C2FF] transition-colors">
-                        <Download className="w-3.5 h-3.5" />
-                        Back Up Your Key
-                      </button>
-                    )}
+                    <div className="bg-vault-bg border border-vault-border rounded-md px-4 py-3">
+                      <p className="text-xs text-vault-text-muted leading-relaxed">
+                        For security, full encryption key retrieval is disabled after setup. Keep your key backup from initial creation or your own secure records.
+                      </p>
+                    </div>
 
                     {/* Disable encryption */}
                     {showDisableConfirm ? (
