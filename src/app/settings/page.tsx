@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Save,
   Loader2,
@@ -50,6 +50,16 @@ interface SystemInfo {
 }
 
 export default function SettingsPage() {
+  const settingsSections = useMemo(
+    () => [
+      { id: "security", label: "Security", icon: ShieldCheck },
+      { id: "encryption", label: "Encryption", icon: Lock },
+      { id: "system", label: "System", icon: HardDrive },
+      { id: "backup", label: "Backup", icon: Archive },
+    ] as const,
+    []
+  );
+
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [sysInfo, setSysInfo] = useState<SystemInfo | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
@@ -94,6 +104,7 @@ export default function SettingsPage() {
   const [showDisableConfirm, setShowDisableConfirm] = useState(false);
   const [disableInput, setDisableInput] = useState("");
   const [keyCopied, setKeyCopied] = useState(false);
+  const [activeSection, setActiveSection] = useState<(typeof settingsSections)[number]["id"]>("security");
 
   useEffect(() => {
     Promise.all([
@@ -420,6 +431,11 @@ export default function SettingsPage() {
       const checkJson = await checkRes.json();
 
       if (!checkRes.ok) {
+        // Treat "endpoint disabled" (404) as informational rather than an error
+        if (checkRes.status === 404) {
+          setUpdateOutput(checkJson.message ?? "System updates must be performed at the host level (systemd, cron, or deployment pipeline).");
+          return;
+        }
         const details = typeof checkJson.details === "string" ? `\n\n${checkJson.details}` : "";
         setUpdateError(`${checkJson.error ?? "Failed to check for updates."}${details}`);
         return;
@@ -478,6 +494,29 @@ export default function SettingsPage() {
     return () => clearInterval(timer);
   }, [autoBackupEnabled, autoBackupIntervalMin, runAutoBackupCheck]);
 
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visibleEntries = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+        if (visibleEntries[0]?.target.id) {
+          setActiveSection(visibleEntries[0].target.id as (typeof settingsSections)[number]["id"]);
+        }
+      },
+      { rootMargin: "-25% 0px -55% 0px", threshold: [0.2, 0.4, 0.6] }
+    );
+    const sectionElements = settingsSections
+      .map((section) => document.getElementById(section.id))
+      .filter((el): el is HTMLElement => Boolean(el));
+    sectionElements.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [settingsSections]);
+
+  function scrollToSection(sectionId: (typeof settingsSections)[number]["id"]) {
+    setActiveSection(sectionId);
+    document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
 
   if (dataLoading) {
@@ -535,6 +574,28 @@ export default function SettingsPage() {
           <div>
             <h1 className="text-lg font-bold tracking-widest text-vault-text uppercase">Settings</h1>
             <p className="text-xs text-vault-text-muted mt-0.5">Configure your vault preferences</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="sticky top-0 z-20 border-b border-vault-border bg-vault-bg/95 backdrop-blur supports-[backdrop-filter]:bg-vault-bg/80">
+        <div className="max-w-2xl mx-auto px-6 py-3">
+          <div className="flex gap-2 overflow-x-auto md:overflow-visible md:flex-wrap">
+            {settingsSections.map((section) => {
+              const Icon = section.icon;
+              const isActive = activeSection === section.id;
+              return (
+                <button
+                  key={section.id}
+                  type="button"
+                  onClick={() => scrollToSection(section.id)}
+                  className={`shrink-0 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-mono uppercase tracking-wider transition-colors ${isActive ? "border-[#00C2FF]/40 bg-[#00C2FF]/10 text-[#00C2FF]" : "border-vault-border text-vault-text-faint hover:text-vault-text hover:border-vault-text-muted/40"}`}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  {section.label}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -804,7 +865,7 @@ export default function SettingsPage() {
           </fieldset>
 
           {/* ── Data Storage ────────────────────────────────── */}
-          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
+          <fieldset id="system" className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4 scroll-mt-24">
             <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
               <HardDrive className="w-3.5 h-3.5" />
               Data Storage

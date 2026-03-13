@@ -67,7 +67,8 @@ export async function decryptField(value: string | null | undefined): Promise<st
     decipher.setAuthTag(tag);
     const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
     return plaintext.toString("utf8");
-  } catch {
-    return "[decryption error — wrong key?]";
+  } catch (err) {
+    console.error("[blackvault] decryptField failed — check VAULT_ENCRYPTION_KEY:", err);
+    return null;
   }
 }
