@@ -1,0 +1,14 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">BlackVault logo</title>
+  <desc id="desc">Geometric blue vault emblem</desc>
+  <g stroke="#18A0FF" stroke-width="24" stroke-linecap="square" stroke-linejoin="miter">
+    <path d="M256 60L340 108V192"/>
+    <path d="M256 60L172 108V192" opacity="0"/>
+    <path d="M172 192L256 144L340 192V256"/>
+    <path d="M172 240L256 192L340 240V288"/>
+    <path d="M172 240V336L256 384L340 336"/>
+    <path d="M340 192V288L256 336L172 288"/>
+    <path d="M220 272V310L256 328L292 310V272"/>
+    <path d="M256 272V310"/>
+  </g>
+</svg>
