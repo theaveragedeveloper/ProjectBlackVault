@@ -35,9 +35,8 @@ export async function PUT(
       return NextResponse.json({ error: "Build not found" }, { status: 404 });
     }
 
-    // If assigning an accessory (not removing), validate it
+    // If assigning an accessory (not removing), validate existence first (outside transaction — read-only, cheap)
     if (accessoryId !== null && accessoryId !== undefined) {
-      // Verify the accessory exists
       const accessory = await prisma.accessory.findUnique({
         where: { id: accessoryId },
       });
@@ -47,59 +46,47 @@ export async function PUT(
           { status: 404 }
         );
       }
-
-      // Check if this accessory is already assigned to another active slot
-      // (across all builds, or more precisely in any slot that belongs to an active build)
-      const existingSlot = await prisma.buildSlot.findFirst({
-        where: {
-          accessoryId,
-          // Exclude the current slot being updated (same buildId + slotType)
-          NOT: {
-            AND: [{ buildId }, { slotType }],
-          },
-          build: {
-            isActive: true,
-          },
-        },
-        include: {
-          build: {
-            select: { id: true, name: true, firearmId: true },
-          },
-        },
-      });
-
-      if (existingSlot) {
-        return NextResponse.json(
-          {
-            error: `This accessory is already assigned to an active build slot (Build: "${existingSlot.build.name}", Slot: ${existingSlot.slotType})`,
-            conflictingSlot: {
-              buildId: existingSlot.buildId,
-              buildName: existingSlot.build.name,
-              slotType: existingSlot.slotType,
-            },
-          },
-          { status: 409 }
-        );
-      }
     }
 
-    // Upsert the slot: create if not exists, update if exists
-    const slot = await prisma.buildSlot.upsert({
-      where: {
-        buildId_slotType: { buildId, slotType },
-      },
-      create: {
-        buildId,
-        slotType,
-        accessoryId: accessoryId ?? null,
-      },
-      update: {
-        accessoryId: accessoryId ?? null,
-      },
-      include: {
-        accessory: true,
-      },
-    });
+    // Wrap the conflict-check + upsert in a transaction so no concurrent request
+    // can slip the same accessory into a second slot between the two operations.
+    let slot;
+    try {
+      slot = await prisma.$transaction(async (tx) => {
+        if (accessoryId !== null && accessoryId !== undefined) {
+          const existingSlot = await tx.buildSlot.findFirst({
+            where: {
+              accessoryId,
+              NOT: { AND: [{ buildId }, { slotType }] },
+              build: { isActive: true },
+            },
+            include: {
+              build: { select: { id: true, name: true, firearmId: true } },
+            },
+          });
+
+          if (existingSlot) {
+            throw Object.assign(
+              new Error(`This accessory is already assigned to an active build slot (Build: "${existingSlot.build.name}", Slot: ${existingSlot.slotType})`),
+              { code: "CONFLICT", conflictingSlot: { buildId: existingSlot.buildId, buildName: existingSlot.build.name, slotType: existingSlot.slotType } }
+            );
+          }
+        }
+
+        return tx.buildSlot.upsert({
+          where: { buildId_slotType: { buildId, slotType } },
+          create: { buildId, slotType, accessoryId: accessoryId ?? null },
+          update: { accessoryId: accessoryId ?? null },
+          include: { accessory: true },
+        });
+      });
+    } catch (txError) {
+      if ((txError as { code?: string }).code === "CONFLICT") {
+        const err = txError as { message: string; conflictingSlot: unknown };
+        return NextResponse.json({ error: err.message, conflictingSlot: err.conflictingSlot }, { status: 409 });
+      }
+      throw txError;
+    }
 
     return NextResponse.json(slot);
   } catch (error) {
