@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { SLOT_TYPES } from "@/lib/types";
 
+function isCustomSlotType(slotType: string): boolean {
+  return slotType.startsWith("CUSTOM:") && slotType.slice("CUSTOM:".length).trim().length > 0;
+}
+
 // PUT /api/builds/[id]/slots - Assign or remove an accessory from a slot
 // Body: { slotType: string, accessoryId: string | null }
 // Creates the slot if it doesn't exist for this build, updates if it does.
@@ -22,9 +26,11 @@ export async function PUT(
       );
     }
 
-    if (!SLOT_TYPES.includes(slotType)) {
+    if (!SLOT_TYPES.includes(slotType) && !isCustomSlotType(slotType)) {
       return NextResponse.json(
-        { error: `Invalid slotType. Must be one of: ${SLOT_TYPES.join(", ")}` },
+        {
+          error: `Invalid slotType. Must be one of: ${SLOT_TYPES.join(", ")} or a custom slot in the form CUSTOM:Slot Name`,
+        },
         { status: 400 }
       );
     }
