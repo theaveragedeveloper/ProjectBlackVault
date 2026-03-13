@@ -9,6 +9,9 @@ import {
   Plus,
   Loader2,
   AlertCircle,
+  Pencil,
+  Trash2,
+  Save,
   ChevronDown,
   ChevronUp,
   MapPin,
@@ -240,12 +243,181 @@ function LogUseModal({
   );
 }
 
+function EditAmmoModal({
+  stock,
+  onClose,
+  onUpdated,
+}: {
+  stock: AmmoStock;
+  onClose: () => void;
+  onUpdated: () => void;
+}) {
+  const [caliber, setCaliber] = useState(stock.caliber);
+  const [brand, setBrand] = useState(stock.brand);
+  const [grainWeight, setGrainWeight] = useState(stock.grainWeight?.toString() ?? "");
+  const [bulletType, setBulletType] = useState(stock.bulletType ?? "");
+  const [quantity, setQuantity] = useState(stock.quantity.toString());
+  const [purchasePrice, setPurchasePrice] = useState(stock.purchasePrice?.toString() ?? "");
+  const [purchaseDate, setPurchaseDate] = useState(stock.purchaseDate ? stock.purchaseDate.split("T")[0] : "");
+  const [storageLocation, setStorageLocation] = useState(stock.storageLocation ?? "");
+  const [lowStockAlert, setLowStockAlert] = useState(stock.lowStockAlert?.toString() ?? "");
+  const [notes, setNotes] = useState(stock.notes ?? "");
+  const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    setError(null);
+
+    const res = await fetch(`/api/ammo/${stock.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        caliber,
+        brand,
+        grainWeight: grainWeight ? Number(grainWeight) : null,
+        bulletType: bulletType || null,
+        quantity: Number(quantity) || 0,
+        purchasePrice: purchasePrice ? Number(purchasePrice) : null,
+        purchaseDate: purchaseDate || null,
+        storageLocation: storageLocation || null,
+        lowStockAlert: lowStockAlert ? Number(lowStockAlert) : null,
+        notes: notes || null,
+      }),
+    });
+
+    const json = await res.json();
+    if (!res.ok) {
+      setError(json.error ?? "Failed to update ammo");
+      setSubmitting(false);
+      return;
+    }
+
+    onUpdated();
+    onClose();
+  }
+
+  async function handleDelete() {
+    const confirmed = window.confirm(`Delete ${stock.brand} ${stock.caliber} ammo stock? This cannot be undone.`);
+    if (!confirmed) {
+      return;
+    }
+
+    setDeleting(true);
+    setError(null);
+
+    const res = await fetch(`/api/ammo/${stock.id}`, { method: "DELETE" });
+    const json = await res.json();
+
+    if (!res.ok) {
+      setError(json.error ?? "Failed to delete ammo");
+      setDeleting(false);
+      return;
+    }
+
+    onUpdated();
+    onClose();
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-vault-bg/80 backdrop-blur-sm">
+      <div className="bg-vault-surface border border-vault-border rounded-lg p-6 w-full max-w-xl max-h-[90vh] overflow-y-auto">
+        <h3 className="text-sm font-semibold text-vault-text mb-1">Edit Ammo Stock</h3>
+        <p className="text-xs text-vault-text-muted mb-4">Adjust stock details to reorganize or remove this entry.</p>
+
+        {error && (
+          <div className="flex items-center gap-2 bg-[#E53935]/10 border border-[#E53935]/30 rounded px-3 py-2 mb-4">
+            <AlertCircle className="w-4 h-4 text-[#E53935] shrink-0" />
+            <p className="text-xs text-[#E53935]">{error}</p>
+          </div>
+        )}
+
+        <form onSubmit={handleSave} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">Caliber</label>
+              <input value={caliber} onChange={(e) => setCaliber(e.target.value)} required className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF]" />
+            </div>
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">Brand</label>
+              <input value={brand} onChange={(e) => setBrand(e.target.value)} required className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF]" />
+            </div>
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">Quantity</label>
+              <input type="number" min={0} value={quantity} onChange={(e) => setQuantity(e.target.value)} required className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF]" />
+            </div>
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">Bullet Type</label>
+              <input value={bulletType} onChange={(e) => setBulletType(e.target.value)} className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF]" />
+            </div>
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">Grain Weight</label>
+              <input type="number" min={0} step="0.5" value={grainWeight} onChange={(e) => setGrainWeight(e.target.value)} className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF]" />
+            </div>
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">Low Stock Alert</label>
+              <input type="number" min={0} value={lowStockAlert} onChange={(e) => setLowStockAlert(e.target.value)} className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF]" />
+            </div>
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">Purchase Price</label>
+              <input type="number" min={0} step="0.01" value={purchasePrice} onChange={(e) => setPurchasePrice(e.target.value)} className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF]" />
+            </div>
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">Purchase Date</label>
+              <input type="date" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF]" />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">Storage Location</label>
+            <input value={storageLocation} onChange={(e) => setStorageLocation(e.target.value)} className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF]" />
+          </div>
+
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">Notes</label>
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF]" />
+          </div>
+
+          <div className="flex flex-wrap gap-2 justify-between pt-2">
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={submitting || deleting}
+              className="flex items-center gap-2 px-4 py-2 text-sm border border-[#E53935]/40 text-[#E53935] bg-[#E53935]/10 hover:bg-[#E53935]/20 rounded-md transition-colors disabled:opacity-50"
+            >
+              {deleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+              Delete Ammo
+            </button>
+
+            <div className="flex gap-2">
+              <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-vault-text-muted hover:text-vault-text border border-vault-border rounded-md transition-colors">
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={submitting || deleting}
+                className="flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-50 px-4 py-2 rounded-md text-sm font-medium transition-colors"
+              >
+                {submitting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function AmmoPage() {
   const [groups, setGroups] = useState<CaliberGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedCalibers, setExpandedCalibers] = useState<Set<string>>(new Set());
   const [addModal, setAddModal] = useState<AmmoStock | null>(null);
   const [logModal, setLogModal] = useState<AmmoStock | null>(null);
+  const [editModal, setEditModal] = useState<AmmoStock | null>(null);
 
   const fetchAmmo = useCallback(async () => {
     const res = await fetch("/api/ammo");
@@ -465,6 +637,13 @@ export default function AmmoPage() {
                             {/* Action buttons */}
                             <div className="flex items-center gap-2 ml-3.5">
                               <button
+                                onClick={() => setEditModal(stock)}
+                                className="flex items-center gap-1 text-[10px] bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 px-2 py-1 rounded transition-colors"
+                              >
+                                <Pencil className="w-2.5 h-2.5" />
+                                Edit
+                              </button>
+                              <button
                                 onClick={() => setAddModal(stock)}
                                 className="flex items-center gap-1 text-[10px] bg-[#00C853]/10 border border-[#00C853]/30 text-[#00C853] hover:bg-[#00C853]/20 px-2 py-1 rounded transition-colors"
                               >
@@ -509,6 +688,15 @@ export default function AmmoPage() {
           stock={logModal}
           onClose={() => setLogModal(null)}
           onSuccess={handleQtyUpdate}
+        />
+      )}
+      {editModal && (
+        <EditAmmoModal
+          stock={editModal}
+          onClose={() => setEditModal(null)}
+          onUpdated={() => {
+            void fetchAmmo();
+          }}
         />
       )}
     </div>
