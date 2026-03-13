@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Save,
   Loader2,
@@ -55,6 +55,17 @@ interface SystemInfo {
 }
 
 export default function SettingsPage() {
+  const settingsSections = useMemo(
+    () => [
+      { id: "security", label: "Security", icon: ShieldCheck },
+      { id: "backup", label: "Backup", icon: Archive },
+      { id: "export", label: "Export", icon: FileText },
+      { id: "system", label: "System", icon: HardDrive },
+      { id: "integrations", label: "Integrations", icon: ImageIcon },
+    ] as const,
+    []
+  );
+
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [sysInfo, setSysInfo] = useState<SystemInfo | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
@@ -105,6 +116,7 @@ export default function SettingsPage() {
   const [disableInput, setDisableInput] = useState("");
   const [exportedKey, setExportedKey] = useState<string | null>(null);
   const [keyCopied, setKeyCopied] = useState(false);
+  const [activeSection, setActiveSection] = useState<(typeof settingsSections)[number]["id"]>("security");
 
   useEffect(() => {
     Promise.all([
@@ -509,6 +521,34 @@ export default function SettingsPage() {
     return () => clearInterval(timer);
   }, [autoBackupEnabled, autoBackupIntervalMin, runAutoBackupCheck]);
 
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visibleEntries = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+
+        if (visibleEntries[0]?.target.id) {
+          setActiveSection(visibleEntries[0].target.id as (typeof settingsSections)[number]["id"]);
+        }
+      },
+      { rootMargin: "-25% 0px -55% 0px", threshold: [0.2, 0.4, 0.6] }
+    );
+
+    const sectionElements = settingsSections
+      .map((section) => document.getElementById(section.id))
+      .filter((element): element is HTMLElement => Boolean(element));
+
+    sectionElements.forEach((element) => observer.observe(element));
+
+    return () => observer.disconnect();
+  }, [settingsSections]);
+
+  function scrollToSection(sectionId: (typeof settingsSections)[number]["id"]) {
+    setActiveSection(sectionId);
+    document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
 
 
   if (dataLoading) {
@@ -569,6 +609,29 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      <div className="sticky top-0 z-20 border-b border-vault-border bg-vault-bg/95 backdrop-blur supports-[backdrop-filter]:bg-vault-bg/80">
+        <div className="max-w-2xl mx-auto px-6 py-3">
+          <div className="flex gap-2 overflow-x-auto md:overflow-visible md:flex-wrap">
+            {settingsSections.map((section) => {
+              const Icon = section.icon;
+              const isActive = activeSection === section.id;
+
+              return (
+                <button
+                  key={section.id}
+                  type="button"
+                  onClick={() => scrollToSection(section.id)}
+                  className={`shrink-0 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-mono uppercase tracking-wider transition-colors ${isActive ? "border-[#00C2FF]/40 bg-[#00C2FF]/10 text-[#00C2FF]" : "border-vault-border text-vault-text-faint hover:text-vault-text hover:border-vault-text-muted/40"}`}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  {section.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
       <div className="max-w-2xl mx-auto px-6 py-8">
         {saveError && (
           <div className="flex items-center gap-3 bg-[#E53935]/10 border border-[#E53935]/30 rounded-lg px-4 py-3 mb-6">
@@ -585,6 +648,7 @@ export default function SettingsPage() {
         )}
 
         <form onSubmit={handleSave} className="space-y-6">
+          <section id="integrations" className="scroll-mt-40 space-y-6">
           {/* ── Image Search ────────────────────────────────── */}
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-5">
             <div className="flex items-center justify-between">
@@ -644,7 +708,9 @@ export default function SettingsPage() {
               <p className="text-xs text-vault-text-faint mt-1">The &quot;cx&quot; parameter from your Programmable Search Engine dashboard.</p>
             </div>
           </fieldset>
+          </section>
 
+          <section id="security" className="scroll-mt-40 space-y-6">
           {/* ── Security ────────────────────────────────────── */}
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-5">
             <div className="flex items-center justify-between">
@@ -875,7 +941,9 @@ export default function SettingsPage() {
               </div>
             )}
           </fieldset>
+          </section>
 
+          <section id="system" className="scroll-mt-40 space-y-6">
           {/* ── Data Storage ────────────────────────────────── */}
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
             <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
@@ -1073,6 +1141,22 @@ export default function SettingsPage() {
             </div>
           </fieldset>
 
+
+
+          {/* ── Status Summary ──────────────────────────────── */}
+          <div className="bg-vault-bg border border-vault-border rounded-lg p-4">
+            <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-3 font-mono">Current Configuration Status</p>
+            <div className="space-y-2">
+              <StatusRow label="Image Search" value={enableImageSearch ? "Enabled" : "Disabled"} ok={enableImageSearch} />
+              <StatusRow label="CSE API Key" value={settings?._googleCseApiKeyIsSet ? "Configured" : "Not set"} ok={!!settings?._googleCseApiKeyIsSet} />
+              <StatusRow label="Search Engine ID" value={settings?.googleCseSearchEngineId ? "Configured" : "Not set"} ok={!!settings?.googleCseSearchEngineId} />
+              <StatusRow label="App Password" value={settings?.appPassword ? "Enabled" : "Disabled"} ok={!!settings?.appPassword} neutralIfFalse />
+              <StatusRow label="Encryption at Rest" value={settings?.encryptionEnabled ? "Active" : "Not configured"} ok={!!settings?.encryptionEnabled} />
+            </div>
+          </div>
+          </section>
+
+          <section id="export" className="scroll-mt-40 space-y-6">
           {/* ── Full Armory Export ─────────────────────────── */}
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
             <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
@@ -1156,6 +1240,9 @@ export default function SettingsPage() {
             </p>
           </fieldset>
 
+          </section>
+
+          <section id="backup" className="scroll-mt-40 space-y-6">
           {/* ── Secure System Backup ─────────────────────────── */}
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
             <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
@@ -1277,17 +1364,7 @@ export default function SettingsPage() {
             </div>
           </fieldset>
 
-          {/* ── Status Summary ──────────────────────────────── */}
-          <div className="bg-vault-bg border border-vault-border rounded-lg p-4">
-            <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-3 font-mono">Current Configuration Status</p>
-            <div className="space-y-2">
-              <StatusRow label="Image Search" value={enableImageSearch ? "Enabled" : "Disabled"} ok={enableImageSearch} />
-              <StatusRow label="CSE API Key" value={settings?._googleCseApiKeyIsSet ? "Configured" : "Not set"} ok={!!settings?._googleCseApiKeyIsSet} />
-              <StatusRow label="Search Engine ID" value={settings?.googleCseSearchEngineId ? "Configured" : "Not set"} ok={!!settings?.googleCseSearchEngineId} />
-              <StatusRow label="App Password" value={settings?.appPassword ? "Enabled" : "Disabled"} ok={!!settings?.appPassword} neutralIfFalse />
-              <StatusRow label="Encryption at Rest" value={settings?.encryptionEnabled ? "Active" : "Not configured"} ok={!!settings?.encryptionEnabled} />
-            </div>
-          </div>
+          </section>
 
           {/* Actions */}
           <div className="flex items-center justify-end gap-3 pt-2">
