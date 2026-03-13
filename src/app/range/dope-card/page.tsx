@@ -24,6 +24,38 @@ function parseOptionalNumber(value: string): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+export function validateGeneratorInputs(values: {
+  startYd: string;
+  endYd: string;
+  stepYd: string;
+  muzzleVelocityFps: string;
+  ballisticCoefficient: string;
+  zeroRangeYd: string;
+  sightHeightIn: string;
+}): string[] {
+  const errors: string[] = [];
+
+  const start = Number(values.startYd);
+  const end = Number(values.endYd);
+  const step = Number(values.stepYd);
+  const mv = Number(values.muzzleVelocityFps);
+  const bc = Number(values.ballisticCoefficient);
+  const zero = Number(values.zeroRangeYd);
+  const sh = Number(values.sightHeightIn);
+
+  if (!(start > 0)) errors.push("Start distance must be greater than 0.");
+  if (!(end > 0)) errors.push("End distance must be greater than 0.");
+  if (!(step > 0)) errors.push("Step distance must be greater than 0.");
+  if (Number.isFinite(start) && Number.isFinite(end) && end < start)
+    errors.push("End distance must be greater than or equal to start distance.");
+  if (!(mv > 0)) errors.push("Muzzle velocity must be greater than 0.");
+  if (!(bc > 0)) errors.push("Ballistic coefficient must be greater than 0.");
+  if (!(zero > 0)) errors.push("Zero range must be greater than 0.");
+  if (!(sh > 0)) errors.push("Sight height must be greater than 0.");
+
+  return errors;
+}
+
 export default function DopeCardPage() {
   const [startYd, setStartYd] = useState("100");
   const [endYd, setEndYd] = useState("800");
@@ -44,7 +76,23 @@ export default function DopeCardPage() {
 
   const [rows, setRows] = useState<AngularDopeRow[]>([]);
   const [corrections, setCorrections] = useState<Record<number, DopeRowCorrection>>({});
+  const [generatorErrors, setGeneratorErrors] = useState<string[]>([]);
   const estimationModel = "Physics-based nonlinear stepper";
+
+  const validationErrors = useMemo(
+    () =>
+      validateGeneratorInputs({
+        startYd,
+        endYd,
+        stepYd,
+        muzzleVelocityFps,
+        ballisticCoefficient,
+        zeroRangeYd,
+        sightHeightIn,
+      }),
+    [startYd, endYd, stepYd, muzzleVelocityFps, ballisticCoefficient, zeroRangeYd, sightHeightIn]
+  );
+  const hasInvalidInputs = validationErrors.length > 0;
 
   const estimateSummary = useMemo(() => {
     if (!rows.length) return null;
@@ -53,6 +101,13 @@ export default function DopeCardPage() {
   }, [rows]);
 
   function handleGenerate() {
+    if (validationErrors.length > 0) {
+      setGeneratorErrors(validationErrors);
+      return;
+    }
+
+    setGeneratorErrors([]);
+
     const distanceRows = generateDistanceRows(Number(startYd), Number(endYd), Number(stepYd));
     const solvedRows = solveTrajectoryRows(distanceRows, {
       muzzleVelocityFps: Number(muzzleVelocityFps),
@@ -192,10 +247,16 @@ export default function DopeCardPage() {
 
           <button
             onClick={handleGenerate}
-            className="px-4 py-2 text-sm rounded-md bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 transition-colors"
+            disabled={hasInvalidInputs}
+            className="px-4 py-2 text-sm rounded-md bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#00C2FF]/10"
           >
             Generate Estimated Rows
           </button>
+          {generatorErrors.length > 0 && (
+            <p className="text-sm text-red-400" role="alert">
+              {generatorErrors.join(" ")}
+            </p>
+          )}
         </section>
 
         <section className="bg-vault-surface border border-vault-border rounded-lg overflow-hidden">
