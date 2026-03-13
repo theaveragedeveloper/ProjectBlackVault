@@ -52,6 +52,21 @@ const STATUS_STYLES: Record<string, { dot: string; text: string; bg: string; bor
   empty:    { dot: "bg-[#E53935]", text: "text-[#E53935]", bg: "bg-[#E53935]/10", border: "border-[#E53935]/30" },
 };
 
+function avgPricePerRound(stocks: AmmoStock[]): number | null {
+  let pricedRounds = 0;
+  let pricedValue = 0;
+
+  for (const stock of stocks) {
+    if (stock.purchasePrice !== null && stock.purchasePrice !== undefined && stock.purchasePrice > 0) {
+      pricedRounds += stock.quantity;
+      pricedValue += stock.quantity * stock.purchasePrice;
+    }
+  }
+
+  if (pricedRounds === 0) return null;
+  return pricedValue / pricedRounds;
+}
+
 const CALIBER_TEXT_COLORS: Record<string, string> = {
   ok:       "text-[#00C853]",
   low:      "text-[#F5A623]",
@@ -537,6 +552,7 @@ export default function AmmoPage() {
               const isExpanded = expandedCalibers.has(group.caliber);
               const styles = STATUS_STYLES[worstStatus];
               const totalColor = CALIBER_TEXT_COLORS[worstStatus];
+              const groupAvgPrice = avgPricePerRound(group.stocks);
 
               return (
                 <div
@@ -558,9 +574,16 @@ export default function AmmoPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <p className={`text-2xl font-bold font-mono tabular-nums ${totalColor}`}>
-                        {formatNumber(group.totalQuantity)}
-                      </p>
+                      <div className="text-right">
+                        <p className={`text-2xl font-bold font-mono tabular-nums ${totalColor}`}>
+                          {formatNumber(group.totalQuantity)}
+                        </p>
+                        {groupAvgPrice !== null && (
+                          <p className="text-[10px] text-vault-text-faint font-mono">
+                            avg {formatCurrency(groupAvgPrice ?? 0)}/rd
+                          </p>
+                        )}
+                      </div>
                       {isExpanded ? (
                         <ChevronUp className="w-4 h-4 text-vault-text-faint shrink-0" />
                       ) : (
