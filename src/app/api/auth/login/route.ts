@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import crypto from "crypto";
 import { verifyPassword } from "@/lib/password";
 import { signToken } from "@/lib/session";
+import { getSessionCookieOptions, getSessionSecret } from "@/lib/session-config";
 
 // Simple in-memory rate limiter: max 10 attempts per IP per minute
 const attempts = new Map<string, { count: number; resetAt: number }>();
@@ -52,15 +53,10 @@ export async function POST(request: NextRequest) {
     // If no password is set, always allow access
     if (!settings.appPassword) {
       const token = crypto.randomBytes(32).toString("hex");
-      const secret = process.env.SESSION_SECRET;
+      const secret = getSessionSecret();
       const cookieValue = secret ? signToken(token, secret) : token;
       const cookieStore = await cookies();
-      cookieStore.set("vault_session", cookieValue, {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        maxAge: 60 * 60 * 24 * 30,
-      });
+      cookieStore.set("vault_session", cookieValue, getSessionCookieOptions());
       return NextResponse.json({ success: true });
     }
 
@@ -70,15 +66,10 @@ export async function POST(request: NextRequest) {
     }
 
     const token = crypto.randomBytes(32).toString("hex");
-    const secret = process.env.SESSION_SECRET;
+    const secret = getSessionSecret();
     const cookieValue = secret ? signToken(token, secret) : token;
     const cookieStore = await cookies();
-    cookieStore.set("vault_session", cookieValue, {
-      httpOnly: true,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 30,
-    });
+    cookieStore.set("vault_session", cookieValue, getSessionCookieOptions());
 
     return NextResponse.json({ success: true });
   } catch (error) {
