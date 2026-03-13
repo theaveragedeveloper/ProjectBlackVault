@@ -22,6 +22,25 @@ export interface DopeRowCorrection {
   confirmed?: boolean;
 }
 
+export type WindDirectionUnit = "degrees" | "clock";
+
+export interface WindInput {
+  speedMph: number;
+  directionValue: number;
+  directionUnit: WindDirectionUnit;
+}
+
+export interface WindZoneInput extends WindInput {
+  startYd: number;
+  endYd: number | null;
+}
+
+export interface WindSolverInput {
+  windDriftPerMphPer100YdIn: number;
+  defaultWind: WindInput;
+  zones?: WindZoneInput[];
+}
+
 const INCHES_PER_100YD_PER_MIL = 3.6;
 const INCHES_PER_100YD_PER_MOA = 1.047;
 const DISTANCE_EPSILON = 1e-6;
@@ -42,6 +61,48 @@ function toMoa(inches: number, distanceYd: number): number {
 function safeInches(value: number): number {
   // Keep conversions stable even if a caller passes invalid correction/input values.
   return Number.isFinite(value) ? value : 0;
+}
+
+export function windDirectionToDegrees(directionValue: number, directionUnit: WindDirectionUnit): number {
+  if (!Number.isFinite(directionValue)) return 0;
+  if (directionUnit === "clock") {
+    const clock = ((directionValue % 12) + 12) % 12;
+    return clock * 30;
+  }
+
+  const normalized = directionValue % 360;
+  return normalized < 0 ? normalized + 360 : normalized;
+}
+
+export function effectiveCrosswindMph(speedMph: number, directionDegrees: number): number {
+  if (!Number.isFinite(speedMph) || !Number.isFinite(directionDegrees)) {
+    return 0;
+  }
+
+  const radians = (directionDegrees * Math.PI) / 180;
+  return Math.abs(speedMph * Math.sin(radians));
+}
+
+function resolveWindForDistance(distanceYd: number, input: WindSolverInput): WindInput {
+  const zone = input.zones?.find((candidate) => {
+    const withinStart = distanceYd >= candidate.startYd;
+    const withinEnd = candidate.endYd == null || distanceYd < candidate.endYd;
+    return withinStart && withinEnd;
+  });
+
+  return zone ?? input.defaultWind;
+}
+
+export function estimateWindDriftIn(distanceYd: number, input: WindSolverInput): number {
+  if (!Number.isFinite(distanceYd) || distanceYd <= 0 || !Number.isFinite(input.windDriftPerMphPer100YdIn)) {
+    return 0;
+  }
+
+  const wind = resolveWindForDistance(distanceYd, input);
+  const directionDegrees = windDirectionToDegrees(wind.directionValue, wind.directionUnit);
+  const crosswindMph = effectiveCrosswindMph(wind.speedMph, directionDegrees);
+
+  return roundTo((distanceYd / 100) * input.windDriftPerMphPer100YdIn * crosswindMph, 2);
 }
 
 export function generateDistanceRows(startYd: number, endYd: number, stepYd: number): DistanceRow[] {

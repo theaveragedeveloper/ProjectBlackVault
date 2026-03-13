@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   applyDopeCorrections,
   convertDropWindToAngular,
+  effectiveCrosswindMph,
+  estimateWindDriftIn,
   generateDistanceRows,
+  windDirectionToDegrees,
 } from "@/lib/ballistics/dope";
 
 describe("generateDistanceRows", () => {
@@ -61,6 +64,37 @@ describe("convertDropWindToAngular", () => {
     expect(Number.isNaN(rows[0].dropMoa)).toBe(false);
     expect(Number.isNaN(rows[0].windMil)).toBe(false);
     expect(Number.isNaN(rows[0].windMoa)).toBe(false);
+  });
+});
+
+describe("wind angle decomposition", () => {
+  it("handles 0°, 45°, and 90° crosswind components", () => {
+    expect(effectiveCrosswindMph(10, 0)).toBeCloseTo(0, 5);
+    expect(effectiveCrosswindMph(10, 45)).toBeCloseTo(7.07, 2);
+    expect(effectiveCrosswindMph(10, 90)).toBeCloseTo(10, 5);
+  });
+
+  it("supports clock direction values", () => {
+    expect(windDirectionToDegrees(3, "clock")).toBe(90);
+    expect(windDirectionToDegrees(12, "clock")).toBe(0);
+  });
+});
+
+describe("wind zones", () => {
+  it("applies zone-based wind settings by distance segment", () => {
+    const input = {
+      windDriftPerMphPer100YdIn: 0.1,
+      defaultWind: { speedMph: 10, directionValue: 90, directionUnit: "degrees" as const },
+      zones: [
+        { startYd: 0, endYd: 300, speedMph: 5, directionValue: 90, directionUnit: "degrees" as const },
+        { startYd: 300, endYd: 700, speedMph: 10, directionValue: 45, directionUnit: "degrees" as const },
+        { startYd: 700, endYd: null, speedMph: 12, directionValue: 90, directionUnit: "degrees" as const },
+      ],
+    };
+
+    expect(estimateWindDriftIn(200, input)).toBe(1);
+    expect(estimateWindDriftIn(500, input)).toBe(3.54);
+    expect(estimateWindDriftIn(800, input)).toBe(9.6);
   });
 });
 
