@@ -24,6 +24,7 @@ export interface DopeRowCorrection {
 
 const INCHES_PER_100YD_PER_MIL = 3.6;
 const INCHES_PER_100YD_PER_MOA = 1.047;
+const DISTANCE_EPSILON = 1e-6;
 
 function roundTo(value: number, digits: number): number {
   const factor = 10 ** digits;
@@ -52,17 +53,28 @@ export function generateDistanceRows(startYd: number, endYd: number, stepYd: num
     return [];
   }
 
+  const normalizedEndYd = roundTo(endYd, 4);
   const rows: DistanceRow[] = [];
+
   for (let distance = startYd; distance <= endYd; distance += stepYd) {
-    rows.push({ distanceYd: roundTo(distance, 4) });
+    const normalizedDistance = roundTo(distance, 4);
+    rows.push({ distanceYd: normalizedDistance });
   }
 
-  const hasExactEnd = rows.length > 0 && rows[rows.length - 1].distanceYd === endYd;
+  const hasExactEnd =
+    rows.length > 0 &&
+    Math.abs(rows[rows.length - 1].distanceYd - normalizedEndYd) < DISTANCE_EPSILON;
+
   if (!hasExactEnd) {
-    rows.push({ distanceYd: endYd });
+    rows.push({ distanceYd: normalizedEndYd });
   }
 
-  return rows;
+  return rows
+    .sort((a, b) => a.distanceYd - b.distanceYd)
+    .filter((row, index, allRows) => {
+      if (index === 0) return true;
+      return Math.abs(row.distanceYd - allRows[index - 1].distanceYd) >= DISTANCE_EPSILON;
+    });
 }
 
 export function convertDropWindToAngular(rows: BallisticOutputRow[]): AngularDopeRow[] {
