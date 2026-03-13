@@ -1,6 +1,7 @@
 "use client";
 
-import { Shield, Menu } from "lucide-react";
+import Image from "next/image";
+import { Menu } from "lucide-react";
 
 interface MobileHeaderProps {
   onMenuOpen: () => void;
@@ -17,8 +18,8 @@ export function MobileHeader({ onMenuOpen }: MobileHeaderProps) {
         <Menu className="w-5 h-5" />
       </button>
       <div className="flex items-center gap-2 min-w-0">
-        <div className="w-6 h-6 rounded bg-[#00C2FF]/10 border border-[#00C2FF]/30 flex items-center justify-center">
-          <Shield className="w-3.5 h-3.5 text-[#00C2FF]" />
+        <div className="w-6 h-6 rounded bg-[#00C2FF]/10 border border-[#00C2FF]/30 flex items-center justify-center p-1">
+          <Image src="/blackvault-logo.svg" alt="BlackVault logo" width={14} height={14} className="w-3.5 h-3.5" priority />
         </div>
         <div className="min-w-0">
           <p className="text-xs font-bold text-vault-text tracking-widest uppercase truncate">BlackVault</p>
