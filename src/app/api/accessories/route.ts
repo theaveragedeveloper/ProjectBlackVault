@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { revalidateDashboardCaches } from "@/lib/server/dashboard";
 
+const BATTERY_TRACKED_SLOT_TYPES = new Set(["OPTIC", "LIGHT", "LASER"]);
+
 // GET /api/accessories - List all accessories with current build name
 export async function GET(request: NextRequest) {
   try {
@@ -78,6 +80,9 @@ export async function POST(request: NextRequest) {
       imageSource,
       compatibleFirearmTypes,
       compatibleCalibers,
+      hasBattery,
+      batteryType,
+      batteryIntervalDays,
     } = body;
 
     if (!name || !type) {
@@ -86,6 +91,10 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const shouldEnableBattery = hasBattery !== undefined
+      ? Boolean(hasBattery)
+      : BATTERY_TRACKED_SLOT_TYPES.has(type);
 
     const accessory = await prisma.accessory.create({
       data: {
@@ -101,6 +110,13 @@ export async function POST(request: NextRequest) {
         imageSource: imageSource ?? null,
         compatibleFirearmTypes: compatibleFirearmTypes ?? null,
         compatibleCalibers: compatibleCalibers ?? null,
+        hasBattery: shouldEnableBattery,
+        batteryType: shouldEnableBattery ? batteryType ?? null : null,
+        batteryIntervalDays: shouldEnableBattery
+          ? batteryIntervalDays !== undefined && batteryIntervalDays !== null && batteryIntervalDays !== ""
+            ? parseInt(String(batteryIntervalDays), 10)
+            : null
+          : null,
       },
     });
 
