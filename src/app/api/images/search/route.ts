@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { decryptField } from "@/lib/crypto";
+import { isTrustedExternalImageUrl } from "@/lib/image-host-allowlist";
 
 interface GoogleCseItem {
   title: string;
@@ -100,16 +101,21 @@ export async function POST(request: NextRequest) {
     const data = await response.json();
     const items: GoogleCseItem[] = data.items ?? [];
 
-    const results = items.map((item) => ({
-      title: item.title,
-      url: item.link,
-      thumbnailUrl: item.image?.thumbnailLink ?? item.link,
-      width: item.image?.width ?? null,
-      height: item.image?.height ?? null,
-      contextLink: item.image?.contextLink ?? null,
-      displayLink: item.displayLink ?? null,
-      snippet: item.snippet ?? null,
-    }));
+    const results = items
+      .filter((item) => isTrustedExternalImageUrl(item.link))
+      .map((item) => ({
+        title: item.title,
+        url: item.link,
+        thumbnailUrl:
+          item.image?.thumbnailLink && isTrustedExternalImageUrl(item.image.thumbnailLink)
+            ? item.image.thumbnailLink
+            : item.link,
+        width: item.image?.width ?? null,
+        height: item.image?.height ?? null,
+        contextLink: item.image?.contextLink ?? null,
+        displayLink: item.displayLink ?? null,
+        snippet: item.snippet ?? null,
+      }));
 
     return NextResponse.json({ results, query: query.trim() });
   } catch (error) {
