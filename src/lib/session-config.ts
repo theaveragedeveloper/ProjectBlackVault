@@ -13,9 +13,9 @@ export function getSessionSecret(): string | undefined {
 export function getSessionCookieOptions() {
   return {
     httpOnly: true,
-    sameSite: "lax" as const,
+    sameSite: "strict" as const,
     path: "/",
-    maxAge: 60 * 60 * 24 * 30,
+    maxAge: 60 * 60 * 24 * 7,
     secure: isProduction,
   };
 }
