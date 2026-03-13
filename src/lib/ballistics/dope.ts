@@ -38,6 +38,11 @@ function toMoa(inches: number, distanceYd: number): number {
   return inches / ((distanceYd / 100) * INCHES_PER_100YD_PER_MOA);
 }
 
+function safeInches(value: number): number {
+  // Keep conversions stable even if a caller passes invalid correction/input values.
+  return Number.isFinite(value) ? value : 0;
+}
+
 export function generateDistanceRows(startYd: number, endYd: number, stepYd: number): DistanceRow[] {
   if (!Number.isFinite(startYd) || !Number.isFinite(endYd) || !Number.isFinite(stepYd)) {
     return [];
@@ -63,14 +68,21 @@ export function generateDistanceRows(startYd: number, endYd: number, stepYd: num
 export function convertDropWindToAngular(rows: BallisticOutputRow[]): AngularDopeRow[] {
   return rows
     .filter((row) => row.distanceYd > 0)
-    .map((row) => ({
-      ...row,
-      dropMil: roundTo(toMil(row.dropIn, row.distanceYd), 2),
-      dropMoa: roundTo(toMoa(row.dropIn, row.distanceYd), 2),
-      windMil: roundTo(toMil(row.windIn, row.distanceYd), 2),
-      windMoa: roundTo(toMoa(row.windIn, row.distanceYd), 2),
-      confirmed: false,
-    }));
+    .map((row) => {
+      const dropIn = safeInches(row.dropIn);
+      const windIn = safeInches(row.windIn);
+
+      return {
+        ...row,
+        dropIn,
+        windIn,
+        dropMil: roundTo(toMil(dropIn, row.distanceYd), 2),
+        dropMoa: roundTo(toMoa(dropIn, row.distanceYd), 2),
+        windMil: roundTo(toMil(windIn, row.distanceYd), 2),
+        windMoa: roundTo(toMoa(windIn, row.distanceYd), 2),
+        confirmed: false,
+      };
+    });
 }
 
 export function applyDopeCorrections(
@@ -81,8 +93,8 @@ export function applyDopeCorrections(
     const correction = correctionsByDistance[row.distanceYd];
     if (!correction) return row;
 
-    const dropIn = correction.dropIn ?? row.dropIn;
-    const windIn = correction.windIn ?? row.windIn;
+    const dropIn = safeInches(correction.dropIn ?? row.dropIn);
+    const windIn = safeInches(correction.windIn ?? row.windIn);
 
     return {
       ...row,

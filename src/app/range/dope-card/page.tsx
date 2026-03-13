@@ -15,6 +15,14 @@ const INPUT_CLASS =
   "w-full bg-vault-surface border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint transition-colors";
 const LABEL_CLASS = "block text-xs font-medium uppercase tracking-widest text-vault-text-muted mb-1.5";
 
+function parseOptionalNumber(value: string): number | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
 export default function DopeCardPage() {
   const [startYd, setStartYd] = useState("100");
   const [endYd, setEndYd] = useState("800");
@@ -52,13 +60,31 @@ export default function DopeCardPage() {
   }
 
   function updateCorrection(distanceYd: number, patch: DopeRowCorrection) {
+    const existing = corrections[distanceYd] ?? {};
+    const merged: DopeRowCorrection = {
+      ...existing,
+      ...patch,
+    };
+
+    if (patch.dropIn === undefined) {
+      delete merged.dropIn;
+    }
+
+    if (patch.windIn === undefined) {
+      delete merged.windIn;
+    }
+
+    const hasAnyCorrection =
+      merged.dropIn !== undefined || merged.windIn !== undefined || merged.confirmed !== undefined;
     const nextCorrections = {
       ...corrections,
-      [distanceYd]: {
-        ...corrections[distanceYd],
-        ...patch,
-      },
+      ...(hasAnyCorrection ? { [distanceYd]: merged } : {}),
     };
+
+    if (!hasAnyCorrection) {
+      delete nextCorrections[distanceYd];
+    }
+
     setCorrections(nextCorrections);
     setRows((prev) => applyDopeCorrections(prev, nextCorrections));
   }
@@ -146,8 +172,9 @@ export default function DopeCardPage() {
                         type="number"
                         step="0.01"
                         className={`${INPUT_CLASS} min-w-[110px]`}
-                        value={corrections[row.distanceYd]?.dropIn ?? row.dropIn}
-                        onChange={(e) => updateCorrection(row.distanceYd, { dropIn: Number(e.target.value) })}
+                        value={corrections[row.distanceYd]?.dropIn ?? ""}
+                        placeholder={String(row.dropIn)}
+                        onChange={(e) => updateCorrection(row.distanceYd, { dropIn: parseOptionalNumber(e.target.value) })}
                       />
                     </td>
                     <td className="px-3 py-2 font-mono">{row.dropMil.toFixed(2)}</td>
@@ -157,8 +184,9 @@ export default function DopeCardPage() {
                         type="number"
                         step="0.01"
                         className={`${INPUT_CLASS} min-w-[110px]`}
-                        value={corrections[row.distanceYd]?.windIn ?? row.windIn}
-                        onChange={(e) => updateCorrection(row.distanceYd, { windIn: Number(e.target.value) })}
+                        value={corrections[row.distanceYd]?.windIn ?? ""}
+                        placeholder={String(row.windIn)}
+                        onChange={(e) => updateCorrection(row.distanceYd, { windIn: parseOptionalNumber(e.target.value) })}
                       />
                     </td>
                     <td className="px-3 py-2 font-mono">{row.windMil.toFixed(2)}</td>

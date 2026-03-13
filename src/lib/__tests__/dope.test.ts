@@ -33,6 +33,23 @@ describe("convertDropWindToAngular", () => {
       confirmed: false,
     });
   });
+
+  it("coerces invalid drop/wind values to 0 so angular values stay finite", () => {
+    const rows = convertDropWindToAngular([{ distanceYd: 200, dropIn: Number.NaN, windIn: Number.POSITIVE_INFINITY }]);
+
+    expect(rows[0]).toMatchObject({
+      dropIn: 0,
+      windIn: 0,
+      dropMil: 0,
+      dropMoa: 0,
+      windMil: 0,
+      windMoa: 0,
+    });
+    expect(Number.isNaN(rows[0].dropMil)).toBe(false);
+    expect(Number.isNaN(rows[0].dropMoa)).toBe(false);
+    expect(Number.isNaN(rows[0].windMil)).toBe(false);
+    expect(Number.isNaN(rows[0].windMoa)).toBe(false);
+  });
 });
 
 describe("applyDopeCorrections", () => {
@@ -48,5 +65,25 @@ describe("applyDopeCorrections", () => {
       dropMil: 1.11,
       confirmed: true,
     });
+  });
+
+  it("falls back to generated values when correction fields are undefined", () => {
+    const generated = convertDropWindToAngular([{ distanceYd: 300, dropIn: 9, windIn: 6 }]);
+    const corrected = applyDopeCorrections(generated, {
+      300: { dropIn: undefined, windIn: undefined },
+    });
+
+    expect(corrected[0]).toMatchObject({
+      dropIn: 9,
+      windIn: 6,
+      dropMil: 0.83,
+      dropMoa: 2.87,
+      windMil: 0.56,
+      windMoa: 1.91,
+    });
+    expect(Number.isNaN(corrected[0].dropMil)).toBe(false);
+    expect(Number.isNaN(corrected[0].dropMoa)).toBe(false);
+    expect(Number.isNaN(corrected[0].windMil)).toBe(false);
+    expect(Number.isNaN(corrected[0].windMoa)).toBe(false);
   });
 });
