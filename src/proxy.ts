@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionSecret } from "@/lib/session-config";
 
 const sessionSecret = getSessionSecret();
+const PUBLIC_PATHS = ["/login", "/api/auth", "/api/health", "/_next", "/favicon.ico"];
 
 async function verifyWithWebCrypto(signed: string, secret: string): Promise<boolean> {
   const lastDot = signed.lastIndexOf(".");
   if (lastDot === -1) return false;
+
   const token = signed.slice(0, lastDot);
   const providedHex = signed.slice(lastDot + 1);
 
@@ -15,7 +17,7 @@ async function verifyWithWebCrypto(signed: string, secret: string): Promise<bool
     enc.encode(secret),
     { name: "HMAC", hash: "SHA-256" },
     false,
-    ["sign"]
+    ["sign"],
   );
   const sig = await crypto.subtle.sign("HMAC", key, enc.encode(token));
   const expectedHex = Array.from(new Uint8Array(sig))
@@ -31,27 +33,37 @@ async function verifyWithWebCrypto(signed: string, secret: string): Promise<bool
 }
 
 export async function proxy(request: NextRequest) {
-  const session = request.cookies.get("vault_session");
   const { pathname } = request.nextUrl;
-
-  // Always allow these paths without auth
-  const publicPaths = ["/login", "/api/auth", "/_next", "/favicon.ico", "/api/health"];
-  const isPublic = publicPaths.some((p) => pathname.startsWith(p));
+  const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
 
   if (isPublic) {
     return NextResponse.next();
   }
 
-  // If no session cookie, redirect to login
-  if (!session?.value) {
+  const isApiRoute = pathname.startsWith("/api/");
+
+  // Preserve prior API middleware behavior: if SESSION_SECRET is unset, skip API auth checks.
+  if (isApiRoute && !sessionSecret) {
+    return NextResponse.next();
+  }
+
+  const session = request.cookies.get("vault_session")?.value;
+  if (!session) {
+    if (isApiRoute) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const loginUrl = new URL("/login", request.url);
     return NextResponse.redirect(loginUrl);
   }
 
-  // Validate the session signature if SESSION_SECRET is configured
   if (sessionSecret) {
-    const valid = await verifyWithWebCrypto(session.value, sessionSecret);
+    const valid = await verifyWithWebCrypto(session, sessionSecret);
     if (!valid) {
+      if (isApiRoute) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+
       const loginUrl = new URL("/login", request.url);
       return NextResponse.redirect(loginUrl);
     }
@@ -61,7 +73,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    "/((?!_next/static|_next/image|favicon\\.ico|public).*)",
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon\\.ico|public).*)", "/api/:path*"],
 };
