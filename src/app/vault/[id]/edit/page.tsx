@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { FIREARM_TYPES, FIREARM_TYPE_LABELS, COMMON_CALIBERS } from "@/lib/types";
-import { ArrowLeft, Save, Loader2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Save, Loader2, AlertCircle, Trash2 } from "lucide-react";
 import ImagePicker from "@/components/shared/ImagePicker";
 
 const INPUT_CLASS =
@@ -47,6 +47,7 @@ export default function EditFirearmPage() {
   const [dataError, setDataError] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
@@ -126,6 +127,35 @@ export default function EditFirearmPage() {
     } catch {
       setError("Network error. Please try again.");
       setLoading(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!confirm("Delete this firearm? This cannot be undone.")) {
+      return;
+    }
+
+    setError(null);
+    setSuccess(false);
+    setDeleting(true);
+
+    try {
+      const res = await fetch(`/api/firearms/${firearmId}`, {
+        method: "DELETE",
+      });
+
+      const json = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        setError(json?.error ?? "Failed to delete firearm");
+        setDeleting(false);
+        return;
+      }
+
+      router.push("/vault");
+    } catch {
+      setError("Network error. Please try again.");
+      setDeleting(false);
     }
   }
 
@@ -286,10 +316,24 @@ export default function EditFirearmPage() {
 
           {/* Actions */}
           <div className="flex items-center justify-end gap-3 pt-2">
-            <Link href={`/vault/${firearmId}`} className="px-4 py-2 text-sm text-vault-text-muted hover:text-vault-text border border-vault-border rounded-md hover:border-vault-text-muted/30 transition-colors">
+            <button
+              type="button"
+              onClick={() => router.push(`/vault/${firearmId}`)}
+              disabled={deleting}
+              className="px-4 py-2 text-sm text-vault-text-muted hover:text-vault-text border border-vault-border rounded-md hover:border-vault-text-muted/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
               Cancel
-            </Link>
-            <button type="submit" disabled={loading || success}
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting || loading || success}
+              className="flex items-center gap-2 bg-[#E53935]/10 border border-[#E53935]/30 text-[#E53935] hover:bg-[#E53935]/20 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 rounded-md text-sm font-medium transition-colors"
+            >
+              {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              {deleting ? "Deleting..." : "Delete"}
+            </button>
+            <button type="submit" disabled={loading || success || deleting}
               className="flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-50 disabled:cursor-not-allowed px-5 py-2 rounded-md text-sm font-medium transition-colors">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               {loading ? "Saving..." : success ? "Saved!" : "Save Changes"}
