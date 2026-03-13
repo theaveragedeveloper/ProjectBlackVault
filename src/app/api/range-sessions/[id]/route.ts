@@ -83,14 +83,23 @@ export async function PUT(
     } = body;
 
     const parseFloat_ = (v: unknown) => {
-      if (v === null || v === undefined || v === "") return null;
+      if (v === undefined) return undefined;
+      if (v === null || v === "") return null;
       const n = parseFloat(String(v));
-      return Number.isFinite(n) ? n : null;
+      return Number.isFinite(n) ? n : undefined;
     };
     const parseInt_ = (v: unknown) => {
-      if (v === null || v === undefined || v === "") return null;
+      if (v === undefined) return undefined;
+      if (v === null || v === "") return null;
       const n = parseInt(String(v), 10);
-      return Number.isFinite(n) ? n : null;
+      return Number.isFinite(n) ? n : undefined;
+    };
+    const parseOptionalString = (v: unknown, maxLength?: number) => {
+      if (v === undefined) return undefined;
+      if (v === null || v === "") return null;
+      if (typeof v !== "string") return undefined;
+      const value = maxLength ? v.slice(0, maxLength) : v;
+      return value;
     };
 
     let parsedFirearms: { firearmId: string; buildId: string | null; roundsFired: number }[] | null = null;
@@ -120,22 +129,22 @@ export async function PUT(
           roundsFired: parsedFirearms
             ? parsedFirearms.reduce((sum, entry) => sum + entry.roundsFired, 0)
             : undefined,
-          rangeName: typeof rangeName === "string" ? rangeName.slice(0, 200) : null,
-          rangeLocation: typeof rangeLocation === "string" ? rangeLocation.slice(0, 200) : null,
-          notes: typeof notes === "string" ? notes.slice(0, 5000) : null,
+          rangeName: parseOptionalString(rangeName, 200),
+          rangeLocation: parseOptionalString(rangeLocation, 200),
+          notes: parseOptionalString(notes, 5000),
           date: date ? new Date(date) : undefined,
-          environment: typeof environment === "string" ? environment : null,
+          environment: parseOptionalString(environment),
           temperatureF: parseFloat_(temperatureF),
           windSpeedMph: parseFloat_(windSpeedMph),
-          windDirection: typeof windDirection === "string" && windDirection ? windDirection : null,
+          windDirection: parseOptionalString(windDirection),
           humidity: parseFloat_(humidity),
-          lightCondition: typeof lightCondition === "string" ? lightCondition : null,
-          weatherNotes: typeof weatherNotes === "string" && weatherNotes ? weatherNotes.slice(0, 1000) : null,
+          lightCondition: parseOptionalString(lightCondition),
+          weatherNotes: parseOptionalString(weatherNotes, 1000),
           targetDistanceYd: parseFloat_(targetDistanceYd),
           groupSizeIn: parseFloat_(groupSizeIn),
           groupSizeMoa: parseFloat_(groupSizeMoa),
           numberOfGroups: parseInt_(numberOfGroups),
-          groupNotes: typeof groupNotes === "string" && groupNotes ? groupNotes.slice(0, 1000) : null,
+          groupNotes: parseOptionalString(groupNotes, 1000),
         },
       });
 
