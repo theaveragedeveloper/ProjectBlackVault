@@ -83,10 +83,12 @@ Data is persisted in named Docker volumes:
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `DATABASE_URL` | Yes | `file:./prisma/dev.db` | SQLite connection string |
-| `SESSION_SECRET` | Recommended | — | Signs session cookies to prevent forgery. Generate: `openssl rand -hex 32` |
+| `SESSION_SECRET` | Yes (Production) | — | Required in production. Signs session cookies to prevent forgery. Generate: `openssl rand -hex 32` |
 | `NODE_ENV` | No | `development` | Set to `production` in deployed environments |
 | `PORT` | No | `3000` | Port exposed by Docker Compose |
 | `APP_PASSWORD` | — | — | Set via the Settings UI — not an environment variable |
+
+> ⚠️ In production, startup will fail when `SESSION_SECRET` is missing to prevent unsigned sessions.
 
 ---
 

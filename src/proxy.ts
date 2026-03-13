@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getSessionSecret } from "@/lib/session-config";
+
+const sessionSecret = getSessionSecret();
 
 async function verifyWithWebCrypto(signed: string, secret: string): Promise<boolean> {
   const lastDot = signed.lastIndexOf(".");
@@ -46,18 +49,12 @@ export async function proxy(request: NextRequest) {
   }
 
   // Validate the session signature if SESSION_SECRET is configured
-  const secret = process.env.SESSION_SECRET;
-  if (secret) {
-    const valid = await verifyWithWebCrypto(session.value, secret);
+  if (sessionSecret) {
+    const valid = await verifyWithWebCrypto(session.value, sessionSecret);
     if (!valid) {
       const loginUrl = new URL("/login", request.url);
       return NextResponse.redirect(loginUrl);
     }
-  } else {
-    console.warn(
-      "[blackvault] SESSION_SECRET is not set — session cookies are not cryptographically validated. " +
-      "Set SESSION_SECRET in your environment to prevent cookie forgery."
-    );
   }
 
   return NextResponse.next();

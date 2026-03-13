@@ -56,7 +56,7 @@ Optional toggle:
 - Manual backup files are encrypted before being saved locally.
 - Automatic backup files are encrypted server-side before being written to `./backups`.
 - Keep backup passphrases separate from backup files.
-- Set a strong `SESSION_SECRET` in production.
+- `SESSION_SECRET` is required in production (the app fails fast without it).
 
 ## Endpoints
 - `POST /api/backup/export`
