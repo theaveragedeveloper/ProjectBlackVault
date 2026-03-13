@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import {
   DndContext,
   closestCenter,
@@ -19,6 +18,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { StatCard } from "@/components/shared/StatCard";
+import { SafeImage } from "@/components/shared/SafeImage";
 import { formatCurrency, formatNumber, formatDate } from "@/lib/utils";
 import {
   Shield,
@@ -326,18 +326,15 @@ function RecentWidget({ firearms }: { firearms: RecentFirearm[] }) {
                 className="flex items-center gap-3 px-4 py-3 hover:bg-vault-surface-2 transition-colors group"
               >
                 <div className="relative w-10 h-10 rounded bg-vault-border border border-vault-border overflow-hidden shrink-0 flex items-center justify-center">
-                  {firearm.imageUrl ? (
-                    <Image
-                      src={firearm.imageUrl}
-                      alt={firearm.name}
-                      fill
-                      sizes="40px"
-                      loading="lazy"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <Shield className="w-4 h-4 text-vault-text-faint" />
-                  )}
+                  <SafeImage
+                    src={firearm.imageUrl}
+                    alt={firearm.name}
+                    fill
+                    sizes="40px"
+                    loading="lazy"
+                    className="w-full h-full object-cover"
+                    fallback={<Shield className="w-4 h-4 text-vault-text-faint" />}
+                  />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
