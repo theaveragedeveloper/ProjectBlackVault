@@ -27,7 +27,7 @@ function hostnameMatchesAllowlist(hostname: string, allowlistEntry: string): boo
 export function isTrustedExternalImageUrl(url: string): boolean {
   try {
     const parsedUrl = new URL(url);
-    if (parsedUrl.protocol !== "https:" && parsedUrl.protocol !== "http:") {
+    if (parsedUrl.protocol !== "https:") {
       return false;
     }
 
