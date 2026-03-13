@@ -70,6 +70,7 @@ export async function POST(request: NextRequest) {
       bulletType,
       quantity,
       purchasePrice,
+      purchasePriceTotal,
       purchaseDate,
       storageLocation,
       lowStockAlert,
@@ -83,14 +84,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (purchasePrice !== undefined && purchasePrice !== null && Number(purchasePrice) < 0) {
+      return NextResponse.json({ error: "purchasePrice cannot be negative" }, { status: 400 });
+    }
+    if (
+      purchasePriceTotal !== undefined &&
+      purchasePriceTotal !== null &&
+      Number(purchasePriceTotal) < 0
+    ) {
+      return NextResponse.json({ error: "purchasePriceTotal cannot be negative" }, { status: 400 });
+    }
+
+    const quantityValue = Number(quantity ?? 0);
+    const normalizedPerRoundPrice =
+      purchasePrice !== undefined && purchasePrice !== null
+        ? Number(purchasePrice)
+        : purchasePriceTotal !== undefined &&
+            purchasePriceTotal !== null &&
+            quantityValue > 0
+          ? Number(purchasePriceTotal) / quantityValue
+          : null;
+
     const stock = await prisma.ammoStock.create({
       data: {
         caliber,
         brand,
         grainWeight: grainWeight ?? null,
         bulletType: bulletType ?? null,
-        quantity: quantity ?? 0,
-        purchasePrice: purchasePrice ?? null,
+        quantity: quantityValue,
+        purchasePrice:
+          normalizedPerRoundPrice !== null && Number.isFinite(normalizedPerRoundPrice)
+            ? normalizedPerRoundPrice
+            : null,
         purchaseDate: purchaseDate ? new Date(purchaseDate) : null,
         storageLocation: storageLocation ?? null,
         lowStockAlert: lowStockAlert ?? null,
