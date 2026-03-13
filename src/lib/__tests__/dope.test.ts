@@ -79,6 +79,7 @@ describe("applyDopeCorrections", () => {
     });
   });
 
+<<<<<<< HEAD
   it("falls back to generated values when correction fields are undefined", () => {
     const generated = convertDropWindToAngular([{ distanceYd: 300, dropIn: 9, windIn: 6 }]);
     const corrected = applyDopeCorrections(generated, {
@@ -97,5 +98,54 @@ describe("applyDopeCorrections", () => {
     expect(Number.isNaN(corrected[0].dropMoa)).toBe(false);
     expect(Number.isNaN(corrected[0].windMil)).toBe(false);
     expect(Number.isNaN(corrected[0].windMoa)).toBe(false);
+=======
+  it("stays stable across repeated correction edits when recalculated from base rows", () => {
+    const baseRows = [
+      { distanceYd: 100, dropIn: 3.5, windIn: 1.2 },
+      { distanceYd: 200, dropIn: 7, windIn: 2.4 },
+    ];
+
+    const deriveRows = (corrections: Record<number, { dropIn?: number; windIn?: number; confirmed?: boolean }>) =>
+      applyDopeCorrections(convertDropWindToAngular(baseRows), corrections);
+
+    let rows = deriveRows({});
+    expect(rows[0]).toMatchObject({ dropIn: 3.5, windIn: 1.2, confirmed: false });
+
+    rows = deriveRows({ 100: { dropIn: 4.1 } });
+    expect(rows[0]).toMatchObject({ dropIn: 4.1, windIn: 1.2, confirmed: false });
+
+    rows = deriveRows({ 100: { dropIn: 4.1, confirmed: true } });
+    expect(rows[0]).toMatchObject({ dropIn: 4.1, windIn: 1.2, confirmed: true });
+
+    rows = deriveRows({ 100: { windIn: 1.8, confirmed: false } });
+    expect(rows[0]).toMatchObject({ dropIn: 3.5, windIn: 1.8, confirmed: false });
+
+    rows = deriveRows({});
+    expect(rows[0]).toMatchObject({ dropIn: 3.5, windIn: 1.2, confirmed: false });
+>>>>>>> 8b8228c (Refactor dope card rows to derive from base data)
+  });
+});
+
+describe("derived rows pattern", () => {
+  it("stays stable across repeated correction edits when recalculated from base rows", () => {
+    const baseRows = [
+      { distanceYd: 100, dropIn: 3.5, windIn: 1.2 },
+      { distanceYd: 200, dropIn: 7, windIn: 2.4 },
+    ];
+
+    const deriveRows = (corrections: Record<number, { dropIn?: number; windIn?: number; confirmed?: boolean }>) =>
+      applyDopeCorrections(convertDropWindToAngular(baseRows), corrections);
+
+    let rows = deriveRows({});
+    expect(rows[0]).toMatchObject({ dropIn: 3.5, windIn: 1.2, confirmed: false });
+
+    rows = deriveRows({ 100: { dropIn: 4.1 } });
+    expect(rows[0]).toMatchObject({ dropIn: 4.1, windIn: 1.2, confirmed: false });
+
+    rows = deriveRows({ 100: { dropIn: 4.1, confirmed: true } });
+    expect(rows[0]).toMatchObject({ dropIn: 4.1, windIn: 1.2, confirmed: true });
+
+    rows = deriveRows({ 100: { windIn: 1.8, confirmed: false } });
+    expect(rows[0]).toMatchObject({ dropIn: 3.5, windIn: 1.8, confirmed: false });
   });
 });

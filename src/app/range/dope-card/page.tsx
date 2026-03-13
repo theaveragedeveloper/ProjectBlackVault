@@ -7,6 +7,7 @@ import {
   convertDropWindToAngular,
   generateDistanceRows,
   type AngularDopeRow,
+  type BallisticOutputRow,
   type DopeRowCorrection,
 } from "@/lib/ballistics/dope";
 import { solveTrajectoryRows, type DragModel } from "@/lib/ballistics/solver";
@@ -19,7 +20,6 @@ const LABEL_CLASS = "block text-xs font-medium uppercase tracking-widest text-va
 function parseOptionalNumber(value: string): number | undefined {
   const trimmed = value.trim();
   if (!trimmed) return undefined;
-
   const parsed = Number(trimmed);
   return Number.isFinite(parsed) ? parsed : undefined;
 }
@@ -42,9 +42,15 @@ export default function DopeCardPage() {
   const [windSpeedMph, setWindSpeedMph] = useState("10");
   const [windAngleDeg, setWindAngleDeg] = useState("90");
 
-  const [rows, setRows] = useState<AngularDopeRow[]>([]);
+  const [baseRows, setBaseRows] = useState<BallisticOutputRow[]>([]);
   const [corrections, setCorrections] = useState<Record<number, DopeRowCorrection>>({});
+
   const estimationModel = "Physics-based nonlinear stepper";
+
+  const rows: AngularDopeRow[] = useMemo(() => {
+    const angularRows = convertDropWindToAngular(baseRows);
+    return applyDopeCorrections(angularRows, corrections);
+  }, [baseRows, corrections]);
 
   const estimateSummary = useMemo(() => {
     if (!rows.length) return null;
@@ -70,23 +76,15 @@ export default function DopeCardPage() {
     });
 
     setCorrections({});
-    setRows(convertDropWindToAngular(solvedRows));
+    setBaseRows(solvedRows);
   }
 
   function updateCorrection(distanceYd: number, patch: DopeRowCorrection) {
     const existing = corrections[distanceYd] ?? {};
-    const merged: DopeRowCorrection = {
-      ...existing,
-      ...patch,
-    };
+    const merged: DopeRowCorrection = { ...existing, ...patch };
 
-    if (patch.dropIn === undefined) {
-      delete merged.dropIn;
-    }
-
-    if (patch.windIn === undefined) {
-      delete merged.windIn;
-    }
+    if (patch.dropIn === undefined) delete merged.dropIn;
+    if (patch.windIn === undefined) delete merged.windIn;
 
     const hasAnyCorrection =
       merged.dropIn !== undefined || merged.windIn !== undefined || merged.confirmed !== undefined;
@@ -94,13 +92,9 @@ export default function DopeCardPage() {
       ...corrections,
       ...(hasAnyCorrection ? { [distanceYd]: merged } : {}),
     };
-
-    if (!hasAnyCorrection) {
-      delete nextCorrections[distanceYd];
-    }
+    if (!hasAnyCorrection) delete nextCorrections[distanceYd];
 
     setCorrections(nextCorrections);
-    setRows((prev) => applyDopeCorrections(prev, nextCorrections));
   }
 
   return (
