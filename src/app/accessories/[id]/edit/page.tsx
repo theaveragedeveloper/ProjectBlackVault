@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { SLOT_TYPES, SLOT_TYPE_LABELS, COMMON_CALIBERS } from "@/lib/types";
-import { ArrowLeft, Save, Loader2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Save, Loader2, AlertCircle, Trash2 } from "lucide-react";
 import ImagePicker from "@/components/shared/ImagePicker";
 
 const INPUT_CLASS =
@@ -45,7 +45,9 @@ export default function EditAccessoryPage() {
   const [dataError, setDataError] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
   const [caliberInput, setCaliberInput] = useState("");
@@ -124,6 +126,34 @@ export default function EditAccessoryPage() {
     }
   }
 
+  async function handleDelete() {
+    if (!window.confirm("Delete this accessory permanently? This action cannot be undone.")) {
+      return;
+    }
+
+    setDeleteError(null);
+    setError(null);
+    setDeleting(true);
+
+    try {
+      const res = await fetch(`/api/accessories/${accessoryId}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => null);
+        setDeleteError(json?.error ?? "Failed to delete accessory");
+        setDeleting(false);
+        return;
+      }
+
+      router.push("/accessories");
+    } catch {
+      setDeleteError("Network error. Please try again.");
+      setDeleting(false);
+    }
+  }
+
   if (dataLoading) {
     return (
       <div className="flex items-center justify-center min-h-full">
@@ -163,6 +193,13 @@ export default function EditAccessoryPage() {
           <div className="flex items-center gap-3 bg-[#E53935]/10 border border-[#E53935]/30 rounded-lg px-4 py-3 mb-6">
             <AlertCircle className="w-4 h-4 text-[#E53935] shrink-0" />
             <p className="text-sm text-[#E53935]">{error}</p>
+          </div>
+        )}
+
+        {deleteError && (
+          <div className="flex items-center gap-3 bg-[#E53935]/10 border border-[#E53935]/30 rounded-lg px-4 py-3 mb-6">
+            <AlertCircle className="w-4 h-4 text-[#E53935] shrink-0" />
+            <p className="text-sm text-[#E53935]">{deleteError}</p>
           </div>
         )}
 
@@ -267,10 +304,28 @@ export default function EditAccessoryPage() {
 
           {/* Actions */}
           <div className="flex items-center justify-end gap-3 pt-2">
-            <Link href={`/accessories/${accessoryId}`} className="px-4 py-2 text-sm text-vault-text-muted hover:text-vault-text border border-vault-border rounded-md hover:border-vault-text-muted/30 transition-colors">
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting || loading || success}
+              className="flex items-center gap-2 bg-[#E53935]/10 border border-[#E53935]/30 text-[#E53935] hover:bg-[#E53935]/20 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 rounded-md text-sm font-medium transition-colors"
+            >
+              {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              {deleting ? "Deleting..." : "Delete"}
+            </button>
+            <Link
+              href={`/accessories/${accessoryId}`}
+              aria-disabled={deleting}
+              tabIndex={deleting ? -1 : undefined}
+              className={`px-4 py-2 text-sm text-vault-text-muted border border-vault-border rounded-md transition-colors ${
+                deleting
+                  ? "pointer-events-none opacity-50"
+                  : "hover:text-vault-text hover:border-vault-text-muted/30"
+              }`}
+            >
               Cancel
             </Link>
-            <button type="submit" disabled={loading || success}
+            <button type="submit" disabled={loading || success || deleting}
               className="flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-50 disabled:cursor-not-allowed px-5 py-2 rounded-md text-sm font-medium transition-colors">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               {loading ? "Saving..." : success ? "Saved!" : "Save Changes"}
