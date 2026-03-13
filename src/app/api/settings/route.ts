@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/password";
-import { encryptField, decryptField } from "@/lib/crypto";
 
 // GET /api/settings - Get the singleton AppSettings
 export async function GET() {
@@ -20,13 +19,13 @@ export async function GET() {
       });
     }
 
-    const decryptedKey = await decryptField(settings.googleCseApiKey);
-
-    // Mask the API key; never return password hash or raw key to the client
+    // Never return password hash to the client
     return NextResponse.json({
       ...settings,
-      googleCseApiKey: decryptedKey ? "***configured***" : null,
-      _googleCseApiKeyIsSet: !!decryptedKey,
+      enableImageSearch: false,
+      googleCseApiKey: null,
+      _googleCseApiKeyIsSet: false,
+      googleCseSearchEngineId: null,
       appPassword: settings.appPassword ? "***set***" : null,
       encryptionEnabled: !!process.env.VAULT_ENCRYPTION_KEY,
       encryptionViaEnv: !!process.env.VAULT_ENCRYPTION_KEY,
@@ -46,9 +45,6 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
 
     const {
-      googleCseApiKey,
-      googleCseSearchEngineId,
-      enableImageSearch,
       defaultCurrency,
       appPassword,
     } = body;
@@ -56,20 +52,10 @@ export async function PUT(request: NextRequest) {
     // Build update data, only including fields that were provided
     const updateData: Record<string, unknown> = {};
 
-    if (googleCseApiKey !== undefined) {
-      // Allow clearing the key by passing null or empty string; encrypt non-empty values
-      updateData.googleCseApiKey =
-        googleCseApiKey === "" ? null : await encryptField(googleCseApiKey);
-    }
-
-    if (googleCseSearchEngineId !== undefined) {
-      updateData.googleCseSearchEngineId =
-        googleCseSearchEngineId === "" ? null : googleCseSearchEngineId;
-    }
-
-    if (enableImageSearch !== undefined) {
-      updateData.enableImageSearch = Boolean(enableImageSearch);
-    }
+    // Image search is retired; force-disable and clear old Google CSE settings.
+    updateData.enableImageSearch = false;
+    updateData.googleCseApiKey = null;
+    updateData.googleCseSearchEngineId = null;
 
     if (defaultCurrency !== undefined) {
       updateData.defaultCurrency = defaultCurrency;
@@ -93,12 +79,12 @@ export async function PUT(request: NextRequest) {
       update: updateData,
     });
 
-    const savedDecryptedKey = await decryptField(settings.googleCseApiKey);
-
     return NextResponse.json({
       ...settings,
-      googleCseApiKey: savedDecryptedKey ? "***configured***" : null,
-      _googleCseApiKeyIsSet: !!savedDecryptedKey,
+      enableImageSearch: false,
+      googleCseApiKey: null,
+      _googleCseApiKeyIsSet: false,
+      googleCseSearchEngineId: null,
       appPassword: settings.appPassword ? "***set***" : null,
       encryptionEnabled: !!process.env.VAULT_ENCRYPTION_KEY,
       encryptionViaEnv: !!process.env.VAULT_ENCRYPTION_KEY,
