@@ -44,6 +44,7 @@ export default function DopeCardPage() {
 
   const [rows, setRows] = useState<AngularDopeRow[]>([]);
   const [corrections, setCorrections] = useState<Record<number, DopeRowCorrection>>({});
+  const [generateError, setGenerateError] = useState<string | null>(null);
   const estimationModel = "Physics-based nonlinear stepper";
 
   const estimateSummary = useMemo(() => {
@@ -54,6 +55,11 @@ export default function DopeCardPage() {
 
   function handleGenerate() {
     const distanceRows = generateDistanceRows(Number(startYd), Number(endYd), Number(stepYd));
+    if (!distanceRows.length) {
+      setGenerateError("Invalid distance range. Start must be ≥ 1, end must be ≥ start, and step must be > 0.");
+      return;
+    }
+    setGenerateError(null);
     const solvedRows = solveTrajectoryRows(distanceRows, {
       muzzleVelocityFps: Number(muzzleVelocityFps),
       ballisticCoefficient: Number(ballisticCoefficient),
@@ -196,6 +202,9 @@ export default function DopeCardPage() {
           >
             Generate Estimated Rows
           </button>
+          {generateError && (
+            <p role="alert" className="text-xs text-[#E53935] mt-1">{generateError}</p>
+          )}
         </section>
 
         <section className="bg-vault-surface border border-vault-border rounded-lg overflow-hidden">
