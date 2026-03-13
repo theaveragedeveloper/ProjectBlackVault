@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { encryptField, decryptField } from "@/lib/crypto";
 import { revalidateDashboardCaches } from "@/lib/server/dashboard";
+import { FIREARM_TYPES } from "@/lib/types";
 
 // GET /api/firearms - List all firearms with build count
 export async function GET() {
@@ -73,6 +74,13 @@ export async function POST(request: NextRequest) {
     if (!name) {
       return NextResponse.json(
         { error: "Missing required field: name" },
+        { status: 400 }
+      );
+    }
+
+    if (!FIREARM_TYPES.includes(type)) {
+      return NextResponse.json(
+        { error: `Invalid firearm type. Must be one of: ${FIREARM_TYPES.join(", ")}` },
         { status: 400 }
       );
     }

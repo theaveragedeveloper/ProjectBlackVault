@@ -67,6 +67,13 @@ export async function PUT(
       );
     }
 
+    if (quantity !== undefined && quantity !== null && quantity < 0) {
+      return NextResponse.json({ error: "quantity cannot be negative" }, { status: 400 });
+    }
+    if (purchasePrice !== undefined && purchasePrice !== null && purchasePrice < 0) {
+      return NextResponse.json({ error: "purchasePrice cannot be negative" }, { status: 400 });
+    }
+
     const updated = await prisma.ammoStock.update({
       where: { id },
       data: {
