@@ -75,7 +75,7 @@ const NAV_ITEMS: NavItem[] = [
       { label: "Log a Drill", href: "/range/log-drill", icon: ClipboardList },
       { label: "Drill Performance", href: "/range/drill-performance", icon: TrendingUp },
       { label: "Drill Library", href: "/range/drills", icon: BookOpen },
-      { label: "Hit Factor Falculator", href: "/range/hit-factor", icon: Calculator },
+      { label: "Hit Factor Calculator", href: "/range/hit-factor", icon: Calculator },
       { label: "DOPE Card", href: "/range/dope-card", icon: Target },
     ],
   },
