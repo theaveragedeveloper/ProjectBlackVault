@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-const prismaClient = prisma as unknown as {
-  dopeCard: {
-    findUnique: (args: unknown) => Promise<unknown>;
-  };
-};
 
 type JsonValue = string | number | boolean | null | JsonObject | JsonValue[];
 type JsonObject = { [key: string]: JsonValue };
@@ -44,7 +39,7 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const card = (await prismaClient.dopeCard.findUnique({
+    const card = (await prisma.dopeCard.findUnique({
       where: { id },
       include: {
         firearm: { select: { id: true, name: true, caliber: true } },

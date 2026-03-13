@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { encryptField, decryptField } from "@/lib/crypto";
 import { revalidateDashboardCaches } from "@/lib/server/dashboard";
+import { validateOptionalImageUrl } from "@/lib/image-url-validation";
 import { FIREARM_TYPES } from "@/lib/types";
 
 // GET /api/firearms - List all firearms with build count
@@ -71,6 +72,11 @@ export async function POST(request: NextRequest) {
       imageSource,
     } = body;
 
+    const imageValidation = validateOptionalImageUrl(imageUrl);
+    if (!imageValidation.valid) {
+      return NextResponse.json({ error: imageValidation.error }, { status: 400 });
+    }
+
     if (!name) {
       return NextResponse.json(
         { error: "Missing required field: name" },
@@ -97,7 +103,7 @@ export async function POST(request: NextRequest) {
         purchasePrice: purchasePrice ?? null,
         currentValue: currentValue ?? null,
         notes: notes ? await encryptField(notes) : null,
-        imageUrl: imageUrl ?? null,
+        imageUrl: imageValidation.normalized,
         imageSource: imageSource ?? null,
       },
       include: {

@@ -28,11 +28,11 @@ model Firearm {
   imageSource     String?
 
   builds          Build[]
-  rangeSessions   RangeSession[]
   sessionFirearms SessionFirearm[]
   maintenanceNotes MaintenanceNote[]
   maintenanceSchedules MaintenanceSchedule[]
   documents       Document[]
+  dopeCards       DopeCard[]
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -54,8 +54,8 @@ model Build {
   firearm     Firearm     @relation(fields: [firearmId], references: [id], onDelete: Cascade)
 
   slots       BuildSlot[]
-  rangeSessions RangeSession[]
   sessionFirearms SessionFirearm[]
+  dopeCards     DopeCard[]
 
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
@@ -150,12 +150,7 @@ model RoundCountLog {
 
 model RangeSession {
   id            String   @id @default(cuid())
-  firearmId     String
-  firearm       Firearm  @relation(fields: [firearmId], references: [id], onDelete: Cascade)
-  buildId       String?
-  build         Build?   @relation(fields: [buildId], references: [id], onDelete: SetNull)
   date          DateTime @default(now())
-  roundsFired   Int
   rangeName     String?
   rangeLocation String?
   notes         String?
@@ -184,7 +179,6 @@ model RangeSession {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  @@index([firearmId])
   @@index([date])
 }
 
@@ -326,6 +320,7 @@ model AmmoStock {
   notes           String?
 
   transactions    AmmoTransaction[]
+  dopeCards       DopeCard[]
 
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
@@ -349,6 +344,39 @@ model AmmoTransaction {
 
   @@index([stockId])
   @@index([transactedAt])
+}
+
+// ─── DOPE CARDS ──────────────────────────────────────────────
+
+model DopeCard {
+  id                  String     @id @default(cuid())
+  firearmId           String
+  firearm             Firearm    @relation(fields: [firearmId], references: [id], onDelete: Cascade)
+  buildId             String?
+  build               Build?     @relation(fields: [buildId], references: [id], onDelete: SetNull)
+  ammoStockId         String?
+  ammoStock           AmmoStock? @relation(fields: [ammoStockId], references: [id], onDelete: SetNull)
+
+  name                String
+  zeroDistanceYd      Float
+  sightHeightIn       Float?
+  // unit: "MIL" | "MOA"
+  unit                String
+
+  temperatureF        Float?
+  pressureInHg        Float?
+  densityAltitudeFt   Float?
+  notes               String?
+
+  // JSON-encoded rows payload for SQLite compatibility
+  // Example row: {"distanceYd":100,"elevation":0.0,"wind10mph":0.4,"velocity":2700,"energy":2500}
+  rows                String
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([firearmId])
+  @@index([updatedAt])
 }
 
 // ─── IMAGE CACHE ──────────────────────────────────────────────
@@ -429,4 +457,15 @@ model AppSettings {
   dataStoragePath         String?
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
+}
+
+// ─── API RATE LIMITS ──────────────────────────────────────────
+
+model ApiRateLimit {
+  bucketId    String   @id
+  key         String
+  windowStart DateTime
+  count       Int      @default(0)
+
+  @@index([key, windowStart])
 }

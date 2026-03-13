@@ -22,25 +22,27 @@ function applyTheme(t: Theme) {
   }
 }
 
-function resolveInitialTheme(): Theme {
-  if (typeof window === "undefined") {
-    return "dark";
-  }
-
-  const stored = localStorage.getItem("vault-theme");
-  return stored === "light" ? "light" : "dark";
-}
-
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(resolveInitialTheme);
+  const [theme, setTheme] = useState<Theme>(() => {
+    if (typeof window === "undefined") {
+      return "dark";
+    }
+
+    const stored = localStorage.getItem("vault-theme") as Theme | null;
+    return stored === "light" ? "light" : "dark";
+  });
 
   useEffect(() => {
-    localStorage.setItem("vault-theme", theme);
     applyTheme(theme);
   }, [theme]);
 
   function toggleTheme() {
-    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+    setTheme((prev) => {
+      const next: Theme = prev === "dark" ? "light" : "dark";
+      localStorage.setItem("vault-theme", next);
+      applyTheme(next);
+      return next;
+    });
   }
 
   return (

@@ -1,13 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-const prismaClient = prisma as unknown as {
-  dopeCard: {
-    findMany: (args: unknown) => Promise<unknown>;
-    create: (args: unknown) => Promise<unknown>;
-  };
-};
-
 const toOptionalString = (value: unknown, maxLength: number) => {
   if (value === undefined) return undefined;
   if (value === null || value === "") return null;
@@ -43,7 +36,7 @@ export async function GET(request: NextRequest) {
     const limitRaw = parseInt(searchParams.get("limit") ?? "", 10);
     const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : undefined;
 
-    const cards = await prismaClient.dopeCard.findMany({
+    const cards = await prisma.dopeCard.findMany({
       where: firearmId ? { firearmId } : undefined,
       include: {
         firearm: { select: { id: true, name: true, caliber: true } },
@@ -69,7 +62,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required field: firearmId" }, { status: 400 });
     }
 
-    const card = await prismaClient.dopeCard.create({
+    const card = await prisma.dopeCard.create({
       data: {
         firearmId,
         name: toOptionalString(name, 200),

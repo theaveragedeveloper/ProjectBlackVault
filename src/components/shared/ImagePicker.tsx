@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { isAllowedImageUrlForStorage, IMAGE_URL_ALLOWLIST_ERROR } from "@/lib/image-url-validation";
 import Image from "next/image";
 import { Camera, Link, Loader2, X, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
 
@@ -31,6 +32,7 @@ export default function ImagePicker({
   const [error, setError] = useState<string | null>(null);
   const [showUrl, setShowUrl] = useState(false);
   const [urlInput, setUrlInput] = useState("");
+  const previewNeedsSafeMode = preview ? !isAllowedImageUrlForStorage(preview) : false;
 
   async function handleFile(file: File) {
     setError(null);
@@ -90,6 +92,13 @@ export default function ImagePicker({
   function handleUrlApply() {
     const url = urlInput.trim();
     if (!url) return;
+
+    if (!isAllowedImageUrlForStorage(url)) {
+      setError(IMAGE_URL_ALLOWLIST_ERROR);
+      return;
+    }
+
+    setError(null);
     setPreview(url);
     onChange(url, "url");
     setShowUrl(false);
@@ -100,17 +109,29 @@ export default function ImagePicker({
       {/* Preview */}
       {preview ? (
         <div className="relative rounded-md overflow-hidden border border-vault-border bg-vault-bg">
-          <Image
-            src={preview}
-            alt="Preview"
-            width={1200}
-            height={800}
-            loading="lazy"
-            className="w-full max-h-48 h-auto object-contain"
-            onError={() => {
-              setError("Could not load this image URL. Please check the link.");
-            }}
-          />
+          {previewNeedsSafeMode ? (
+            <img
+              src={preview}
+              alt="Preview"
+              loading="lazy"
+              className="w-full max-h-48 h-auto object-contain"
+              onError={() => {
+                setError("Could not load this image URL. Please check the link.");
+              }}
+            />
+          ) : (
+            <Image
+              src={preview}
+              alt="Preview"
+              width={1200}
+              height={800}
+              loading="lazy"
+              className="w-full max-h-48 h-auto object-contain"
+              onError={() => {
+                setError("Could not load this image URL. Please check the link.");
+              }}
+            />
+          )}
           <button
             type="button"
             onClick={handleRemove}

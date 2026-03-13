@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { revalidateDashboardCaches } from "@/lib/server/dashboard";
+import { validateOptionalImageUrl } from "@/lib/image-url-validation";
 
 // GET /api/accessories/[id] - Get a single accessory with roundCountLogs and current buildSlots
 export async function GET(
@@ -106,6 +107,13 @@ export async function PUT(
       );
     }
 
+    if (imageUrl !== undefined) {
+      const imageValidation = validateOptionalImageUrl(imageUrl);
+      if (!imageValidation.valid) {
+        return NextResponse.json({ error: imageValidation.error }, { status: 400 });
+      }
+    }
+
     if (purchasePrice !== undefined && purchasePrice !== null && purchasePrice < 0) {
       return NextResponse.json({ error: "purchasePrice cannot be negative" }, { status: 400 });
     }
@@ -123,7 +131,7 @@ export async function PUT(
           acquisitionDate: acquisitionDate ? new Date(acquisitionDate) : null,
         }),
         ...(notes !== undefined && { notes }),
-        ...(imageUrl !== undefined && { imageUrl }),
+        ...(imageUrl !== undefined && { imageUrl: imageUrl?.trim() || null }),
         ...(imageSource !== undefined && { imageSource }),
         ...(compatibleFirearmTypes !== undefined && { compatibleFirearmTypes }),
         ...(compatibleCalibers !== undefined && { compatibleCalibers }),
