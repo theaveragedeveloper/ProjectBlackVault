@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   applyDopeCorrections,
   convertDropWindToAngular,
+  effectiveCrosswindMph,
+  estimateWindDriftIn,
   generateDistanceRows,
+  windDirectionToDegrees,
 } from "@/lib/ballistics/dope";
 
 describe("generateDistanceRows", () => {
@@ -97,5 +100,60 @@ describe("applyDopeCorrections", () => {
     expect(Number.isNaN(corrected[0].dropMoa)).toBe(false);
     expect(Number.isNaN(corrected[0].windMil)).toBe(false);
     expect(Number.isNaN(corrected[0].windMoa)).toBe(false);
+  });
+});
+
+describe("wind angle decomposition", () => {
+  it("handles 0°, 45°, and 90° crosswind components", () => {
+    expect(effectiveCrosswindMph(10, 0)).toBeCloseTo(0, 5);
+    expect(effectiveCrosswindMph(10, 45)).toBeCloseTo(7.07, 2);
+    expect(effectiveCrosswindMph(10, 90)).toBeCloseTo(10, 5);
+  });
+
+  it("supports clock direction values", () => {
+    expect(windDirectionToDegrees(3, "clock")).toBe(90);
+    expect(windDirectionToDegrees(12, "clock")).toBe(0);
+  });
+});
+
+describe("wind zones", () => {
+  it("applies zone-based wind settings by distance segment", () => {
+    const input = {
+      windDriftPerMphPer100YdIn: 0.1,
+      defaultWind: { speedMph: 10, directionValue: 90, directionUnit: "degrees" as const },
+      zones: [
+        { startYd: 0, endYd: 300, speedMph: 5, directionValue: 90, directionUnit: "degrees" as const },
+        { startYd: 300, endYd: 700, speedMph: 10, directionValue: 45, directionUnit: "degrees" as const },
+        { startYd: 700, endYd: null, speedMph: 12, directionValue: 90, directionUnit: "degrees" as const },
+      ],
+    };
+
+    expect(estimateWindDriftIn(200, input)).toBe(1);
+    expect(estimateWindDriftIn(500, input)).toBe(3.54);
+    expect(estimateWindDriftIn(800, input)).toBe(9.6);
+  });
+});
+
+describe("derived rows pattern", () => {
+  it("stays stable across repeated correction edits when recalculated from base rows", () => {
+    const baseRows = [
+      { distanceYd: 100, dropIn: 3.5, windIn: 1.2 },
+      { distanceYd: 200, dropIn: 7, windIn: 2.4 },
+    ];
+
+    const deriveRows = (corrections: Record<number, { dropIn?: number; windIn?: number; confirmed?: boolean }>) =>
+      applyDopeCorrections(convertDropWindToAngular(baseRows), corrections);
+
+    let rows = deriveRows({});
+    expect(rows[0]).toMatchObject({ dropIn: 3.5, windIn: 1.2, confirmed: false });
+
+    rows = deriveRows({ 100: { dropIn: 4.1 } });
+    expect(rows[0]).toMatchObject({ dropIn: 4.1, windIn: 1.2, confirmed: false });
+
+    rows = deriveRows({ 100: { dropIn: 4.1, confirmed: true } });
+    expect(rows[0]).toMatchObject({ dropIn: 4.1, windIn: 1.2, confirmed: true });
+
+    rows = deriveRows({ 100: { windIn: 1.8, confirmed: false } });
+    expect(rows[0]).toMatchObject({ dropIn: 3.5, windIn: 1.8, confirmed: false });
   });
 });
