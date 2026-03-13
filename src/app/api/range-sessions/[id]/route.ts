@@ -94,6 +94,13 @@ export async function PUT(
       const n = parseInt(String(v), 10);
       return Number.isFinite(n) ? n : undefined;
     };
+    const parseDate_ = (v: unknown): { value: Date | null | undefined; invalid: boolean } => {
+      if (v === undefined) return { value: undefined, invalid: false };
+      if (v === null || v === "") return { value: null, invalid: false };
+      const parsed = new Date(String(v));
+      if (Number.isNaN(parsed.getTime())) return { value: undefined, invalid: true };
+      return { value: parsed, invalid: false };
+    };
     const parseOptionalString = (v: unknown, maxLength?: number) => {
       if (v === undefined) return undefined;
       if (v === null || v === "") return null;
@@ -103,6 +110,12 @@ export async function PUT(
     };
 
     let parsedFirearms: { firearmId: string; buildId: string | null; roundsFired: number }[] | null = null;
+    const parsedDate = parseDate_(date);
+
+    if (parsedDate.invalid) {
+      return NextResponse.json({ error: "Invalid date value" }, { status: 400 });
+    }
+
     if (firearms !== undefined) {
       if (!Array.isArray(firearms) || firearms.length === 0) {
         return NextResponse.json({ error: "At least one firearm entry is required" }, { status: 400 });
@@ -132,7 +145,7 @@ export async function PUT(
           rangeName: parseOptionalString(rangeName, 200),
           rangeLocation: parseOptionalString(rangeLocation, 200),
           notes: parseOptionalString(notes, 5000),
-          date: date ? new Date(date) : undefined,
+          date: parsedDate.value,
           environment: parseOptionalString(environment),
           temperatureF: parseFloat_(temperatureF),
           windSpeedMph: parseFloat_(windSpeedMph),
