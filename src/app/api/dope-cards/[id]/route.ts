@@ -1,14 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-const prismaClient = prisma as unknown as {
-  dopeCard: {
-    findUnique: (args: unknown) => Promise<unknown>;
-    update: (args: unknown) => Promise<unknown>;
-    delete: (args: unknown) => Promise<unknown>;
-  };
-};
-
 const toOptionalString = (value: unknown, maxLength: number) => {
   if (value === undefined) return undefined;
   if (value === null || value === "") return null;
@@ -50,7 +42,7 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const card = await prismaClient.dopeCard.findUnique({
+    const card = await prisma.dopeCard.findUnique({
       where: { id },
       include: {
         firearm: { select: { id: true, name: true, caliber: true } },
@@ -78,7 +70,7 @@ export async function PUT(
     const body = await request.json();
     const { firearmId, name, notes, zeroRangeYd, profile, confirmedAt } = body ?? {};
 
-    const card = await prismaClient.dopeCard.update({
+    const card = await prisma.dopeCard.update({
       where: { id },
       data: {
         firearmId: firearmId !== undefined ? firearmId || null : undefined,
@@ -110,7 +102,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    await prismaClient.dopeCard.delete({ where: { id } });
+    await prisma.dopeCard.delete({ where: { id } });
 
     return NextResponse.json({ success: true });
   } catch (error) {

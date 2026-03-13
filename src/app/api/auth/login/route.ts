@@ -4,38 +4,26 @@ import { cookies } from "next/headers";
 import crypto from "crypto";
 import { verifyPassword } from "@/lib/password";
 import { signToken } from "@/lib/session";
-import { getSessionCookieOptions, getSessionSecret } from "@/lib/session-config";
+import { parseJsonBody, validationErrorResponse } from "@/lib/validation/request";
+import { authSchemas } from "@/lib/validation/schemas/api";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
-// Simple in-memory rate limiter: max 10 attempts per IP per minute
-const attempts = new Map<string, { count: number; resetAt: number }>();
 const MAX_ATTEMPTS = 10;
 const WINDOW_MS = 60 * 1000;
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const rec = attempts.get(ip);
-  if (!rec || now > rec.resetAt) {
-    attempts.set(ip, { count: 1, resetAt: now + WINDOW_MS });
-    return true;
-  }
-  if (rec.count >= MAX_ATTEMPTS) return false;
-  rec.count++;
-  return true;
-}
 
 export async function POST(request: NextRequest) {
   try {
     // Rate limiting
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-    if (!checkRateLimit(ip)) {
+    const rate = await enforceRateLimit({ key: `auth:login:${ip}`, windowMs: WINDOW_MS, maxAttempts: MAX_ATTEMPTS });
+    if (!rate.allowed) {
       return NextResponse.json(
         { error: "Too many login attempts. Please wait a minute." },
         { status: 429 }
       );
     }
 
-    const body = await request.json();
-    const { password } = body;
+    const { password } = await parseJsonBody(request, authSchemas.login, { maxBytes: 8 * 1024 });
 
     // Guard against DoS via enormous password strings sent to scrypt
     if (typeof password === "string" && password.length > 1024) {
@@ -53,10 +41,15 @@ export async function POST(request: NextRequest) {
     // If no password is set, always allow access
     if (!settings.appPassword) {
       const token = crypto.randomBytes(32).toString("hex");
-      const secret = getSessionSecret();
+      const secret = process.env.SESSION_SECRET;
       const cookieValue = secret ? signToken(token, secret) : token;
       const cookieStore = await cookies();
-      cookieStore.set("vault_session", cookieValue, getSessionCookieOptions());
+      cookieStore.set("vault_session", cookieValue, {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 30,
+      });
       return NextResponse.json({ success: true });
     }
 
@@ -66,13 +59,21 @@ export async function POST(request: NextRequest) {
     }
 
     const token = crypto.randomBytes(32).toString("hex");
-    const secret = getSessionSecret();
+    const secret = process.env.SESSION_SECRET;
     const cookieValue = secret ? signToken(token, secret) : token;
     const cookieStore = await cookies();
-    cookieStore.set("vault_session", cookieValue, getSessionCookieOptions());
+    cookieStore.set("vault_session", cookieValue, {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 30,
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    if (error instanceof Error && (error as { status?: number }).status) {
+      return validationErrorResponse(error, "Invalid login payload");
+    }
     console.error("POST /api/auth/login error:", error);
     return NextResponse.json({ error: "Authentication failed" }, { status: 500 });
   }

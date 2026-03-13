@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { revalidateDashboardCaches } from "@/lib/server/dashboard";
+import { validateOptionalImageUrl } from "@/lib/image-url-validation";
 
 const BATTERY_TRACKED_SLOT_TYPES = new Set(["OPTIC", "LIGHT", "LASER"]);
 
@@ -85,6 +86,11 @@ export async function POST(request: NextRequest) {
       batteryIntervalDays,
     } = body;
 
+    const imageValidation = validateOptionalImageUrl(imageUrl);
+    if (!imageValidation.valid) {
+      return NextResponse.json({ error: imageValidation.error }, { status: 400 });
+    }
+
     if (!name || !type) {
       return NextResponse.json(
         { error: "Missing required fields: name, type" },
@@ -106,7 +112,7 @@ export async function POST(request: NextRequest) {
         purchasePrice: purchasePrice ?? null,
         acquisitionDate: acquisitionDate ? new Date(acquisitionDate) : null,
         notes: notes ?? null,
-        imageUrl: imageUrl ?? null,
+        imageUrl: imageValidation.normalized,
         imageSource: imageSource ?? null,
         compatibleFirearmTypes: compatibleFirearmTypes ?? null,
         compatibleCalibers: compatibleCalibers ?? null,

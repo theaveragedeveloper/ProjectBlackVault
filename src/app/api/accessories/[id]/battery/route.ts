@@ -20,16 +20,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     // Empty body is valid and defaults to now.
   }
 
-  const accessory = await prisma.accessory.findUnique({ where: { id } });
-  if (!accessory) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (!accessory.hasBattery) return NextResponse.json({ error: "Battery tracking not enabled for this accessory" }, { status: 400 });
+  try {
+    const accessory = await prisma.accessory.findUnique({ where: { id } });
+    if (!accessory) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (!accessory.hasBattery) return NextResponse.json({ error: "Battery tracking not enabled for this accessory" }, { status: 400 });
 
-  const updated = await prisma.accessory.update({
-    where: { id },
-    data: { batteryChangedAt: changedAt },
-  });
+    const updated = await prisma.accessory.update({
+      where: { id },
+      data: { batteryChangedAt: changedAt },
+    });
 
-  revalidateDashboardCaches(["accessories"]);
+    revalidateDashboardCaches(["accessories"]);
 
-  return NextResponse.json(updated);
+    return NextResponse.json(updated);
+  } catch (error) {
+    console.error("POST /api/accessories/[id]/battery error:", error);
+    return NextResponse.json({ error: "Failed to update battery date" }, { status: 500 });
+  }
 }
