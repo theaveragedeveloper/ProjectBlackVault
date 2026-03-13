@@ -7,6 +7,7 @@ import { signToken } from "@/lib/session";
 import { parseJsonBody, validationErrorResponse } from "@/lib/validation/request";
 import { authSchemas } from "@/lib/validation/schemas/api";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { getSessionCookieOptions } from "@/lib/session-config";
 
 const MAX_ATTEMPTS = 10;
 const WINDOW_MS = 60 * 1000;
@@ -44,12 +45,7 @@ export async function POST(request: NextRequest) {
       const secret = process.env.SESSION_SECRET;
       const cookieValue = secret ? signToken(token, secret) : token;
       const cookieStore = await cookies();
-      cookieStore.set("vault_session", cookieValue, {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        maxAge: 60 * 60 * 24 * 30,
-      });
+      cookieStore.set("vault_session", cookieValue, getSessionCookieOptions());
       return NextResponse.json({ success: true });
     }
 
@@ -62,12 +58,7 @@ export async function POST(request: NextRequest) {
     const secret = process.env.SESSION_SECRET;
     const cookieValue = secret ? signToken(token, secret) : token;
     const cookieStore = await cookies();
-    cookieStore.set("vault_session", cookieValue, {
-      httpOnly: true,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 30,
-    });
+    cookieStore.set("vault_session", cookieValue, getSessionCookieOptions());
 
     return NextResponse.json({ success: true });
   } catch (error) {
