@@ -7,9 +7,11 @@ import {
   convertDropWindToAngular,
   generateDistanceRows,
   type AngularDopeRow,
+  type BallisticOutputRow,
   type DopeRowCorrection,
 } from "@/lib/ballistics/dope";
 import { solveTrajectoryRows, type DragModel } from "@/lib/ballistics/solver";
+import { trueBallisticProfile, type TruingParameter } from "@/lib/ballistics/truing";
 import { Calculator, Target } from "lucide-react";
 
 const INPUT_CLASS =
@@ -19,7 +21,6 @@ const LABEL_CLASS = "block text-xs font-medium uppercase tracking-widest text-va
 function parseOptionalNumber(value: string): number | undefined {
   const trimmed = value.trim();
   if (!trimmed) return undefined;
-
   const parsed = Number(trimmed);
   return Number.isFinite(parsed) ? parsed : undefined;
 }
@@ -43,7 +44,15 @@ export default function DopeCardPage() {
   const [windAngleDeg, setWindAngleDeg] = useState("90");
 
   const [rows, setRows] = useState<AngularDopeRow[]>([]);
+  const [untunedRows, setUntunedRows] = useState<AngularDopeRow[]>([]);
+  const [activeBaseRows, setActiveBaseRows] = useState<AngularDopeRow[]>([]);
   const [corrections, setCorrections] = useState<Record<number, DopeRowCorrection>>({});
+  const [truingParameter, setTruingParameter] = useState<TruingParameter>("mv");
+  const [truingDistanceYd, setTruingDistanceYd] = useState("");
+  const [observedElevationMil, setObservedElevationMil] = useState("");
+  const [truedMv, setTruedMv] = useState<number | null>(null);
+  const [truedBc, setTruedBc] = useState<number | null>(null);
+
   const estimationModel = "Physics-based nonlinear stepper";
 
   const estimateSummary = useMemo(() => {
@@ -51,6 +60,9 @@ export default function DopeCardPage() {
     const confirmedCount = rows.filter((r) => r.confirmed).length;
     return `${confirmedCount}/${rows.length} rows confirmed from impacts`;
   }, [rows]);
+
+  const confirmedRows = rows.filter((row) => row.confirmed);
+  const isTrued = truedMv !== null || truedBc !== null;
 
   function handleGenerate() {
     const distanceRows = generateDistanceRows(Number(startYd), Number(endYd), Number(stepYd));
@@ -69,24 +81,27 @@ export default function DopeCardPage() {
       windAngleDeg: Number(windAngleDeg),
     });
 
+    const converted = convertDropWindToAngular(solvedRows);
     setCorrections({});
-    setRows(convertDropWindToAngular(solvedRows));
+    setUntunedRows(converted);
+    setActiveBaseRows(converted);
+    setRows(converted);
+    setTruedMv(null);
+    setTruedBc(null);
+    setTruingDistanceYd("");
+    setObservedElevationMil("");
+  }
+
+  function rebuildRows(nextCorrections: Record<number, DopeRowCorrection>, sourceRows: AngularDopeRow[] = activeBaseRows) {
+    setRows(applyDopeCorrections(sourceRows, nextCorrections));
   }
 
   function updateCorrection(distanceYd: number, patch: DopeRowCorrection) {
     const existing = corrections[distanceYd] ?? {};
-    const merged: DopeRowCorrection = {
-      ...existing,
-      ...patch,
-    };
+    const merged: DopeRowCorrection = { ...existing, ...patch };
 
-    if (patch.dropIn === undefined) {
-      delete merged.dropIn;
-    }
-
-    if (patch.windIn === undefined) {
-      delete merged.windIn;
-    }
+    if (patch.dropIn === undefined) delete merged.dropIn;
+    if (patch.windIn === undefined) delete merged.windIn;
 
     const hasAnyCorrection =
       merged.dropIn !== undefined || merged.windIn !== undefined || merged.confirmed !== undefined;
@@ -94,13 +109,47 @@ export default function DopeCardPage() {
       ...corrections,
       ...(hasAnyCorrection ? { [distanceYd]: merged } : {}),
     };
-
-    if (!hasAnyCorrection) {
-      delete nextCorrections[distanceYd];
-    }
+    if (!hasAnyCorrection) delete nextCorrections[distanceYd];
 
     setCorrections(nextCorrections);
-    setRows((prev) => applyDopeCorrections(prev, nextCorrections));
+    rebuildRows(nextCorrections);
+  }
+
+  function handleTrueProfile() {
+    const baselineMv = Number(muzzleVelocityFps);
+    const baselineBc = Number(ballisticCoefficient);
+    const targetDistanceYd = Number(truingDistanceYd);
+    const observedMil = Number(observedElevationMil);
+
+    const baseSourceRows: BallisticOutputRow[] = untunedRows.map((row) => ({
+      distanceYd: row.distanceYd,
+      dropIn: row.dropIn,
+      windIn: row.windIn,
+    }));
+
+    const trued = trueBallisticProfile({
+      rows: baseSourceRows,
+      baselineMv,
+      baselineBc,
+      targetDistanceYd,
+      observedElevationMil: observedMil,
+      adjust: truingParameter,
+    });
+
+    if (!trued) return;
+
+    const angularTruedRows = convertDropWindToAngular(trued.rows);
+    setActiveBaseRows(angularTruedRows);
+    setTruedMv(trued.truedMv);
+    setTruedBc(trued.truedBc);
+    rebuildRows(corrections, angularTruedRows);
+  }
+
+  function resetTruing() {
+    setTruedMv(null);
+    setTruedBc(null);
+    setActiveBaseRows(untunedRows);
+    rebuildRows(corrections, untunedRows);
   }
 
   return (
@@ -118,6 +167,7 @@ export default function DopeCardPage() {
           <p className="text-xs text-vault-text-muted">Estimation model: {estimationModel}</p>
         </div>
 
+        {/* Ballistic Inputs */}
         <section className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
           <div className="flex items-center gap-2">
             <Calculator className="w-4 h-4 text-[#00C2FF]" />
@@ -198,13 +248,78 @@ export default function DopeCardPage() {
           </button>
         </section>
 
+        {/* Truing Section */}
+        {rows.length > 0 && (
+          <section className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
+            <div className="flex items-center gap-2">
+              <h3 className="text-xs uppercase tracking-widest text-[#00C2FF] font-mono">Truing</h3>
+              {isTrued && (
+                <span className="text-xs px-2 py-1 rounded bg-[#00C853]/10 text-[#00C853] border border-[#00C853]/30">TRUED</span>
+              )}
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div>
+                <label className={LABEL_CLASS}>Optimize</label>
+                <select value={truingParameter} onChange={(e) => setTruingParameter(e.target.value as TruingParameter)} className={INPUT_CLASS}>
+                  <option value="mv">Muzzle Velocity</option>
+                  <option value="bc">Ballistic Coefficient</option>
+                </select>
+              </div>
+              <div>
+                <label className={LABEL_CLASS}>Confirmed Distance Row</label>
+                <select value={truingDistanceYd} onChange={(e) => setTruingDistanceYd(e.target.value)} className={INPUT_CLASS}>
+                  <option value="">Select row</option>
+                  {confirmedRows.map((row) => (
+                    <option key={row.distanceYd} value={row.distanceYd}>
+                      {row.distanceYd} yd
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={LABEL_CLASS}>Observed Elevation (mil)</label>
+                <input
+                  value={observedElevationMil}
+                  onChange={(e) => setObservedElevationMil(e.target.value)}
+                  type="number"
+                  step="0.01"
+                  className={INPUT_CLASS}
+                />
+              </div>
+              <div className="flex items-end gap-2">
+                <button
+                  onClick={handleTrueProfile}
+                  className="px-4 py-2 text-sm rounded-md bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 transition-colors"
+                >
+                  Apply Truing
+                </button>
+                <button
+                  onClick={resetTruing}
+                  className="px-4 py-2 text-sm rounded-md border border-vault-border text-vault-text-muted hover:text-vault-text transition-colors"
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
+            {isTrued && (
+              <p className="text-xs text-vault-text-muted">
+                Trued values — MV: {truedMv?.toFixed(1)} fps, BC: {truedBc?.toFixed(4)} (untuned preserved for comparison/reset).
+              </p>
+            )}
+          </section>
+        )}
+
+        {/* DOPE Table */}
         <section className="bg-vault-surface border border-vault-border rounded-lg overflow-hidden">
           <div className="px-4 py-3 border-b border-vault-border flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Target className="w-4 h-4 text-[#00C853]" />
               <h3 className="text-xs font-mono uppercase tracking-widest text-[#00C853]">Row Corrections from Confirmed Impacts</h3>
             </div>
-            {estimateSummary && <p className="text-xs text-vault-text-muted">{estimateSummary}</p>}
+            <div className="flex items-center gap-3">
+              {isTrued && <span className="text-[11px] uppercase tracking-widest text-[#00C853]">Trued</span>}
+              {estimateSummary && <p className="text-xs text-vault-text-muted">{estimateSummary}</p>}
+            </div>
           </div>
 
           <div className="overflow-x-auto">
