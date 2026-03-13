@@ -425,30 +425,22 @@ export default function SettingsPage() {
         return;
       }
 
-      if (checkJson.updateAvailable) {
-        const commitLabel = checkJson.commitsBehind === 1 ? "1 new commit" : `${checkJson.commitsBehind} new commits`;
-        const confirmed = window.confirm(`A new version is available (${commitLabel}). Pull updates now?`);
-        if (!confirmed) {
-          setUpdateOutput("Update canceled.");
-          return;
-        }
-      }
+      const metadata = checkJson.metadata ?? checkJson;
+      const currentVersion = typeof metadata.currentVersion === "string" ? metadata.currentVersion : "unknown";
+      const latestVersion = typeof metadata.latestVersion === "string" ? metadata.latestVersion : null;
+      const checkedAt = typeof metadata.checkedAt === "string" ? metadata.checkedAt : null;
+      const checkedAtLine = checkedAt ? `Checked: ${new Date(checkedAt).toLocaleString()}` : null;
 
-      const res = await fetch("/api/system-update", { method: "POST" });
-      const json = await res.json();
-
-      if (!res.ok) {
-        const details = typeof json.details === "string" ? `\n\n${json.details}` : "";
-        setUpdateError(`${json.error ?? "Failed to pull updates from GitHub."}${details}`);
+      if (metadata.updateAvailable && latestVersion) {
+        setUpdateOutput(
+          [`Current: ${currentVersion}`, `Latest: ${latestVersion}`, checkedAtLine, "\nUpdate available. Run the host update workflow to apply it."]
+            .filter(Boolean)
+            .join("\n")
+        );
         return;
       }
 
-      const remoteLine = json.remote ? `Remote: ${json.remote}` : null;
-      const branchLine = json.branch ? `Branch: ${json.branch}` : null;
-      const outputLine = json.output ? `\n\n${json.output}` : "";
-      const refreshNote = "\n\n✅ Update successful. Please refresh the app to load the latest version.";
-      const header = [remoteLine, branchLine].filter(Boolean).join("\n");
-      setUpdateOutput(`${header}${outputLine}${refreshNote}`.trim());
+      setUpdateOutput([`Current: ${currentVersion}`, checkedAtLine, "\nSystem is already up to date."].filter(Boolean).join("\n"));
     } catch {
       setUpdateError("Network error. Please try again.");
     } finally {
@@ -898,7 +890,7 @@ export default function SettingsPage() {
             </legend>
 
             <p className="text-xs text-vault-text-muted leading-relaxed">
-              Pull the latest commits from your configured <code className="font-mono text-vault-text-faint">origin</code> remote with one click.
+              Check whether a new version is available. Applying updates now happens through your host deployment workflow.
             </p>
 
             {updateError && (
@@ -925,11 +917,11 @@ export default function SettingsPage() {
               className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-60 disabled:cursor-not-allowed text-xs transition-colors"
             >
               {updateBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-              {updateBusy ? "Pulling updates..." : "Pull Updates from GitHub"}
+              {updateBusy ? "Checking updates..." : "Check for Updates"}
             </button>
 
             <p className="text-[11px] text-vault-text-faint">
-              This performs a fast-forward-only <code className="font-mono">git pull origin &lt;current-branch&gt;</code>. If files changed, restart BlackVault to apply updates.
+              This reads update metadata only. To install updates, use your host-level process (systemd, cron, deployment pipeline, or manual pull/restart).
             </p>
           </fieldset>
 
