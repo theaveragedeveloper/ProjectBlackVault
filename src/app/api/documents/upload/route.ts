@@ -2,22 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
 import { prisma } from "@/lib/prisma";
+import { detectFileSignature } from "@/lib/server/file-signatures";
 
-const ALLOWED_EXTENSIONS = new Set(["pdf", "jpg", "jpeg", "png", "webp"]);
-
-const MIME_TO_EXT: Record<string, string> = {
-  "application/pdf": "pdf",
-  "image/jpeg": "jpg",
-  "image/jpg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-};
+const ALLOWED_EXTENSIONS = new Set(["pdf", "jpg", "png", "webp"]);
 
 const MAX_SIZE = 20 * 1024 * 1024; // 20MB
 
 // POST /api/documents/upload
 // Accepts multipart form data: file, name, type, firearmId?, accessoryId?, notes?
-// Saves to /public/uploads/documents/{cuid}.{ext}
+// Saves to /storage/uploads/documents/{uuid}.{ext}
 // Creates a Document record and returns it.
 export async function POST(request: NextRequest) {
   try {
@@ -37,39 +30,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required field: name" }, { status: 400 });
     }
 
-    const originalName = file.name ?? "";
-    const dotIndex = originalName.lastIndexOf(".");
-    let ext = dotIndex !== -1 ? originalName.slice(dotIndex + 1).toLowerCase() : "";
-
-    if (!ext || !ALLOWED_EXTENSIONS.has(ext)) {
-      ext = MIME_TO_EXT[file.type] ?? "";
+    if (file.size > MAX_SIZE) {
+      return NextResponse.json({ error: "File too large. Maximum size is 20MB." }, { status: 400 });
     }
 
-    if (!ext || !ALLOWED_EXTENSIONS.has(ext)) {
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const detected = detectFileSignature(buffer);
+
+    if (!detected || !ALLOWED_EXTENSIONS.has(detected.extension)) {
       return NextResponse.json(
         { error: `Invalid file type. Allowed: ${Array.from(ALLOWED_EXTENSIONS).join(", ")}` },
         { status: 400 }
       );
     }
 
-    if (file.size > MAX_SIZE) {
-      return NextResponse.json({ error: "File too large. Maximum size is 20MB." }, { status: 400 });
-    }
-
     // Generate a unique ID for the file
     const fileId = crypto.randomUUID().replace(/-/g, "");
 
-    const fileName = `${fileId}.${ext}`;
-    const relativeUrl = `/uploads/documents/${fileName}`;
+    const fileName = `${fileId}.${detected.extension}`;
+    const relativeUrl = `/api/files/documents/${fileName}`;
 
     const projectRoot = process.cwd();
-    const uploadDir = path.join(projectRoot, "public", "uploads", "documents");
+    const uploadDir = path.join(projectRoot, "storage", "uploads", "documents");
     const filePath = path.join(uploadDir, fileName);
 
     await fs.mkdir(uploadDir, { recursive: true });
 
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
     await fs.writeFile(filePath, buffer);
 
     const doc = await prisma.document.create({
@@ -78,7 +65,7 @@ export async function POST(request: NextRequest) {
         type,
         fileUrl: relativeUrl,
         fileSize: file.size,
-        mimeType: file.type || null,
+        mimeType: detected.mimeType,
         notes: notes || null,
         firearmId: firearmId || null,
         accessoryId: accessoryId || null,
