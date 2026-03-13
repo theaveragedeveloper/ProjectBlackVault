@@ -85,6 +85,9 @@ export default function SettingsPage() {
   const [autoBackupStatus, setAutoBackupStatus] = useState<string | null>(null);
   const [autoBackupError, setAutoBackupError] = useState<string | null>(null);
   const [autoBackupRunning, setAutoBackupRunning] = useState(false);
+  const [updateBusy, setUpdateBusy] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [updateOutput, setUpdateOutput] = useState<string | null>(null);
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -443,6 +446,33 @@ export default function SettingsPage() {
       setAutoBackupRunning(false);
     }
   }, [includeDocumentFilesInBackup]);
+
+  async function handlePullUpdates() {
+    setUpdateBusy(true);
+    setUpdateError(null);
+    setUpdateOutput(null);
+
+    try {
+      const res = await fetch("/api/system-update", { method: "POST" });
+      const json = await res.json();
+
+      if (!res.ok) {
+        const details = typeof json.details === "string" ? `\n\n${json.details}` : "";
+        setUpdateError(`${json.error ?? "Failed to pull updates from GitHub."}${details}`);
+        return;
+      }
+
+      const remoteLine = json.remote ? `Remote: ${json.remote}` : null;
+      const branchLine = json.branch ? `Branch: ${json.branch}` : null;
+      const outputLine = json.output ? `\n\n${json.output}` : "";
+      const header = [remoteLine, branchLine].filter(Boolean).join("\n");
+      setUpdateOutput(`${header}${outputLine}`.trim());
+    } catch {
+      setUpdateError("Network error. Please try again.");
+    } finally {
+      setUpdateBusy(false);
+    }
+  }
 
   useEffect(() => {
     if (!autoBackupEnabled) return;
@@ -904,6 +934,49 @@ export default function SettingsPage() {
                 Ensure the container port is mapped with <code className="font-mono">-p 3000:3000</code> or equivalent in docker-compose.yml.
               </p>
             </div>
+          </fieldset>
+
+          {/* ── GitHub Updates ─────────────────────────────── */}
+          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
+            <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
+              <DownloadCloud className="w-3.5 h-3.5" />
+              GitHub Updates
+            </legend>
+
+            <p className="text-xs text-vault-text-muted leading-relaxed">
+              Pull the latest commits from your configured <code className="font-mono text-vault-text-faint">origin</code> remote with one click.
+            </p>
+
+            {updateError && (
+              <div className="flex items-start gap-2 rounded-md border border-[#E53935]/30 bg-[#E53935]/10 px-3 py-2">
+                <AlertCircle className="h-3.5 w-3.5 text-[#E53935] mt-0.5 shrink-0" />
+                <p className="text-xs text-[#E53935] whitespace-pre-wrap">{updateError}</p>
+              </div>
+            )}
+
+            {updateOutput && (
+              <div className="rounded-md border border-[#00C853]/30 bg-[#00C853]/10 px-3 py-2 space-y-2">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-[#00C853]" />
+                  <p className="text-xs text-[#00C853]">Update check completed.</p>
+                </div>
+                <pre className="text-[11px] text-vault-text-faint whitespace-pre-wrap break-words font-mono">{updateOutput}</pre>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={handlePullUpdates}
+              disabled={updateBusy}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-60 disabled:cursor-not-allowed text-xs transition-colors"
+            >
+              {updateBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+              {updateBusy ? "Pulling updates..." : "Pull Updates from GitHub"}
+            </button>
+
+            <p className="text-[11px] text-vault-text-faint">
+              This performs a fast-forward-only <code className="font-mono">git pull origin &lt;current-branch&gt;</code>. If files changed, restart BlackVault to apply updates.
+            </p>
           </fieldset>
 
           {/* ── Setup Wizard ───────────────────────────────── */}
