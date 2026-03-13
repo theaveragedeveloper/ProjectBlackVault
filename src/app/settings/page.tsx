@@ -453,6 +453,24 @@ export default function SettingsPage() {
     setUpdateOutput(null);
 
     try {
+      const checkRes = await fetch("/api/system-update");
+      const checkJson = await checkRes.json();
+
+      if (!checkRes.ok) {
+        const details = typeof checkJson.details === "string" ? `\n\n${checkJson.details}` : "";
+        setUpdateError(`${checkJson.error ?? "Failed to check for updates."}${details}`);
+        return;
+      }
+
+      if (checkJson.updateAvailable) {
+        const commitLabel = checkJson.commitsBehind === 1 ? "1 new commit" : `${checkJson.commitsBehind} new commits`;
+        const confirmed = window.confirm(`A new version is available (${commitLabel}). Pull updates now?`);
+        if (!confirmed) {
+          setUpdateOutput("Update canceled.");
+          return;
+        }
+      }
+
       const res = await fetch("/api/system-update", { method: "POST" });
       const json = await res.json();
 
@@ -465,8 +483,9 @@ export default function SettingsPage() {
       const remoteLine = json.remote ? `Remote: ${json.remote}` : null;
       const branchLine = json.branch ? `Branch: ${json.branch}` : null;
       const outputLine = json.output ? `\n\n${json.output}` : "";
+      const refreshNote = "\n\n✅ Update successful. Please refresh the app to load the latest version.";
       const header = [remoteLine, branchLine].filter(Boolean).join("\n");
-      setUpdateOutput(`${header}${outputLine}`.trim());
+      setUpdateOutput(`${header}${outputLine}${refreshNote}`.trim());
     } catch {
       setUpdateError("Network error. Please try again.");
     } finally {
