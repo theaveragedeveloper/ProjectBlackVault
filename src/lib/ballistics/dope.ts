@@ -32,10 +32,12 @@ function roundTo(value: number, digits: number): number {
 }
 
 function toMil(inches: number, distanceYd: number): number {
+  if (distanceYd <= 0) return 0;
   return inches / ((distanceYd / 100) * INCHES_PER_100YD_PER_MIL);
 }
 
 function toMoa(inches: number, distanceYd: number): number {
+  if (distanceYd <= 0) return 0;
   return inches / ((distanceYd / 100) * INCHES_PER_100YD_PER_MOA);
 }
 
