@@ -3,8 +3,17 @@ import path from "path";
 import { prisma } from "@/lib/prisma";
 
 async function readDocumentFileAsBase64(fileUrl: string): Promise<string | null> {
-  if (!fileUrl.startsWith("/uploads/")) return null;
-  const absolutePath = path.join(process.cwd(), "public", fileUrl.replace(/^\//, ""));
+  let absolutePath: string | null = null;
+
+  if (fileUrl.startsWith("/api/files/documents/")) {
+    const fileName = fileUrl.replace("/api/files/documents/", "").split("?")[0];
+    absolutePath = path.join(process.cwd(), "storage", "uploads", "documents", fileName);
+  } else if (fileUrl.startsWith("/uploads/")) {
+    absolutePath = path.join(process.cwd(), "public", fileUrl.replace(/^\//, ""));
+  }
+
+  if (!absolutePath) return null;
+
   try {
     const buf = await fs.readFile(absolutePath);
     return buf.toString("base64");

@@ -16,7 +16,9 @@ export async function PUT(
       data: { sortOrder },
     });
     return Response.json(build);
-  } catch {
+  } catch (error) {
+    const isNotFound = typeof error === "object" && error !== null && (error as { code?: string }).code === "P2025";
+    if (isNotFound) return Response.json({ error: "Build not found" }, { status: 404 });
     return Response.json({ error: "Failed to update sort order" }, { status: 500 });
   }
 }

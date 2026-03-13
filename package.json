@@ -13,6 +13,8 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
     "db:reset": "prisma migrate reset",
+    "typecheck": "tsc --noEmit",
+    "ci:quality-gate": "node scripts/quality-gate.mjs",
     "check:merge-conflicts": "./scripts/check-merge-conflicts.sh"
   },
   "dependencies": {

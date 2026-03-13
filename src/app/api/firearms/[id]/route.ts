@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { encryptField, decryptField } from "@/lib/crypto";
 import { revalidateDashboardCaches } from "@/lib/server/dashboard";
+import { validateOptionalImageUrl } from "@/lib/image-url-validation";
 
 // GET /api/firearms/[id] - Get a single firearm with active build, slots, and accessories
 export async function GET(
@@ -83,6 +84,13 @@ export async function PUT(
       return NextResponse.json({ error: "Firearm not found" }, { status: 404 });
     }
 
+    if (imageUrl !== undefined) {
+      const imageValidation = validateOptionalImageUrl(imageUrl);
+      if (!imageValidation.valid) {
+        return NextResponse.json({ error: imageValidation.error }, { status: 400 });
+      }
+    }
+
     if (purchasePrice !== undefined && purchasePrice !== null && purchasePrice < 0) {
       return NextResponse.json({ error: "purchasePrice cannot be negative" }, { status: 400 });
     }
@@ -107,7 +115,7 @@ export async function PUT(
         ...(purchasePrice !== undefined && { purchasePrice }),
         ...(currentValue !== undefined && { currentValue }),
         ...(notes !== undefined && { notes: notes ? await encryptField(notes) : null }),
-        ...(imageUrl !== undefined && { imageUrl }),
+        ...(imageUrl !== undefined && { imageUrl: imageUrl?.trim() || null }),
         ...(imageSource !== undefined && { imageSource }),
       },
       include: {
