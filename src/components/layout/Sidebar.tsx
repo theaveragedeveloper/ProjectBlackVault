@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   Shield,
@@ -125,8 +126,8 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
     <>
       {/* Logo */}
       <div className="flex items-center gap-3 px-4 h-14 border-b border-vault-border shrink-0">
-        <div className="w-7 h-7 rounded bg-[#00C2FF]/10 border border-[#00C2FF]/30 flex items-center justify-center shrink-0">
-          <Shield className="w-4 h-4 text-[#00C2FF]" />
+        <div className="w-7 h-7 rounded bg-[#00C2FF]/10 border border-[#00C2FF]/30 flex items-center justify-center shrink-0 p-1">
+          <Image src="/blackvault-logo.svg" alt="BlackVault logo" width={20} height={20} className="w-5 h-5" priority />
         </div>
         {!collapsed && (
           <div className="overflow-hidden flex-1 min-w-0">

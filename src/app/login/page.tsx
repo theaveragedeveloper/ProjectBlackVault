@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Lock, Eye, EyeOff, Loader2, AlertCircle, Shield } from "lucide-react";
+import Image from "next/image";
+import { Lock, Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -76,8 +77,8 @@ export default function LoginPage() {
       <div className="w-full max-w-sm mx-auto px-6">
         {/* Logo / Title */}
         <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#00C2FF]/10 border border-[#00C2FF]/30 mb-4">
-            <Shield className="w-8 h-8 text-[#00C2FF]" />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#00C2FF]/10 border border-[#00C2FF]/30 mb-4 p-2">
+            <Image src="/blackvault-logo.svg" alt="BlackVault logo" width={32} height={32} className="w-8 h-8" priority />
           </div>
           <h1 className="text-2xl font-bold tracking-[0.2em] text-vault-text uppercase font-mono">
             BlackVault
