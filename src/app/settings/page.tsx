@@ -25,6 +25,7 @@ import {
   Archive,
   Rocket,
   RefreshCw,
+  TriangleAlert,
 } from "lucide-react";
 
 const INPUT_CLASS =
@@ -69,7 +70,6 @@ export default function SettingsPage() {
   const [backupPassphrase, setBackupPassphrase] = useState("");
   const [backupConfirm, setBackupConfirm] = useState("");
   const [includeDocumentFilesInBackup, setIncludeDocumentFilesInBackup] = useState(true);
-  const [wizardStep, setWizardStep] = useState(0);
   const [autoBackupEnabled, setAutoBackupEnabled] = useState(false);
   const [autoBackupIntervalMin, setAutoBackupIntervalMin] = useState(15);
   const [autoBackupStatus, setAutoBackupStatus] = useState<string | null>(null);
@@ -473,6 +473,20 @@ export default function SettingsPage() {
     }
   }
 
+  function handleQuickSetupNavigate(anchor: string) {
+    if (typeof window === "undefined") return;
+    const target = document.querySelector(anchor);
+    if (!(target instanceof HTMLElement)) return;
+
+    target.scrollIntoView({ behavior: "smooth", block: "start" });
+
+    // If this section is part of a collapsible/accordion UI, try to expand it.
+    const collapsedTrigger = target.querySelector<HTMLElement>(
+      'button[aria-expanded="false"], [role="button"][aria-expanded="false"]'
+    );
+    collapsedTrigger?.click();
+  }
+
   useEffect(() => {
     if (!autoBackupEnabled) return;
 
@@ -513,21 +527,25 @@ export default function SettingsPage() {
       title: "Secure Access",
       description: "Set an app password so the vault is protected on startup.",
       done: !!settings?.appPassword,
+      anchor: "#security",
     },
     {
       title: "Encryption",
       description: "Enable encryption at rest and save your encryption key offline.",
       done: !!settings?.encryptionEnabled,
+      anchor: "#encryption",
     },
     {
       title: "Backups",
       description: "Create your first encrypted .bvault backup with document files included.",
       done: !!backupSuccess,
+      anchor: "#backup",
     },
     {
       title: "Auto-Backup",
       description: "Enable automatic backup checks to protect new changes automatically.",
       done: autoBackupEnabled,
+      anchor: "#backup",
     },
   ] as const;
 
@@ -561,9 +579,52 @@ export default function SettingsPage() {
           </div>
         )}
 
+        <div className="mb-6 rounded-lg border border-vault-border bg-vault-surface p-4 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Rocket className="h-4 w-4 text-[#00C2FF]" />
+              <p className="text-xs font-mono uppercase tracking-widest text-[#00C2FF]">Quick Setup</p>
+            </div>
+            <p className="text-xs text-vault-text-muted">{completedWizardSteps}/{wizardSteps.length} complete</p>
+          </div>
+          <div className="h-1.5 rounded bg-vault-border overflow-hidden">
+            <div className="h-full bg-[#00C2FF] transition-all" style={{ width: `${(completedWizardSteps / wizardSteps.length) * 100}%` }} />
+          </div>
+          <div className="space-y-2">
+            {wizardSteps.map((step, idx) => (
+              <div
+                key={step.title}
+                className={`rounded-md border px-3 py-2 ${step.done ? "border-vault-border bg-vault-bg" : "border-[#F5A623]/40 bg-[#F5A623]/10"}`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className={`text-xs font-medium ${step.done ? "text-vault-text" : "text-[#F5A623]"}`}>
+                      {idx + 1}. {step.title}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-vault-text-faint">{step.description}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickSetupNavigate(step.anchor)}
+                    className="shrink-0 text-[11px] text-[#00C2FF] hover:text-[#00C2FF]/80 underline underline-offset-2"
+                  >
+                    Go to section
+                  </button>
+                </div>
+                {!step.done && (
+                  <div className="mt-2 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-widest text-[#F5A623]">
+                    <TriangleAlert className="h-3 w-3" />
+                    Action needed
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
         <form onSubmit={handleSave} className="space-y-6">
           {/* ── Security ────────────────────────────────────── */}
-          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-5">
+          <fieldset id="security" className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-5 scroll-mt-24">
             <div className="flex items-center justify-between">
               <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
                 <Lock className="w-3.5 h-3.5" />
@@ -593,7 +654,7 @@ export default function SettingsPage() {
           </fieldset>
 
           {/* ── Encryption at Rest ──────────────────────────── */}
-          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
+          <fieldset id="encryption" className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4 scroll-mt-24">
             <div className="flex items-center justify-between">
               <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
                 <ShieldCheck className="w-3.5 h-3.5" />
@@ -915,83 +976,8 @@ export default function SettingsPage() {
             </p>
           </fieldset>
 
-          {/* ── Setup Wizard ───────────────────────────────── */}
-          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
-            <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
-              <Rocket className="w-3.5 h-3.5" />
-              Setup Wizard
-            </legend>
-
-            <p className="text-xs text-vault-text-muted leading-relaxed">
-              Guided onboarding for non-technical users. Complete each step to harden security and automate backup protection.
-            </p>
-
-            <div className="bg-vault-bg border border-vault-border rounded-md p-3">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-[10px] uppercase tracking-widest text-vault-text-faint font-mono">Progress</p>
-                <p className="text-xs text-vault-text-muted">{completedWizardSteps} / {wizardSteps.length} complete</p>
-              </div>
-              <div className="h-2 rounded bg-vault-border overflow-hidden">
-                <div className="h-full bg-[#00C2FF] transition-all" style={{ width: `${(completedWizardSteps / wizardSteps.length) * 100}%` }} />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {wizardSteps.map((step, idx) => (
-                <button
-                  key={step.title}
-                  type="button"
-                  onClick={() => setWizardStep(idx)}
-                  className={`text-left rounded-md border px-3 py-2 text-xs transition-colors ${wizardStep === idx ? "border-[#00C2FF]/40 bg-[#00C2FF]/10" : "border-vault-border hover:border-vault-text-muted/30"}`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <p className={`font-medium ${wizardStep === idx ? "text-[#00C2FF]" : "text-vault-text"}`}>{idx + 1}. {step.title}</p>
-                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono border ${step.done ? "text-[#00C853] border-[#00C853]/40" : "text-vault-text-faint border-vault-border"}`}>
-                      {step.done ? "DONE" : "PENDING"}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-vault-text-faint mt-1">{step.description}</p>
-                </button>
-              ))}
-            </div>
-
-            <div className="bg-vault-bg border border-vault-border rounded-md p-4 space-y-2">
-              <p className="text-xs text-vault-text font-medium">Current Step: {wizardSteps[wizardStep].title}</p>
-              <p className="text-xs text-vault-text-faint">{wizardSteps[wizardStep].description}</p>
-              {wizardStep === 3 && (
-                <button
-                  type="button"
-                  onClick={() => runAutoBackupCheck(true)}
-                  className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs border border-vault-border text-vault-text-muted hover:text-[#00C2FF] hover:border-[#00C2FF]/30"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  Run First Auto-Backup Check
-                </button>
-              )}
-            </div>
-
-            <div className="flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => setWizardStep((s) => Math.max(0, s - 1))}
-                disabled={wizardStep === 0}
-                className="px-3 py-1.5 text-xs rounded-md border border-vault-border text-vault-text-faint disabled:opacity-40"
-              >
-                Previous
-              </button>
-              <button
-                type="button"
-                onClick={() => setWizardStep((s) => Math.min(wizardSteps.length - 1, s + 1))}
-                disabled={wizardStep === wizardSteps.length - 1}
-                className="px-3 py-1.5 text-xs rounded-md border border-[#00C2FF]/30 text-[#00C2FF] disabled:opacity-40"
-              >
-                Next
-              </button>
-            </div>
-          </fieldset>
-
           {/* ── Full Armory Export ─────────────────────────── */}
-          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
+          <fieldset id="backup" className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4 scroll-mt-24">
             <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
               <FileText className="w-3.5 h-3.5" />
               Full Armory Export
