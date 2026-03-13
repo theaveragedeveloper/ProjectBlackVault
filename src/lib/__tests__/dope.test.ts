@@ -20,6 +20,18 @@ describe("generateDistanceRows", () => {
     expect(generateDistanceRows(600, 100, 100)).toEqual([]);
     expect(generateDistanceRows(100, 600, 0)).toEqual([]);
   });
+
+
+  it("handles decimal ranges without duplicating end distance and keeps order", () => {
+    const rows = generateDistanceRows(100, 550, 33.3);
+
+    expect(rows[rows.length - 1]).toEqual({ distanceYd: 550 });
+    expect(rows.filter((row) => row.distanceYd === 550)).toHaveLength(1);
+
+    for (let index = 1; index < rows.length; index += 1) {
+      expect(rows[index].distanceYd).toBeGreaterThan(rows[index - 1].distanceYd);
+    }
+  });
 });
 
 describe("convertDropWindToAngular", () => {
