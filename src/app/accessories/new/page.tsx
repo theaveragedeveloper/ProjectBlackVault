@@ -35,17 +35,21 @@ export default function NewAccessoryPage() {
     const form = e.currentTarget;
     const data = new FormData(form);
 
+    const type = data.get("type") as string;
+    const shouldEnableBattery = ["OPTIC", "LIGHT", "LASER"].includes(type);
+
     const payload = {
       name: data.get("name") as string,
       manufacturer: data.get("manufacturer") as string,
       model: (data.get("model") as string) || null,
-      type: data.get("type") as string,
+      type,
       caliber: caliberInput || null,
       acquisitionDate: (data.get("acquisitionDate") as string) || null,
       purchasePrice: data.get("purchasePrice") ? Number(data.get("purchasePrice")) : null,
       notes: (data.get("notes") as string) || null,
       imageUrl,
       imageSource,
+      hasBattery: shouldEnableBattery,
     };
 
     try {
