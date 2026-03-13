@@ -223,6 +223,27 @@ body {
     min-height: 5.5in;
   }
 
+
+  .dope-print-compact {
+    width: 3in;
+    min-height: 7in;
+  }
+
+  .dope-print-bold-mode table td:first-child,
+  .dope-print-bold-mode table td:nth-child(2) {
+    font-weight: 700 !important;
+    font-size: 0.9rem !important;
+  }
+
+  .dope-print-bold-mode table th:nth-child(3),
+  .dope-print-bold-mode table th:nth-child(5),
+  .dope-print-bold-mode table td:nth-child(3),
+  .dope-print-bold-mode table td:nth-child(5),
+  .dope-print-bold-mode table th:nth-child(6),
+  .dope-print-bold-mode table td:nth-child(6) {
+    display: none !important;
+  }
+
   .dope-print-monochrome,
   .dope-print-monochrome * {
     color: #000 !important;
