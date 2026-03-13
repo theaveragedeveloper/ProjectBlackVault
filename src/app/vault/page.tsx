@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { SafeImage } from "@/components/shared/SafeImage";
 import { formatCurrency, formatNumber } from "@/lib/utils";
 import {
   Shield,
@@ -115,25 +115,24 @@ function FirearmCard({ firearm, editMode, editBuilds, onDeleteBuild }: FirearmCa
     <div className="bg-vault-surface border border-vault-border rounded-lg overflow-hidden hover:border-[#00C2FF]/30 transition-colors group flex flex-col">
       {/* Image / Placeholder */}
       <div className="h-40 bg-vault-bg relative overflow-hidden border-b border-vault-border">
-        {firearm.imageUrl ? (
-          <Image
-            src={firearm.imageUrl}
-            alt={firearm.name}
-            fill
-            sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
-            loading="lazy"
-            className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center tactical-grid">
-            <div className="flex flex-col items-center gap-2 opacity-40">
-              <FirearmTypeIcon type={firearm.type} />
-              <span className="text-xs font-mono uppercase text-vault-text-faint tracking-widest">
-                {typeLabel}
-              </span>
+        <SafeImage
+          src={firearm.imageUrl}
+          alt={firearm.name}
+          fill
+          sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
+          loading="lazy"
+          className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
+          fallback={
+            <div className="w-full h-full flex items-center justify-center tactical-grid">
+              <div className="flex flex-col items-center gap-2 opacity-40">
+                <FirearmTypeIcon type={firearm.type} />
+                <span className="text-xs font-mono uppercase text-vault-text-faint tracking-widest">
+                  {typeLabel}
+                </span>
+              </div>
             </div>
-          </div>
-        )}
+          }
+        />
         {/* Type badge overlay */}
         <div className="absolute top-2 right-2">
           <span className={`text-[10px] px-2 py-0.5 rounded border font-mono uppercase bg-vault-bg/80 backdrop-blur-sm ${typeBadge}`}>
