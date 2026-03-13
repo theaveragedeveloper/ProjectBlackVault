@@ -6,11 +6,9 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle2,
-  Search,
   Lock,
   Eye,
   EyeOff,
-  Image as ImageIcon,
   Settings,
   ShieldCheck,
   HardDrive,
@@ -36,10 +34,6 @@ const LABEL_CLASS =
 
 interface AppSettings {
   id: string;
-  enableImageSearch: boolean;
-  googleCseApiKey: string | null;
-  _googleCseApiKeyIsSet?: boolean;
-  googleCseSearchEngineId: string | null;
   appPassword: string | null;
   defaultCurrency: string;
   encryptionEnabled?: boolean;
@@ -60,11 +54,7 @@ export default function SettingsPage() {
   const [dataLoading, setDataLoading] = useState(true);
   const [dataError, setDataError] = useState<string | null>(null);
 
-  const [enableImageSearch, setEnableImageSearch] = useState(false);
-  const [apiKey, setApiKey] = useState("");
-  const [searchEngineId, setSearchEngineId] = useState("");
   const [appPassword, setAppPassword] = useState("");
-  const [showApiKey, setShowApiKey] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
 
@@ -116,8 +106,6 @@ export default function SettingsPage() {
           setDataError(data.error);
         } else {
           setSettings(data);
-          setEnableImageSearch(data.enableImageSearch ?? false);
-          setSearchEngineId(data.googleCseSearchEngineId ?? "");
         }
         if (!info.error) setSysInfo(info);
         setDataLoading(false);
@@ -155,14 +143,7 @@ export default function SettingsPage() {
     setSaveSuccess(false);
     setSaving(true);
 
-    const payload: Record<string, unknown> = {
-      enableImageSearch,
-      googleCseSearchEngineId: searchEngineId || null,
-    };
-
-    if (apiKey) {
-      payload.googleCseApiKey = apiKey;
-    }
+    const payload: Record<string, unknown> = {};
 
     payload.appPassword = appPassword || null;
 
@@ -179,7 +160,6 @@ export default function SettingsPage() {
         setSaveError(json.error ?? "Failed to save settings");
       } else {
         setSettings(json);
-        setApiKey("");
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 3000);
       }
@@ -528,9 +508,6 @@ export default function SettingsPage() {
     );
   }
 
-  const imageSearchConfigured =
-    settings?._googleCseApiKeyIsSet && !!settings?.googleCseSearchEngineId;
-
   const wizardSteps = [
     {
       title: "Secure Access",
@@ -585,66 +562,6 @@ export default function SettingsPage() {
         )}
 
         <form onSubmit={handleSave} className="space-y-6">
-          {/* ── Image Search ────────────────────────────────── */}
-          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-5">
-            <div className="flex items-center justify-between">
-              <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
-                <ImageIcon className="w-3.5 h-3.5" />
-                Image Search
-              </legend>
-              <span className={`text-[10px] font-mono px-2 py-0.5 rounded border uppercase ${imageSearchConfigured ? "text-[#00C853] border-[#00C853]/40" : "text-vault-text-faint border-vault-border"}`}>
-                {imageSearchConfigured ? "Configured" : "Not Configured"}
-              </span>
-            </div>
-
-            <p className="text-xs text-vault-text-muted leading-relaxed">
-              Enable Google Custom Search to automatically find images for firearms and accessories. Requires a Google Cloud CSE API key and a configured search engine.
-            </p>
-
-            <div>
-              <button type="button" onClick={() => setEnableImageSearch((v) => !v)}
-                className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-md border transition-all ${enableImageSearch ? "border-[#00C2FF]/40 bg-[#00C2FF]/5" : "border-vault-border hover:border-vault-text-muted/20"}`}>
-                <div className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${enableImageSearch ? "bg-[#00C2FF]" : "bg-vault-border"}`}>
-                  <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${enableImageSearch ? "left-4" : "left-0.5"}`} />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-vault-text">Enable Image Search</p>
-                  <p className="text-xs text-vault-text-faint mt-0.5">Adds a &quot;Search Images&quot; button to firearm and accessory forms.</p>
-                </div>
-              </button>
-            </div>
-
-            <div>
-              <label className={LABEL_CLASS}>
-                <Search className="w-3 h-3 inline mr-1" />
-                Google CSE API Key
-                {settings?._googleCseApiKeyIsSet && (
-                  <span className="ml-2 text-[#00C853] text-[10px] normal-case tracking-normal">(currently set)</span>
-                )}
-              </label>
-              <div className="relative">
-                <input type={showApiKey ? "text" : "password"} value={apiKey} onChange={(e) => setApiKey(e.target.value)}
-                  placeholder={settings?._googleCseApiKeyIsSet ? "Leave blank to keep existing key" : "AIza..."}
-                  className={`${INPUT_CLASS} pr-10 font-mono`} />
-                <button type="button" onClick={() => setShowApiKey((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-vault-text-faint hover:text-vault-text-muted">
-                  {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-              <p className="text-xs text-vault-text-faint mt-1">From the Google Cloud Console. Leave blank to keep the existing key.</p>
-            </div>
-
-            <div>
-              <label htmlFor="searchEngineId" className={LABEL_CLASS}>
-                <Search className="w-3 h-3 inline mr-1" />
-                Search Engine ID (cx)
-              </label>
-              <input id="searchEngineId" type="text" value={searchEngineId} onChange={(e) => setSearchEngineId(e.target.value)}
-                placeholder="e.g. 017576662512468239146:omuauf_lfve" className={`${INPUT_CLASS} font-mono`} />
-              <p className="text-xs text-vault-text-faint mt-1">The &quot;cx&quot; parameter from your Programmable Search Engine dashboard.</p>
-            </div>
-          </fieldset>
-
           {/* ── Security ────────────────────────────────────── */}
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-5">
             <div className="flex items-center justify-between">
@@ -1281,9 +1198,6 @@ export default function SettingsPage() {
           <div className="bg-vault-bg border border-vault-border rounded-lg p-4">
             <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-3 font-mono">Current Configuration Status</p>
             <div className="space-y-2">
-              <StatusRow label="Image Search" value={enableImageSearch ? "Enabled" : "Disabled"} ok={enableImageSearch} />
-              <StatusRow label="CSE API Key" value={settings?._googleCseApiKeyIsSet ? "Configured" : "Not set"} ok={!!settings?._googleCseApiKeyIsSet} />
-              <StatusRow label="Search Engine ID" value={settings?.googleCseSearchEngineId ? "Configured" : "Not set"} ok={!!settings?.googleCseSearchEngineId} />
               <StatusRow label="App Password" value={settings?.appPassword ? "Enabled" : "Disabled"} ok={!!settings?.appPassword} neutralIfFalse />
               <StatusRow label="Encryption at Rest" value={settings?.encryptionEnabled ? "Active" : "Not configured"} ok={!!settings?.encryptionEnabled} />
             </div>
