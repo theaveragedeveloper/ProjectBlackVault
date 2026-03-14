@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import ImagePicker from "@/components/shared/ImagePicker";
 import { DocumentUploader, type UploadedDocument } from "@/components/shared/DocumentUploader";
+import BatterySettingsFields from "@/components/shared/BatterySettingsFields";
 
 
 interface RoundCountLog {
@@ -648,22 +649,14 @@ export default function AccessoryDetailPage() {
 
           {showBatterySettings && (
             <form onSubmit={handleSaveBatterySettings} className="p-4 border-b border-vault-border space-y-3">
-              <div className="flex items-center gap-2">
-                <input type="checkbox" id="hasBattery" checked={batteryForm.hasBattery} onChange={(e) => setBatteryForm((p) => ({ ...p, hasBattery: e.target.checked }))} className="w-4 h-4 accent-[#00C2FF]" />
-                <label htmlFor="hasBattery" className="text-sm text-vault-text">This accessory uses a battery</label>
-              </div>
-              {batteryForm.hasBattery && (
-                <>
-                  <div>
-                    <label className="text-[10px] uppercase text-vault-text-faint block mb-1">Battery Type</label>
-                    <input type="text" value={batteryForm.batteryType} onChange={(e) => setBatteryForm((p) => ({ ...p, batteryType: e.target.value }))} placeholder="e.g. CR2032, AA" className="w-full bg-vault-bg border border-vault-border rounded px-2 py-1.5 text-sm text-vault-text placeholder:text-vault-text-faint" />
-                  </div>
-                  <div>
-                    <label className="text-[10px] uppercase text-vault-text-faint block mb-1">Replace Every (days)</label>
-                    <input type="number" min="1" value={batteryForm.batteryIntervalDays} onChange={(e) => setBatteryForm((p) => ({ ...p, batteryIntervalDays: e.target.value }))} placeholder="e.g. 365" className="w-full bg-vault-bg border border-vault-border rounded px-2 py-1.5 text-sm text-vault-text placeholder:text-vault-text-faint" />
-                  </div>
-                </>
-              )}
+              <BatterySettingsFields
+                hasBattery={batteryForm.hasBattery}
+                batteryType={batteryForm.batteryType}
+                batteryIntervalDays={batteryForm.batteryIntervalDays}
+                onHasBatteryChange={(value) => setBatteryForm((p) => ({ ...p, hasBattery: value }))}
+                onBatteryTypeChange={(value) => setBatteryForm((p) => ({ ...p, batteryType: value }))}
+                onBatteryIntervalDaysChange={(value) => setBatteryForm((p) => ({ ...p, batteryIntervalDays: value }))}
+              />
               <button type="submit" disabled={savingBattery} className="w-full flex items-center justify-center gap-1.5 text-xs bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 px-3 py-1.5 rounded transition-colors disabled:opacity-50">
                 {savingBattery ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
                 Save Settings

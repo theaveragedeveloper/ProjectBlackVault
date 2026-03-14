@@ -7,6 +7,7 @@ import { SLOT_TYPES, SLOT_TYPE_LABELS, COMMON_CALIBERS } from "@/lib/types";
 import { ArrowLeft, Plus, Loader2, AlertCircle } from "lucide-react";
 import ImagePicker from "@/components/shared/ImagePicker";
 import ReceiptUploader from "@/components/shared/ReceiptUploader";
+import BatterySettingsFields from "@/components/shared/BatterySettingsFields";
 
 const INPUT_CLASS =
   "w-full bg-vault-surface border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint transition-colors";
@@ -22,6 +23,9 @@ export default function NewAccessoryPage() {
   const [imageSource, setImageSource] = useState<string | null>(null);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptError, setReceiptError] = useState<string | null>(null);
+  const [hasBattery, setHasBattery] = useState(false);
+  const [batteryType, setBatteryType] = useState("");
+  const [batteryIntervalDays, setBatteryIntervalDays] = useState("");
 
   const filteredCalibers = COMMON_CALIBERS.filter((c) =>
     c.toLowerCase().includes(caliberInput.toLowerCase())
@@ -36,8 +40,6 @@ export default function NewAccessoryPage() {
     const data = new FormData(form);
 
     const type = data.get("type") as string;
-    const shouldEnableBattery = ["OPTIC", "LIGHT", "LASER"].includes(type);
-
     const payload = {
       name: data.get("name") as string,
       manufacturer: data.get("manufacturer") as string,
@@ -49,7 +51,9 @@ export default function NewAccessoryPage() {
       notes: (data.get("notes") as string) || null,
       imageUrl,
       imageSource,
-      hasBattery: shouldEnableBattery,
+      hasBattery,
+      batteryType: hasBattery ? batteryType || null : null,
+      batteryIntervalDays: hasBattery ? batteryIntervalDays || null : null,
     };
 
     try {
@@ -175,6 +179,21 @@ export default function NewAccessoryPage() {
                 </div>
               </div>
             </div>
+          </fieldset>
+
+          {/* Battery */}
+          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
+            <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">Battery Tracking</legend>
+            <BatterySettingsFields
+              hasBattery={hasBattery}
+              batteryType={batteryType}
+              batteryIntervalDays={batteryIntervalDays}
+              onHasBatteryChange={setHasBattery}
+              onBatteryTypeChange={setBatteryType}
+              onBatteryIntervalDaysChange={setBatteryIntervalDays}
+              labelClassName={LABEL_CLASS}
+              inputClassName={INPUT_CLASS}
+            />
           </fieldset>
 
           {/* Acquisition */}
