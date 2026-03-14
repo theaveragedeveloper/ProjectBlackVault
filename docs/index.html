@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ProjectBlackVault — Download</title>
+  <meta name="description" content="Self-hosted tactical firearms inventory management. Download the desktop launcher for Windows, macOS, or Linux.">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #080808;
+      --surface: #101010;
+      --border: #1e1e1e;
+      --green: #22c55e;
+      --green-hover: #16a34a;
+      --text: #e5e5e5;
+      --muted: #666;
+      --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 24px;
+    }
+
+    .hero {
+      text-align: center;
+      max-width: 600px;
+      margin-bottom: 48px;
+    }
+
+    .logo-mark {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 72px;
+      height: 72px;
+      background: #0d1f12;
+      border: 2px solid var(--green);
+      border-radius: 16px;
+      font-size: 32px;
+      margin-bottom: 24px;
+    }
+
+    h1 {
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    h1 span { color: var(--green); }
+
+    .tagline {
+      font-size: 16px;
+      color: var(--muted);
+      margin-bottom: 0;
+    }
+
+    /* Download grid */
+    .download-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      width: 100%;
+      max-width: 680px;
+      margin-bottom: 40px;
+    }
+
+    @media (max-width: 560px) {
+      .download-grid { grid-template-columns: 1fr; }
+    }
+
+    .download-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px 16px;
+      text-align: center;
+      text-decoration: none;
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .download-card:hover {
+      border-color: var(--green);
+      background: #0d1a10;
+    }
+
+    .platform-icon {
+      font-size: 36px;
+    }
+
+    .platform-name {
+      font-weight: 700;
+      font-size: 15px;
+    }
+
+    .platform-detail {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .download-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--green);
+      color: #000;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 5px 12px;
+      border-radius: 20px;
+      margin-top: 4px;
+    }
+
+    /* Steps */
+    .steps {
+      width: 100%;
+      max-width: 500px;
+      margin-bottom: 40px;
+    }
+
+    .steps h2 {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    .step-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+    }
+
+    .step-num {
+      flex-shrink: 0;
+      width: 26px;
+      height: 26px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--green);
+    }
+
+    .step-text {
+      font-size: 14px;
+      color: #ccc;
+      padding-top: 3px;
+    }
+
+    .step-text a {
+      color: var(--green);
+      text-decoration: none;
+    }
+
+    .step-text a:hover { text-decoration: underline; }
+
+    /* Note */
+    .note {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 20px;
+      max-width: 500px;
+      font-size: 13px;
+      color: #888;
+      line-height: 1.7;
+      text-align: center;
+    }
+
+    .note a { color: var(--green); text-decoration: none; }
+    .note a:hover { text-decoration: underline; }
+
+    /* Footer */
+    footer {
+      margin-top: 48px;
+      font-size: 12px;
+      color: #444;
+      text-align: center;
+    }
+
+    footer a { color: #555; }
+  </style>
+</head>
+<body>
+
+  <div class="hero">
+    <div class="logo-mark">⬡</div>
+    <h1>Project<span>BlackVault</span></h1>
+    <p class="tagline">Self-hosted tactical firearms inventory management</p>
+  </div>
+
+  <div class="download-grid">
+    <a class="download-card"
+       href="https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest/download/ProjectBlackVault-Setup.exe">
+      <div class="platform-icon">🪟</div>
+      <div class="platform-name">Windows</div>
+      <div class="platform-detail">Windows 10 / 11</div>
+      <div class="download-badge">↓ Download .exe</div>
+    </a>
+
+    <a class="download-card"
+       href="https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest/download/ProjectBlackVault.dmg">
+      <div class="platform-icon">🍎</div>
+      <div class="platform-name">macOS</div>
+      <div class="platform-detail">macOS 12+</div>
+      <div class="download-badge">↓ Download .dmg</div>
+    </a>
+
+    <a class="download-card"
+       href="https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest/download/ProjectBlackVault-Setup.AppImage">
+      <div class="platform-icon">🐧</div>
+      <div class="platform-name">Linux</div>
+      <div class="platform-detail">x86_64 AppImage</div>
+      <div class="download-badge">↓ Download .AppImage</div>
+    </a>
+  </div>
+
+  <div class="steps">
+    <h2>Getting Started</h2>
+    <div class="step-list">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-text">
+          Install <a href="https://www.docker.com/products/docker-desktop/" target="_blank" rel="noopener">Docker Desktop</a>
+          (free) and make sure it's running
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-text">Download and install the launcher for your platform above</div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-text">Open <strong>ProjectBlackVault</strong> — it'll set everything up automatically</div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-text">Click <strong>Open App</strong> in the launcher to start managing your vault</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>macOS users:</strong> If you see a security warning on first launch, right-click the app and choose <em>Open</em>.
+    <br><br>
+    <strong>Windows users:</strong> If SmartScreen warns you, click <em>More info</em> → <em>Run anyway</em>.
+    <br><br>
+    All data stays on your computer. Nothing is sent to the cloud.
+    <br>
+    <a href="https://github.com/theaveragedeveloper/ProjectBlackVault" target="_blank" rel="noopener">View source on GitHub →</a>
+  </div>
+
+  <footer>
+    ProjectBlackVault is open source and self-hosted — your data never leaves your machine.
+    <br>
+    <a href="https://github.com/theaveragedeveloper/ProjectBlackVault/releases" target="_blank" rel="noopener">All releases</a>
+    &nbsp;·&nbsp;
+    <a href="https://github.com/theaveragedeveloper/ProjectBlackVault/issues" target="_blank" rel="noopener">Report an issue</a>
+  </footer>
+
+</body>
+</html>
