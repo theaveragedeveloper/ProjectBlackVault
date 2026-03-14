@@ -67,6 +67,11 @@ export default function SettingsPage() {
 
   const [appPassword, setAppPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [passwordUnlocked, setPasswordUnlocked] = useState(false);
+  const [verifyingPassword, setVerifyingPassword] = useState(false);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
 
   const [exportPreset, setExportPreset] = useState<"CLAIMS" | "BACKUP">("CLAIMS");
@@ -155,7 +160,13 @@ export default function SettingsPage() {
 
     const payload: Record<string, unknown> = {};
 
-    payload.appPassword = appPassword || null;
+    // Only include password in payload if no current password is set, or if the user has verified it
+    if (!settings?.appPassword || passwordUnlocked) {
+      payload.appPassword = appPassword || null;
+      if (passwordUnlocked && currentPassword) {
+        payload.currentPassword = currentPassword;
+      }
+    }
 
     try {
       const res = await fetch("/api/settings", {
@@ -171,12 +182,38 @@ export default function SettingsPage() {
       } else {
         setSettings(json);
         setSaveSuccess(true);
+        setAppPassword("");
+        setCurrentPassword("");
+        setPasswordUnlocked(false);
         setTimeout(() => setSaveSuccess(false), 3000);
       }
     } catch {
       setSaveError("Network error. Please try again.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleVerifyPassword() {
+    setVerifyError(null);
+    setVerifyingPassword(true);
+    try {
+      const res = await fetch("/api/auth/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: currentPassword }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setVerifyError(json.error ?? "Incorrect password");
+      } else {
+        setPasswordUnlocked(true);
+        setVerifyError(null);
+      }
+    } catch {
+      setVerifyError("Network error. Please try again.");
+    } finally {
+      setVerifyingPassword(false);
     }
   }
 
@@ -675,18 +712,61 @@ export default function SettingsPage() {
               Set an optional app password to restrict access to the vault. Leave blank to disable password protection.
             </p>
 
-            <div>
-              <label className={LABEL_CLASS}><Lock className="w-3 h-3 inline mr-1" />App Password</label>
-              <div className="relative">
-                <input type={showPassword ? "text" : "password"} value={appPassword} onChange={(e) => setAppPassword(e.target.value)}
-                  placeholder="Leave blank to disable password protection" className={`${INPUT_CLASS} pr-10`} autoComplete="new-password" />
-                <button type="button" onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-vault-text-faint hover:text-vault-text-muted">
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            {settings?.appPassword && !passwordUnlocked ? (
+              <div className="space-y-3">
+                <div>
+                  <label className={LABEL_CLASS}><Lock className="w-3 h-3 inline mr-1" />Current Password</label>
+                  <div className="relative">
+                    <input
+                      type={showCurrentPassword ? "text" : "password"}
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (currentPassword) handleVerifyPassword(); } }}
+                      placeholder="Enter your current password to continue"
+                      className={`${INPUT_CLASS} pr-10`}
+                      autoComplete="current-password"
+                    />
+                    <button type="button" onClick={() => setShowCurrentPassword((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-vault-text-faint hover:text-vault-text-muted">
+                      {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  {verifyError && (
+                    <p className="text-xs text-[#E53935] mt-1">{verifyError}</p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleVerifyPassword}
+                  disabled={verifyingPassword || !currentPassword}
+                  className="flex items-center gap-2 rounded-md bg-[#00C2FF]/10 border border-[#00C2FF]/30 px-4 py-2 text-xs font-medium text-[#00C2FF] hover:bg-[#00C2FF]/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {verifyingPassword ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <KeyRound className="w-3.5 h-3.5" />}
+                  Verify Password
                 </button>
               </div>
-              <p className="text-xs text-vault-text-faint mt-1">Note: This is a simple access restriction, not end-to-end encryption.</p>
-            </div>
+            ) : (
+              <div className="space-y-3">
+                {passwordUnlocked && (
+                  <div className="flex items-center gap-2 text-xs text-[#00C853]">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Password verified — you can now view or change the password.
+                  </div>
+                )}
+                <div>
+                  <label className={LABEL_CLASS}><Lock className="w-3 h-3 inline mr-1" />App Password</label>
+                  <div className="relative">
+                    <input type={showPassword ? "text" : "password"} value={appPassword} onChange={(e) => setAppPassword(e.target.value)}
+                      placeholder="Leave blank to disable password protection" className={`${INPUT_CLASS} pr-10`} autoComplete="new-password" />
+                    <button type="button" onClick={() => setShowPassword((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-vault-text-faint hover:text-vault-text-muted">
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <p className="text-xs text-vault-text-faint mt-1">Min 8 characters. This is a simple access restriction, not end-to-end encryption.</p>
+                </div>
+              </div>
+            )}
           </fieldset>
 
           {/* ── Encryption at Rest ──────────────────────────── */}

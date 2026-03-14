@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { parseJsonBody, validationErrorResponse } from "@/lib/validation/request";
 import { backupSchemas } from "@/lib/validation/schemas/api";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/server/client-ip";
 import { promises as fs } from "fs";
 import path from "path";
 import crypto from "crypto";
@@ -45,7 +46,7 @@ function encryptForServerBackup(payload: unknown, passphrase: string) {
 
 export async function POST(request: NextRequest) {
   try {
-    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const ip = getClientIp(request);
     const rate = await enforceRateLimit({ key: `backup:auto:${ip}`, windowMs: 60_000, maxAttempts: 10 });
     if (!rate.allowed) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
     const autoPassphrase = process.env.AUTO_BACKUP_PASSPHRASE;
