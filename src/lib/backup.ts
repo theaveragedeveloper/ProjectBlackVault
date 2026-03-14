@@ -98,15 +98,12 @@ export function latestBackupChangeToken(data: Awaited<ReturnType<typeof collectB
   pushDates(data.firearms);
   pushDates(data.accessories);
   pushDates(data.builds);
-  pushDates(data.buildSlots);
   pushDates(data.maintenanceNotes);
   pushDates(data.maintenanceSchedules);
   pushDates(data.rangeSessions);
   pushDates(data.drillTemplates);
-  pushDates(data.sessionDrills);
   pushDates(data.drillLogs);
   pushDates(data.ammo);
-  pushDates(data.ammoTransactions);
   pushDates(data.documents);
 
   return allDates.length ? Math.max(...allDates) : 0;

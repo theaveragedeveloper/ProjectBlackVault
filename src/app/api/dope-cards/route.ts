@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { firearmId, name, notes, zeroRangeYd, profile, confirmedAt } = body ?? {};
+    const { firearmId, name, notes, zeroRangeYd, profile, unit } = body ?? {};
 
     if (!firearmId) {
       return NextResponse.json({ error: "Missing required field: firearmId" }, { status: 400 });
@@ -65,11 +65,11 @@ export async function POST(request: NextRequest) {
     const card = await prisma.dopeCard.create({
       data: {
         firearmId,
-        name: toOptionalString(name, 200),
+        name: toOptionalString(name, 200) ?? "",
         notes: toOptionalString(notes, 5000),
-        zeroRangeYd: toOptionalNumber(zeroRangeYd),
-        profile: toOptionalObject(profile),
-        confirmedAt: toOptionalDate(confirmedAt),
+        zeroDistanceYd: toOptionalNumber(zeroRangeYd) ?? 0,
+        unit: toOptionalString(unit, 10) ?? "MOA",
+        rows: typeof profile === "object" && profile !== null ? JSON.stringify(profile) : "[]",
       },
       include: {
         firearm: { select: { id: true, name: true, caliber: true } },
