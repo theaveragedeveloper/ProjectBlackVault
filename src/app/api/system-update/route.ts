@@ -1,4 +1,6 @@
 import { exec } from "node:child_process";
+import { existsSync } from "node:fs";
+import path from "node:path";
 import { promisify } from "node:util";
 import { NextRequest, NextResponse } from "next/server";
 import { verifyTokenNode } from "@/lib/session";
@@ -9,6 +11,7 @@ export const runtime = "nodejs";
 
 const UPDATE_DEFAULT_COMMAND = "git pull --ff-only";
 const UPDATE_TIMEOUT_MS = Number(process.env.SYSTEM_UPDATE_TIMEOUT_MS ?? "120000");
+const UPDATE_MODE_UNSUPPORTED_STATUS = 422;
 
 type SystemUpdateMetadata = {
   currentVersion: string | null;
@@ -16,6 +19,14 @@ type SystemUpdateMetadata = {
   updateAvailable: boolean;
   source: string;
   checkedAt: string;
+};
+
+type SystemUpdateMode = "git" | "docker";
+
+type ExecutionContext = {
+  mode: SystemUpdateMode | null;
+  repoAvailable: boolean;
+  hasAlternativeCommand: boolean;
 };
 
 function isStatusRouteEnabled() {
@@ -66,6 +77,64 @@ async function runShellCommand(command: string) {
   return [stdout.trim(), stderr.trim()].filter(Boolean).join("\n");
 }
 
+async function isGitRepoAvailable() {
+  if (existsSync(path.join(process.cwd(), ".git"))) {
+    return true;
+  }
+
+  try {
+    await runShellCommand("git rev-parse --is-inside-work-tree");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function probeRevision() {
+  try {
+    return await runShellCommand("git rev-parse --short HEAD");
+  } catch {
+    return null;
+  }
+}
+
+async function resolveExecutionContext(): Promise<ExecutionContext> {
+  const configuredMode = (process.env.SYSTEM_UPDATE_MODE ?? "auto").trim().toLowerCase();
+  const commandFromEnv = process.env.SYSTEM_UPDATE_COMMAND?.trim();
+  const hasAlternativeCommand = Boolean(commandFromEnv);
+  const repoAvailable = await isGitRepoAvailable();
+
+  if (configuredMode === "git") {
+    return { mode: "git", repoAvailable, hasAlternativeCommand };
+  }
+
+  if (configuredMode === "docker") {
+    return { mode: "docker", repoAvailable, hasAlternativeCommand };
+  }
+
+  if (repoAvailable) {
+    return { mode: "git", repoAvailable, hasAlternativeCommand };
+  }
+
+  if (hasAlternativeCommand) {
+    return { mode: "docker", repoAvailable, hasAlternativeCommand };
+  }
+
+  return { mode: null, repoAvailable, hasAlternativeCommand };
+}
+
+function getUnsupportedModeResponse() {
+  return NextResponse.json(
+    {
+      error: "In-app update is unsupported for this deployment.",
+      message:
+        "No git repository is available and no SYSTEM_UPDATE_COMMAND is configured. Use ./update.sh (Linux/macOS) or update.bat (Windows) from the host instead.",
+      recommendation: "Run ./update.sh or update.bat on the host machine.",
+    },
+    { status: UPDATE_MODE_UNSUPPORTED_STATUS }
+  );
+}
+
 export async function GET(request: NextRequest) {
   if (!isStatusRouteEnabled() || !isProductionAllowed()) {
     return NextResponse.json(
@@ -81,12 +150,19 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Forbidden." }, { status: 403 });
   }
 
+  const execution = await resolveExecutionContext();
+
   return NextResponse.json({
     metadata: getMetadata(),
-    writable: isExecutionEnabled(),
+    writable: isExecutionEnabled() && execution.mode !== null,
+    mode: execution.mode,
     message: isExecutionEnabled()
       ? "System update endpoint is enabled."
       : "Update checks are enabled, but command execution is disabled.",
+    unsupported:
+      execution.mode === null
+        ? "In-app git updates are unavailable in this deployment. Configure SYSTEM_UPDATE_COMMAND for docker mode or run ./update.sh / update.bat on the host."
+        : null,
   });
 }
 
@@ -117,17 +193,36 @@ export async function POST(request: NextRequest) {
 
   const requestedCommand = process.env.SYSTEM_UPDATE_COMMAND?.trim() || UPDATE_DEFAULT_COMMAND;
   const postCommand = process.env.SYSTEM_UPDATE_POST_COMMAND?.trim();
+  const execution = await resolveExecutionContext();
+
+  if (execution.mode === null) {
+    return getUnsupportedModeResponse();
+  }
+
+  if (execution.mode === "git" && !execution.repoAvailable) {
+    return NextResponse.json(
+      {
+        error: "Git repository unavailable for in-app update.",
+        message:
+          "This deployment does not expose a working git checkout for in-app updates. Run ./update.sh or update.bat from the host machine, or configure docker mode with SYSTEM_UPDATE_MODE=docker and SYSTEM_UPDATE_COMMAND.",
+      },
+      { status: UPDATE_MODE_UNSUPPORTED_STATUS }
+    );
+  }
 
   try {
-    const before = await runShellCommand("git rev-parse --short HEAD");
+    const before = execution.mode === "git" ? await probeRevision() : null;
     const updateOutput = await runShellCommand(requestedCommand);
-    const after = await runShellCommand("git rev-parse --short HEAD");
+    const after = execution.mode === "git" ? await probeRevision() : null;
+
+    const changed = before && after ? before !== after : null;
 
     const commandLogs = [
+      `Mode: ${execution.mode}`,
       `Command: ${requestedCommand}`,
       `Timeout(ms): ${UPDATE_TIMEOUT_MS}`,
-      `Before: ${before}`,
-      `After: ${after}`,
+      `Before: ${before ?? "Unavailable"}`,
+      `After: ${after ?? "Unavailable"}`,
       "",
       updateOutput || "No output from update command.",
     ];
@@ -139,10 +234,16 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      changed: before !== after,
+      changed,
+      mode: execution.mode,
       output: commandLogs.join("\n"),
       metadata: getMetadata(),
-      message: before === after ? "Update command completed. No version change detected." : "Update completed successfully.",
+      message:
+        changed === null
+          ? "Update command completed. Revision probe unavailable for this deployment."
+          : changed
+            ? "Update completed successfully."
+            : "Update command completed. No version change detected.",
     });
   } catch (error) {
     return NextResponse.json(
