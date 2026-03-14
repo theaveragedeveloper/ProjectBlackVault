@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   // Include current round count for round-based due calculations
   let currentRoundCount: number | null = null;
   if (firearmId) {
-    const agg = await prisma.rangeSession.aggregate({
+    const agg = await prisma.sessionFirearm.aggregate({
       where: { firearmId },
       _sum: { roundsFired: true },
     });
