@@ -68,17 +68,17 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { firearmId, name, notes, zeroRangeYd, profile, confirmedAt } = body ?? {};
+    const { firearmId, name, notes, zeroRangeYd, profile, unit } = body ?? {};
 
     const card = await prisma.dopeCard.update({
       where: { id },
       data: {
         firearmId: firearmId !== undefined ? firearmId || null : undefined,
-        name: toOptionalString(name, 200),
+        name: toOptionalString(name, 200) ?? undefined,
         notes: toOptionalString(notes, 5000),
-        zeroRangeYd: toOptionalNumber(zeroRangeYd),
-        profile: toOptionalObject(profile),
-        confirmedAt: toOptionalDate(confirmedAt),
+        zeroDistanceYd: toOptionalNumber(zeroRangeYd) ?? undefined,
+        unit: toOptionalString(unit, 10) ?? undefined,
+        rows: profile !== undefined ? (typeof profile === "object" && profile !== null ? JSON.stringify(profile) : "[]") : undefined,
       },
       include: {
         firearm: { select: { id: true, name: true, caliber: true } },

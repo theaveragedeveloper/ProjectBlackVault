@@ -13,7 +13,8 @@ interface SafeImageProps extends Omit<ImageProps, "src" | "alt"> {
 
 function sourceKey(src: SafeImageSource): string | null {
   if (!src) return null;
-  return typeof src === "string" ? src : src.src;
+  if (typeof src === "string") return src;
+  return (src as { src?: string }).src ?? null;
 }
 
 export function SafeImage({ src, fallback, onError, alt, ...imageProps }: SafeImageProps) {
@@ -27,7 +28,7 @@ export function SafeImage({ src, fallback, onError, alt, ...imageProps }: SafeIm
   return (
     <Image
       {...imageProps}
-      src={src}
+      src={src as ImageProps["src"]}
       alt={alt}
       onError={(event) => {
         setFailedSource(currentSource);

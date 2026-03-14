@@ -303,7 +303,7 @@ export default function AccessoryDetailPage() {
         <div className="absolute bottom-0 left-0 right-0 px-6 pb-4">
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xs px-2 py-0.5 rounded border border-vault-border text-vault-text-muted font-mono uppercase">
-              {SLOT_TYPE_LABELS[accessory.type] ?? accessory.type}
+              {SLOT_TYPE_LABELS[accessory.type as keyof typeof SLOT_TYPE_LABELS] ?? accessory.type}
             </span>
             {accessory.caliber && (
               <span className="text-xs px-2 py-0.5 rounded border border-vault-border text-vault-text-muted font-mono">
@@ -549,7 +549,7 @@ export default function AccessoryDetailPage() {
                 </p>
                 <p className="text-xs text-vault-text-muted mt-0.5">
                   Build: {accessory.currentBuild.name} ·{" "}
-                  {SLOT_TYPE_LABELS[accessory.currentBuild.slotType] ?? accessory.currentBuild.slotType} slot
+                  {SLOT_TYPE_LABELS[accessory.currentBuild.slotType as keyof typeof SLOT_TYPE_LABELS] ?? accessory.currentBuild.slotType} slot
                 </p>
               </div>
               <Link

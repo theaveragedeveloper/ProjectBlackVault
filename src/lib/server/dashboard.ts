@@ -283,6 +283,6 @@ export function revalidateDashboardCaches(domains: Array<keyof typeof DASHBOARD_
     uniqueTags.add(DASHBOARD_CACHE_TAGS[domain]);
   }
   for (const tag of uniqueTags) {
-    revalidateTag(tag);
+    revalidateTag(tag, "max");
   }
 }
