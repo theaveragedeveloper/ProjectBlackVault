@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { hashPassword } from "@/lib/password";
+import { hashPassword, verifyPassword } from "@/lib/password";
 
 // GET /api/settings - Get the singleton AppSettings
 export async function GET() {
@@ -47,6 +47,7 @@ export async function PUT(request: NextRequest) {
     const {
       defaultCurrency,
       appPassword,
+      currentPassword,
     } = body;
 
     // Build update data, only including fields that were provided
@@ -62,6 +63,17 @@ export async function PUT(request: NextRequest) {
     }
 
     if (appPassword !== undefined) {
+      // If a password is already set, the current password must be verified before changing it
+      const existing = await prisma.appSettings.findUnique({ where: { id: "singleton" } });
+      if (existing?.appPassword) {
+        if (typeof currentPassword !== "string" || currentPassword.length === 0) {
+          return NextResponse.json({ error: "Current password is required to change the password" }, { status: 403 });
+        }
+        if (!verifyPassword(currentPassword, existing.appPassword)) {
+          return NextResponse.json({ error: "Current password is incorrect" }, { status: 403 });
+        }
+      }
+
       if (appPassword === "" || appPassword === null) {
         updateData.appPassword = null;
       } else if (typeof appPassword === "string" && appPassword.length <= 1024) {
