@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, verifyPassword } from "@/lib/password";
+import { getSessionCookieOptions } from "@/lib/session-config";
 
 // GET /api/settings - Get the singleton AppSettings
 export async function GET() {
@@ -91,7 +93,7 @@ export async function PUT(request: NextRequest) {
       update: updateData,
     });
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       ...settings,
       enableImageSearch: false,
       googleCseApiKey: null,
@@ -101,6 +103,15 @@ export async function PUT(request: NextRequest) {
       encryptionEnabled: !!process.env.VAULT_ENCRYPTION_KEY,
       encryptionViaEnv: !!process.env.VAULT_ENCRYPTION_KEY,
     });
+
+    // Invalidate the current session whenever the password is changed so that
+    // any captured/stolen session cookies are immediately rendered useless.
+    if (updateData.appPassword !== undefined) {
+      const cookieStore = await cookies();
+      cookieStore.set("vault_session", "", { ...getSessionCookieOptions(), maxAge: 0 });
+    }
+
+    return response;
   } catch (error) {
     console.error("PUT /api/settings error:", error);
     return NextResponse.json(
