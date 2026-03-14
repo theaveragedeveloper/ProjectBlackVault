@@ -1,14 +1,21 @@
 <svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
   <title id="title">BlackVault logo</title>
-  <desc id="desc">Geometric blue vault emblem</desc>
-  <g stroke="#18A0FF" stroke-width="24" stroke-linecap="square" stroke-linejoin="miter">
-    <path d="M256 60L340 108V192"/>
-    <path d="M256 60L172 108V192" opacity="0"/>
-    <path d="M172 192L256 144L340 192V256"/>
-    <path d="M172 240L256 192L340 240V288"/>
-    <path d="M172 240V336L256 384L340 336"/>
-    <path d="M340 192V288L256 336L172 288"/>
-    <path d="M220 272V310L256 328L292 310V272"/>
-    <path d="M256 272V310"/>
-  </g>
+  <desc id="desc">Geometric blue hexagonal padlock emblem</desc>
+
+  <!-- Shackle: hexagonal arch at top, two vertical sides + top hex arc -->
+  <path d="M200 230 L200 148 L214 120 L256 96 L298 120 L312 148 L312 230" stroke="#1A8CFF" stroke-width="22" stroke-linecap="square" stroke-linejoin="miter" fill="none"/>
+
+  <!-- Outer hexagon body (flat-top, center 256,320, radius 170) -->
+  <polygon points="256,150 404,235 404,405 256,490 108,405 108,235" stroke="#1A8CFF" stroke-width="22" stroke-linejoin="miter" fill="none"/>
+
+  <!-- Middle concentric hexagon (radius ~115) -->
+  <polygon points="256,205 371,267.5 371,372.5 256,435 141,372.5 141,267.5" stroke="#1A8CFF" stroke-width="18" stroke-linejoin="miter" fill="none"/>
+
+  <!-- Inner concentric hexagon (radius ~70) -->
+  <polygon points="256,250 326,290.5 326,369.5 256,410 186,369.5 186,290.5" stroke="#1A8CFF" stroke-width="16" stroke-linejoin="miter" fill="none"/>
+
+  <!-- @ symbol in center: circle + arc + tail -->
+  <circle cx="256" cy="330" r="38" stroke="#1A8CFF" stroke-width="16" fill="none"/>
+  <circle cx="256" cy="330" r="18" stroke="#1A8CFF" stroke-width="14" fill="none"/>
+  <line x1="294" y1="330" x2="294" y2="368" stroke="#1A8CFF" stroke-width="16" stroke-linecap="square"/>
 </svg>
