@@ -79,6 +79,11 @@
       <button class="btn btn-primary" id="btn-install">
         Install &amp; Launch
       </button>
+      <div class="divider"></div>
+      <p style="text-align:center;font-size:11px;color:var(--text-dim);margin-bottom:0">Have an existing vault backup?</p>
+      <button class="btn btn-ghost" id="btn-restore-mode" style="margin-top:6px;">
+        Restore Existing Vault Instead
+      </button>
       <div class="error-text" id="setup-error"></div>
     </div>
 
@@ -127,10 +132,13 @@
     <div class="app-name">ProjectBlackVault</div>
     <div class="app-subtitle">Setting up — please wait...</div>
 
-    <div class="card" style="text-align:center; padding:32px 20px;">
-      <div class="spinner" style="width:32px;height:32px;border-width:3px;margin:0 auto 16px;color:var(--green)"></div>
-      <div id="install-msg" style="font-size:13px;color:#aaa;">Downloading ProjectBlackVault...</div>
-      <div style="font-size:11px;color:#555;margin-top:8px;">This only happens once. Usually takes 1–2 minutes.</div>
+    <div class="card" style="padding:24px 20px;">
+      <div style="text-align:center;margin-bottom:16px;">
+        <div class="spinner" style="width:28px;height:28px;border-width:3px;margin:0 auto 12px;color:var(--green)"></div>
+        <div id="install-msg" style="font-size:13px;color:#aaa;">Downloading ProjectBlackVault...</div>
+        <div style="font-size:11px;color:#555;margin-top:6px;">This only happens once. Usually takes 1–2 minutes.</div>
+      </div>
+      <pre id="install-log" style="font-size:10px;color:#555;font-family:monospace;max-height:120px;overflow-y:auto;background:#050505;border:1px solid #1a1a1a;border-radius:6px;padding:8px;margin:0;white-space:pre-wrap;word-break:break-all;"></pre>
     </div>
   </div>
 

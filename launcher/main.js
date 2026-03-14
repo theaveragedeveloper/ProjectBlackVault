@@ -4,6 +4,7 @@ const { app, BrowserWindow, Tray, Menu, shell, ipcMain, dialog, nativeImage } = 
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
+const net = require('net');
 const { exec, spawn } = require('child_process');
 const crypto = require('crypto');
 
@@ -16,7 +17,6 @@ if (!gotSingleInstanceLock) {
 }
 
 app.on('second-instance', () => {
-  // Another instance was opened — bring existing window to front
   if (mainWindow) {
     if (mainWindow.isMinimized()) mainWindow.restore();
     mainWindow.show();
@@ -56,7 +56,7 @@ let _composeCmd = null;
 async function getDockerComposeCmd() {
   if (_composeCmd) return _composeCmd;
   return new Promise(resolve => {
-    exec('docker compose version', err => {
+    exec('docker compose version', { env: buildEnv(null) }, err => {
       _composeCmd = err ? ['docker-compose'] : ['docker', 'compose'];
       resolve(_composeCmd);
     });
@@ -67,7 +67,7 @@ async function getDockerComposeCmd() {
 
 async function checkDocker() {
   return new Promise(resolve => {
-    exec('docker info', (err, _stdout, stderr) => {
+    exec('docker info', { env: buildEnv(null) }, (err, _stdout, stderr) => {
       if (!err) {
         resolve({ status: 'ready' });
       } else if (stderr && (stderr.includes('Cannot connect') || stderr.includes('Is the docker daemon running'))) {
@@ -83,14 +83,15 @@ async function checkDocker() {
 
 function buildEnv(config) {
   // Augment PATH so Homebrew-installed Docker is found on macOS/Linux.
-  // Electron strips the shell PATH when spawning processes.
   const extraPaths = ['/usr/local/bin', '/opt/homebrew/bin', '/opt/local/bin'];
   const currentPath = process.env.PATH || '';
   const augmentedPath = [...extraPaths, currentPath].filter(Boolean).join(path.delimiter);
 
+  const base = { ...process.env, PATH: augmentedPath };
+  if (!config) return base;
+
   return {
-    ...process.env,
-    PATH: augmentedPath,
+    ...base,
     DATA_DIR: config.dataDir,
     PORT: String(config.port),
     VAULT_ENCRYPTION_KEY: config.encryptionKey,
@@ -98,7 +99,7 @@ function buildEnv(config) {
   };
 }
 
-async function runCompose(args, config) {
+async function runCompose(args, config, { onLog } = {}) {
   const cmd = await getDockerComposeCmd();
   const composePath = getComposePath();
   const fullArgs = [...cmd.slice(1), '-f', composePath, ...args];
@@ -110,10 +111,17 @@ async function runCompose(args, config) {
     });
 
     let stderr = '';
-    proc.stderr.on('data', d => { stderr += d.toString(); });
+    proc.stderr.on('data', d => {
+      const line = d.toString().trim();
+      stderr += line + '\n';
+      // Stream pull progress lines to the renderer
+      if (onLog && line) {
+        onLog(line);
+      }
+    });
     proc.on('close', code => {
       if (code === 0) resolve();
-      else reject(new Error(stderr || `docker compose exited with code ${code}`));
+      else reject(new Error(stderr.trim() || `docker compose exited with code ${code}`));
     });
   });
 }
@@ -126,9 +134,20 @@ async function stopContainer(config) {
   await runCompose(['down'], config);
 }
 
-async function pullLatestImage(config) {
-  await runCompose(['pull'], config);
-  await runCompose(['up', '-d'], config);
+async function pullLatestImage(config, onLog) {
+  await runCompose(['pull'], config, { onLog });
+  await runCompose(['up', '-d'], config, { onLog });
+}
+
+// ─── Port conflict detection ───────────────────────────────────────────────
+
+function isPortInUse(port) {
+  return new Promise(resolve => {
+    const server = net.createServer();
+    server.once('error', () => resolve(true));
+    server.once('listening', () => { server.close(); resolve(false); });
+    server.listen(port, '127.0.0.1');
+  });
 }
 
 // ─── Health polling ────────────────────────────────────────────────────────
@@ -136,24 +155,28 @@ async function pullLatestImage(config) {
 let _currentStatus = 'stopped';
 let _pollInterval = null;
 
+function checkHealthOnce(port, onStatusChange) {
+  const req = http.get(`http://localhost:${port}/api/health`, res => {
+    const next = res.statusCode === 200 ? 'running' : 'starting';
+    if (next !== _currentStatus) {
+      _currentStatus = next;
+      onStatusChange(next);
+    }
+  });
+  req.on('error', () => {
+    if (_currentStatus !== 'stopped') {
+      _currentStatus = 'stopped';
+      onStatusChange('stopped');
+    }
+  });
+  req.setTimeout(5000, () => req.destroy());
+}
+
 function pollHealth(port, onStatusChange) {
   clearInterval(_pollInterval);
-  _pollInterval = setInterval(() => {
-    const req = http.get(`http://localhost:${port}/api/health`, res => {
-      const next = res.statusCode === 200 ? 'running' : 'starting';
-      if (next !== _currentStatus) {
-        _currentStatus = next;
-        onStatusChange(next);
-      }
-    });
-    req.on('error', () => {
-      if (_currentStatus !== 'stopped') {
-        _currentStatus = 'stopped';
-        onStatusChange('stopped');
-      }
-    });
-    req.setTimeout(5000, () => req.destroy());
-  }, 10000);
+  // Fire once immediately to detect already-running container
+  checkHealthOnce(port, onStatusChange);
+  _pollInterval = setInterval(() => checkHealthOnce(port, onStatusChange), 10000);
 }
 
 function stopPolling() {
@@ -168,7 +191,7 @@ let mainWindow = null;
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 420,
-    height: 520,
+    height: 540,
     resizable: false,
     title: 'ProjectBlackVault',
     icon: path.join(__dirname, 'assets', 'icon.png'),
@@ -257,19 +280,58 @@ function updateTray(status, config) {
   tray.setToolTip(`ProjectBlackVault — ${label}`);
   tray.setContextMenu(buildTrayMenu(status, config));
 
-  // Notify renderer
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('status-change', status);
   }
+}
+
+// ─── Backup reminder (one-time) ────────────────────────────────────────────
+
+function showBackupReminder(config) {
+  if (config.backupReminderShown) return;
+
+  dialog.showMessageBox(mainWindow, {
+    type: 'warning',
+    title: 'Back Up Your Encryption Key',
+    message: 'Your vault is encrypted with a key stored locally.',
+    detail:
+      `If you lose the config file at:\n${CONFIG_PATH}\n\nyour data cannot be recovered.\n\nMake a secure copy of this file now.`,
+    buttons: ['Open Folder', 'I understand'],
+    defaultId: 1,
+    cancelId: 1,
+  }).then(result => {
+    if (result.response === 0) {
+      shell.openPath(path.dirname(CONFIG_PATH));
+    }
+    config.backupReminderShown = true;
+    saveConfig(config);
+  });
 }
 
 // ─── Action handlers ───────────────────────────────────────────────────────
 
 let _config = null;
 
+function sendLog(line) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('install-log', line);
+  }
+}
+
 async function handleStart() {
   _config = loadConfig();
   if (!_config) { showWindow(); return; }
+
+  // Port conflict check
+  const inUse = await isPortInUse(_config.port);
+  if (inUse) {
+    dialog.showErrorBox(
+      'Port Already in Use',
+      `Port ${_config.port} is already in use by another application.\n\nChange the port in the launcher setup and try again.`
+    );
+    return;
+  }
+
   updateTray('starting', _config);
   try {
     await startContainer(_config);
@@ -284,6 +346,7 @@ async function handleStop() {
   _config = loadConfig();
   if (!_config) return;
   stopPolling();
+  _currentStatus = 'stopped';
   updateTray('stopped', _config);
   try {
     await stopContainer(_config);
@@ -298,7 +361,7 @@ async function handleUpdate() {
   stopPolling();
   updateTray('starting', _config);
   try {
-    await pullLatestImage(_config);
+    await pullLatestImage(_config, sendLog);
     pollHealth(_config.port, status => updateTray(status, _config));
     dialog.showMessageBox({ type: 'info', title: 'Updated', message: 'ProjectBlackVault has been updated to the latest version.' });
   } catch (err) {
@@ -318,11 +381,15 @@ ipcMain.handle('get-config', () => {
 });
 
 ipcMain.handle('save-config', async (_event, cfg) => {
-  // Generate secrets on first save
   if (!cfg.encryptionKey) cfg.encryptionKey = crypto.randomBytes(32).toString('hex');
   if (!cfg.sessionSecret) cfg.sessionSecret = crypto.randomBytes(32).toString('hex');
+  const isFirstRun = !loadConfig();
   saveConfig(cfg);
   _config = cfg;
+  if (isFirstRun) {
+    // Show backup reminder after a short delay so the dashboard loads first
+    setTimeout(() => showBackupReminder(_config), 3000);
+  }
   return { ok: true };
 });
 
@@ -357,10 +424,13 @@ ipcMain.handle('open-external', (_event, url) => {
   shell.openExternal(url);
 });
 
+ipcMain.handle('open-path', (_event, p) => {
+  shell.openPath(p);
+});
+
 // ─── App lifecycle ─────────────────────────────────────────────────────────
 
 app.whenReady().then(async () => {
-  // Windows: group app under this ID in the taskbar
   if (process.platform === 'win32') {
     app.setAppUserModelId('io.github.theaveragedeveloper.projectblackvault');
   }
@@ -379,6 +449,28 @@ app.whenReady().then(async () => {
   // Create window
   createWindow();
 
+  // Auto-updater (only in packaged builds — requires GH releases)
+  if (app.isPackaged) {
+    try {
+      const { autoUpdater } = require('electron-updater');
+      autoUpdater.checkForUpdatesAndNotify();
+      autoUpdater.on('update-downloaded', () => {
+        dialog.showMessageBox({
+          type: 'info',
+          title: 'Launcher Update Ready',
+          message: 'A new version of the launcher has been downloaded.',
+          detail: 'It will be installed the next time you quit ProjectBlackVault.',
+          buttons: ['Restart Now', 'Later'],
+          defaultId: 1,
+        }).then(result => {
+          if (result.response === 0) autoUpdater.quitAndInstall();
+        });
+      });
+    } catch {
+      // electron-updater not available in dev
+    }
+  }
+
   // Auto-start container if configured
   _config = loadConfig();
   if (_config) {
@@ -387,21 +479,20 @@ app.whenReady().then(async () => {
       updateTray('starting', _config);
       try {
         await startContainer(_config);
-        pollHealth(_config.port, status => updateTray(status, _config));
       } catch {
-        updateTray('stopped', _config);
+        // Container may already be running — polling will detect state
       }
+      // Immediate poll + interval — detects already-running container without waiting 10s
+      pollHealth(_config.port, status => updateTray(status, _config));
     }
   }
 });
 
 app.on('window-all-closed', e => {
-  // Keep running in tray — don't quit when all windows closed
   e.preventDefault();
 });
 
 app.on('before-quit', () => {
-  // Allow real quit
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.removeAllListeners('close');
   }

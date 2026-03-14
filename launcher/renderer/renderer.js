@@ -215,6 +215,55 @@ document.getElementById('btn-update').addEventListener('click', async () => {
   btn.textContent = 'Check for Updates';
 });
 
+// ─── Install log streaming ────────────────────────────────────────────────
+
+const installLog = document.getElementById('install-log');
+window.vault.onInstallLog(line => {
+  if (!installLog) return;
+  installLog.textContent += line + '\n';
+  installLog.scrollTop = installLog.scrollHeight;
+});
+
+// ─── Restore existing vault button ────────────────────────────────────────
+
+document.getElementById('btn-restore-mode').addEventListener('click', async () => {
+  const dataDir = document.getElementById('input-data-dir').value.trim();
+  const portStr = document.getElementById('input-port').value.trim();
+  const errEl = document.getElementById('setup-error');
+  errEl.style.display = 'none';
+
+  if (!dataDir) {
+    errEl.textContent = 'Please choose a data folder first.';
+    errEl.style.display = 'block';
+    return;
+  }
+  const port = parseInt(portStr, 10);
+  if (!port || port < 1024 || port > 65535) {
+    errEl.textContent = 'Port must be between 1024 and 65535.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  showView('installing');
+  document.getElementById('install-msg').textContent = 'Starting ProjectBlackVault...';
+
+  const cfg = { dataDir, port, firstRunDone: true };
+  await window.vault.saveConfig(cfg);
+  _config = cfg;
+
+  await window.vault.start();
+
+  // Once running, open the Settings page in the browser for restore flow
+  window.vault.onStatusChange(status => {
+    if (status === 'running') {
+      window.vault.openExternal(`http://localhost:${port}/settings#backup`);
+      showView('dashboard');
+      populateDashboard(cfg);
+      applyStatus('running');
+    }
+  });
+});
+
 // ─── Boot ──────────────────────────────────────────────────────────────────
 
 init();

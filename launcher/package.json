@@ -8,7 +8,9 @@
     "build": "electron-builder --publish never",
     "dist": "electron-builder --publish always"
   },
-  "dependencies": {},
+  "dependencies": {
+    "electron-updater": "^6.3.0"
+  },
   "devDependencies": {
     "electron": "^33.0.0",
     "electron-builder": "^25.0.0"
