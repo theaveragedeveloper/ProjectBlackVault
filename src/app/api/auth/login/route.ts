@@ -8,6 +8,7 @@ import { parseJsonBody, validationErrorResponse } from "@/lib/validation/request
 import { authSchemas } from "@/lib/validation/schemas/api";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { getSessionCookieOptions } from "@/lib/session-config";
+import { getClientIp } from "@/lib/server/client-ip";
 
 const MAX_ATTEMPTS = 10;
 const WINDOW_MS = 60 * 1000;
@@ -15,7 +16,7 @@ const WINDOW_MS = 60 * 1000;
 export async function POST(request: NextRequest) {
   try {
     // Rate limiting
-    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const ip = getClientIp(request);
     const rate = await enforceRateLimit({ key: `auth:login:${ip}`, windowMs: WINDOW_MS, maxAttempts: MAX_ATTEMPTS });
     if (!rate.allowed) {
       return NextResponse.json(

@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
-import { hashPassword } from "@/lib/password";
+import { hashPassword, verifyPassword } from "@/lib/password";
+import { getSessionCookieOptions } from "@/lib/session-config";
+import { enforceRateLimit } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/server/client-ip";
 
 // GET /api/settings - Get the singleton AppSettings
 export async function GET() {
@@ -42,11 +46,19 @@ export async function GET() {
 // PUT /api/settings - Update the singleton AppSettings
 export async function PUT(request: NextRequest) {
   try {
+    // Rate-limit password change attempts to prevent brute-force via currentPassword
+    const ip = getClientIp(request);
+    const rate = await enforceRateLimit({ key: `settings:password:${ip}`, windowMs: 60_000, maxAttempts: 5 });
+    if (!rate.allowed) {
+      return NextResponse.json({ error: "Too many attempts. Please wait a minute." }, { status: 429 });
+    }
+
     const body = await request.json();
 
     const {
       defaultCurrency,
       appPassword,
+      currentPassword,
     } = body;
 
     // Build update data, only including fields that were provided
@@ -62,10 +74,23 @@ export async function PUT(request: NextRequest) {
     }
 
     if (appPassword !== undefined) {
+      // If a password is already set, the current password must be verified before changing it
+      const existing = await prisma.appSettings.findUnique({ where: { id: "singleton" } });
+      if (existing?.appPassword) {
+        if (typeof currentPassword !== "string" || currentPassword.length === 0) {
+          return NextResponse.json({ error: "Current password is required to change the password" }, { status: 403 });
+        }
+        if (!verifyPassword(currentPassword, existing.appPassword)) {
+          return NextResponse.json({ error: "Current password is incorrect" }, { status: 403 });
+        }
+      }
+
       if (appPassword === "" || appPassword === null) {
         updateData.appPassword = null;
-      } else if (typeof appPassword === "string" && appPassword.length <= 1024) {
+      } else if (typeof appPassword === "string" && appPassword.length >= 8 && appPassword.length <= 1024) {
         updateData.appPassword = hashPassword(appPassword);
+      } else if (typeof appPassword === "string" && appPassword.length < 8) {
+        return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
       }
     }
 
@@ -79,7 +104,7 @@ export async function PUT(request: NextRequest) {
       update: updateData,
     });
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       ...settings,
       enableImageSearch: false,
       googleCseApiKey: null,
@@ -89,6 +114,15 @@ export async function PUT(request: NextRequest) {
       encryptionEnabled: !!process.env.VAULT_ENCRYPTION_KEY,
       encryptionViaEnv: !!process.env.VAULT_ENCRYPTION_KEY,
     });
+
+    // Invalidate the current session whenever the password is changed so that
+    // any captured/stolen session cookies are immediately rendered useless.
+    if (updateData.appPassword !== undefined) {
+      const cookieStore = await cookies();
+      cookieStore.set("vault_session", "", { ...getSessionCookieOptions(), maxAge: 0 });
+    }
+
+    return response;
   } catch (error) {
     console.error("PUT /api/settings error:", error);
     return NextResponse.json(

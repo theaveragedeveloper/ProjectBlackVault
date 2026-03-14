@@ -77,5 +77,5 @@ export const dopeSchemas = {
 };
 
 export const settingsSchemas = {
-  update: z.object({ appPassword: z.string().max(1024).optional(), encryptionEnabled: z.coerce.boolean().optional(), backupEnabled: z.coerce.boolean().optional(), backupPassphrase: z.string().optional() }).strict(),
+  update: z.object({ appPassword: z.string().min(8).max(1024).optional(), encryptionEnabled: z.coerce.boolean().optional(), backupEnabled: z.coerce.boolean().optional(), backupPassphrase: z.string().optional() }).strict(),
 };

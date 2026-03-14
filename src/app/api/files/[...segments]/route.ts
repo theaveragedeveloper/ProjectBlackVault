@@ -55,7 +55,7 @@ export async function GET(
         "Content-Type": mimeType,
         "X-Content-Type-Options": "nosniff",
         "Cache-Control": "private, max-age=31536000, immutable",
-        "Content-Disposition": `${download ? "attachment" : "inline"}; filename=\"${filename}\"`,
+        "Content-Disposition": `${download ? "attachment" : "inline"}; filename*=UTF-8''${encodeURIComponent(filename)}`,
       },
     });
   } catch (error: unknown) {
