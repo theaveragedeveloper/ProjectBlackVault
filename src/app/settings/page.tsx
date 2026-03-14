@@ -163,6 +163,9 @@ export default function SettingsPage() {
     // Only include password in payload if no current password is set, or if the user has verified it
     if (!settings?.appPassword || passwordUnlocked) {
       payload.appPassword = appPassword || null;
+      if (passwordUnlocked && currentPassword) {
+        payload.currentPassword = currentPassword;
+      }
     }
 
     try {

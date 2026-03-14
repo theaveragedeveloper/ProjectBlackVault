@@ -4,34 +4,15 @@ import { parseJsonBody, validationErrorResponse } from "@/lib/validation/request
 import { encryptionSchemas } from "@/lib/validation/schemas/api";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { clearKeyCache } from "@/lib/crypto";
+import { getClientIp } from "@/lib/server/client-ip";
 import crypto from "crypto";
 
 const HEX_KEY_RE = /^[0-9a-fA-F]{64}$/;
 
-// GET /api/encryption — export the DB-stored key (not shown if set via env var)
-export async function GET() {
-  try {
-    // Never expose a key that was set via env var — it's managed outside the app
-    if (process.env.VAULT_ENCRYPTION_KEY) {
-      return NextResponse.json({ error: "Key is managed via environment variable" }, { status: 403 });
-    }
-
-    const settings = await prisma.appSettings.findUnique({ where: { id: "singleton" } });
-    if (!settings?.encryptionKey) {
-      return NextResponse.json({ error: "No encryption key configured" }, { status: 404 });
-    }
-
-    return NextResponse.json({ key: settings.encryptionKey });
-  } catch (error) {
-    console.error("GET /api/encryption error:", error);
-    return NextResponse.json({ error: "Failed to retrieve key" }, { status: 500 });
-  }
-}
-
 // POST /api/encryption — generate a new random key and save it
 export async function POST(request: NextRequest) {
   try {
-    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const ip = getClientIp(request);
     const rate = await enforceRateLimit({ key: `encryption:generate:${ip}`, windowMs: 60_000, maxAttempts: 5 });
     if (!rate.allowed) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
 
@@ -70,7 +51,7 @@ export async function POST(request: NextRequest) {
 // PUT /api/encryption — save a user-supplied key
 export async function PUT(request: NextRequest) {
   try {
-    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const ip = getClientIp(request);
     const rate = await enforceRateLimit({ key: `encryption:import:${ip}`, windowMs: 60_000, maxAttempts: 5 });
     if (!rate.allowed) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
 
@@ -111,7 +92,7 @@ export async function PUT(request: NextRequest) {
 // DELETE /api/encryption — remove the DB-stored key (disables encryption)
 export async function DELETE(request: NextRequest) {
   try {
-    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const ip = getClientIp(request);
     const rate = await enforceRateLimit({ key: `encryption:delete:${ip}`, windowMs: 60_000, maxAttempts: 5 });
     if (!rate.allowed) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
 
