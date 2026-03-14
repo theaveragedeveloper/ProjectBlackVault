@@ -137,15 +137,10 @@ export async function PUT(
       const updated = await tx.rangeSession.update({
         where: { id },
         data: {
-          firearmId: parsedFirearms ? parsedFirearms[0].firearmId : undefined,
-          buildId: parsedFirearms ? parsedFirearms[0].buildId : undefined,
-          roundsFired: parsedFirearms
-            ? parsedFirearms.reduce((sum, entry) => sum + entry.roundsFired, 0)
-            : undefined,
           rangeName: parseOptionalString(rangeName, 200),
           rangeLocation: parseOptionalString(rangeLocation, 200),
           notes: parseOptionalString(notes, 5000),
-          date: parsedDate.value,
+          date: parsedDate.value ?? undefined,
           environment: parseOptionalString(environment),
           temperatureF: parseFloat_(temperatureF),
           windSpeedMph: parseFloat_(windSpeedMph),

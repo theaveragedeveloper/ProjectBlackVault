@@ -3,7 +3,15 @@ import { prisma } from "@/lib/prisma";
 import { SLOT_TYPES } from "@/lib/types";
 
 function isCustomSlotType(slotType: string): boolean {
-  return slotType.startsWith("CUSTOM:") && slotType.slice("CUSTOM:".length).trim().length > 0;
+  if (!slotType.startsWith("CUSTOM:")) return false;
+  const rest = slotType.slice("CUSTOM:".length);
+  const pipe = rest.indexOf("|");
+  if (pipe !== -1) {
+    // New format: CUSTOM:<category>|<name>
+    return rest.slice(0, pipe).trim().length > 0 && rest.slice(pipe + 1).trim().length > 0;
+  }
+  // Old format: CUSTOM:<name>
+  return rest.trim().length > 0;
 }
 
 // PUT /api/builds/[id]/slots - Assign or remove an accessory from a slot
@@ -101,5 +109,32 @@ export async function PUT(
       { error: "Failed to update slot" },
       { status: 500 }
     );
+  }
+}
+
+// DELETE /api/builds/[id]/slots?slotType=CUSTOM:... - Delete a custom slot record entirely
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id: buildId } = await params;
+    const { searchParams } = new URL(request.url);
+    const slotType = searchParams.get("slotType");
+
+    if (!slotType) {
+      return NextResponse.json({ error: "Missing required query param: slotType" }, { status: 400 });
+    }
+
+    if (!isCustomSlotType(slotType)) {
+      return NextResponse.json({ error: "Only custom slots can be deleted" }, { status: 400 });
+    }
+
+    await prisma.buildSlot.deleteMany({ where: { buildId, slotType } });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("DELETE /api/builds/[id]/slots error:", error);
+    return NextResponse.json({ error: "Failed to delete slot" }, { status: 500 });
   }
 }
