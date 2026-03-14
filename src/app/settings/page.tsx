@@ -464,36 +464,51 @@ export default function SettingsPage() {
     setUpdateOutput(null);
 
     try {
-      const checkRes = await fetch("/api/system-update");
-      const checkJson = await checkRes.json();
+      const statusRes = await fetch("/api/system-update");
+      const statusJson = await statusRes.json();
 
-      if (!checkRes.ok) {
-        // Treat "endpoint disabled" (404) as informational rather than an error
-        if (checkRes.status === 404) {
-          setUpdateOutput(checkJson.message ?? "System updates must be performed at the host level (systemd, cron, or deployment pipeline).");
-          return;
-        }
-        const details = typeof checkJson.details === "string" ? `\n\n${checkJson.details}` : "";
-        setUpdateError(`${checkJson.error ?? "Failed to check for updates."}${details}`);
+      if (!statusRes.ok) {
+        const details = typeof statusJson.details === "string" ? `\n\n${statusJson.details}` : "";
+        setUpdateError(`${statusJson.error ?? "Failed to check update status."}${details}`);
         return;
       }
 
-      const metadata = checkJson.metadata ?? checkJson;
+      if (!statusJson.writable) {
+        setUpdateError(
+          statusJson.message ??
+            "Update command execution is disabled. Set SYSTEM_UPDATE_EXEC_ENABLED=true to enable this button."
+        );
+        return;
+      }
+
+      const updateRes = await fetch("/api/system-update", { method: "POST" });
+      const updateJson = await updateRes.json();
+
+      if (!updateRes.ok) {
+        const details = typeof updateJson.details === "string" ? `\n\n${updateJson.details}` : "";
+        setUpdateError(`${updateJson.error ?? "Failed to update application."}${details}`);
+        return;
+      }
+
+      const metadata = updateJson.metadata ?? {};
       const currentVersion = typeof metadata.currentVersion === "string" ? metadata.currentVersion : "unknown";
       const latestVersion = typeof metadata.latestVersion === "string" ? metadata.latestVersion : null;
       const checkedAt = typeof metadata.checkedAt === "string" ? metadata.checkedAt : null;
       const checkedAtLine = checkedAt ? `Checked: ${new Date(checkedAt).toLocaleString()}` : null;
 
-      if (metadata.updateAvailable && latestVersion) {
-        setUpdateOutput(
-          [`Current: ${currentVersion}`, `Latest: ${latestVersion}`, checkedAtLine, "\nUpdate available. Run the host update workflow to apply it."]
-            .filter(Boolean)
-            .join("\n")
-        );
-        return;
-      }
+      const versionLines = [
+        `Current: ${currentVersion}`,
+        latestVersion ? `Latest: ${latestVersion}` : null,
+        checkedAtLine,
+        updateJson.changed
+          ? "\nUpdate applied. Restart BlackVault if your process manager does not auto-reload."
+          : "\nUpdate command completed. Already on latest commit.",
+      ]
+        .filter(Boolean)
+        .join("\n");
 
-      setUpdateOutput([`Current: ${currentVersion}`, checkedAtLine, "\nSystem is already up to date."].filter(Boolean).join("\n"));
+      const commandOutput = typeof updateJson.output === "string" ? updateJson.output : "No command output available.";
+      setUpdateOutput(`${versionLines}\n\n${commandOutput}`);
     } catch {
       setUpdateError("Network error. Please try again.");
     } finally {
@@ -1031,7 +1046,7 @@ export default function SettingsPage() {
             </legend>
 
             <p className="text-xs text-vault-text-muted leading-relaxed">
-              Check whether a new version is available. Applying updates now happens through your host deployment workflow.
+              Run the configured update command to pull and apply the newest version on this host. This action is disabled unless SYSTEM_UPDATE_EXEC_ENABLED=true.
             </p>
 
             {updateError && (
@@ -1045,7 +1060,7 @@ export default function SettingsPage() {
               <div className="rounded-md border border-[#00C853]/30 bg-[#00C853]/10 px-3 py-2 space-y-2">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="h-3.5 w-3.5 text-[#00C853]" />
-                  <p className="text-xs text-[#00C853]">Update check completed.</p>
+                  <p className="text-xs text-[#00C853]">Update command completed.</p>
                 </div>
                 <pre className="text-[11px] text-vault-text-faint whitespace-pre-wrap break-words font-mono">{updateOutput}</pre>
               </div>
@@ -1058,11 +1073,11 @@ export default function SettingsPage() {
               className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-60 disabled:cursor-not-allowed text-xs transition-colors"
             >
               {updateBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-              {updateBusy ? "Checking updates..." : "Check for Updates"}
+              {updateBusy ? "Applying update..." : "Update Now"}
             </button>
 
             <p className="text-[11px] text-vault-text-faint">
-              This reads update metadata only. To install updates, use your host-level process (systemd, cron, deployment pipeline, or manual pull/restart).
+              By default this executes <code className="font-mono">git pull --ff-only</code>. Override <code className="font-mono">SYSTEM_UPDATE_COMMAND</code>, optional <code className="font-mono">SYSTEM_UPDATE_POST_COMMAND</code>, and <code className="font-mono">SYSTEM_UPDATE_TIMEOUT_MS</code> for custom deployment behavior.
             </p>
           </fieldset>
 
