@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'">
+  <title>ProjectBlackVault</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ── View: Docker not installed ─────────────────────────────────────── -->
+  <div id="view-docker-missing" class="view">
+    <div class="logo">🐳</div>
+    <div class="app-name">Docker Required</div>
+    <div class="app-subtitle">ProjectBlackVault needs Docker Desktop to run</div>
+
+    <div class="card">
+      <div class="card-title">Setup Required</div>
+      <p style="font-size:13px; color:#aaa; line-height:1.7; margin-bottom:16px;">
+        Docker Desktop is a free tool that lets ProjectBlackVault run safely on your computer.
+        Click below to download it, then come back and click <strong>Check Again</strong>.
+      </p>
+      <button class="btn btn-primary" id="btn-docker-download">
+        Download Docker Desktop
+      </button>
+      <button class="btn btn-ghost" id="btn-docker-recheck" style="margin-top:8px;">
+        Check Again
+      </button>
+    </div>
+
+    <div class="warn-box">
+      After installing Docker Desktop, make sure it's running (look for the Docker whale icon in your taskbar/menu bar) before clicking Check Again.
+    </div>
+  </div>
+
+  <!-- ── View: Docker not running ───────────────────────────────────────── -->
+  <div id="view-docker-not-running" class="view">
+    <div class="logo">⚠️</div>
+    <div class="app-name">Docker Not Running</div>
+    <div class="app-subtitle">Docker Desktop is installed but not started</div>
+
+    <div class="card">
+      <div class="card-title">Start Docker Desktop</div>
+      <p style="font-size:13px; color:#aaa; line-height:1.7; margin-bottom:16px;">
+        Open Docker Desktop from your applications, wait for the whale icon to appear in your
+        taskbar/menu bar, then click <strong>Try Again</strong>.
+      </p>
+      <button class="btn btn-primary" id="btn-docker-retry">
+        Try Again
+      </button>
+    </div>
+  </div>
+
+  <!-- ── View: First-run setup ──────────────────────────────────────────── -->
+  <div id="view-setup" class="view">
+    <div class="logo">⬡</div>
+    <div class="app-name">ProjectBlackVault</div>
+    <div class="app-subtitle">First-time setup — takes about 30 seconds</div>
+
+    <div class="card">
+      <div class="card-title">Configure Your Vault</div>
+
+      <div class="field">
+        <label>Data Folder</label>
+        <div class="field-row">
+          <input type="text" id="input-data-dir" placeholder="~/blackvault-data" readonly>
+          <button class="btn btn-ghost" id="btn-browse">Browse</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Port <span style="color:#555; font-weight:400; text-transform:none">(default: 3000)</span></label>
+        <input type="number" id="input-port" value="3000" min="1024" max="65535">
+      </div>
+
+      <div class="divider"></div>
+
+      <button class="btn btn-primary" id="btn-install">
+        Install &amp; Launch
+      </button>
+      <div class="error-text" id="setup-error"></div>
+    </div>
+
+    <div class="info-box">
+      Your data will be stored in the selected folder. Encryption keys are generated automatically and stored securely on this computer.
+    </div>
+  </div>
+
+  <!-- ── View: Dashboard ────────────────────────────────────────────────── -->
+  <div id="view-dashboard" class="view">
+    <div class="logo">⬡</div>
+    <div class="app-name">ProjectBlackVault</div>
+    <div class="app-subtitle">Tactical Inventory Manager</div>
+
+    <div class="card">
+      <div class="card-title">Status</div>
+
+      <div class="status-row">
+        <div class="status-dot stopped" id="status-dot"></div>
+        <div class="status-label stopped" id="status-label">Stopped</div>
+      </div>
+
+      <button class="btn btn-primary" id="btn-open" disabled>
+        Open App
+      </button>
+
+      <div style="display:flex; gap:8px; margin-top:0;">
+        <button class="btn btn-secondary" id="btn-start-stop" style="margin-top:8px;">
+          Start
+        </button>
+        <button class="btn btn-ghost" id="btn-update" style="margin-top:8px;">
+          Check for Updates
+        </button>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span id="footer-info"></span><br>
+      <a id="link-data-dir">Open data folder</a>
+    </div>
+  </div>
+
+  <!-- ── View: Installing ───────────────────────────────────────────────── -->
+  <div id="view-installing" class="view">
+    <div class="logo">⬡</div>
+    <div class="app-name">ProjectBlackVault</div>
+    <div class="app-subtitle">Setting up — please wait...</div>
+
+    <div class="card" style="text-align:center; padding:32px 20px;">
+      <div class="spinner" style="width:32px;height:32px;border-width:3px;margin:0 auto 16px;color:var(--green)"></div>
+      <div id="install-msg" style="font-size:13px;color:#aaa;">Downloading ProjectBlackVault...</div>
+      <div style="font-size:11px;color:#555;margin-top:8px;">This only happens once. Usually takes 1–2 minutes.</div>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
