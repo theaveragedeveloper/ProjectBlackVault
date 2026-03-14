@@ -565,7 +565,7 @@ export default function FirearmDetailPage() {
                             {filledSlots.slice(0, 4).map((slot) => (
                               <div key={slot.id} className="flex items-center gap-2">
                                 <span className="text-[10px] font-mono text-vault-text-faint w-24 shrink-0">
-                                  {SLOT_TYPE_LABELS[slot.slotType] ?? slot.slotType}
+                                  {SLOT_TYPE_LABELS[slot.slotType as keyof typeof SLOT_TYPE_LABELS] ?? slot.slotType}
                                 </span>
                                 <span className="text-xs text-vault-text-muted truncate">
                                   {slot.accessory?.name ?? "—"}

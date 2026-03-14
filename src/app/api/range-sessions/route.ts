@@ -111,9 +111,6 @@ export async function POST(request: NextRequest) {
     const session = await prisma.$transaction(async (tx) => {
       const created = await tx.rangeSession.create({
         data: {
-          firearmId: parsedFirearms[0].firearmId,
-          buildId: parsedFirearms[0].buildId,
-          roundsFired: rounds,
           rangeName: typeof rangeName === "string" ? rangeName.slice(0, 200) : null,
           rangeLocation: typeof rangeLocation === "string" ? rangeLocation.slice(0, 200) : null,
           notes: typeof notes === "string" ? notes.slice(0, 5000) : null,

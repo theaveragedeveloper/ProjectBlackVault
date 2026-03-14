@@ -29,7 +29,8 @@ async function getDashboardAggregatesUncached() {
     recentFirearms,
     recentAccessories,
     recentAmmo,
-    rangeSessionAggregate,
+    rangeSessionCount,
+    totalRoundsAgg,
     rangeSessionsLast30,
     lastRangeSession,
     maintenanceSchedulesRaw,
@@ -95,9 +96,9 @@ async function getDashboardAggregatesUncached() {
         updatedAt: true,
       },
     }),
-    prisma.rangeSession.aggregate({
+    prisma.rangeSession.count(),
+    prisma.sessionFirearm.aggregate({
       _sum: { roundsFired: true },
-      _count: { id: true },
     }),
     prisma.rangeSession.count({
       where: { date: { gte: thirtyDaysAgo } },
@@ -108,8 +109,12 @@ async function getDashboardAggregatesUncached() {
         id: true,
         date: true,
         rangeName: true,
-        roundsFired: true,
-        firearm: { select: { name: true } },
+        sessionFirearms: {
+          select: {
+            roundsFired: true,
+            firearm: { select: { name: true } },
+          },
+        },
       },
     }),
     prisma.maintenanceSchedule.findMany({
@@ -120,7 +125,7 @@ async function getDashboardAggregatesUncached() {
       where: { hasBattery: true, batteryIntervalDays: { not: null } },
       select: { id: true, name: true, batteryChangedAt: true, batteryIntervalDays: true },
     }),
-    prisma.rangeSession.groupBy({
+    prisma.sessionFirearm.groupBy({
       by: ["firearmId"],
       _sum: { roundsFired: true },
     }),
@@ -251,16 +256,16 @@ async function getDashboardAggregatesUncached() {
     totalAccessoryInvestment,
     maintenanceDue,
     rangeStats: {
-      count: rangeSessionAggregate._count.id,
-      totalRounds: rangeSessionAggregate._sum.roundsFired ?? 0,
+      count: rangeSessionCount,
+      totalRounds: totalRoundsAgg._sum.roundsFired ?? 0,
       sessionsLast30Days: rangeSessionsLast30,
       lastSession: lastRangeSession
         ? {
             id: lastRangeSession.id,
             date: lastRangeSession.date,
             rangeName: lastRangeSession.rangeName,
-            roundsFired: lastRangeSession.roundsFired,
-            firearmName: lastRangeSession.firearm.name,
+            roundsFired: lastRangeSession.sessionFirearms.reduce((sum, sf) => sum + sf.roundsFired, 0),
+            firearmName: lastRangeSession.sessionFirearms[0]?.firearm.name ?? null,
           }
         : null,
     },
@@ -278,6 +283,6 @@ export function revalidateDashboardCaches(domains: Array<keyof typeof DASHBOARD_
     uniqueTags.add(DASHBOARD_CACHE_TAGS[domain]);
   }
   for (const tag of uniqueTags) {
-    revalidateTag(tag);
+    revalidateTag(tag, "max");
   }
 }
