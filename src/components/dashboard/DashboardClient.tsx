@@ -93,7 +93,7 @@ interface RangeStats {
     date: string | Date;
     rangeName: string | null;
     roundsFired: number;
-    firearmName: string;
+    firearmName: string | null;
   } | null;
 }
 
