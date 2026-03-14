@@ -7,6 +7,23 @@ const http = require('http');
 const { exec, spawn } = require('child_process');
 const crypto = require('crypto');
 
+// ─── Single-instance lock ──────────────────────────────────────────────────
+
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  app.quit();
+  process.exit(0);
+}
+
+app.on('second-instance', () => {
+  // Another instance was opened — bring existing window to front
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  }
+});
+
 // ─── Config ────────────────────────────────────────────────────────────────
 
 const CONFIG_PATH = path.join(app.getPath('userData'), 'config.json');
@@ -65,8 +82,15 @@ async function checkDocker() {
 // ─── Container management ──────────────────────────────────────────────────
 
 function buildEnv(config) {
+  // Augment PATH so Homebrew-installed Docker is found on macOS/Linux.
+  // Electron strips the shell PATH when spawning processes.
+  const extraPaths = ['/usr/local/bin', '/opt/homebrew/bin', '/opt/local/bin'];
+  const currentPath = process.env.PATH || '';
+  const augmentedPath = [...extraPaths, currentPath].filter(Boolean).join(path.delimiter);
+
   return {
     ...process.env,
+    PATH: augmentedPath,
     DATA_DIR: config.dataDir,
     PORT: String(config.port),
     VAULT_ENCRYPTION_KEY: config.encryptionKey,
@@ -336,6 +360,11 @@ ipcMain.handle('open-external', (_event, url) => {
 // ─── App lifecycle ─────────────────────────────────────────────────────────
 
 app.whenReady().then(async () => {
+  // Windows: group app under this ID in the taskbar
+  if (process.platform === 'win32') {
+    app.setAppUserModelId('io.github.theaveragedeveloper.projectblackvault');
+  }
+
   // macOS: hide from dock (tray-only app)
   app.dock?.hide();
 
