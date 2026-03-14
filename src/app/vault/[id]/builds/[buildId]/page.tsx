@@ -64,6 +64,24 @@ interface Build {
 const FIELD_CLASS =
   "w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint";
 
+// Returns the display label for a custom slot type (strips CUSTOM: prefix and optional category)
+function getCustomSlotLabel(slotType: string): string {
+  if (!slotType.startsWith("CUSTOM:")) return slotType;
+  const rest = slotType.slice(7); // length of "CUSTOM:"
+  const pipe = rest.indexOf("|");
+  return pipe === -1 ? rest : rest.slice(pipe + 1);
+}
+
+// Parses a custom slot type into { category, name } or null if not custom
+function parseCustomSlot(slotType: string): { category: string | null; name: string } | null {
+  if (!slotType.startsWith("CUSTOM:")) return null;
+  const rest = slotType.slice(7);
+  const pipe = rest.indexOf("|");
+  return pipe === -1
+    ? { category: null, name: rest }
+    : { category: rest.slice(0, pipe), name: rest.slice(pipe + 1) };
+}
+
 // ─── Accessory Edit Modal ──────────────────────────────────────
 
 interface AccessoryEditModalProps {
@@ -385,7 +403,7 @@ function AccessoryBrowserModal({
 
   const slotIconConfig = SLOT_ICONS[slotType as SlotType];
   const SlotIcon = slotIconConfig?.icon ?? Shield;
-  const slotLabel = SLOT_TYPE_LABELS[slotType as SlotType] ?? slotType.replace(/^CUSTOM:/, "").trim() ?? slotType;
+  const slotLabel = SLOT_TYPE_LABELS[slotType as SlotType] ?? getCustomSlotLabel(slotType);
 
   return (
     <div
@@ -714,9 +732,13 @@ interface LoadoutGridProps {
   build: Build;
   allBuilds: Build[];
   isEditing: boolean;
-  customSlotName: string;
-  onCustomSlotNameChange: (value: string) => void;
-  onAddCustomSlot: () => void;
+  addingSlotInGroup: string | null;
+  customSlotInput: string;
+  onStartAddingSlot: (groupLabel: string | null) => void;
+  onCustomSlotInputChange: (value: string) => void;
+  onConfirmAddSlot: () => void;
+  onCancelAddingSlot: () => void;
+  onDeleteCustomSlot: (slotType: string) => void;
   onSlotClick: (slotType: string) => void;
   onRemoveSlot: (slotType: string) => void;
   onSwitchBuild: (buildId: string) => void;
@@ -727,9 +749,13 @@ function LoadoutGrid({
   build,
   allBuilds,
   isEditing,
-  customSlotName,
-  onCustomSlotNameChange,
-  onAddCustomSlot,
+  addingSlotInGroup,
+  customSlotInput,
+  onStartAddingSlot,
+  onCustomSlotInputChange,
+  onConfirmAddSlot,
+  onCancelAddingSlot,
+  onDeleteCustomSlot,
   onSlotClick,
   onRemoveSlot,
   onSwitchBuild,
@@ -743,7 +769,20 @@ function LoadoutGrid({
   for (const slot of build.slots) slotMap[slot.slotType] = slot;
 
   const otherBuilds = allBuilds.filter((b) => b.id !== build.id);
-  const customSlots = build.slots.filter((slot) => slot.slotType.startsWith("CUSTOM:"));
+
+  // Custom slots with a known group category
+  const categorizedCustomSlots = build.slots.filter((slot) => {
+    const parsed = parseCustomSlot(slot.slotType);
+    return parsed !== null && parsed.category !== null;
+  });
+  const knownGroupLabels = new Set(SLOT_GROUPS.map((g) => g.label));
+
+  // Uncategorized custom slots: old CUSTOM:<name> format OR category not matching any group
+  const uncategorizedCustomSlots = build.slots.filter((slot) => {
+    const parsed = parseCustomSlot(slot.slotType);
+    return parsed !== null && (parsed.category === null || !knownGroupLabels.has(parsed.category));
+  });
+  void categorizedCustomSlots; // used implicitly via per-group filter below
 
   return (
     <div className="bg-vault-bg">
@@ -779,13 +818,24 @@ function LoadoutGrid({
       <div className="p-4 space-y-5">
         {SLOT_GROUPS.map(({ label, slots }) => {
           const groupSlots = slots.filter((s) => availableSlots.includes(s as SlotType)) as SlotType[];
-          if (groupSlots.length === 0) return null;
+          const groupCustomSlots = build.slots.filter(
+            (slot) => parseCustomSlot(slot.slotType)?.category === label
+          );
 
-          const displaySlots = isEditing
+          const hasVisiblePreset = isEditing
+            ? groupSlots.length > 0
+            : groupSlots.some((s) => !!slotMap[s]?.accessoryId);
+          const hasVisibleCustom = isEditing
+            ? groupCustomSlots.length > 0
+            : groupCustomSlots.some((s) => !!s.accessoryId);
+          const isAddingHere = addingSlotInGroup === label;
+
+          if (!hasVisiblePreset && !hasVisibleCustom && !isEditing) return null;
+          if (groupSlots.length === 0 && groupCustomSlots.length === 0 && !isEditing) return null;
+
+          const displayPresetSlots = isEditing
             ? groupSlots
             : groupSlots.filter((slotType) => !!slotMap[slotType]?.accessoryId);
-
-          if (displaySlots.length === 0) return null;
 
           return (
             <div key={label}>
@@ -794,7 +844,7 @@ function LoadoutGrid({
                 <span className="flex-1 h-px bg-vault-border" />
               </p>
               <div className="grid grid-cols-2 gap-2">
-                {displaySlots.map((slotType) => {
+                {displayPresetSlots.map((slotType) => {
                   const slot = slotMap[slotType];
                   const acc = slot?.accessory ?? null;
                   const slotIconConfig = SLOT_ICONS[slotType];
@@ -868,41 +918,171 @@ function LoadoutGrid({
                     </button>
                   );
                 })}
+
+                {/* Custom slots for this group */}
+                {groupCustomSlots
+                  .filter((slot) => isEditing || !!slot.accessoryId)
+                  .map((slot) => {
+                    const acc = slot.accessory;
+                    const customLabel = getCustomSlotLabel(slot.slotType) || "Custom Slot";
+
+                    if (!acc) {
+                      return (
+                        <button
+                          key={slot.id}
+                          onClick={() => onSlotClick(slot.slotType)}
+                          className="group bg-vault-surface rounded-lg border border-vault-border hover:border-[#00C2FF]/25 hover:bg-[#00C2FF]/[0.03] transition-colors text-left p-2.5"
+                        >
+                          <div className="flex items-start justify-between gap-1">
+                            <p className="text-[9px] font-mono uppercase tracking-widest text-vault-border group-hover:text-vault-text-faint transition-colors leading-none">{customLabel}</p>
+                            <Shield className="w-3 h-3 shrink-0 text-vault-border group-hover:text-vault-text-faint transition-colors" />
+                          </div>
+                          <p className="text-[10px] text-vault-border mt-1.5">Empty</p>
+                          <div className="flex items-center gap-1 mt-2">
+                            <span className="inline-flex items-center gap-1 text-[9px] text-vault-border group-hover:text-[#00C2FF] border border-vault-border group-hover:border-[#00C2FF]/40 px-1.5 py-0.5 rounded transition-colors">
+                              <Plus className="w-2 h-2" />
+                              Attach
+                            </span>
+                            {isEditing && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); onDeleteCustomSlot(slot.slotType); }}
+                                className="w-5 h-5 flex items-center justify-center text-vault-text-muted hover:text-[#E53935] hover:bg-[#E53935]/10 rounded transition-colors"
+                                title="Delete slot"
+                              >
+                                <X className="w-2.5 h-2.5" />
+                              </button>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    }
+
+                    return (
+                      <div key={slot.id} className="relative bg-vault-surface rounded-lg overflow-hidden border border-vault-border transition-colors">
+                        <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-[#00C2FF]/70" />
+                        <div className="pl-3 pr-2 py-2.5">
+                          <div className="flex items-start justify-between gap-1">
+                            <p className="text-[9px] font-mono uppercase tracking-widest leading-none text-[#00C2FF]/80">{customLabel}</p>
+                            <Shield className="w-3 h-3 shrink-0 text-[#00C2FF]/50" />
+                          </div>
+                          <p className="text-xs font-semibold text-vault-text truncate mt-1.5 leading-tight">{acc.name}</p>
+                          <div className="flex items-center gap-1 mt-2">
+                            <button
+                              onClick={() => onEditAccessory(acc)}
+                              className="w-5 h-5 flex items-center justify-center text-vault-text-muted hover:text-[#00C2FF] hover:bg-[#00C2FF]/10 rounded transition-colors"
+                              title="Edit accessory"
+                            >
+                              <Pencil className="w-2.5 h-2.5" />
+                            </button>
+                            {isEditing && (
+                              <>
+                                <button
+                                  onClick={() => onSlotClick(slot.slotType)}
+                                  className="text-[9px] text-vault-text-muted hover:text-[#00C2FF] border border-vault-border hover:border-[#00C2FF]/40 px-1.5 py-0.5 rounded transition-colors"
+                                >
+                                  Change
+                                </button>
+                                <button
+                                  onClick={() => onDeleteCustomSlot(slot.slotType)}
+                                  className="w-5 h-5 flex items-center justify-center text-vault-text-muted hover:text-[#E53935] hover:bg-[#E53935]/10 rounded transition-colors"
+                                  title="Delete slot"
+                                >
+                                  <X className="w-2.5 h-2.5" />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
               </div>
+
+              {/* Per-group "Add custom slot" in edit mode */}
+              {isEditing && (
+                <div className="mt-2">
+                  {isAddingHere ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        value={customSlotInput}
+                        onChange={(e) => onCustomSlotInputChange(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") onConfirmAddSlot(); if (e.key === "Escape") onCancelAddingSlot(); }}
+                        placeholder={`Custom slot name in ${label}...`}
+                        className={`${FIELD_CLASS} text-xs py-1.5`}
+                        autoFocus
+                      />
+                      <button
+                        onClick={onConfirmAddSlot}
+                        className="shrink-0 px-2.5 py-1.5 text-xs text-[#00C2FF] border border-[#00C2FF]/30 rounded-md hover:bg-[#00C2FF]/10 transition-colors"
+                      >
+                        Add
+                      </button>
+                      <button
+                        onClick={onCancelAddingSlot}
+                        className="shrink-0 px-2.5 py-1.5 text-xs text-vault-text-muted border border-vault-border rounded-md hover:bg-vault-surface transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => onStartAddingSlot(label)}
+                      className="flex items-center gap-1 text-[9px] text-vault-text-faint hover:text-vault-text-muted border border-dashed border-vault-border hover:border-vault-text-muted/40 px-2 py-1 rounded transition-colors"
+                    >
+                      <Plus className="w-2.5 h-2.5" />
+                      Add custom slot
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
 
-        {(isEditing || customSlots.some((slot) => slot.accessoryId)) && (
+        {/* Other Custom Slots (uncategorized or unknown category) */}
+        {(isEditing || uncategorizedCustomSlots.some((slot) => slot.accessoryId)) && (
           <div>
             <p className="text-[9px] font-mono uppercase tracking-[0.2em] text-vault-text-faint mb-2 px-0.5 flex items-center gap-2">
-              Custom Slots
+              Other Custom Slots
               <span className="flex-1 h-px bg-vault-border" />
             </p>
 
             {isEditing && (
               <div className="flex items-center gap-2 mb-2">
-                <input
-                  value={customSlotName}
-                  onChange={(e) => onCustomSlotNameChange(e.target.value)}
-                  placeholder="Add custom slot name"
-                  className={FIELD_CLASS}
-                />
-                <button
-                  onClick={onAddCustomSlot}
-                  className="shrink-0 px-3 py-2 text-xs text-[#00C2FF] border border-[#00C2FF]/30 rounded-md hover:bg-[#00C2FF]/10 transition-colors"
-                >
-                  Add Slot
-                </button>
+                {addingSlotInGroup === null ? (
+                  <>
+                    <input
+                      value={customSlotInput}
+                      onChange={(e) => onCustomSlotInputChange(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") onConfirmAddSlot(); }}
+                      placeholder="Add uncategorized custom slot"
+                      className={FIELD_CLASS}
+                    />
+                    <button
+                      onClick={onConfirmAddSlot}
+                      className="shrink-0 px-3 py-2 text-xs text-[#00C2FF] border border-[#00C2FF]/30 rounded-md hover:bg-[#00C2FF]/10 transition-colors"
+                    >
+                      Add Slot
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => onStartAddingSlot(null)}
+                    className="flex items-center gap-1 text-[9px] text-vault-text-faint hover:text-vault-text-muted border border-dashed border-vault-border hover:border-vault-text-muted/40 px-2 py-1 rounded transition-colors"
+                  >
+                    <Plus className="w-2.5 h-2.5" />
+                    Add uncategorized slot
+                  </button>
+                )}
               </div>
             )}
 
             <div className="grid grid-cols-2 gap-2">
-              {customSlots
+              {uncategorizedCustomSlots
                 .filter((slot) => isEditing || !!slot.accessoryId)
                 .map((slot) => {
                   const acc = slot.accessory;
-                  const customLabel = slot.slotType.replace(/^CUSTOM:/, "").trim();
+                  const customLabel = getCustomSlotLabel(slot.slotType) || "Custom Slot";
 
                   if (!acc) {
                     return (
@@ -912,14 +1092,25 @@ function LoadoutGrid({
                         className="group bg-vault-surface rounded-lg border border-vault-border hover:border-[#00C2FF]/25 hover:bg-[#00C2FF]/[0.03] transition-colors text-left p-2.5"
                       >
                         <div className="flex items-start justify-between gap-1">
-                          <p className="text-[9px] font-mono uppercase tracking-widest text-vault-border group-hover:text-vault-text-faint transition-colors leading-none">{customLabel || "Custom Slot"}</p>
+                          <p className="text-[9px] font-mono uppercase tracking-widest text-vault-border group-hover:text-vault-text-faint transition-colors leading-none">{customLabel}</p>
                           <Shield className="w-3 h-3 shrink-0 text-vault-border group-hover:text-vault-text-faint transition-colors" />
                         </div>
                         <p className="text-[10px] text-vault-border mt-1.5">Empty</p>
-                        <span className="inline-flex items-center gap-1 mt-2 text-[9px] text-vault-border group-hover:text-[#00C2FF] border border-vault-border group-hover:border-[#00C2FF]/40 px-1.5 py-0.5 rounded transition-colors">
-                          <Plus className="w-2 h-2" />
-                          Attach
-                        </span>
+                        <div className="flex items-center gap-1 mt-2">
+                          <span className="inline-flex items-center gap-1 text-[9px] text-vault-border group-hover:text-[#00C2FF] border border-vault-border group-hover:border-[#00C2FF]/40 px-1.5 py-0.5 rounded transition-colors">
+                            <Plus className="w-2 h-2" />
+                            Attach
+                          </span>
+                          {isEditing && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onDeleteCustomSlot(slot.slotType); }}
+                              className="w-5 h-5 flex items-center justify-center text-vault-text-muted hover:text-[#E53935] hover:bg-[#E53935]/10 rounded transition-colors"
+                              title="Delete slot"
+                            >
+                              <X className="w-2.5 h-2.5" />
+                            </button>
+                          )}
+                        </div>
                       </button>
                     );
                   }
@@ -929,7 +1120,7 @@ function LoadoutGrid({
                       <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-[#00C2FF]/70" />
                       <div className="pl-3 pr-2 py-2.5">
                         <div className="flex items-start justify-between gap-1">
-                          <p className="text-[9px] font-mono uppercase tracking-widest leading-none text-[#00C2FF]/80">{customLabel || "Custom Slot"}</p>
+                          <p className="text-[9px] font-mono uppercase tracking-widest leading-none text-[#00C2FF]/80">{customLabel}</p>
                           <Shield className="w-3 h-3 shrink-0 text-[#00C2FF]/50" />
                         </div>
                         <p className="text-xs font-semibold text-vault-text truncate mt-1.5 leading-tight">{acc.name}</p>
@@ -950,8 +1141,9 @@ function LoadoutGrid({
                                 Change
                               </button>
                               <button
-                                onClick={() => onRemoveSlot(slot.slotType)}
+                                onClick={() => onDeleteCustomSlot(slot.slotType)}
                                 className="w-5 h-5 flex items-center justify-center text-vault-text-muted hover:text-[#E53935] hover:bg-[#E53935]/10 rounded transition-colors"
+                                title="Delete slot"
                               >
                                 <X className="w-2.5 h-2.5" />
                               </button>
@@ -987,7 +1179,8 @@ export default function BuildConfiguratorPage() {
 
   const [browserSlot, setBrowserSlot] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [customSlotName, setCustomSlotName] = useState("");
+  const [addingSlotInGroup, setAddingSlotInGroup] = useState<string | null>(null);
+  const [customSlotInput, setCustomSlotInput] = useState("");
   const [editingAccessory, setEditingAccessory] = useState<Accessory | null>(null);
 
   const fetchBuild = useCallback(async () => {
@@ -1032,16 +1225,29 @@ export default function BuildConfiguratorPage() {
 
 
   async function handleAddCustomSlot() {
-    const name = customSlotName.trim();
+    const name = customSlotInput.trim();
     if (!name) return;
 
     try {
+      const slotType = addingSlotInGroup
+        ? `CUSTOM:${addingSlotInGroup}|${name}`
+        : `CUSTOM:${name}`;
       await fetch(`/api/builds/${buildId}/slots`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slotType: `CUSTOM:${name}`, accessoryId: null }),
+        body: JSON.stringify({ slotType, accessoryId: null }),
       });
-      setCustomSlotName("");
+      setCustomSlotInput("");
+      setAddingSlotInGroup(null);
+      fetchBuild();
+    } catch { /* silently fail */ }
+  }
+
+  async function handleDeleteCustomSlot(slotType: string) {
+    try {
+      await fetch(`/api/builds/${buildId}/slots?slotType=${encodeURIComponent(slotType)}`, {
+        method: "DELETE",
+      });
       fetchBuild();
     } catch { /* silently fail */ }
   }
@@ -1132,9 +1338,13 @@ export default function BuildConfiguratorPage() {
         build={build}
         allBuilds={allBuilds}
         isEditing={isEditing}
-        customSlotName={customSlotName}
-        onCustomSlotNameChange={setCustomSlotName}
-        onAddCustomSlot={handleAddCustomSlot}
+        addingSlotInGroup={addingSlotInGroup}
+        customSlotInput={customSlotInput}
+        onStartAddingSlot={setAddingSlotInGroup}
+        onCustomSlotInputChange={setCustomSlotInput}
+        onConfirmAddSlot={handleAddCustomSlot}
+        onCancelAddingSlot={() => { setAddingSlotInGroup(null); setCustomSlotInput(""); }}
+        onDeleteCustomSlot={handleDeleteCustomSlot}
         onSlotClick={(slotType) => setBrowserSlot(slotType)}
         onRemoveSlot={handleRemoveSlot}
         onSwitchBuild={handleSwitchBuild}
