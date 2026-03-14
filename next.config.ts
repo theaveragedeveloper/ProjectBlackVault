@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 import { TRUSTED_IMAGE_HOSTNAMES } from "./src/lib/image-host-allowlist";
 
+const isProduction = process.env.NODE_ENV === "production";
+
 const securityHeaders = [
   {
     key: "X-Frame-Options",
@@ -18,6 +20,11 @@ const securityHeaders = [
     key: "Permissions-Policy",
     value: "camera=(), microphone=(), geolocation=()",
   },
+  // HSTS: only set in production — local dev is typically HTTP, and sending HSTS
+  // over HTTP has no effect (and can confuse some tools).
+  ...(isProduction
+    ? [{ key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" }]
+    : []),
   {
     // 'unsafe-inline' required for the theme-flash inline script in layout.tsx
     key: "Content-Security-Policy",

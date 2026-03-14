@@ -15,7 +15,7 @@ export function getSessionCookieOptions() {
     httpOnly: true,
     sameSite: "strict" as const,
     path: "/",
-    maxAge: 60 * 60 * 24 * 7,
+    maxAge: 60 * 60 * 24, // 24 hours
     secure: isProduction,
   };
 }

@@ -17,14 +17,13 @@ export async function GET() {
       }
     }
 
-    // Derive the database file path from DATABASE_URL env var
+    // Derive the database filename from DATABASE_URL env var.
+    // Only expose the filename (not the full path) to avoid leaking filesystem layout.
     const dbUrl = process.env.DATABASE_URL ?? "";
     let dbPath = "Not configured";
     if (dbUrl.startsWith("file:")) {
       const relative = dbUrl.replace(/^file:/, "");
-      dbPath = path.isAbsolute(relative)
-        ? relative
-        : path.resolve(process.cwd(), relative);
+      dbPath = path.basename(relative);
     }
 
     const port = process.env.PORT ?? "3000";

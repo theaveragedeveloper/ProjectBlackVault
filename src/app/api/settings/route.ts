@@ -3,6 +3,8 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { getSessionCookieOptions } from "@/lib/session-config";
+import { enforceRateLimit } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/server/client-ip";
 
 // GET /api/settings - Get the singleton AppSettings
 export async function GET() {
@@ -44,6 +46,13 @@ export async function GET() {
 // PUT /api/settings - Update the singleton AppSettings
 export async function PUT(request: NextRequest) {
   try {
+    // Rate-limit password change attempts to prevent brute-force via currentPassword
+    const ip = getClientIp(request);
+    const rate = await enforceRateLimit({ key: `settings:password:${ip}`, windowMs: 60_000, maxAttempts: 5 });
+    if (!rate.allowed) {
+      return NextResponse.json({ error: "Too many attempts. Please wait a minute." }, { status: 429 });
+    }
+
     const body = await request.json();
 
     const {
@@ -78,8 +87,10 @@ export async function PUT(request: NextRequest) {
 
       if (appPassword === "" || appPassword === null) {
         updateData.appPassword = null;
-      } else if (typeof appPassword === "string" && appPassword.length <= 1024) {
+      } else if (typeof appPassword === "string" && appPassword.length >= 8 && appPassword.length <= 1024) {
         updateData.appPassword = hashPassword(appPassword);
+      } else if (typeof appPassword === "string" && appPassword.length < 8) {
+        return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
       }
     }
 

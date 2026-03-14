@@ -763,7 +763,7 @@ export default function SettingsPage() {
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
-                  <p className="text-xs text-vault-text-faint mt-1">Note: This is a simple access restriction, not end-to-end encryption.</p>
+                  <p className="text-xs text-vault-text-faint mt-1">Min 8 characters. This is a simple access restriction, not end-to-end encryption.</p>
                 </div>
               </div>
             )}
