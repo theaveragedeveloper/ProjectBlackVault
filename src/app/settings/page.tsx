@@ -585,6 +585,11 @@ export default function SettingsPage() {
         return;
       }
 
+      if (typeof statusJson.unsupported === "string") {
+        setUpdateError(statusJson.unsupported);
+        return;
+      }
+
       if (!statusJson.writable) {
         setUpdateError(
           statusJson.message ??
@@ -612,9 +617,11 @@ export default function SettingsPage() {
         `Current: ${currentVersion}`,
         latestVersion ? `Latest: ${latestVersion}` : null,
         checkedAtLine,
-        updateJson.changed
+        updateJson.changed === true
           ? "\nUpdate applied. Restart BlackVault if your process manager does not auto-reload."
-          : "\nUpdate command completed. Already on latest commit.",
+          : updateJson.changed === false
+            ? "\nUpdate command completed. Already on latest commit."
+            : "\nUpdate command completed. Revision comparison is unavailable in this deployment.",
       ]
         .filter(Boolean)
         .join("\n");
@@ -1158,7 +1165,7 @@ export default function SettingsPage() {
             </legend>
 
             <p className="text-xs text-vault-text-muted leading-relaxed">
-              Run the configured update command to pull and apply the newest version on this host. This action is disabled unless SYSTEM_UPDATE_EXEC_ENABLED=true.
+              Run the configured update command to pull and apply the newest version on this host. Source-checkout installs use git mode by default; container installs can set <code className="font-mono">SYSTEM_UPDATE_MODE=docker</code> with a host-level <code className="font-mono">SYSTEM_UPDATE_COMMAND</code>. If in-app updates are unsupported, use <code className="font-mono">./update.sh</code> or <code className="font-mono">update.bat</code> on the host.
             </p>
 
             {updateError && (
