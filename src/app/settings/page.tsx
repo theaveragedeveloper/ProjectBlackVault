@@ -26,6 +26,7 @@ import {
   Rocket,
   RefreshCw,
   TriangleAlert,
+  Upload,
 } from "lucide-react";
 
 const INPUT_CLASS =
@@ -90,6 +91,13 @@ export default function SettingsPage() {
   const [autoBackupStatus, setAutoBackupStatus] = useState<string | null>(null);
   const [autoBackupError, setAutoBackupError] = useState<string | null>(null);
   const [autoBackupRunning, setAutoBackupRunning] = useState(false);
+
+  const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const [restorePassphrase, setRestorePassphrase] = useState("");
+  const [restoreBusy, setRestoreBusy] = useState(false);
+  const [restoreError, setRestoreError] = useState<string | null>(null);
+  const [restoreSuccess, setRestoreSuccess] = useState<string | null>(null);
+  const [restoreConfirmed, setRestoreConfirmed] = useState(false);
   const [updateBusy, setUpdateBusy] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [updateOutput, setUpdateOutput] = useState<string | null>(null);
@@ -457,6 +465,110 @@ export default function SettingsPage() {
       setAutoBackupRunning(false);
     }
   }, [includeDocumentFilesInBackup]);
+
+  async function handleRestoreBackup() {
+    setRestoreError(null);
+    setRestoreSuccess(null);
+
+    if (!restoreFile) {
+      setRestoreError("Please choose a .bvault backup file.");
+      return;
+    }
+    if (!restorePassphrase) {
+      setRestoreError("Please enter the backup passphrase.");
+      return;
+    }
+    if (!restoreConfirmed) {
+      setRestoreError("Please confirm that you understand this will replace all existing data.");
+      return;
+    }
+
+    setRestoreBusy(true);
+    try {
+      // Read file
+      const arrayBuffer = await restoreFile.arrayBuffer();
+      let parsed: Record<string, unknown>;
+      try {
+        parsed = JSON.parse(new TextDecoder().decode(arrayBuffer));
+      } catch {
+        throw new Error("File is not valid JSON. Make sure you selected a .bvault file.");
+      }
+
+      if (parsed.type !== "blackvault-encrypted-backup") {
+        throw new Error("This file does not appear to be a ProjectBlackVault backup.");
+      }
+
+      // Decrypt using Web Crypto API
+      const kdf = parsed.kdf as Record<string, unknown>;
+      const cipher = parsed.cipher as Record<string, unknown>;
+
+      const salt = Uint8Array.from(atob(kdf.salt as string), (c) => c.charCodeAt(0));
+      const iv   = Uint8Array.from(atob(cipher.iv as string), (c) => c.charCodeAt(0));
+      const ciphertext = Uint8Array.from(atob(cipher.ciphertext as string), (c) => c.charCodeAt(0));
+
+      // Server-side backups have a separate auth tag; client-side ones append it to ciphertext
+      let decryptInput: Uint8Array;
+      if (cipher.tag) {
+        const tag = Uint8Array.from(atob(cipher.tag as string), (c) => c.charCodeAt(0));
+        decryptInput = new Uint8Array([...ciphertext, ...tag]);
+      } else {
+        decryptInput = ciphertext;
+      }
+
+      const keyMaterial = await crypto.subtle.importKey(
+        "raw",
+        new TextEncoder().encode(restorePassphrase),
+        "PBKDF2",
+        false,
+        ["deriveKey"]
+      );
+      const aesKey = await crypto.subtle.deriveKey(
+        { name: "PBKDF2", hash: "SHA-256", salt, iterations: kdf.iterations as number },
+        keyMaterial,
+        { name: "AES-GCM", length: 256 },
+        false,
+        ["decrypt"]
+      );
+
+      let decrypted: ArrayBuffer;
+      try {
+        decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, aesKey, decryptInput);
+      } catch {
+        throw new Error("Decryption failed. Check that your passphrase is correct.");
+      }
+
+      const backupJson = JSON.parse(new TextDecoder().decode(decrypted)) as Record<string, unknown>;
+
+      const res = await fetch("/api/backup/restore", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(backupJson),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Restore failed");
+
+      const counts = json.restored as Record<string, number>;
+      const summary = [
+        counts.firearms && `${counts.firearms} firearms`,
+        counts.accessories && `${counts.accessories} accessories`,
+        counts.rangeSessions && `${counts.rangeSessions} range sessions`,
+        counts.ammoStocks && `${counts.ammoStocks} ammo stocks`,
+      ]
+        .filter(Boolean)
+        .join(", ");
+
+      setRestoreSuccess(
+        `Vault restored — ${summary || "data restored"}. Reload the page to see your data.`
+      );
+      setRestoreFile(null);
+      setRestorePassphrase("");
+      setRestoreConfirmed(false);
+    } catch (err) {
+      setRestoreError(err instanceof Error ? err.message : "Restore failed");
+    } finally {
+      setRestoreBusy(false);
+    }
+  }
 
   async function handlePullUpdates() {
     setUpdateBusy(true);
@@ -1284,6 +1396,74 @@ export default function SettingsPage() {
               <p className="text-xs text-vault-text-faint">Server requirement: set <code className="font-mono">AUTO_BACKUP_PASSPHRASE</code> for automatic encrypted backup files in <code className="font-mono">/backups</code>.</p>
             </div>
           </fieldset>
+
+          {/* ── Restore from Backup ─────────────────────────── */}
+          <div className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
+            <div>
+              <p className="text-[10px] font-mono uppercase tracking-widest text-vault-text-muted mb-1">Restore from Backup</p>
+              <p className="text-xs text-vault-text-faint">Decrypt and restore a <code className="font-mono">.bvault</code> backup file. All existing vault data will be permanently replaced.</p>
+            </div>
+
+            {restoreError && (
+              <div className="flex items-start gap-2 bg-[#E53935]/10 border border-[#E53935]/30 rounded-md p-3">
+                <AlertCircle className="w-4 h-4 text-[#E53935] mt-0.5 shrink-0" />
+                <p className="text-xs text-[#E53935]">{restoreError}</p>
+              </div>
+            )}
+            {restoreSuccess && (
+              <div className="flex items-start gap-2 bg-[#00C853]/10 border border-[#00C853]/30 rounded-md p-3">
+                <CheckCircle2 className="w-4 h-4 text-[#00C853] mt-0.5 shrink-0" />
+                <p className="text-xs text-[#00C853]">{restoreSuccess}</p>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <div>
+                <label className={LABEL_CLASS}>Backup File</label>
+                <input
+                  type="file"
+                  accept=".bvault,.json"
+                  className="block w-full text-xs text-vault-text-faint file:mr-3 file:py-1.5 file:px-3 file:rounded file:border file:border-vault-border file:bg-vault-surface file:text-xs file:text-vault-text-muted file:cursor-pointer cursor-pointer"
+                  onChange={(e) => setRestoreFile(e.target.files?.[0] ?? null)}
+                />
+              </div>
+
+              <div>
+                <label className={LABEL_CLASS}>Backup Passphrase</label>
+                <input
+                  type="password"
+                  className={INPUT_CLASS}
+                  value={restorePassphrase}
+                  onChange={(e) => setRestorePassphrase(e.target.value)}
+                  placeholder="Passphrase used when this backup was created"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setRestoreConfirmed((v) => !v)}
+                className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-md border transition-all ${restoreConfirmed ? "border-[#E53935]/40 bg-[#E53935]/5" : "border-vault-border hover:border-vault-text-muted/20"}`}
+              >
+                <div className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${restoreConfirmed ? "bg-[#E53935]" : "bg-vault-border"}`}>
+                  <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${restoreConfirmed ? "left-4" : "left-0.5"}`} />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-vault-text">I understand this will replace all existing data</p>
+                  <p className="text-xs text-vault-text-faint mt-0.5">This cannot be undone. Create a backup of your current data first if needed.</p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleRestoreBackup}
+                disabled={restoreBusy || !restoreFile || !restorePassphrase || !restoreConfirmed}
+                className="flex items-center justify-center gap-2 w-full bg-[#E53935]/10 border border-[#E53935]/30 text-[#E53935] hover:bg-[#E53935]/20 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-2.5 rounded-md text-sm font-medium transition-colors"
+              >
+                {restoreBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                {restoreBusy ? "Restoring Vault..." : "Restore Vault"}
+              </button>
+            </div>
+          </div>
 
           {/* ── Status Summary ──────────────────────────────── */}
           <div className="bg-vault-bg border border-vault-border rounded-lg p-4">

@@ -49,3 +49,7 @@ prisma/prisma/
 
 # User uploads
 /uploads/
+
+# Electron launcher build artifacts
+/launcher/node_modules/
+/launcher/dist/

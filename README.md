@@ -2,6 +2,28 @@
 
 A self-hosted tactical firearms management application built with Next.js 16, Prisma, and SQLite.
 
+---
+
+## Easy Install (Desktop Launcher)
+
+The easiest way to run ProjectBlackVault — no terminal required.
+
+**[⬇ Download for your platform →](https://theaveragedeveloper.github.io/ProjectBlackVault/)**
+
+| Platform | File |
+|----------|------|
+| Windows | `ProjectBlackVault-Setup.exe` |
+| macOS | `ProjectBlackVault.dmg` |
+| Linux | `ProjectBlackVault-Setup.AppImage` |
+
+### Requirements
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (free) must be installed and running
+
+### First launch notes
+- **macOS**: If Gatekeeper blocks the app, right-click it and choose **Open**
+- **Windows**: If SmartScreen warns you, click **More info** → **Run anyway**
+- **Linux**: Make the AppImage executable (`chmod +x ProjectBlackVault-Setup.AppImage`) then run it
+
 ```
 [ screenshot placeholder ]
 ```
