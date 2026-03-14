@@ -13,4 +13,6 @@ contextBridge.exposeInMainWorld('vault', {
   openDirDialog: ()    => ipcRenderer.invoke('open-dir-dialog'),
   openExternal:  (url) => ipcRenderer.invoke('open-external', url),
   onStatusChange: (cb) => ipcRenderer.on('status-change', (_event, status) => cb(status)),
+  onInstallLog:   (cb) => ipcRenderer.on('install-log', (_event, line) => cb(line)),
+  openPath:       (p)  => ipcRenderer.invoke('open-path', p),
 });
