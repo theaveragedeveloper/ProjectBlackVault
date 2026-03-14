@@ -50,6 +50,13 @@ interface SystemInfo {
   platform: string;
 }
 
+type UpdateCapabilityState =
+  | { state: "unknown" }
+  | { state: "enabled" }
+  | { state: "exec-disabled"; message: string }
+  | { state: "policy-disabled"; message: string }
+  | { state: "forbidden"; message: string };
+
 export default function SettingsPage() {
   const settingsSections = useMemo(
     () => [
@@ -101,6 +108,7 @@ export default function SettingsPage() {
   const [updateBusy, setUpdateBusy] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [updateOutput, setUpdateOutput] = useState<string | null>(null);
+  const [updateCapability, setUpdateCapability] = useState<UpdateCapabilityState>({ state: "unknown" });
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -152,6 +160,68 @@ export default function SettingsPage() {
     localStorage.setItem("blackvault:auto-backup-enabled", String(autoBackupEnabled));
     localStorage.setItem("blackvault:auto-backup-interval", String(autoBackupIntervalMin));
   }, [autoBackupEnabled, autoBackupIntervalMin]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadUpdateCapability() {
+      try {
+        const statusRes = await fetch("/api/system-update");
+        const statusJson = await statusRes.json();
+        if (cancelled) return;
+
+        if (!statusRes.ok) {
+          if (statusRes.status === 404) {
+            setUpdateCapability({
+              state: "policy-disabled",
+              message:
+                statusJson.message ??
+                "Update feature is disabled by policy. Set SYSTEM_UPDATE_STATUS_ENABLED=true and SYSTEM_UPDATE_EXEC_ENABLED=true.",
+            });
+            return;
+          }
+
+          if (statusRes.status === 403) {
+            setUpdateCapability({
+              state: "forbidden",
+              message: "Session verification failed while checking update capability. Sign in again.",
+            });
+            return;
+          }
+
+          setUpdateCapability({
+            state: "forbidden",
+            message: statusJson.error ?? "Failed to check update capability.",
+          });
+          return;
+        }
+
+        if (!statusJson.writable) {
+          setUpdateCapability({
+            state: "exec-disabled",
+            message:
+              statusJson.message ??
+              "Update command execution is disabled by policy. Set SYSTEM_UPDATE_EXEC_ENABLED=true.",
+          });
+          return;
+        }
+
+        setUpdateCapability({ state: "enabled" });
+      } catch {
+        if (cancelled) return;
+        setUpdateCapability({
+          state: "forbidden",
+          message: "Could not verify update capability due to a network issue.",
+        });
+      }
+    }
+
+    void loadUpdateCapability();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function handleCopyUrl(url: string) {
     navigator.clipboard.writeText(url).then(() => {
@@ -571,6 +641,15 @@ export default function SettingsPage() {
   }
 
   async function handlePullUpdates() {
+    if (updateCapability.state === "policy-disabled" || updateCapability.state === "forbidden" || updateCapability.state === "exec-disabled") {
+      setUpdateError(
+        updateCapability.state === "forbidden"
+          ? `Authentication/session failure: ${updateCapability.message}`
+          : `Feature disabled by policy: ${updateCapability.message}`
+      );
+      return;
+    }
+
     setUpdateBusy(true);
     setUpdateError(null);
     setUpdateOutput(null);
@@ -581,14 +660,24 @@ export default function SettingsPage() {
 
       if (!statusRes.ok) {
         const details = typeof statusJson.details === "string" ? `\n\n${statusJson.details}` : "";
-        setUpdateError(`${statusJson.error ?? "Failed to check update status."}${details}`);
+        if (statusRes.status === 404) {
+          setUpdateError(
+            `Feature disabled by policy: ${statusJson.message ?? "Set SYSTEM_UPDATE_STATUS_ENABLED=true and SYSTEM_UPDATE_EXEC_ENABLED=true."}${details}`
+          );
+        } else if (statusRes.status === 403) {
+          setUpdateError("Authentication/session failure: Please sign in again before running updates.");
+        } else {
+          setUpdateError(`${statusJson.error ?? "Failed to check update status."}${details}`);
+        }
         return;
       }
 
       if (!statusJson.writable) {
         setUpdateError(
-          statusJson.message ??
+          `Feature disabled by policy: ${
+            statusJson.message ??
             "Update command execution is disabled. Set SYSTEM_UPDATE_EXEC_ENABLED=true to enable this button."
+          }`
         );
         return;
       }
@@ -598,7 +687,17 @@ export default function SettingsPage() {
 
       if (!updateRes.ok) {
         const details = typeof updateJson.details === "string" ? `\n\n${updateJson.details}` : "";
-        setUpdateError(`${updateJson.error ?? "Failed to update application."}${details}`);
+        if (updateRes.status === 403) {
+          const errorText = typeof updateJson.error === "string" ? updateJson.error.toLowerCase() : "";
+          const isPolicyFailure = errorText.includes("disabled");
+          setUpdateError(
+            isPolicyFailure
+              ? `Feature disabled by policy: ${updateJson.message ?? updateJson.error ?? "Update command execution is disabled."}${details}`
+              : `Authentication/session failure: ${updateJson.error ?? "Please sign in again before running updates."}${details}`
+          );
+        } else {
+          setUpdateError(`Command execution failure: ${updateJson.error ?? "Failed to update application."}${details}`);
+        }
         return;
       }
 
@@ -627,6 +726,11 @@ export default function SettingsPage() {
       setUpdateBusy(false);
     }
   }
+
+  const updateFeatureBlocked =
+    updateCapability.state === "policy-disabled" ||
+    updateCapability.state === "forbidden" ||
+    updateCapability.state === "exec-disabled";
 
   function handleQuickSetupNavigate(anchor: string) {
     if (typeof window === "undefined") return;
@@ -1158,8 +1262,22 @@ export default function SettingsPage() {
             </legend>
 
             <p className="text-xs text-vault-text-muted leading-relaxed">
-              Run the configured update command to pull and apply the newest version on this host. This action is disabled unless SYSTEM_UPDATE_EXEC_ENABLED=true.
+              Run the configured update command to pull and apply the newest version on this host.
             </p>
+
+            {updateFeatureBlocked && (
+              <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 space-y-1">
+                <p className="text-xs text-amber-300">
+                  {updateCapability.state === "forbidden"
+                    ? "Authentication/session failure: Please sign in again."
+                    : "Feature disabled by policy: enable both update env vars, then restart the app."}
+                </p>
+                <p className="text-[11px] text-vault-text-faint">
+                  Required: <code className="font-mono">SYSTEM_UPDATE_STATUS_ENABLED=true</code> and{' '}
+                  <code className="font-mono">SYSTEM_UPDATE_EXEC_ENABLED=true</code>
+                </p>
+              </div>
+            )}
 
             {updateError && (
               <div className="flex items-start gap-2 rounded-md border border-[#E53935]/30 bg-[#E53935]/10 px-3 py-2">
@@ -1181,7 +1299,7 @@ export default function SettingsPage() {
             <button
               type="button"
               onClick={handlePullUpdates}
-              disabled={updateBusy}
+              disabled={updateBusy || updateFeatureBlocked}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-60 disabled:cursor-not-allowed text-xs transition-colors"
             >
               {updateBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
