@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       ? parseInt(String(mileage), 10)
       : null;
 
-    if (mileageInt !== null && !Number.isFinite(mileageInt)) {
+    if (mileageInt !== null && Number.isNaN(mileageInt)) {
       return NextResponse.json({ error: "mileage must be a valid integer" }, { status: 400 });
     }
 
