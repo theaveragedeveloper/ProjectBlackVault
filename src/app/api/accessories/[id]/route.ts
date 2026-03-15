@@ -137,7 +137,7 @@ export async function PUT(
         ...(compatibleCalibers !== undefined && { compatibleCalibers }),
         ...(hasBattery !== undefined && { hasBattery }),
         ...(batteryType !== undefined && { batteryType: batteryType || null }),
-        ...(batteryIntervalDays !== undefined && { batteryIntervalDays: batteryIntervalDays !== "" && batteryIntervalDays !== null ? parseInt(batteryIntervalDays) : null }),
+        ...(batteryIntervalDays !== undefined && { batteryIntervalDays: batteryIntervalDays !== "" && batteryIntervalDays !== null ? parseInt(String(batteryIntervalDays), 10) : null }),
       },
       include: {
         roundCountLogs: {

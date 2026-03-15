@@ -1,140 +1,173 @@
-# ProjectBlackVault
+<p align="center">
+  <img src="./public/blackvault-logo.svg" alt="BlackVault Logo" width="120" height="120" />
+</p>
 
-A self-hosted tactical firearms management application built with Next.js 16, Prisma, and SQLite.
+<h1 align="center">ProjectBlackVault</h1>
+
+<p align="center">
+  Your personal, private firearms management app — runs on your own computer, no account or internet required.
+</p>
 
 ---
 
-## Easy Install (Desktop Launcher)
+## What is ProjectBlackVault?
 
-The easiest way to run ProjectBlackVault — no terminal required.
+ProjectBlackVault is a **personal inventory and tracking app** for firearms owners. Think of it like a digital logbook — you can keep track of every gun you own, all your attachments and accessories, your ammunition stockpile, and your range sessions, all in one place.
+
+Everything is stored **on your own computer or home server** — your data never goes to any outside company or cloud service. It's yours, private, and always accessible without an internet connection.
+
+---
+
+## What Can It Do?
+
+| Feature | What it means |
+|---------|---------------|
+| **Vault** | Keep a record of each firearm — photos, serial numbers, purchase dates, and value |
+| **Loadout Builder** | Save different gear configurations for each gun (e.g. hunting setup vs. competition setup) |
+| **Accessories** | Track optics, suppressors, grips, triggers, and other attachments |
+| **Ammo Inventory** | See how much ammo you have by caliber, with alerts when you're running low |
+| **Range Sessions** | Log your time at the range and track round counts through each firearm and part |
+| **Training Drills** | Create drill templates, log your results, and track personal records |
+| **Documents** | Store manuals, purchase receipts, or any other important paperwork |
+| **Statistics & Charts** | See your progress and usage over time at a glance |
+
+---
+
+## Getting Started — Pick Your Method
+
+There are three ways to run ProjectBlackVault. **Choose the one that fits you best:**
+
+---
+
+### Option 1: Desktop App — Easiest (Recommended for most users)
+
+No technical knowledge needed. Just download and run it like any normal application.
 
 **[⬇ Download for your platform →](https://theaveragedeveloper.github.io/ProjectBlackVault/)**
 
-| Platform | File |
-|----------|------|
+| Your Computer | File to Download |
+|---------------|-----------------|
 | Windows | `ProjectBlackVault-Setup.exe` |
-| macOS | `ProjectBlackVault.dmg` |
+| Mac | `ProjectBlackVault.dmg` |
 | Linux | `ProjectBlackVault-Setup.AppImage` |
 
-### Requirements
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (free) must be installed and running
+**Before you start, you'll need:**
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) — a free program that runs the app in the background. Download and install it first, then make sure it's open and running.
 
-### First launch notes
-- **macOS**: If Gatekeeper blocks the app, right-click it and choose **Open**
-- **Windows**: If SmartScreen warns you, click **More info** → **Run anyway**
-- **Linux**: Make the AppImage executable (`chmod +x ProjectBlackVault-Setup.AppImage`) then run it
+**First-time setup tips:**
 
-```
-[ screenshot placeholder ]
-```
+- **Mac:** If a warning says the app can't be opened, right-click the file and choose **Open** instead of double-clicking.
+- **Windows:** If Windows SmartScreen shows a warning, click **More info**, then **Run anyway**.
+- **Linux:** Right-click the AppImage file → Properties → mark it as executable, then double-click to run. Or run `chmod +x ProjectBlackVault-Setup.AppImage` in a terminal.
 
 ---
 
-## Features
+### Option 2: Run It Yourself (For developers / technical users)
 
-- **Vault** - Track your entire firearms inventory with images, serial numbers, acquisition dates, and valuations
-- **Loadout Builder** - Create multiple named build configurations per firearm and toggle between active builds
-- **Accessories** - Manage optics, suppressors, handguards, triggers, and all other parts with per-accessory round count tracking
-- **Ammo Inventory** - Track ammunition stocks by caliber, brand, bullet type, and grain weight with low-stock alerts
-- **Round Count Logs** - Log range sessions and maintain a full history of rounds through each part
-- **All Loadouts View** - Cross-firearm build overview grouped by platform
-- **Dark Tactical UI** - Optimized dark theme built for desktop and mobile
+If you're comfortable with a terminal, you can run the app directly on your machine.
 
----
+**You'll need:**
+- [Node.js](https://nodejs.org/) version 20 or higher
+- npm version 9 or higher (comes with Node.js)
 
-## Quick Start (Local Development)
-
-### Prerequisites
-
-- Node.js 20+
-- npm 9+
-
-### Steps
+**Steps:**
 
 ```bash
-# 1. Clone the repository
+# 1. Download the code
 git clone <repo-url>
 cd ProjectBlackVault
 
-# 2. Install dependencies
+# 2. Install the app's dependencies
 npm install
 
-# 3. Copy the environment file and configure
+# 3. Set up your configuration file
 cp .env.example .env
-# Edit .env and set DATABASE_URL (default is fine for local dev)
+# Open the .env file in a text editor — the default settings work fine for local use
 
-# 4. Run database migrations
+# 4. Set up the database
 npx prisma migrate dev
 
-# 5. Seed the database with sample data
+# 5. (Optional) Add some sample data to explore the app
 npx prisma db seed
 
-# 6. Start the development server
+# 6. Start the app
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
-
-
----
-
-## Maintenance: Refresh stale merge-request branches
-
-Use `scripts/refresh-mr-branches.sh` to update old MR branches with the latest target branch and push them back to origin.
-
-```bash
-# Merge latest main into one or more MR branches
-scripts/refresh-mr-branches.sh feature/old-1 feature/old-2
-
-# Rebase workflow (force-with-lease push)
-scripts/refresh-mr-branches.sh --rebase -t main mr/legacy-123
-
-# Preview actions only
-scripts/refresh-mr-branches.sh --dry-run mr/legacy-123
-```
-
-If a conflict occurs, the script stops on the first conflicted branch so you can resolve it, complete the merge/rebase, and push.
+Then open your browser and go to **[http://localhost:3000](http://localhost:3000)**
 
 ---
 
-## Docker Deployment
+### Option 3: Home Server / Docker (For self-hosting enthusiasts)
 
-The application ships as a self-contained Docker image using a multi-stage build with Next.js standalone output.
+If you run a home server or NAS and want ProjectBlackVault always available on your network:
 
 ```bash
-# Build and start the container
+# Start the app
 docker-compose up -d
 
-# View logs
+# See what's happening (logs)
 docker-compose logs -f blackvault
 
-# Stop the container
+# Stop the app
 docker-compose down
 ```
 
-The container automatically runs `prisma migrate deploy` on startup before serving traffic.
+The app automatically handles database setup when it starts. Your data is saved in named volumes so it persists even when you stop and restart the container:
 
-Data is persisted in named Docker volumes:
-- `blackvault-db` — SQLite database at `/app/data/vault.db`
-- `blackvault-uploads` — User-uploaded images at `/app/uploads`
-
----
-
-## Environment Variables
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `DATABASE_URL` | Yes | `file:./prisma/dev.db` | SQLite connection string |
-| `SESSION_SECRET` | Yes (Production) | — | Required in production. Signs session cookies to prevent forgery. Generate: `openssl rand -hex 32` |
-| `NODE_ENV` | No | `development` | Set to `production` in deployed environments |
-| `PORT` | No | `3000` | Port exposed by Docker Compose |
-| `APP_PASSWORD` | — | — | Set via the Settings UI — not an environment variable |
-
-> ⚠️ In production, startup will fail when `SESSION_SECRET` is missing to prevent unsigned sessions.
+- **`blackvault-db`** — your database (stored at `/app/data/vault.db` inside the container)
+- **`blackvault-uploads`** — your uploaded photos and documents (at `/app/uploads`)
 
 ---
 
-## Tech Stack
+## Setting a Password
+
+By default, the app has no password — it's designed for personal use on a trusted network or computer. To add one, go to **Settings** inside the app and set your password from there.
+
+> **Note:** The app password is set inside the app, not in a configuration file.
+
+---
+
+## Configuration (Advanced)
+
+If you're running the app manually or on a server, you can configure it using a `.env` file. Copy `.env.example` to `.env` and edit as needed:
+
+| Setting | Required? | What it does |
+|---------|-----------|--------------|
+| `DATABASE_URL` | Yes | Where your database file is stored. Default works for local use. |
+| `SESSION_SECRET` | Required in production | A secret key that secures your login session. Generate one with: `openssl rand -hex 32` |
+| `NODE_ENV` | No | Set to `production` when deploying on a server |
+| `PORT` | No | The port the app runs on (default: `3000`) |
+
+> **Security tip:** If you deploy this on a server or expose it outside your home network, make sure to set a strong `SESSION_SECRET` and enable a password in the Settings page. Without `SESSION_SECRET`, the app won't start in production mode.
+
+---
+
+## Having Trouble?
+
+**The app won't open (Mac):**
+Right-click the `.dmg` file and choose **Open**. If it still doesn't work, go to System Settings → Privacy & Security and click **Open Anyway**.
+
+**The app won't open (Windows):**
+Click **More info** on the SmartScreen warning, then **Run anyway**. The app is safe — Windows just doesn't recognize it because it's not from the Microsoft Store.
+
+**Docker Desktop isn't installed:**
+The desktop launcher requires Docker to run the app. [Download Docker Desktop here](https://www.docker.com/products/docker-desktop/) — it's free. Make sure to open Docker Desktop before launching ProjectBlackVault.
+
+**The page won't load at localhost:3000:**
+Make sure the app is still running in your terminal (you should see output from the dev server). If you closed the terminal, run `npm run dev` again.
+
+**My data disappeared:**
+If you're running via Docker, your data is in named volumes and should persist. If you used `docker-compose down -v`, that removes volumes too — avoid the `-v` flag unless you want to wipe everything.
+
+---
+
+## For Developers
+
+<details>
+<summary>Tech Stack, Project Structure & Scripts</summary>
+
+### Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
@@ -150,9 +183,7 @@ Data is persisted in named Docker volumes:
 | Validation | [Zod](https://zod.dev) |
 | Container | Docker + Docker Compose |
 
----
-
-## Project Structure
+### Project Structure
 
 ```
 ProjectBlackVault/
@@ -175,3 +206,33 @@ ProjectBlackVault/
 ├── docker-compose.yml
 └── .env.example
 ```
+
+### Available Scripts
+
+```bash
+npm run dev          # Start development server
+npm run build        # Build for production
+npm run start        # Run production build
+npm test             # Run tests
+npm run lint         # Lint code
+npm run typecheck    # TypeScript type checking
+npm run db:migrate   # Run database migrations
+npm run db:seed      # Seed database with sample data
+```
+
+### Maintenance: Refresh stale merge-request branches
+
+Use `scripts/refresh-mr-branches.sh` to update old MR branches with the latest target branch.
+
+```bash
+# Merge latest main into one or more MR branches
+scripts/refresh-mr-branches.sh feature/old-1 feature/old-2
+
+# Rebase workflow (force-with-lease push)
+scripts/refresh-mr-branches.sh --rebase -t main mr/legacy-123
+
+# Preview actions only
+scripts/refresh-mr-branches.sh --dry-run mr/legacy-123
+```
+
+</details>
