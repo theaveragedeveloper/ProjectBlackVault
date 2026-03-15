@@ -1029,6 +1029,17 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
+                {/* Key backup warning */}
+                <div className="flex items-start gap-2 bg-[#F5A623]/5 border border-[#F5A623]/20 rounded-md px-4 py-3">
+                  <TriangleAlert className="w-4 h-4 text-[#F5A623] shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs text-[#F5A623] font-semibold">Back up your encryption key</p>
+                    <p className="text-xs text-vault-text-muted mt-0.5 leading-relaxed">
+                      If you lose your encryption key, encrypted data (serial numbers, notes) will be permanently unreadable. Store your key in a secure, offline location.
+                    </p>
+                  </div>
+                </div>
+
                 {settings.encryptionViaEnv ? (
                   <div className="bg-vault-bg border border-vault-border rounded-md px-4 py-3">
                     <p className="text-xs text-vault-text-muted leading-relaxed">

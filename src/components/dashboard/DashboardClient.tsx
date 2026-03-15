@@ -20,6 +20,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { StatCard } from "@/components/shared/StatCard";
 import { SafeImage } from "@/components/shared/SafeImage";
 import { formatCurrency, formatNumber, formatDate } from "@/lib/utils";
+import { FIREARM_TYPE_LABELS, TYPE_BADGE_COLORS } from "@/lib/types";
 import {
   Shield,
   Crosshair,
@@ -35,28 +36,6 @@ import {
   Wrench,
   Award,
 } from "lucide-react";
-
-const FIREARM_TYPE_LABELS: Record<string, string> = {
-  PISTOL: "Pistol",
-  RIFLE: "Rifle",
-  SHOTGUN: "Shotgun",
-  SMG: "SMG",
-  PCC: "PCC",
-  REVOLVER: "Revolver",
-  BOLT_ACTION: "Bolt Action",
-  LEVER_ACTION: "Lever Action",
-};
-
-const TYPE_BADGE_COLORS: Record<string, string> = {
-  PISTOL: "border-[#00C2FF]/40 text-[#00C2FF]",
-  RIFLE: "border-[#00C853]/40 text-[#00C853]",
-  SHOTGUN: "border-[#F5A623]/40 text-[#F5A623]",
-  SMG: "border-[#9C27B0]/40 text-[#CE93D8]",
-  PCC: "border-[#00BCD4]/40 text-[#00BCD4]",
-  REVOLVER: "border-[#E53935]/40 text-[#EF9A9A]",
-  BOLT_ACTION: "border-[#8B9DB0]/40 text-vault-text-muted",
-  LEVER_ACTION: "border-[#FF7043]/40 text-[#FF7043]",
-};
 
 const DEFAULT_ORDER = ["stats", "range-sessions", "personal-records", "maintenance-due", "low-ammo", "recent", "ammo-summary"];
 const STORAGE_KEY = "vault-dashboard-layout";
@@ -542,15 +521,19 @@ interface PersonalRecord {
 function PersonalRecordsWidget() {
   const [records, setRecords] = useState<PersonalRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     fetch("/api/personal-records?limit=5")
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed");
+        return r.json();
+      })
       .then((data) => {
         setRecords(Array.isArray(data) ? data : []);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => { setError(true); setLoading(false); });
   }, []);
 
   const METRIC_LABELS: Record<string, string> = { time: "Best Time", score: "Best Score", accuracy: "Best Accuracy" };
@@ -567,6 +550,10 @@ function PersonalRecordsWidget() {
         {loading ? (
           <div className="p-8 text-center">
             <div className="w-5 h-5 border-2 border-[#F5A623]/30 border-t-[#F5A623] rounded-full animate-spin mx-auto" />
+          </div>
+        ) : error ? (
+          <div className="p-8 text-center">
+            <p className="text-sm text-vault-text-muted">Could not load personal records</p>
           </div>
         ) : records.length === 0 ? (
           <div className="p-8 text-center">

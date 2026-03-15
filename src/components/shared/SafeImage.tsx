@@ -19,6 +19,7 @@ function sourceKey(src: SafeImageSource): string | null {
 
 export function SafeImage({ src, fallback, onError, alt, ...imageProps }: SafeImageProps) {
   const [failedSource, setFailedSource] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
   const currentSource = sourceKey(src);
 
   if (!currentSource || failedSource === currentSource) {
@@ -26,14 +27,20 @@ export function SafeImage({ src, fallback, onError, alt, ...imageProps }: SafeIm
   }
 
   return (
-    <Image
-      {...imageProps}
-      src={src as ImageProps["src"]}
-      alt={alt}
-      onError={(event) => {
-        setFailedSource(currentSource);
-        onError?.(event);
-      }}
-    />
+    <>
+      {!loaded && (
+        <div className="absolute inset-0 bg-vault-border/30 animate-pulse rounded" />
+      )}
+      <Image
+        {...imageProps}
+        src={src as ImageProps["src"]}
+        alt={alt}
+        onLoad={() => setLoaded(true)}
+        onError={(event) => {
+          setFailedSource(currentSource);
+          onError?.(event);
+        }}
+      />
+    </>
   );
 }

@@ -55,6 +55,14 @@
   --color-vault-text:        var(--vault-text);
   --color-vault-text-muted:  var(--vault-text-muted);
   --color-vault-text-faint:  var(--vault-text-faint);
+  --color-vault-accent:      var(--vault-accent);
+  --color-vault-accent-dim:  var(--vault-accent-dim);
+  --color-vault-danger:      var(--vault-danger);
+  --color-vault-danger-dim:  var(--vault-danger-dim);
+  --color-vault-success:     var(--vault-success);
+  --color-vault-success-dim: var(--vault-success-dim);
+  --color-vault-warn:        var(--vault-warn);
+  --color-vault-warn-dim:    var(--vault-warn-dim);
 }
 
 /* ── Base ─────────────────────────────────────────────────── */

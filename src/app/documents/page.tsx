@@ -45,10 +45,18 @@ export default function DocumentLibraryPage() {
     if (!confirm("Delete this document?")) return;
     setDeletingId(id);
     try {
-      await fetch(`/api/documents/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/documents/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const json = await res.json().catch(() => null);
+        alert(json?.error ?? "Failed to delete document");
+        return;
+      }
       setDocuments((prev) => prev.filter((d) => d.id !== id));
-    } catch { /* ignore */ }
-    finally { setDeletingId(null); }
+    } catch {
+      alert("Network error — could not delete document");
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   const isPdf = (doc: UploadedDocument) =>

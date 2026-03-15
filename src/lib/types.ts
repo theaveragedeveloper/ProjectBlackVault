@@ -12,7 +12,7 @@ export const FIREARM_TYPES = [
 
 export type FirearmType = (typeof FIREARM_TYPES)[number];
 
-export const FIREARM_TYPE_LABELS: Record<FirearmType, string> = {
+export const FIREARM_TYPE_LABELS: Record<string, string> = {
   PISTOL: "Pistol",
   RIFLE: "Rifle",
   SHOTGUN: "Shotgun",
@@ -292,6 +292,18 @@ export const TRANSACTION_TYPE_LABELS: Record<TransactionType, string> = {
   TRANSFER_OUT: "Transfer Out",
   INVENTORY_CORRECTION: "Inventory Correction",
   EXPENDED: "Expended",
+};
+
+// ─── Type Badge Colors ────────────────────────────────────────
+export const TYPE_BADGE_COLORS: Record<string, string> = {
+  PISTOL: "border-[#00C2FF]/40 text-[#00C2FF]",
+  RIFLE: "border-[#00C853]/40 text-[#00C853]",
+  SHOTGUN: "border-[#F5A623]/40 text-[#F5A623]",
+  SMG: "border-[#9C27B0]/40 text-[#CE93D8]",
+  PCC: "border-[#00BCD4]/40 text-[#00BCD4]",
+  REVOLVER: "border-[#E53935]/40 text-[#EF9A9A]",
+  BOLT_ACTION: "border-[#8B9DB0]/40 text-vault-text-muted",
+  LEVER_ACTION: "border-[#FF7043]/40 text-[#FF7043]",
 };
 
 // ─── Common Calibers ──────────────────────────────────────────
