@@ -41,7 +41,7 @@ There are three ways to run ProjectBlackVault. **Choose the one that fits you be
 
 ### Option 1: Desktop App — Easiest (Recommended for most users)
 
-No technical knowledge needed. Just download and run it like any normal application.
+No technical knowledge needed. Just download and run it like any normal application. No Docker, no terminal.
 
 **[⬇ Download for your platform →](https://theaveragedeveloper.github.io/ProjectBlackVault/)**
 
@@ -51,14 +51,15 @@ No technical knowledge needed. Just download and run it like any normal applicat
 | Mac | `ProjectBlackVault.dmg` |
 | Linux | `ProjectBlackVault-Setup.AppImage` |
 
-**Before you start, you'll need:**
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) — a free program that runs the app in the background. The launcher can **install this automatically** for you on Windows and macOS — just click "Install Docker Automatically" when prompted. Or install it manually first and make sure it's open and running.
+The app includes its own built-in server — nothing else to install.
 
 **First-time setup tips:**
 
 - **Mac:** If a warning says the app can't be opened, right-click the file and choose **Open** instead of double-clicking.
 - **Windows:** If Windows SmartScreen shows a warning, click **More info**, then **Run anyway**.
 - **Linux:** Right-click the AppImage file → Properties → mark it as executable, then double-click to run. Or run `chmod +x ProjectBlackVault-Setup.AppImage` in a terminal.
+
+**Want Docker instead?** A separate Docker-based launcher is also available on the [Releases](https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest) page. It requires [Docker Desktop](https://www.docker.com/products/docker-desktop/) but is useful if you want to share the vault across your network — other devices connect with just a browser URL.
 
 ---
 
@@ -221,7 +222,13 @@ If you're running via Docker, your data is in the directory configured during se
 
 ```
 ProjectBlackVault/
-├── launcher/               # Electron desktop launcher
+├── electron/               # Standalone desktop app (bundles Next.js, no Docker)
+│   ├── main.js             # Main process (port detection, server spawn, auto-update)
+│   ├── preload.js          # Context bridge
+│   ├── splash.html         # Tactical loading screen
+│   ├── notarize.js         # Optional macOS notarization
+│   └── package.json        # electron-builder config
+├── launcher/               # Docker-based desktop launcher
 │   ├── main.js             # Main process (Docker management, IPC)
 │   ├── preload.js          # Context bridge
 │   └── renderer/           # Launcher UI
@@ -254,14 +261,17 @@ ProjectBlackVault/
 ### Available Scripts
 
 ```bash
-npm run dev          # Start development server
-npm run build        # Build for production
-npm run start        # Run production build
-npm test             # Run tests
-npm run lint         # Lint code
-npm run typecheck    # TypeScript type checking
-npm run db:migrate   # Run database migrations
-npm run db:seed      # Seed database with sample data
+npm run dev              # Start development server
+npm run build            # Build for production
+npm run start            # Run production build
+npm test                 # Run tests
+npm run lint             # Lint code
+npm run typecheck        # TypeScript type checking
+npm run db:migrate       # Run database migrations
+npm run db:seed          # Seed database with sample data
+npm run electron:dev     # Build + launch the desktop app locally
+npm run electron:build   # Build installers without publishing
+npm run release          # Tag current version and push → triggers CI release build
 ```
 
 ### Maintenance: Refresh stale merge-request branches
