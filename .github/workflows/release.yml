@@ -1,8 +1,10 @@
 name: Build & Release Launcher
 
 on:
-  release:
-    types: [created]
+  push:
+    branches: [main]
+    paths:
+      - 'launcher/**'
   workflow_dispatch:
 
 permissions:
@@ -10,23 +12,23 @@ permissions:
 
 jobs:
   prepare:
-    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Create GitHub release for current launcher version
+      - name: Create or refresh GitHub release
         run: |
           VERSION=$(node -p "require('./launcher/package.json').version")
-          gh release create "v${VERSION}" \
-            --title "ProjectBlackVault Launcher v${VERSION}" \
+          TAG="v${VERSION}"
+          gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
+          gh release create "$TAG" \
+            --title "ProjectBlackVault Launcher ${TAG}" \
             --notes "Desktop launcher for ProjectBlackVault. Requires Docker Desktop." \
-            --latest || true
+            --latest
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build:
     needs: prepare
-    if: always() && (needs.prepare.result == 'success' || needs.prepare.result == 'skipped')
     strategy:
       fail-fast: false
       matrix:
