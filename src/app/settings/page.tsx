@@ -1157,6 +1157,25 @@ export default function SettingsPage() {
             </div>
           </fieldset>
 
+          {/* ── Desktop Launcher ───────────────────────────── */}
+          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-3">
+            <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
+              <Download className="w-3.5 h-3.5" />
+              Desktop Launcher
+            </legend>
+            <p className="text-xs text-vault-text-muted leading-relaxed">
+              The desktop launcher lets you start, stop, and manage your ProjectBlackVault Docker container without a terminal.
+              If you&apos;re accessing this app over a network or VPN, you don&apos;t need to install anything — the launcher is only needed on the machine running Docker.
+            </p>
+            <a
+              href="/download"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 text-xs transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Get the Desktop Launcher →
+            </a>
+          </fieldset>
+
           {/* ── GitHub Updates ─────────────────────────────── */}
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
             <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">

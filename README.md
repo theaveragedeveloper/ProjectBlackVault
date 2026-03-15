@@ -16,17 +16,62 @@ The easiest way to run ProjectBlackVault — no terminal required.
 | macOS | `ProjectBlackVault.dmg` |
 | Linux | `ProjectBlackVault-Setup.AppImage` |
 
-### Requirements
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (free) must be installed and running
+1. Download and run the installer for your platform
+2. The launcher will detect whether Docker Desktop is installed — on **Windows and macOS it can install Docker automatically** with one click
+3. Follow the first-run setup wizard (~30 seconds)
+4. Click **Open App** — your vault is ready
 
 ### First launch notes
 - **macOS**: If Gatekeeper blocks the app, right-click it and choose **Open**
 - **Windows**: If SmartScreen warns you, click **More info** → **Run anyway**
 - **Linux**: Make the AppImage executable (`chmod +x ProjectBlackVault-Setup.AppImage`) then run it
 
+---
+
+## Running on a Server (Headless / Network Access)
+
+Use this if you want to run ProjectBlackVault on a home server, NAS, or any machine others will access over your network or VPN. No desktop launcher is needed — users connect with a browser.
+
+### Linux / macOS
+
+```bash
+git clone https://github.com/theaveragedeveloper/ProjectBlackVault.git
+cd ProjectBlackVault
+chmod +x install.sh && ./install.sh
 ```
-[ screenshot placeholder ]
+
+### Windows
+
+```bat
+git clone https://github.com/theaveragedeveloper/ProjectBlackVault.git
+cd ProjectBlackVault
+install.bat
 ```
+
+The setup wizard will ask where to store data and which port to use, generate secret keys automatically, then start the container.
+
+### Accessing from other devices
+
+Once running, any device on your network or connected via VPN can access the app — no additional software needed, just a browser.
+
+1. Find your server's local IP: `ip addr` (Linux), `ipconfig` (Windows), or `ifconfig` (macOS)
+2. On any other device, open: `http://YOUR-SERVER-IP:3000`
+
+### Updating
+
+```bash
+./update.sh    # Linux/macOS
+update.bat     # Windows
+```
+
+Or inside the app: **Settings → GitHub Updates → Update Now**
+
+### ⚠️ Back up your encryption key
+
+Your encryption key is stored in `.blackvault.env`. **Back this file up to a secure location.**
+If you lose it, all encrypted data (serial numbers, notes) is permanently unrecoverable.
+
+You can also export encrypted backups from within the app: **Settings → Secure Backup**.
 
 ---
 
@@ -99,24 +144,24 @@ If a conflict occurs, the script stops on the first conflicted branch so you can
 
 ## Docker Deployment
 
-The application ships as a self-contained Docker image using a multi-stage build with Next.js standalone output.
+The application ships as a self-contained Docker image using a multi-stage build with Next.js standalone output. The recommended way to deploy is via `install.sh` (see above), which generates a `.blackvault.env` config file and starts the container.
 
 ```bash
-# Build and start the container
-docker-compose up -d
+# Start (after running install.sh once)
+docker compose --env-file .blackvault.env up -d
 
 # View logs
-docker-compose logs -f blackvault
+docker compose --env-file .blackvault.env logs -f
 
-# Stop the container
-docker-compose down
+# Stop
+docker compose --env-file .blackvault.env down
 ```
 
 The container automatically runs `prisma migrate deploy` on startup before serving traffic.
 
-Data is persisted in named Docker volumes:
-- `blackvault-db` — SQLite database at `/app/data/vault.db`
-- `blackvault-uploads` — User-uploaded images at `/app/uploads`
+Data is persisted in the directory configured during setup (default `~/.blackvault`):
+- `~/.blackvault/db/` — SQLite database
+- `~/.blackvault/uploads/` — User-uploaded images
 
 ---
 
@@ -156,6 +201,12 @@ Data is persisted in named Docker volumes:
 
 ```
 ProjectBlackVault/
+├── launcher/               # Electron desktop launcher
+│   ├── main.js             # Main process (Docker management, IPC)
+│   ├── preload.js          # Context bridge
+│   └── renderer/           # Launcher UI
+├── docs/
+│   └── index.html          # Download landing page (GitHub Pages)
 ├── prisma/
 │   ├── schema.prisma       # Database schema
 │   ├── migrations/         # Migration history
@@ -163,6 +214,7 @@ ProjectBlackVault/
 ├── src/
 │   ├── app/                # Next.js App Router pages & API routes
 │   │   ├── api/            # REST API endpoints
+│   │   ├── download/       # Launcher download page
 │   │   ├── vault/          # Firearm management pages
 │   │   ├── accessories/    # Accessory management pages
 │   │   ├── builds/         # All loadouts overview
@@ -171,7 +223,10 @@ ProjectBlackVault/
 │   │   └── settings/       # App settings
 │   ├── components/         # Shared UI components
 │   └── lib/                # Utility functions, Prisma client, types
-├── Dockerfile
-├── docker-compose.yml
-└── .env.example
+├── install.sh              # First-run setup wizard (Linux/macOS)
+├── install.bat             # First-run setup wizard (Windows)
+├── update.sh               # Update script (Linux/macOS)
+├── update.bat              # Update script (Windows)
+├── docker-compose.yml      # Production compose file
+└── Dockerfile
 ```
