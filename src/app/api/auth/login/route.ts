@@ -40,10 +40,15 @@ export async function POST(request: NextRequest) {
       settings = await prisma.appSettings.create({ data: { id: "singleton" } });
     }
 
+    const secret = process.env.SESSION_SECRET;
+    if (!secret && process.env.NODE_ENV === "production") {
+      console.error("POST /api/auth/login: SESSION_SECRET is not set in production");
+      return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
+    }
+
     // If no password is set, always allow access
     if (!settings.appPassword) {
       const token = crypto.randomBytes(32).toString("hex");
-      const secret = process.env.SESSION_SECRET;
       const cookieValue = secret ? signToken(token, secret) : token;
       const cookieStore = await cookies();
       cookieStore.set("vault_session", cookieValue, getSessionCookieOptions());
@@ -56,7 +61,6 @@ export async function POST(request: NextRequest) {
     }
 
     const token = crypto.randomBytes(32).toString("hex");
-    const secret = process.env.SESSION_SECRET;
     const cookieValue = secret ? signToken(token, secret) : token;
     const cookieStore = await cookies();
     cookieStore.set("vault_session", cookieValue, getSessionCookieOptions());
