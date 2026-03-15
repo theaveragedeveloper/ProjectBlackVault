@@ -17,17 +17,46 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const { drillName, performedAt, timeSeconds, hits, totalShots, accuracy, score, notes, templateId } = body;
 
   try {
+    if (performedAt !== undefined) {
+      const parsedDate = new Date(performedAt);
+      if (isNaN(parsedDate.getTime())) {
+        return NextResponse.json({ error: "performedAt must be a valid date" }, { status: 400 });
+      }
+    }
+
+    const parsedTimeSeconds = timeSeconds !== undefined && timeSeconds !== "" ? Number(timeSeconds) : null;
+    const parsedHits = hits !== undefined && hits !== "" ? Number(hits) : null;
+    const parsedTotalShots = totalShots !== undefined && totalShots !== "" ? Number(totalShots) : null;
+    const parsedAccuracy = accuracy !== undefined && accuracy !== "" ? Number(accuracy) : null;
+    const parsedScore = score !== undefined && score !== "" ? Number(score) : null;
+
+    if (timeSeconds !== undefined && parsedTimeSeconds !== null && isNaN(parsedTimeSeconds)) {
+      return NextResponse.json({ error: "timeSeconds must be a valid number" }, { status: 400 });
+    }
+    if (hits !== undefined && parsedHits !== null && isNaN(parsedHits)) {
+      return NextResponse.json({ error: "hits must be a valid number" }, { status: 400 });
+    }
+    if (totalShots !== undefined && parsedTotalShots !== null && isNaN(parsedTotalShots)) {
+      return NextResponse.json({ error: "totalShots must be a valid number" }, { status: 400 });
+    }
+    if (accuracy !== undefined && parsedAccuracy !== null && isNaN(parsedAccuracy)) {
+      return NextResponse.json({ error: "accuracy must be a valid number" }, { status: 400 });
+    }
+    if (score !== undefined && parsedScore !== null && isNaN(parsedScore)) {
+      return NextResponse.json({ error: "score must be a valid number" }, { status: 400 });
+    }
+
     const log = await prisma.drillLog.update({
       where: { id },
       data: {
         ...(drillName !== undefined && { drillName }),
         ...(templateId !== undefined && { templateId: templateId || null }),
         ...(performedAt !== undefined && { performedAt: new Date(performedAt) }),
-        ...(timeSeconds !== undefined && { timeSeconds: timeSeconds !== "" ? Number(timeSeconds) : null }),
-        ...(hits !== undefined && { hits: hits !== "" ? Number(hits) : null }),
-        ...(totalShots !== undefined && { totalShots: totalShots !== "" ? Number(totalShots) : null }),
-        ...(accuracy !== undefined && { accuracy: accuracy !== "" ? Number(accuracy) : null }),
-        ...(score !== undefined && { score: score !== "" ? Number(score) : null }),
+        ...(timeSeconds !== undefined && { timeSeconds: parsedTimeSeconds }),
+        ...(hits !== undefined && { hits: parsedHits }),
+        ...(totalShots !== undefined && { totalShots: parsedTotalShots }),
+        ...(accuracy !== undefined && { accuracy: parsedAccuracy }),
+        ...(score !== undefined && { score: parsedScore }),
         ...(notes !== undefined && { notes: notes || null }),
       },
       include: { template: true },

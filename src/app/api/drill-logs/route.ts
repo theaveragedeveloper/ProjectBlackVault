@@ -22,16 +22,38 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "drillName is required" }, { status: 400 });
   }
 
+  const parsedTimeSeconds = timeSeconds !== undefined && timeSeconds !== "" ? Number(timeSeconds) : null;
+  const parsedHits = hits !== undefined && hits !== "" ? Number(hits) : null;
+  const parsedTotalShots = totalShots !== undefined && totalShots !== "" ? Number(totalShots) : null;
+  const parsedAccuracy = accuracy !== undefined && accuracy !== "" ? Number(accuracy) : null;
+  const parsedScore = score !== undefined && score !== "" ? Number(score) : null;
+
+  if (parsedTimeSeconds !== null && isNaN(parsedTimeSeconds)) {
+    return NextResponse.json({ error: "timeSeconds must be a valid number" }, { status: 400 });
+  }
+  if (parsedHits !== null && isNaN(parsedHits)) {
+    return NextResponse.json({ error: "hits must be a valid number" }, { status: 400 });
+  }
+  if (parsedTotalShots !== null && isNaN(parsedTotalShots)) {
+    return NextResponse.json({ error: "totalShots must be a valid number" }, { status: 400 });
+  }
+  if (parsedAccuracy !== null && isNaN(parsedAccuracy)) {
+    return NextResponse.json({ error: "accuracy must be a valid number" }, { status: 400 });
+  }
+  if (parsedScore !== null && isNaN(parsedScore)) {
+    return NextResponse.json({ error: "score must be a valid number" }, { status: 400 });
+  }
+
   const log = await prisma.drillLog.create({
     data: {
       templateId: templateId || null,
       drillName,
       performedAt: performedAt ? new Date(performedAt) : new Date(),
-      timeSeconds: timeSeconds !== undefined && timeSeconds !== "" ? Number(timeSeconds) : null,
-      hits: hits !== undefined && hits !== "" ? Number(hits) : null,
-      totalShots: totalShots !== undefined && totalShots !== "" ? Number(totalShots) : null,
-      accuracy: accuracy !== undefined && accuracy !== "" ? Number(accuracy) : null,
-      score: score !== undefined && score !== "" ? Number(score) : null,
+      timeSeconds: parsedTimeSeconds,
+      hits: parsedHits,
+      totalShots: parsedTotalShots,
+      accuracy: parsedAccuracy,
+      score: parsedScore,
       notes: notes || null,
     },
     include: { template: true },

@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
       sourceId: string;
     }[] = [];
 
-    await Promise.all(
+    const results = await Promise.allSettled(
       templates.map(async (template) => {
         const [sessionDrills, drillLogs] = await Promise.all([
           prisma.sessionDrill.findMany({
@@ -141,6 +141,9 @@ export async function GET(request: NextRequest) {
         }
       })
     );
+    results
+      .filter((r) => r.status === "rejected")
+      .forEach((r) => console.error("GET /api/personal-records template error:", (r as PromiseRejectedResult).reason));
 
     // Sort by date descending (most recently set PR first)
     prs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
