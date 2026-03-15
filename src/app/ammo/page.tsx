@@ -16,6 +16,7 @@ import {
   ChevronUp,
   MapPin,
   TrendingDown,
+  Search,
 } from "lucide-react";
 
 interface AmmoStock {
@@ -430,6 +431,7 @@ export default function AmmoPage() {
   const [groups, setGroups] = useState<CaliberGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedCalibers, setExpandedCalibers] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
   const [addModal, setAddModal] = useState<AmmoStock | null>(null);
   const [logModal, setLogModal] = useState<AmmoStock | null>(null);
   const [editModal, setEditModal] = useState<AmmoStock | null>(null);
@@ -475,8 +477,24 @@ export default function AmmoPage() {
     });
   }
 
-  const totalRounds = groups.reduce((sum, g) => sum + g.totalQuantity, 0);
-  const inventoryValue = groups
+  const filteredGroups = searchQuery
+    ? groups
+        .map((g) => {
+          const q = searchQuery.toLowerCase();
+          const matchedStocks = g.stocks.filter(
+            (s) =>
+              s.caliber.toLowerCase().includes(q) ||
+              s.brand.toLowerCase().includes(q) ||
+              (s.bulletType ?? "").toLowerCase().includes(q)
+          );
+          if (matchedStocks.length === 0) return null;
+          return { ...g, stocks: matchedStocks, totalQuantity: matchedStocks.reduce((sum, s) => sum + s.quantity, 0) };
+        })
+        .filter(Boolean) as CaliberGroup[]
+    : groups;
+
+  const totalRounds = filteredGroups.reduce((sum, g) => sum + g.totalQuantity, 0);
+  const inventoryValue = filteredGroups
     .flatMap((g) => g.stocks)
     .reduce((sum, s) => sum + s.quantity * (s.purchasePrice ?? 0), 0);
 
@@ -497,11 +515,23 @@ export default function AmmoPage() {
       />
 
       <div className="p-6">
+        {/* Search */}
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-vault-text-faint pointer-events-none" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by caliber, brand, or bullet type..."
+            className="w-full bg-vault-surface border border-vault-border text-vault-text rounded-md pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint transition-colors"
+          />
+        </div>
+
         {/* Summary */}
         <div className="flex items-center gap-6 mb-6 bg-vault-surface border border-vault-border rounded-lg px-5 py-3">
           <div>
             <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-0.5">Calibers</p>
-            <p className="text-lg font-bold font-mono text-vault-text">{groups.length}</p>
+            <p className="text-lg font-bold font-mono text-vault-text">{filteredGroups.length}</p>
           </div>
           <div className="w-px h-8 bg-vault-border" />
           <div>
@@ -523,14 +553,18 @@ export default function AmmoPage() {
           <div className="flex items-center justify-center py-24">
             <Loader2 className="w-8 h-8 text-[#00C2FF] animate-spin" />
           </div>
-        ) : groups.length === 0 ? (
+        ) : filteredGroups.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <div className="w-16 h-16 rounded-full bg-[#F5A623]/10 border border-[#F5A623]/20 flex items-center justify-center mb-4">
               <Target className="w-8 h-8 text-[#F5A623]" />
             </div>
-            <h3 className="text-lg font-semibold text-vault-text mb-2">No ammo stocks</h3>
+            <h3 className="text-lg font-semibold text-vault-text mb-2">
+              {searchQuery ? "No matching ammo" : "No ammo stocks"}
+            </h3>
             <p className="text-sm text-vault-text-muted mb-6 max-w-sm">
-              Start tracking your ammunition inventory by adding your first stock.
+              {searchQuery
+                ? "No ammunition matches your search. Try a different term."
+                : "Start tracking your ammunition inventory by adding your first stock."}
             </p>
             <Link
               href="/ammo/new"
@@ -542,7 +576,7 @@ export default function AmmoPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-            {groups.map((group) => {
+            {filteredGroups.map((group) => {
               const worstStatus = group.stocks.reduce<string>((worst, s) => {
                 const st = stockStatus(s.quantity, s.lowStockAlert);
                 const order = ["empty", "critical", "low", "ok"];
@@ -645,7 +679,7 @@ export default function AmmoPage() {
                               <div className="mb-2 ml-3.5">
                                 <div className="w-full bg-vault-border rounded-full h-1">
                                   <div
-                                    className={`h-1 rounded-full ${ss.dot.replace("animate-pulse", "").trim().replace("bg-", "bg-")}`}
+                                    className={`h-1 rounded-full ${ss.dot.replace("animate-pulse", "").trim()}`}
                                     style={{
                                       width: `${Math.min(
                                         (stock.quantity / (stock.lowStockAlert * 2)) * 100,

@@ -95,6 +95,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate that all referenced firearm IDs exist
+    const firearmIds = [...new Set(parsedFirearms.map((entry) => entry.firearmId))];
+    const existingFirearms = await prisma.firearm.findMany({
+      where: { id: { in: firearmIds } },
+      select: { id: true },
+    });
+    if (existingFirearms.length !== firearmIds.length) {
+      const existingIds = new Set(existingFirearms.map((f) => f.id));
+      const missingIds = firearmIds.filter((id) => !existingIds.has(id));
+      return NextResponse.json(
+        { error: `Referenced firearm(s) not found: ${missingIds.join(", ")}` },
+        { status: 400 }
+      );
+    }
+
     const rounds = parsedFirearms.reduce((sum, entry) => sum + entry.roundsFired, 0);
 
     const parseFloat_ = (v: unknown) => {

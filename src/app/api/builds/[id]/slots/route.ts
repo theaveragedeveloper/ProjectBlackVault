@@ -43,6 +43,13 @@ export async function PUT(
       );
     }
 
+    if (slotType.length > 100) {
+      return NextResponse.json(
+        { error: "slotType must not exceed 100 characters" },
+        { status: 400 }
+      );
+    }
+
     // Verify the build exists
     const build = await prisma.build.findUnique({ where: { id: buildId } });
     if (!build) {

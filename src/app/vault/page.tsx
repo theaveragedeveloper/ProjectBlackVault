@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SafeImage } from "@/components/shared/SafeImage";
 import { formatCurrency, formatNumber } from "@/lib/utils";
+import { FIREARM_TYPE_LABELS as IMPORTED_TYPE_LABELS, TYPE_BADGE_COLORS as IMPORTED_BADGE_COLORS } from "@/lib/types";
 import {
   Shield,
   Plus,
@@ -17,32 +18,17 @@ import {
   Pencil,
   Trash2,
   CheckCircle2,
+  Search,
 } from "lucide-react";
 
 const FIREARM_TYPES = ["ALL", "PISTOL", "RIFLE", "SHOTGUN", "SMG", "PCC", "REVOLVER", "BOLT_ACTION", "LEVER_ACTION"] as const;
 
 const FIREARM_TYPE_LABELS: Record<string, string> = {
   ALL: "All",
-  PISTOL: "Pistol",
-  RIFLE: "Rifle",
-  SHOTGUN: "Shotgun",
-  SMG: "SMG",
-  PCC: "PCC",
-  REVOLVER: "Revolver",
-  BOLT_ACTION: "Bolt Action",
-  LEVER_ACTION: "Lever Action",
+  ...IMPORTED_TYPE_LABELS,
 };
 
-const TYPE_BADGE_COLORS: Record<string, string> = {
-  PISTOL: "border-[#00C2FF]/40 text-[#00C2FF]",
-  RIFLE: "border-[#00C853]/40 text-[#00C853]",
-  SHOTGUN: "border-[#F5A623]/40 text-[#F5A623]",
-  SMG: "border-[#9C27B0]/40 text-[#CE93D8]",
-  PCC: "border-[#00BCD4]/40 text-[#00BCD4]",
-  REVOLVER: "border-[#E53935]/40 text-[#EF9A9A]",
-  BOLT_ACTION: "border-[#8B9DB0]/40 text-vault-text-muted",
-  LEVER_ACTION: "border-[#FF7043]/40 text-[#FF7043]",
-};
+const TYPE_BADGE_COLORS = IMPORTED_BADGE_COLORS;
 
 interface ActiveBuild {
   id: string;
@@ -261,6 +247,7 @@ export default function VaultPage() {
   const [firearms, setFirearms] = useState<Firearm[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<string>("ALL");
+  const [searchQuery, setSearchQuery] = useState("");
   const [editMode, setEditMode] = useState(false);
   const [buildsByFirearm, setBuildsByFirearm] = useState<Record<string, Build[]>>({});
   const [deleteTarget, setDeleteTarget] = useState<{
@@ -358,9 +345,20 @@ export default function VaultPage() {
     }
   }
 
-  const filtered = activeFilter === "ALL"
-    ? firearms
-    : firearms.filter((f) => f.type === activeFilter);
+  const filtered = firearms.filter((f) => {
+    if (activeFilter !== "ALL" && f.type !== activeFilter) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      return (
+        f.name.toLowerCase().includes(q) ||
+        f.manufacturer.toLowerCase().includes(q) ||
+        f.model.toLowerCase().includes(q) ||
+        f.caliber.toLowerCase().includes(q) ||
+        f.serialNumber.toLowerCase().includes(q)
+      );
+    }
+    return true;
+  });
 
   const counts = FIREARM_TYPES.reduce((acc, t) => {
     acc[t] = t === "ALL" ? firearms.length : firearms.filter((f) => f.type === t).length;
@@ -397,6 +395,18 @@ export default function VaultPage() {
       />
 
       <div className="p-6">
+        {/* Search */}
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-vault-text-faint pointer-events-none" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by name, manufacturer, model, caliber, or serial..."
+            className="w-full bg-vault-surface border border-vault-border text-vault-text rounded-md pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint transition-colors"
+          />
+        </div>
+
         {/* Type Filters */}
         <div className="flex items-center gap-2 mb-6 flex-wrap">
           {FIREARM_TYPES.map((type) => {
@@ -489,8 +499,15 @@ export default function VaultPage() {
 
       {/* Delete confirmation modal */}
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{backgroundColor: "rgba(5,7,9,0.9)"}}>
-          <div className="bg-vault-surface border border-vault-border rounded-xl w-full max-w-md animate-slide-up shadow-2xl">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{backgroundColor: "rgba(5,7,9,0.9)"}}
+          onClick={() => !deleting && setDeleteTarget(null)}
+        >
+          <div
+            className="bg-vault-surface border border-vault-border rounded-xl w-full max-w-md animate-slide-up shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 rounded-full bg-[#E53935]/10 border border-[#E53935]/20 flex items-center justify-center">
