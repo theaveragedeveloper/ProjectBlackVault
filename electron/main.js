@@ -14,6 +14,8 @@ const HEALTH_POLL_MS = 500;
 const HEALTH_TIMEOUT_MS = 60_000;
 
 const isDev = !app.isPackaged;
+const fs = require('fs');
+const crypto = require('crypto');
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let splashWin = null;
@@ -127,14 +129,35 @@ function resolveServerScript() {
   return path.join(process.resourcesPath, 'app', 'server.js');
 }
 
+function getOrCreateSessionSecret() {
+  const userDataDir = app.getPath('userData');
+  const secretFile = path.join(userDataDir, '.session.key');
+  try {
+    return fs.readFileSync(secretFile, 'utf8').trim();
+  } catch {
+    const secret = crypto.randomBytes(32).toString('hex');
+    fs.mkdirSync(userDataDir, { recursive: true });
+    fs.writeFileSync(secretFile, secret, { mode: 0o600 });
+    return secret;
+  }
+}
+
 function spawnNextServer(port) {
   const serverScript = resolveServerScript();
+
+  // Database lives in userData so it persists across app updates
+  const userDataDir = app.getPath('userData');
+  fs.mkdirSync(userDataDir, { recursive: true });
+  const dbPath = path.join(userDataDir, 'vault.db');
 
   const env = {
     ...process.env,
     PORT: String(port),
     HOSTNAME: '127.0.0.1',
     NODE_ENV: 'production',
+    DATABASE_URL: `file:${dbPath}`,
+    SESSION_SECRET: getOrCreateSessionSecret(),
+    ELECTRON_APP: '1',
   };
 
   // In packaged builds, point Next.js at the bundled static assets
