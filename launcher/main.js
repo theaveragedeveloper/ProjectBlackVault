@@ -370,10 +370,103 @@ async function handleUpdate() {
   }
 }
 
+// ─── Docker auto-install ───────────────────────────────────────────────────
+
+/**
+ * Attempt to install Docker Desktop automatically.
+ * Returns { ok: true } on success or { ok: false, error: string } on failure.
+ * Progress lines are streamed to the renderer via 'install-log' events.
+ */
+async function installDocker() {
+  const platform = process.platform;
+
+  if (platform === 'win32') {
+    // Windows: use winget (available on Windows 10 1709+ / Windows 11)
+    return new Promise(resolve => {
+      const proc = spawn('winget', [
+        'install', '--id', 'Docker.DockerDesktop',
+        '--silent',
+        '--accept-package-agreements',
+        '--accept-source-agreements',
+      ], { stdio: 'pipe', shell: true });
+
+      proc.stdout.on('data', d => sendLog(d.toString().trim()));
+      proc.stderr.on('data', d => sendLog(d.toString().trim()));
+
+      proc.on('close', code => {
+        if (code === 0) {
+          // Attempt to launch Docker Desktop after install
+          const dockerExe = 'C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe';
+          if (fs.existsSync(dockerExe)) {
+            spawn(dockerExe, [], { detached: true, stdio: 'ignore' }).unref();
+          }
+          resolve({ ok: true });
+        } else {
+          resolve({ ok: false, error: `winget exited with code ${code}` });
+        }
+      });
+
+      proc.on('error', err => resolve({ ok: false, error: err.message }));
+    });
+  }
+
+  if (platform === 'darwin') {
+    // macOS: use Homebrew if available
+    return new Promise(resolve => {
+      exec('which brew', (err, stdout) => {
+        if (err || !stdout.trim()) {
+          // Homebrew not available — open download page
+          shell.openExternal('https://www.docker.com/products/docker-desktop/');
+          resolve({ ok: false, error: 'homebrew-not-found' });
+          return;
+        }
+
+        sendLog('Installing Docker Desktop via Homebrew...');
+        const proc = spawn('brew', ['install', '--cask', 'docker'], {
+          stdio: 'pipe',
+          env: buildEnv(null),
+        });
+
+        proc.stdout.on('data', d => sendLog(d.toString().trim()));
+        proc.stderr.on('data', d => sendLog(d.toString().trim()));
+
+        proc.on('close', code => {
+          if (code === 0) {
+            // Launch Docker Desktop
+            spawn('open', ['-a', 'Docker'], { detached: true, stdio: 'ignore' }).unref();
+            resolve({ ok: true });
+          } else {
+            // Fall back to download page
+            shell.openExternal('https://www.docker.com/products/docker-desktop/');
+            resolve({ ok: false, error: `brew exited with code ${code}` });
+          }
+        });
+
+        proc.on('error', err => {
+          shell.openExternal('https://www.docker.com/products/docker-desktop/');
+          resolve({ ok: false, error: err.message });
+        });
+      });
+    });
+  }
+
+  // Linux / unsupported: open download page
+  shell.openExternal('https://docs.docker.com/engine/install/');
+  return { ok: false, error: 'unsupported-platform' };
+}
+
 // ─── IPC handlers ──────────────────────────────────────────────────────────
 
 ipcMain.handle('docker-check', async () => {
   return checkDocker();
+});
+
+ipcMain.handle('get-platform', () => {
+  return process.platform;
+});
+
+ipcMain.handle('install-docker', async () => {
+  return installDocker();
 });
 
 ipcMain.handle('get-config', () => {

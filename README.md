@@ -52,7 +52,7 @@ No technical knowledge needed. Just download and run it like any normal applicat
 | Linux | `ProjectBlackVault-Setup.AppImage` |
 
 **Before you start, you'll need:**
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) — a free program that runs the app in the background. Download and install it first, then make sure it's open and running.
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) — a free program that runs the app in the background. The launcher can **install this automatically** for you on Windows and macOS — just click "Install Docker Automatically" when prompted. Or install it manually first and make sure it's open and running.
 
 **First-time setup tips:**
 
@@ -100,23 +100,57 @@ Then open your browser and go to **[http://localhost:3000](http://localhost:3000
 
 ### Option 3: Home Server / Docker (For self-hosting enthusiasts)
 
-If you run a home server or NAS and want ProjectBlackVault always available on your network:
+If you run a home server or NAS and want ProjectBlackVault always available on your network — no desktop launcher needed, any device connects with just a browser.
+
+**One-time setup:**
+
+```bash
+# Linux / macOS
+git clone https://github.com/theaveragedeveloper/ProjectBlackVault.git
+cd ProjectBlackVault
+chmod +x install.sh && ./install.sh
+
+# Windows
+git clone https://github.com/theaveragedeveloper/ProjectBlackVault.git
+cd ProjectBlackVault
+install.bat
+```
+
+The setup wizard picks a data directory, port, and generates secret keys automatically.
+
+**Day-to-day commands (after setup):**
 
 ```bash
 # Start the app
-docker-compose up -d
+docker compose --env-file .blackvault.env up -d
 
 # See what's happening (logs)
-docker-compose logs -f blackvault
+docker compose --env-file .blackvault.env logs -f
 
 # Stop the app
-docker-compose down
+docker compose --env-file .blackvault.env down
 ```
 
-The app automatically handles database setup when it starts. Your data is saved in named volumes so it persists even when you stop and restart the container:
+The app automatically handles database setup when it starts. Your data is saved in the directory you chose during setup (default `~/.blackvault`):
 
-- **`blackvault-db`** — your database (stored at `/app/data/vault.db` inside the container)
-- **`blackvault-uploads`** — your uploaded photos and documents (at `/app/uploads`)
+- `~/.blackvault/db/` — your database
+- `~/.blackvault/uploads/` — your uploaded photos and documents
+
+**Accessing from other devices on your network or VPN:**
+
+1. Find your server's local IP: `ip addr` (Linux), `ipconfig` (Windows), `ifconfig` (macOS)
+2. On any other device, open: `http://YOUR-SERVER-IP:3000` — no extra software needed
+
+**Updating:**
+
+```bash
+./update.sh    # Linux/macOS
+update.bat     # Windows
+```
+
+Or inside the app: **Settings → GitHub Updates → Update Now**
+
+> ⚠️ **Back up your encryption key.** It's stored in `.blackvault.env`. If you lose it, all encrypted data (serial numbers, notes) is permanently unrecoverable. Keep a copy somewhere safe. You can also export encrypted backups from inside the app: **Settings → Secure Backup**.
 
 ---
 
@@ -152,13 +186,13 @@ Right-click the `.dmg` file and choose **Open**. If it still doesn't work, go to
 Click **More info** on the SmartScreen warning, then **Run anyway**. The app is safe — Windows just doesn't recognize it because it's not from the Microsoft Store.
 
 **Docker Desktop isn't installed:**
-The desktop launcher requires Docker to run the app. [Download Docker Desktop here](https://www.docker.com/products/docker-desktop/) — it's free. Make sure to open Docker Desktop before launching ProjectBlackVault.
+The desktop launcher can install Docker Desktop automatically on Windows and macOS — click "Install Docker Automatically" when prompted. Or [download Docker Desktop here](https://www.docker.com/products/docker-desktop/) manually — it's free. Make sure to open Docker Desktop before launching ProjectBlackVault.
 
 **The page won't load at localhost:3000:**
 Make sure the app is still running in your terminal (you should see output from the dev server). If you closed the terminal, run `npm run dev` again.
 
 **My data disappeared:**
-If you're running via Docker, your data is in named volumes and should persist. If you used `docker-compose down -v`, that removes volumes too — avoid the `-v` flag unless you want to wipe everything.
+If you're running via Docker, your data is in the directory configured during setup (default `~/.blackvault`). If you used `docker compose down -v`, that removes volumes too — avoid the `-v` flag unless you want to wipe everything.
 
 ---
 
@@ -187,6 +221,12 @@ If you're running via Docker, your data is in named volumes and should persist. 
 
 ```
 ProjectBlackVault/
+├── launcher/               # Electron desktop launcher
+│   ├── main.js             # Main process (Docker management, IPC)
+│   ├── preload.js          # Context bridge
+│   └── renderer/           # Launcher UI
+├── docs/
+│   └── index.html          # Download landing page (GitHub Pages)
 ├── prisma/
 │   ├── schema.prisma       # Database schema
 │   ├── migrations/         # Migration history
@@ -194,6 +234,7 @@ ProjectBlackVault/
 ├── src/
 │   ├── app/                # Next.js App Router pages & API routes
 │   │   ├── api/            # REST API endpoints
+│   │   ├── download/       # Launcher download page
 │   │   ├── vault/          # Firearm management pages
 │   │   ├── accessories/    # Accessory management pages
 │   │   ├── builds/         # All loadouts overview
@@ -202,9 +243,12 @@ ProjectBlackVault/
 │   │   └── settings/       # App settings
 │   ├── components/         # Shared UI components
 │   └── lib/                # Utility functions, Prisma client, types
-├── Dockerfile
-├── docker-compose.yml
-└── .env.example
+├── install.sh              # First-run setup wizard (Linux/macOS)
+├── install.bat             # First-run setup wizard (Windows)
+├── update.sh               # Update script (Linux/macOS)
+├── update.bat              # Update script (Windows)
+├── docker-compose.yml      # Production compose file
+└── Dockerfile
 ```
 
 ### Available Scripts
