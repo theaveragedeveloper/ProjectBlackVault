@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
 import { detectFileSignature } from "@/lib/server/file-signatures";
+import { enforceRateLimit } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/server/client-ip";
 
 const ALLOWED_EXTENSIONS = new Set(["jpg", "png", "webp", "avif"]);
 
@@ -17,6 +19,16 @@ const ALLOWED_ENTITY_TYPES = new Set([
 // Returns the URL path.
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting
+    const ip = getClientIp(request);
+    const rate = await enforceRateLimit({ key: `upload:images:${ip}`, windowMs: 60_000, maxAttempts: 20 });
+    if (!rate.allowed) {
+      return NextResponse.json(
+        { error: "Too many upload attempts. Please wait a minute." },
+        { status: 429 }
+      );
+    }
+
     const formData = await request.formData();
 
     const file = formData.get("file") as File | null;

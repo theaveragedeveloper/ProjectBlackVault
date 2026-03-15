@@ -5,29 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Settings2, Layers, CheckCircle2, Circle } from "lucide-react";
 import { SLOT_ICONS } from "@/lib/configurator/slot-icons";
+import { FIREARM_TYPE_LABELS, TYPE_BADGE_COLORS } from "@/lib/types";
 import type { SlotType } from "@/lib/types";
-
-const FIREARM_TYPE_LABELS: Record<string, string> = {
-  PISTOL: "Pistol",
-  RIFLE: "Rifle",
-  SHOTGUN: "Shotgun",
-  SMG: "SMG",
-  PCC: "PCC",
-  REVOLVER: "Revolver",
-  BOLT_ACTION: "Bolt Action",
-  LEVER_ACTION: "Lever Action",
-};
-
-const TYPE_BADGE_COLORS: Record<string, string> = {
-  PISTOL: "border-[#00C2FF]/40 text-[#00C2FF]",
-  RIFLE: "border-[#00C853]/40 text-[#00C853]",
-  SHOTGUN: "border-[#F5A623]/40 text-[#F5A623]",
-  SMG: "border-[#9C27B0]/40 text-[#CE93D8]",
-  PCC: "border-[#00BCD4]/40 text-[#00BCD4]",
-  REVOLVER: "border-[#E53935]/40 text-[#EF9A9A]",
-  BOLT_ACTION: "border-[#8B9DB0]/40 text-vault-text-muted",
-  LEVER_ACTION: "border-[#FF7043]/40 text-[#FF7043]",
-};
 
 function formatSlotType(type: string): string {
   return type

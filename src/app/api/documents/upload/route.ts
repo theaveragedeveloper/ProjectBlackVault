@@ -3,6 +3,8 @@ import { promises as fs } from "fs";
 import path from "path";
 import { prisma } from "@/lib/prisma";
 import { detectFileSignature } from "@/lib/server/file-signatures";
+import { enforceRateLimit } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/server/client-ip";
 
 const ALLOWED_EXTENSIONS = new Set(["pdf", "jpg", "png", "webp"]);
 
@@ -14,6 +16,16 @@ const MAX_SIZE = 20 * 1024 * 1024; // 20MB
 // Creates a Document record and returns it.
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting
+    const ip = getClientIp(request);
+    const rate = await enforceRateLimit({ key: `upload:documents:${ip}`, windowMs: 60_000, maxAttempts: 20 });
+    if (!rate.allowed) {
+      return NextResponse.json(
+        { error: "Too many upload attempts. Please wait a minute." },
+        { status: 429 }
+      );
+    }
+
     const formData = await request.formData();
 
     const file = formData.get("file") as File | null;
