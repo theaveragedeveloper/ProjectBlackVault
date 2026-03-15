@@ -317,32 +317,58 @@
   <div class="network-callout">
     <strong>Already running this on your network?</strong>
     Remote users connecting over your network or VPN just need the URL — no download required.
-    The launcher is only needed on the machine that runs Docker.
+    Use the Docker option below for network-shared access.
   </div>
 
   <div class="steps">
-    <h2>Getting Started</h2>
+    <h2>Option A — Desktop App (No Docker required)</h2>
+    <div class="step-list">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-text">Download the installer for your platform above</div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-text">Run the installer and follow the setup wizard</div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-text">
+          The app opens directly — no Docker or extra software needed.
+          Updates are delivered automatically in the background.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="steps">
+    <h2>Option B — Docker Launcher (Network sharing)</h2>
     <div class="step-list">
       <div class="step">
         <div class="step-num">1</div>
         <div class="step-text">
-          Download and run the launcher for your platform above
+          Install <a href="https://www.docker.com/products/docker-desktop/" target="_blank" rel="noopener">Docker Desktop</a>
+          (free). The launcher can also install it automatically on Windows and macOS.
         </div>
       </div>
       <div class="step">
         <div class="step-num">2</div>
         <div class="step-text">
-          If Docker isn't installed, the launcher will offer to install it automatically
-          (or you can install <a href="https://www.docker.com/products/docker-desktop/" target="_blank" rel="noopener">Docker Desktop</a> manually first)
+          Download the Docker launcher from
+          <a href="https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest" target="_blank" rel="noopener">Releases</a>
+          — look for <code>ProjectBlackVault-Docker-*</code>
         </div>
       </div>
       <div class="step">
         <div class="step-num">3</div>
-        <div class="step-text">Open <strong>ProjectBlackVault</strong> — it'll download and set everything up automatically</div>
+        <div class="step-text">Run the launcher — it downloads the image and handles first-run setup automatically</div>
       </div>
       <div class="step">
         <div class="step-num">4</div>
-        <div class="step-text">Click <strong>Open App</strong> in the launcher to start managing your vault</div>
+        <div class="step-text">
+          Click <strong>Open App</strong>. Other devices on your network can connect via
+          <code>http://YOUR-IP:PORT</code> — no installer needed on those devices.
+        </div>
       </div>
     </div>
   </div>
