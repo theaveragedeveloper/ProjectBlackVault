@@ -7,7 +7,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SafeImage } from "@/components/shared/SafeImage";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/utils";
-import { Plus, Crosshair, Shield, ExternalLink, Loader2, ChevronDown } from "lucide-react";
+import { Plus, Crosshair, Shield, ExternalLink, Loader2, ChevronDown, AlertCircle, Search } from "lucide-react";
 import { SLOT_TYPE_LABELS, SlotType, SLOT_TYPES } from "@/lib/types";
 
 const SLOT_TYPE_LABELS_LOCAL: Record<string, string> = SLOT_TYPE_LABELS as Record<string, string>;
@@ -45,21 +45,44 @@ interface Accessory {
 export default function AccessoriesPage() {
   const [allAccessories, setAllAccessories] = useState<Accessory[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<string>("ALL");
+  const [searchQuery, setSearchQuery] = useState("");
 
-  useEffect(() => {
+  function fetchAccessories() {
+    setLoading(true);
+    setError(null);
     fetch("/api/accessories")
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to load accessories");
+        return r.json();
+      })
       .then((data) => {
         if (Array.isArray(data)) setAllAccessories(data);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch((err) => {
+        setError(err.message ?? "Failed to load accessories");
+        setLoading(false);
+      });
+  }
+
+  useEffect(() => {
+    fetchAccessories();
   }, []);
 
-  const accessories = typeFilter === "ALL"
-    ? allAccessories
-    : allAccessories.filter((accessory) => accessory.type === typeFilter);
+  const accessories = allAccessories.filter((accessory) => {
+    if (typeFilter !== "ALL" && accessory.type !== typeFilter) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      return (
+        accessory.name.toLowerCase().includes(q) ||
+        accessory.manufacturer.toLowerCase().includes(q) ||
+        (accessory.model ?? "").toLowerCase().includes(q)
+      );
+    }
+    return true;
+  });
 
   const availableTypes = Array.from(new Set(allAccessories.map((accessory) => accessory.type)))
     .filter((type): type is SlotType => (SLOT_TYPES as readonly string[]).includes(type));
@@ -96,6 +119,18 @@ export default function AccessoriesPage() {
           </div>
         </div>
 
+        {/* Search */}
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-vault-text-faint pointer-events-none" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by name, manufacturer, or model..."
+            className="w-full bg-vault-surface border border-vault-border text-vault-text rounded-md pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint transition-colors"
+          />
+        </div>
+
         {/* Type Filter */}
         <div className="mb-4 flex items-center gap-3">
           <span className="text-[10px] uppercase tracking-widest text-vault-text-faint whitespace-nowrap">Filter by Type</span>
@@ -121,6 +156,20 @@ export default function AccessoriesPage() {
         {loading ? (
           <div className="flex items-center justify-center py-24">
             <Loader2 className="w-8 h-8 text-[#00C2FF] animate-spin" />
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-24 text-center">
+            <div className="w-16 h-16 rounded-full bg-[#E53935]/10 border border-[#E53935]/20 flex items-center justify-center mb-4">
+              <AlertCircle className="w-8 h-8 text-[#E53935]" />
+            </div>
+            <h3 className="text-lg font-semibold text-vault-text mb-2">Failed to load accessories</h3>
+            <p className="text-sm text-vault-text-muted mb-6 max-w-sm">{error}</p>
+            <button
+              onClick={fetchAccessories}
+              className="flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 px-4 py-2 rounded text-sm font-medium transition-colors"
+            >
+              Retry
+            </button>
           </div>
         ) : accessories.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">

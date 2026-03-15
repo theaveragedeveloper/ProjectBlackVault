@@ -48,8 +48,10 @@ export default function EditFirearmPage() {
 
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [dirty, setDirty] = useState(false);
 
   const [caliberInput, setCaliberInput] = useState("");
   const [caliberDropdownOpen, setCaliberDropdownOpen] = useState(false);
@@ -60,6 +62,16 @@ export default function EditFirearmPage() {
   const filteredCalibers = COMMON_CALIBERS.filter((c) =>
     c.toLowerCase().includes(caliberInput.toLowerCase())
   );
+
+  // Warn before leaving with unsaved changes
+  useEffect(() => {
+    if (!dirty || success) return;
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      e.preventDefault();
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [dirty, success]);
 
   useEffect(() => {
     fetch(`/api/firearms/${firearmId}`)
@@ -131,10 +143,7 @@ export default function EditFirearmPage() {
   }
 
   async function handleDelete() {
-    if (!confirm("Delete this firearm? This cannot be undone.")) {
-      return;
-    }
-
+    setShowDeleteConfirm(false);
     setError(null);
     setSuccess(false);
     setDeleting(true);
@@ -209,7 +218,7 @@ export default function EditFirearmPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} onChange={() => setDirty(true)} className="space-y-6">
           {/* Identity */}
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
             <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">Identity</legend>
@@ -326,7 +335,7 @@ export default function EditFirearmPage() {
             </button>
             <button
               type="button"
-              onClick={handleDelete}
+              onClick={() => setShowDeleteConfirm(true)}
               disabled={deleting || loading || success}
               className="flex items-center gap-2 bg-[#E53935]/10 border border-[#E53935]/30 text-[#E53935] hover:bg-[#E53935]/20 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 rounded-md text-sm font-medium transition-colors"
             >
@@ -341,6 +350,47 @@ export default function EditFirearmPage() {
           </div>
         </form>
       </div>
+
+      {/* Delete confirmation modal */}
+      {showDeleteConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: "rgba(5,7,9,0.9)" }}
+          onClick={() => setShowDeleteConfirm(false)}
+        >
+          <div
+            className="bg-vault-surface border border-vault-border rounded-xl w-full max-w-md animate-slide-up shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-[#E53935]/10 border border-[#E53935]/20 flex items-center justify-center">
+                  <Trash2 className="w-5 h-5 text-[#E53935]" />
+                </div>
+                <div>
+                  <h2 className="text-base font-semibold text-vault-text">Delete Firearm</h2>
+                  <p className="text-xs text-vault-text-muted">{firearm.name}</p>
+                </div>
+              </div>
+              <p className="text-sm text-vault-text-muted mb-6">
+                This will permanently delete this firearm and all associated builds. This cannot be undone.
+              </p>
+              <button
+                onClick={handleDelete}
+                className="w-full px-4 py-2.5 rounded-lg bg-[#E53935]/10 border border-[#E53935]/30 text-[#E53935] hover:bg-[#E53935]/20 transition-colors text-sm font-medium"
+              >
+                Delete Firearm
+              </button>
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="w-full mt-3 px-4 py-2 rounded-lg text-vault-text-muted hover:text-vault-text text-sm transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

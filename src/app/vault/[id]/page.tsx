@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/utils";
-import { SLOT_TYPE_LABELS } from "@/lib/types";
+import { SLOT_TYPE_LABELS, FIREARM_TYPE_LABELS, TYPE_BADGE_COLORS } from "@/lib/types";
 import {
   ArrowLeft,
   Edit,
@@ -32,29 +32,6 @@ import {
 } from "lucide-react";
 import ImagePicker from "@/components/shared/ImagePicker";
 import { DocumentUploader, type UploadedDocument } from "@/components/shared/DocumentUploader";
-
-const FIREARM_TYPE_LABELS: Record<string, string> = {
-  PISTOL: "Pistol",
-  RIFLE: "Rifle",
-  SHOTGUN: "Shotgun",
-  SMG: "SMG",
-  PCC: "PCC",
-  REVOLVER: "Revolver",
-  BOLT_ACTION: "Bolt Action",
-  LEVER_ACTION: "Lever Action",
-};
-
-const TYPE_BADGE_COLORS: Record<string, string> = {
-  PISTOL: "border-[#00C2FF]/40 text-[#00C2FF]",
-  RIFLE: "border-[#00C853]/40 text-[#00C853]",
-  SHOTGUN: "border-[#F5A623]/40 text-[#F5A623]",
-  SMG: "border-[#9C27B0]/40 text-[#CE93D8]",
-  PCC: "border-[#00BCD4]/40 text-[#00BCD4]",
-  REVOLVER: "border-[#E53935]/40 text-[#EF9A9A]",
-  BOLT_ACTION: "border-[#8B9DB0]/40 text-vault-text-muted",
-  LEVER_ACTION: "border-[#FF7043]/40 text-[#FF7043]",
-};
-
 
 const MAINTENANCE_TYPES = [
   "Cleaning",
