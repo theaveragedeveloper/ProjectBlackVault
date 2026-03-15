@@ -2,7 +2,7 @@
 
 // ─── View management ───────────────────────────────────────────────────────
 
-const VIEWS = ['docker-missing', 'docker-not-running', 'setup', 'dashboard', 'installing'];
+const VIEWS = ['docker-missing', 'docker-not-running', 'docker-installing', 'setup', 'dashboard', 'installing'];
 
 function showView(name) {
   VIEWS.forEach(v => {
@@ -49,6 +49,15 @@ function applyStatus(status) {
   }
 }
 
+// ─── Platform detection ────────────────────────────────────────────────────
+
+let _platform = null;
+
+async function getPlatform() {
+  if (!_platform) _platform = await window.vault.getPlatform();
+  return _platform;
+}
+
 // ─── Startup flow ──────────────────────────────────────────────────────────
 
 async function init() {
@@ -57,6 +66,12 @@ async function init() {
 
   if (docker.status === 'not-installed') {
     showView('docker-missing');
+    // Show auto-install button on Windows and macOS
+    const platform = await getPlatform();
+    if (platform === 'win32' || platform === 'darwin') {
+      document.getElementById('btn-docker-auto-install').style.display = '';
+      document.getElementById('btn-docker-download').textContent = 'Download Manually Instead';
+    }
     return;
   }
 
@@ -115,6 +130,45 @@ window.vault.onStatusChange(status => {
 });
 
 // ─── Docker missing view ───────────────────────────────────────────────────
+
+document.getElementById('btn-docker-auto-install').addEventListener('click', async () => {
+  showView('docker-installing');
+
+  // Stream install logs to the docker-installing view
+  const logEl = document.getElementById('docker-install-log');
+  const msgEl = document.getElementById('docker-install-msg');
+
+  const unsubscribe = window.vault.onInstallLog(line => {
+    if (!logEl) return;
+    logEl.textContent += line + '\n';
+    logEl.scrollTop = logEl.scrollHeight;
+  });
+
+  const result = await window.vault.installDocker();
+
+  if (result.ok) {
+    msgEl.textContent = 'Docker Desktop installed! Waiting for it to start...';
+    // Poll until Docker is ready
+    const poll = setInterval(async () => {
+      const docker = await window.vault.dockerCheck();
+      if (docker.status === 'ready') {
+        clearInterval(poll);
+        init();
+      } else if (docker.status === 'not-running') {
+        clearInterval(poll);
+        msgEl.textContent = 'Docker is installed. Please start Docker Desktop and wait for it to be ready.';
+        setTimeout(() => showView('docker-not-running'), 2000);
+      }
+    }, 5000);
+  } else if (result.error === 'homebrew-not-found' || result.error === 'unsupported-platform') {
+    // Already opened the download page, go back to missing view
+    showView('docker-missing');
+  } else {
+    // Install failed — show error and go back
+    document.getElementById('docker-install-msg').textContent = `Installation failed: ${result.error}`;
+    setTimeout(() => showView('docker-missing'), 3000);
+  }
+});
 
 document.getElementById('btn-docker-download').addEventListener('click', () => {
   window.vault.openExternal('https://www.docker.com/products/docker-desktop/');

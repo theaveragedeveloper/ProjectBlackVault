@@ -19,18 +19,41 @@
       <div class="card-title">Setup Required</div>
       <p style="font-size:13px; color:#aaa; line-height:1.7; margin-bottom:16px;">
         Docker Desktop is a free tool that lets ProjectBlackVault run safely on your computer.
-        Click below to download it, then come back and click <strong>Check Again</strong>.
       </p>
-      <button class="btn btn-primary" id="btn-docker-download">
-        Download Docker Desktop
+      <!-- Auto-install button shown on Windows/macOS via JS -->
+      <button class="btn btn-primary" id="btn-docker-auto-install" style="display:none;">
+        Install Docker Automatically
+      </button>
+      <button class="btn btn-ghost" id="btn-docker-download" style="margin-top:8px;">
+        Download Manually
       </button>
       <button class="btn btn-ghost" id="btn-docker-recheck" style="margin-top:8px;">
         Check Again
       </button>
     </div>
 
-    <div class="warn-box">
+    <div class="warn-box" id="docker-missing-hint">
       After installing Docker Desktop, make sure it's running (look for the Docker whale icon in your taskbar/menu bar) before clicking Check Again.
+    </div>
+  </div>
+
+  <!-- ── View: Docker installing ────────────────────────────────────────── -->
+  <div id="view-docker-installing" class="view">
+    <div class="logo">🐳</div>
+    <div class="app-name">Installing Docker</div>
+    <div class="app-subtitle">This may take a few minutes...</div>
+
+    <div class="card" style="padding:24px 20px;">
+      <div style="text-align:center;margin-bottom:16px;">
+        <div class="spinner" style="width:28px;height:28px;border-width:3px;margin:0 auto 12px;color:var(--green)"></div>
+        <div id="docker-install-msg" style="font-size:13px;color:#aaa;">Installing Docker Desktop...</div>
+        <div style="font-size:11px;color:#555;margin-top:6px;">Please wait — do not close this window.</div>
+      </div>
+      <pre id="docker-install-log" style="font-size:10px;color:#555;font-family:monospace;max-height:120px;overflow-y:auto;background:#050505;border:1px solid #1a1a1a;border-radius:6px;padding:8px;margin:0;white-space:pre-wrap;word-break:break-all;"></pre>
+    </div>
+
+    <div class="info-box">
+      Docker Desktop is being installed. Once complete, it will launch automatically and ProjectBlackVault will continue setup.
     </div>
   </div>
 
