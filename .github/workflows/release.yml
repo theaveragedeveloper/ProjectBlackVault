@@ -3,12 +3,30 @@ name: Build & Release Launcher
 on:
   release:
     types: [created]
+  workflow_dispatch:
 
 permissions:
   contents: write  # Required to upload assets to the GitHub Release
 
 jobs:
+  prepare:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create GitHub release for current launcher version
+        run: |
+          VERSION=$(node -p "require('./launcher/package.json').version")
+          gh release create "v${VERSION}" \
+            --title "ProjectBlackVault Launcher v${VERSION}" \
+            --notes "Desktop launcher for ProjectBlackVault. Requires Docker Desktop." \
+            --latest || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   build:
+    needs: prepare
+    if: always() && (needs.prepare.result == 'success' || needs.prepare.result == 'skipped')
     strategy:
       fail-fast: false
       matrix:
