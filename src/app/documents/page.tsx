@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { FileText, Upload, ExternalLink, X, Filter } from "lucide-react";
 import Link from "next/link";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { DocumentUploader, type UploadedDocument } from "@/components/shared/DocumentUploader";
 
 type DocTypeFilter = "ALL" | "RECEIPT" | "NFA_TAX_STAMP" | "OTHER";
@@ -64,20 +65,10 @@ export default function DocumentLibraryPage() {
 
   return (
     <div className="min-h-full">
-      {/* Header */}
-      <div className="border-b border-vault-border bg-vault-surface px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-md bg-[#00C2FF]/10 border border-[#00C2FF]/20 flex items-center justify-center">
-              <FileText className="w-4 h-4 text-[#00C2FF]" />
-            </div>
-            <div>
-              <h1 className="text-base font-bold text-vault-text tracking-wide uppercase">
-                Document Library
-              </h1>
-              <p className="text-xs text-vault-text-faint">Receipts, NFA tax stamps &amp; other documents</p>
-            </div>
-          </div>
+      <PageHeader
+        title="Document Library"
+        subtitle="Store receipts, tax stamps, and other supporting records."
+        actions={
           <button
             onClick={() => setShowUploader((v) => !v)}
             className="flex items-center gap-2 px-3 py-2 rounded-md bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] text-sm hover:bg-[#00C2FF]/20 transition-colors"
@@ -85,8 +76,8 @@ export default function DocumentLibraryPage() {
             <Upload className="w-4 h-4" />
             Upload Document
           </button>
-        </div>
-      </div>
+        }
+      />
 
       <div className="p-6 space-y-5 max-w-4xl mx-auto">
         {/* Upload panel */}

@@ -30,7 +30,7 @@ import {
 
 const INPUT_CLASS =
   "w-full bg-vault-surface border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint transition-colors";
-const LABEL_CLASS = "block text-xs font-medium uppercase tracking-widest text-vault-text-muted mb-1.5";
+const LABEL_CLASS = "block text-sm font-medium text-vault-text-muted mb-1.5";
 
 interface DrillTemplate {
   id: string;
@@ -120,6 +120,16 @@ const SCORING_FIELDS: Record<string, string[]> = {
   PASS_FAIL: ["hits", "totalShots"],
   NOTES_ONLY: [],
 };
+
+function normalizeDrillName(name: string) {
+  return name.trim().toLowerCase();
+}
+
+function findUniqueTemplateByNormalizedName(templates: DrillTemplate[], drillName: string) {
+  const normalized = normalizeDrillName(drillName);
+  const matches = templates.filter((t) => normalizeDrillName(t.name) === normalized);
+  return matches.length === 1 ? matches[0] : undefined;
+}
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("en-US", {
@@ -216,7 +226,12 @@ function DrillForm({ templates, initialValues, onSubmit, onCancel, submitting }:
   onCancel: () => void;
   submitting: boolean;
 }) {
-  const [templateId, setTemplateId] = useState(initialValues?.templateId ?? "");
+  const matchedTemplateFromName = !initialValues?.templateId && initialValues?.drillName
+    ? findUniqueTemplateByNormalizedName(templates, initialValues.drillName ?? "")
+    : undefined;
+
+  const [templateId, setTemplateId] = useState(initialValues?.templateId ?? matchedTemplateFromName?.id ?? "");
+  const [templateTouched, setTemplateTouched] = useState(false);
   const [drillName, setDrillName] = useState(initialValues?.drillName ?? "");
   const [timeSeconds, setTimeSeconds] = useState(initialValues?.timeSeconds?.toString() ?? "");
   const [hits, setHits] = useState(initialValues?.hits?.toString() ?? "");
@@ -225,7 +240,11 @@ function DrillForm({ templates, initialValues, onSubmit, onCancel, submitting }:
   const [score, setScore] = useState(initialValues?.score?.toString() ?? "");
   const [notes, setNotes] = useState(initialValues?.notes ?? "");
 
-  const selectedTemplate = templates.find((t) => t.id === templateId);
+  const effectiveTemplateId = templateTouched
+    ? templateId
+    : (templateId || initialValues?.templateId || matchedTemplateFromName?.id || "");
+
+  const selectedTemplate = templates.find((t) => t.id === effectiveTemplateId);
   const activeFields = selectedTemplate
     ? SCORING_FIELDS[selectedTemplate.scoringType] ?? []
     : ["timeSeconds", "hits", "totalShots", "accuracy", "score"];
@@ -237,6 +256,7 @@ function DrillForm({ templates, initialValues, onSubmit, onCancel, submitting }:
       : accuracy;
 
   function handleTemplateChange(id: string) {
+    setTemplateTouched(true);
     setTemplateId(id);
     const tpl = templates.find((t) => t.id === id);
     if (tpl && !initialValues?.drillName) {
@@ -247,7 +267,7 @@ function DrillForm({ templates, initialValues, onSubmit, onCancel, submitting }:
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     await onSubmit({
-      templateId: templateId || null,
+      templateId: effectiveTemplateId || null,
       drillName,
       timeSeconds: timeSeconds ? parseFloat(timeSeconds) : null,
       hits: hits ? parseInt(hits) : null,
@@ -268,7 +288,7 @@ function DrillForm({ templates, initialValues, onSubmit, onCancel, submitting }:
     <form onSubmit={handleSubmit} className="bg-vault-surface border border-[#00C2FF]/30 rounded-lg p-4 space-y-4">
       <div className="flex items-center gap-2 mb-1">
         <ListChecks className="w-4 h-4 text-[#00C2FF]" />
-        <span className="text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
+        <span className="text-sm font-semibold text-[#00C2FF]">
           {initialValues?.id ? "Edit Drill" : "Add Drill"}
         </span>
       </div>
@@ -280,7 +300,7 @@ function DrillForm({ templates, initialValues, onSubmit, onCancel, submitting }:
           Drill Template (or enter custom name below)
         </label>
         <div className="relative">
-          <select value={templateId} onChange={(e) => handleTemplateChange(e.target.value)} className={INPUT_CLASS}>
+          <select value={effectiveTemplateId} onChange={(e) => handleTemplateChange(e.target.value)} className={INPUT_CLASS}>
             <option value="">Custom / No Template</option>
             {Object.entries(byCategory).map(([cat, tpls]) => (
               <optgroup key={cat} label={cat}>
@@ -477,7 +497,7 @@ export default function RangeSessionDetailPage() {
   if (error && !session) {
     return (
       <div className="min-h-full">
-        <PageHeader title="SESSION DETAIL" subtitle="" />
+        <PageHeader title="Session Details" subtitle="" />
         <div className="max-w-3xl mx-auto px-6 py-8">
           <div className="flex items-center gap-3 bg-[#E53935]/10 border border-[#E53935]/30 rounded-lg px-4 py-3">
             <AlertCircle className="w-4 h-4 text-[#E53935]" />
@@ -496,7 +516,7 @@ export default function RangeSessionDetailPage() {
   return (
     <div className="min-h-full">
       <PageHeader
-        title={session.sessionFirearms.map((sf) => sf.firearm.name).join(" + ").toUpperCase()}
+        title={session.sessionFirearms.map((sf) => sf.firearm.name).join(" + ")}
         subtitle={formatDate(session.date)}
       />
 
@@ -549,7 +569,7 @@ export default function RangeSessionDetailPage() {
             { label: "Range", value: session.rangeName ?? "—", color: "text-vault-text" },
           ].map(({ label, value, color }) => (
             <div key={label} className="bg-vault-surface border border-vault-border rounded-lg p-3">
-              <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-1">{label}</p>
+              <p className="text-xs text-vault-text-faint mb-1">{label}</p>
               <p className={`text-sm font-medium truncate ${color}`}>{value}</p>
             </div>
           ))}
@@ -564,7 +584,7 @@ export default function RangeSessionDetailPage() {
               <div className="bg-vault-surface border border-vault-border rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Thermometer className="w-4 h-4 text-[#00C2FF]" />
-                  <h3 className="text-xs font-mono uppercase tracking-widest text-vault-text-muted">Environment</h3>
+                  <h3 className="text-sm font-semibold text-vault-text-muted">Environment</h3>
                 </div>
                 <div className="flex flex-wrap gap-2 mb-3">
                   {session.environment && (
@@ -604,30 +624,30 @@ export default function RangeSessionDetailPage() {
               <div className="bg-vault-surface border border-vault-border rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Crosshair className="w-4 h-4 text-[#00C2FF]" />
-                  <h3 className="text-xs font-mono uppercase tracking-widest text-vault-text-muted">Shot Groups</h3>
+                  <h3 className="text-sm font-semibold text-vault-text-muted">Shot Groups</h3>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   {session.targetDistanceYd != null && (
                     <div>
-                      <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-0.5">Distance</p>
+                      <p className="text-xs text-vault-text-faint mb-0.5">Distance</p>
                       <p className="text-sm font-mono text-vault-text">{session.targetDistanceYd} yd</p>
                     </div>
                   )}
                   {session.numberOfGroups != null && (
                     <div>
-                      <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-0.5">Groups</p>
+                      <p className="text-xs text-vault-text-faint mb-0.5">Groups</p>
                       <p className="text-sm font-mono text-vault-text">{session.numberOfGroups}</p>
                     </div>
                   )}
                   {session.groupSizeIn != null && (
                     <div>
-                      <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-0.5">Best Group</p>
+                      <p className="text-xs text-vault-text-faint mb-0.5">Best Group</p>
                       <p className="text-sm font-mono text-[#00C853] font-bold">{session.groupSizeIn}&quot;</p>
                     </div>
                   )}
                   {session.groupSizeMoa != null && (
                     <div>
-                      <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-0.5">Best Group (MOA)</p>
+                      <p className="text-xs text-vault-text-faint mb-0.5">Best Group (MOA)</p>
                       <p className="text-sm font-mono text-[#00C853] font-bold">{session.groupSizeMoa.toFixed(2)} MOA</p>
                     </div>
                   )}
@@ -643,7 +663,7 @@ export default function RangeSessionDetailPage() {
               <div className="bg-vault-surface border border-vault-border rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <PackageCheck className="w-4 h-4 text-[#00C2FF]" />
-                  <h3 className="text-xs font-mono uppercase tracking-widest text-vault-text-muted">Ammo Used</h3>
+                  <h3 className="text-sm font-semibold text-vault-text-muted">Ammo Used</h3>
                 </div>
                 <div className="space-y-2">
                   {session.ammoLinks.map((link) => (
@@ -666,7 +686,7 @@ export default function RangeSessionDetailPage() {
             {/* Notes card */}
             {session.notes && (
               <div className="bg-vault-surface border border-vault-border rounded-lg p-4">
-                <p className="text-xs font-mono uppercase tracking-widest text-vault-text-faint mb-2">Session Notes</p>
+                <p className="text-sm font-medium text-vault-text-faint mb-2">Session Notes</p>
                 <p className="text-sm text-vault-text-muted whitespace-pre-wrap">{session.notes}</p>
               </div>
             )}
@@ -677,7 +697,7 @@ export default function RangeSessionDetailPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <ListChecks className="w-4 h-4 text-[#00C2FF]" />
-                <h3 className="text-xs font-mono uppercase tracking-widest text-vault-text-muted">
+                <h3 className="text-sm font-semibold text-vault-text-muted">
                   Drills ({session.sessionDrills.length})
                 </h3>
               </div>

@@ -24,8 +24,8 @@ export default async function DashboardPage() {
   return (
     <div className="tactical-grid min-h-full">
       <PageHeader
-        title="COMMAND CENTER"
-        subtitle="BlackVault Armory Platform — Tactical Inventory Overview"
+        title="Command Center"
+        subtitle="Your BlackVault overview for inventory, ammo, training, and maintenance."
       />
       <DashboardClient data={data} />
     </div>

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-
-type ExportPreset = "CLAIMS" | "BACKUP";
+import {
+  type ExportPreset,
+  parseExportOptionsFromSearchParams,
+} from "@/lib/exports/full-armory";
 
 function csvEscape(value: unknown): string {
   if (value === null || value === undefined) return "";
@@ -35,8 +37,8 @@ function maskSerial(serialNumber: string | null | undefined): string {
 
 export async function GET(request: NextRequest) {
   try {
-    const presetRaw = request.nextUrl.searchParams.get("preset");
-    const preset: ExportPreset = presetRaw === "BACKUP" ? "BACKUP" : "CLAIMS";
+    const exportOptions = parseExportOptionsFromSearchParams(request.nextUrl.searchParams);
+    const preset: ExportPreset = exportOptions.preset;
 
     const [firearms, accessories, documents] = await Promise.all([
       prisma.firearm.findMany({ orderBy: [{ manufacturer: "asc" }, { model: "asc" }, { name: "asc" }] }),
@@ -73,6 +75,7 @@ export async function GET(request: NextRequest) {
           receiptCount,
           documentCount: itemDocs.length,
           hasPhoto,
+          imageUrl: firearm.imageUrl ?? "",
           missingSerial: !firearm.serialNumber,
           missingReceipt: receiptCount === 0,
           missingPhoto: !hasPhoto,
@@ -100,6 +103,7 @@ export async function GET(request: NextRequest) {
           receiptCount,
           documentCount: itemDocs.length,
           hasPhoto,
+          imageUrl: accessory.imageUrl ?? "",
           missingSerial: true,
           missingReceipt: receiptCount === 0,
           missingPhoto: !hasPhoto,
@@ -185,6 +189,7 @@ export async function GET(request: NextRequest) {
         generatedAt: new Date().toISOString(),
         preset,
         includesAllUploadedReceipts: true,
+        exportOptions,
       },
       summary: {
         totalItems: itemRows.length,

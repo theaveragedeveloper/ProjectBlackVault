@@ -18,7 +18,7 @@ import { Calculator, Download, Target, Upload } from "lucide-react";
 
 const INPUT_CLASS =
   "w-full bg-vault-surface border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint transition-colors";
-const LABEL_CLASS = "block text-xs font-medium uppercase tracking-widest text-vault-text-muted mb-1.5";
+const LABEL_CLASS = "block text-sm font-medium text-vault-text-muted mb-1.5";
 const STORAGE_KEY = "pbv-dope-card-profiles-v1";
 
 interface SavedProfile {
@@ -346,8 +346,8 @@ export default function DopeCardPage() {
   return (
     <div className="min-h-full">
       <PageHeader
-        title="DOPE CARD BUILDER"
-        subtitle="Generate an estimated card, then overwrite each row from confirmed impacts"
+        title="DOPE Card Builder"
+        subtitle="Generate a starting card, then replace rows with confirmed impact data."
       />
 
       <div className="max-w-6xl mx-auto px-6 py-8 space-y-6">
@@ -363,7 +363,7 @@ export default function DopeCardPage() {
         <section className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
           <div className="flex items-center gap-2">
             <Calculator className="w-4 h-4 text-[#00C2FF]" />
-            <h2 className="text-xs uppercase tracking-widest text-[#00C2FF] font-mono">Auto-Populate Estimates</h2>
+            <h2 className="text-sm font-semibold text-[#00C2FF]">Auto-Populate Estimates</h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -516,7 +516,7 @@ export default function DopeCardPage() {
         {/* Truing panel (branch 3) */}
         {rows.length > 0 && (
           <section className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
-            <h2 className="text-xs uppercase tracking-widest text-[#00C2FF] font-mono">Ballistic Truing</h2>
+            <h2 className="text-sm font-semibold text-[#00C2FF]">Ballistic Truing</h2>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
               <div>
                 <label className={LABEL_CLASS}>Adjust</label>
@@ -571,7 +571,7 @@ export default function DopeCardPage() {
 
         {/* Profile management panel (branch 2) */}
         <section className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
-          <h2 className="text-xs uppercase tracking-widest text-vault-text-muted font-mono">Profiles</h2>
+          <h2 className="text-sm font-semibold text-vault-text-muted">Profiles</h2>
           <div className="flex items-center gap-2 flex-wrap">
             <input
               value={profileName}
@@ -625,17 +625,17 @@ export default function DopeCardPage() {
           <div className="px-4 py-3 border-b border-vault-border flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Target className="w-4 h-4 text-[#00C853]" />
-              <h3 className="text-xs font-mono uppercase tracking-widest text-[#00C853]">Row Corrections from Confirmed Impacts</h3>
+              <h3 className="text-sm font-semibold text-[#00C853]">Row Corrections from Confirmed Impacts</h3>
             </div>
             <div className="flex items-center gap-3">
-              {isTrued && <span className="text-[11px] uppercase tracking-widest text-[#00C853]">Trued</span>}
+              {isTrued && <span className="text-xs font-semibold text-[#00C853]">Trued</span>}
               {estimateSummary && <p className="text-xs text-vault-text-muted">{estimateSummary}</p>}
             </div>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-vault-bg/50 text-vault-text-faint uppercase tracking-widest text-[11px]">
+              <thead className="bg-vault-bg/50 text-vault-text-faint text-xs font-medium">
                 <tr>
                   <th className="text-left px-3 py-2">Distance</th>
                   <th className="text-left px-3 py-2">Drop (in)</th>

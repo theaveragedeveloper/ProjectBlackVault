@@ -19,8 +19,8 @@ export default function DopeCardDetailPage() {
   return (
     <main className="min-h-screen bg-vault-bg pb-10">
       <PageHeader
-        title={`DOPE Card Preview #${params.id}`}
-        subtitle="Saved-card preview optimized for print output."
+        title={`DOPE Card Preview ${params.id}`}
+        subtitle="Saved card preview formatted for printing."
         actions={
           <>
             <Link href="/range/dope-cards" className="rounded-md border border-vault-border px-3 py-2 text-xs text-vault-text-muted hover:bg-vault-muted">
