@@ -2,6 +2,9 @@ import type { NextConfig } from "next";
 import { TRUSTED_IMAGE_HOSTNAMES } from "./src/lib/image-host-allowlist";
 
 const isProduction = process.env.NODE_ENV === "production";
+const allowExternalImageUrls =
+  process.env.ALLOW_EXTERNAL_IMAGE_URLS === "true" ||
+  process.env.NEXT_PUBLIC_ALLOW_EXTERNAL_IMAGE_URLS === "true";
 
 const securityHeaders = [
   {
@@ -43,10 +46,12 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   output: "standalone",
   images: {
-    remotePatterns: TRUSTED_IMAGE_HOSTNAMES.map((hostname) => ({
-      protocol: "https",
-      hostname,
-    })),
+    remotePatterns: allowExternalImageUrls
+      ? TRUSTED_IMAGE_HOSTNAMES.map((hostname) => ({
+          protocol: "https",
+          hostname,
+        }))
+      : [],
   },
   serverExternalPackages: ["@prisma/client", "sharp"],
   async headers() {

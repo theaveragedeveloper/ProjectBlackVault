@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { isAllowedImageUrlForStorage, IMAGE_URL_ALLOWLIST_ERROR } from "@/lib/image-url-validation";
+import { allowExternalImageUrls } from "@/lib/network-policy";
 import Image from "next/image";
 import { Camera, Link, Loader2, X, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
 
@@ -33,6 +34,7 @@ export default function ImagePicker({
   const [showUrl, setShowUrl] = useState(false);
   const [urlInput, setUrlInput] = useState("");
   const previewNeedsSafeMode = preview ? !isAllowedImageUrlForStorage(preview) : false;
+  const externalUrlEntryAllowed = allowExternalImageUrls();
 
   async function handleFile(file: File) {
     setError(null);
@@ -200,37 +202,43 @@ export default function ImagePicker({
       )}
 
       {/* URL fallback (collapsible) */}
-      <div>
-        <button
-          type="button"
-          onClick={() => setShowUrl((v) => !v)}
-          className="flex items-center gap-1 text-xs text-vault-text-faint hover:text-vault-text-muted transition-colors"
-        >
-          <Link className="w-3 h-3" />
-          Or enter a URL
-          {showUrl ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-        </button>
+      {externalUrlEntryAllowed ? (
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowUrl((v) => !v)}
+            className="flex items-center gap-1 text-xs text-vault-text-faint hover:text-vault-text-muted transition-colors"
+          >
+            <Link className="w-3 h-3" />
+            Or enter a URL
+            {showUrl ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          </button>
 
-        {showUrl && (
-          <div className="mt-2 flex gap-2">
-            <input
-              type="url"
-              value={urlInput}
-              onChange={(e) => setUrlInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleUrlApply())}
-              placeholder="https://example.com/image.jpg"
-              className="flex-1 bg-vault-surface border border-vault-border text-vault-text rounded-md px-3 py-1.5 text-xs focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
-            />
-            <button
-              type="button"
-              onClick={handleUrlApply}
-              className="px-3 py-1.5 bg-vault-surface border border-vault-border text-vault-text-muted hover:text-vault-text rounded-md text-xs transition-colors"
-            >
-              Use
-            </button>
-          </div>
-        )}
-      </div>
+          {showUrl && (
+            <div className="mt-2 flex gap-2">
+              <input
+                type="url"
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleUrlApply())}
+                placeholder="https://example.com/image.jpg"
+                className="flex-1 bg-vault-surface border border-vault-border text-vault-text rounded-md px-3 py-1.5 text-xs focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
+              />
+              <button
+                type="button"
+                onClick={handleUrlApply}
+                className="px-3 py-1.5 bg-vault-surface border border-vault-border text-vault-text-muted hover:text-vault-text rounded-md text-xs transition-colors"
+              >
+                Use
+              </button>
+            </div>
+          )}
+        </div>
+      ) : (
+        <p className="text-[11px] text-vault-text-faint">
+          External image URLs are disabled by policy. Upload local image files only.
+        </p>
+      )}
     </div>
   );
 }

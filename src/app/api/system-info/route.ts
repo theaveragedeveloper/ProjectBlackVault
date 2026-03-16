@@ -1,6 +1,31 @@
 import { NextResponse } from "next/server";
 import os from "os";
 import path from "path";
+import {
+  allowExternalImageUrls,
+  allowImageSearchEgress,
+  allowReleaseLookup,
+  requirePrivateNetworkForUpdates,
+} from "@/lib/network-policy";
+
+function resolveCanonicalUrl(rawUrl: string | undefined): string | null {
+  if (!rawUrl) return null;
+
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return null;
+    }
+
+    parsed.hash = "";
+    parsed.search = "";
+
+    const normalized = parsed.toString();
+    return normalized.endsWith("/") ? normalized.slice(0, -1) : normalized;
+  } catch {
+    return null;
+  }
+}
 
 export async function GET() {
   try {
@@ -28,6 +53,7 @@ export async function GET() {
 
     const port = process.env.PORT ?? "3000";
     const hostname = os.hostname();
+    const canonicalUrl = resolveCanonicalUrl(process.env.APP_BASE_URL);
 
     return NextResponse.json({
       localIPs,
@@ -35,6 +61,13 @@ export async function GET() {
       hostname,
       dbPath,
       platform: os.platform(),
+      canonicalUrl,
+      networkPolicy: {
+        allowReleaseLookup: allowReleaseLookup(),
+        allowImageSearchEgress: allowImageSearchEgress(),
+        allowExternalImageUrls: allowExternalImageUrls(),
+        requirePrivateNetworkForUpdates: requirePrivateNetworkForUpdates(),
+      },
     });
   } catch (error) {
     console.error("GET /api/system-info error:", error);

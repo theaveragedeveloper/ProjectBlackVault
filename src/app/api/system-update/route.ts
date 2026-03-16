@@ -4,6 +4,8 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { NextRequest, NextResponse } from "next/server";
 import { verifyTokenNode } from "@/lib/session";
+import { getClientIp } from "@/lib/server/client-ip";
+import { isPrivateClientIp, requirePrivateNetworkForUpdates } from "@/lib/network-policy";
 
 const execAsync = promisify(exec);
 
@@ -30,15 +32,15 @@ type ExecutionContext = {
 };
 
 function isStatusRouteEnabled() {
-  return process.env.SYSTEM_UPDATE_STATUS_ENABLED === "true";
+  return process.env.SYSTEM_UPDATE_STATUS_ENABLED !== "false";
 }
 
 function isExecutionEnabled() {
-  return process.env.SYSTEM_UPDATE_EXEC_ENABLED === "true";
+  return process.env.SYSTEM_UPDATE_EXEC_ENABLED !== "false";
 }
 
 function isProductionAllowed() {
-  return process.env.NODE_ENV !== "production" || process.env.SYSTEM_UPDATE_ALLOW_PRODUCTION === "true";
+  return process.env.SYSTEM_UPDATE_ALLOW_PRODUCTION !== "false";
 }
 
 function hasValidSession(request: NextRequest) {
@@ -50,6 +52,15 @@ function hasValidSession(request: NextRequest) {
   }
 
   return verifyTokenNode(sessionCookie, sessionSecret);
+}
+
+function isUpdateClientNetworkAllowed(request: NextRequest): boolean {
+  if (!requirePrivateNetworkForUpdates()) {
+    return true;
+  }
+
+  const clientIp = getClientIp(request);
+  return isPrivateClientIp(clientIp);
 }
 
 function getMetadata(): SystemUpdateMetadata {
@@ -140,7 +151,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         error: "System update endpoint is disabled.",
-        message: "Enable SYSTEM_UPDATE_STATUS_ENABLED=true to allow update checks.",
+        message:
+          "Set SYSTEM_UPDATE_STATUS_ENABLED=true and SYSTEM_UPDATE_ALLOW_PRODUCTION=true (or unset both) to allow update checks.",
       },
       { status: 404 }
     );
@@ -148,6 +160,17 @@ export async function GET(request: NextRequest) {
 
   if (!hasValidSession(request)) {
     return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+  }
+
+  if (!isUpdateClientNetworkAllowed(request)) {
+    return NextResponse.json(
+      {
+        error: "Update checks are restricted to private/VPN networks by policy.",
+        message:
+          "Connect through your private LAN/VPN or set SYSTEM_UPDATE_REQUIRE_PRIVATE_NETWORK=false to override.",
+      },
+      { status: 403 }
+    );
   }
 
   const execution = await resolveExecutionContext();
@@ -171,7 +194,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error: "System update endpoint is disabled.",
-        message: "Enable SYSTEM_UPDATE_STATUS_ENABLED=true to permit application update operations.",
+        message:
+          "Set SYSTEM_UPDATE_STATUS_ENABLED=true and SYSTEM_UPDATE_ALLOW_PRODUCTION=true (or unset both) to permit update operations.",
       },
       { status: 404 }
     );
@@ -181,7 +205,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error: "System update command execution is disabled.",
-        message: "Set SYSTEM_UPDATE_EXEC_ENABLED=true to allow update command execution.",
+        message: "Set SYSTEM_UPDATE_EXEC_ENABLED=true (or unset it) to allow update command execution.",
       },
       { status: 403 }
     );
@@ -189,6 +213,17 @@ export async function POST(request: NextRequest) {
 
   if (!hasValidSession(request)) {
     return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+  }
+
+  if (!isUpdateClientNetworkAllowed(request)) {
+    return NextResponse.json(
+      {
+        error: "Update execution is restricted to private/VPN networks by policy.",
+        message:
+          "Connect through your private LAN/VPN or set SYSTEM_UPDATE_REQUIRE_PRIVATE_NETWORK=false to override.",
+      },
+      { status: 403 }
+    );
   }
 
   const requestedCommand = process.env.SYSTEM_UPDATE_COMMAND?.trim() || UPDATE_DEFAULT_COMMAND;

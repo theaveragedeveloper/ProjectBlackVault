@@ -1018,13 +1018,25 @@ http://localhost:3000/api/health</code>
           <div class="install-step">
             <div class="step-num">4</div>
             <div class="step-body">
-              <div class="step-title">Access from other devices</div>
-              <code># Find host IP, then open from phone/laptop:
-http://YOUR-HOST-IP:3000</code>
+              <div class="step-title">Set canonical HTTPS hostname (recommended)</div>
+              <code># In .blackvault.env
+APP_BASE_URL=https://vault.yourdomain.com
+# Route reverse proxy HTTPS traffic to this host on port 3000
+# (Caddy / Nginx / Traefik)</code>
             </div>
           </div>
           <div class="install-step">
             <div class="step-num">5</div>
+            <div class="step-body">
+              <div class="step-title">Install desktop icon from browser</div>
+              <code>Open https://vault.yourdomain.com
+Chrome/Edge: Install App
+Safari (macOS): File &gt; Add to Dock
+Fallback if needed: http://localhost:3000 or http://YOUR-HOST-IP:3000</code>
+            </div>
+          </div>
+          <div class="install-step">
+            <div class="step-num">6</div>
             <div class="step-body">
               <div class="step-title">Day-2 operations</div>
               <code># Start / stop / logs
@@ -1037,7 +1049,7 @@ update.bat    (Windows)</code>
             </div>
           </div>
           <div class="install-step">
-            <div class="step-num">6</div>
+            <div class="step-num">7</div>
             <div class="step-body">
               <div class="step-title">Backup and recovery essentials</div>
               <code>Back up .blackvault.env and your DATA_DIR.
@@ -1049,7 +1061,7 @@ Use Settings &rarr; Secure Backup for encrypted exports.</code>
       </div>
 
       <p class="deploy-note">
-        Desktop launcher: <a id="launcher-download-link" href="https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest" target="_blank" rel="noopener">Download Installer</a>
+        Optional host-admin desktop launcher: <a id="launcher-download-link" href="https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest" target="_blank" rel="noopener">Download Installer</a>
         <span id="launcher-download-hint"> (falls back to all releases if platform build is unavailable)</span>
       </p>
       <p class="channel-note">
