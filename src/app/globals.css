@@ -270,4 +270,34 @@ body {
     color: #000 !important;
     appearance: none;
   }
+
+  .armory-preview-print {
+    color: #000 !important;
+    background: #fff !important;
+  }
+
+  .armory-preview-print section {
+    background: #fff !important;
+    border-color: #d1d5db !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .armory-preview-print table {
+    width: 100% !important;
+  }
+
+  .armory-preview-print thead {
+    display: table-header-group;
+  }
+
+  .armory-preview-print td,
+  .armory-preview-print th {
+    color: #111 !important;
+  }
+
+  .armory-page-break {
+    break-before: page;
+    page-break-before: always;
+  }
 }

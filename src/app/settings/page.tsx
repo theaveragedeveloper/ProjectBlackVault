@@ -6,13 +6,13 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle2,
+  Info,
   Lock,
   Eye,
   EyeOff,
   Settings,
   ShieldCheck,
   HardDrive,
-  Network,
   Copy,
   ShieldOff,
   Download,
@@ -27,12 +27,21 @@ import {
   RefreshCw,
   TriangleAlert,
   Upload,
+  X,
 } from "lucide-react";
+import {
+  buildExportQueryString,
+  type ExportImageMode,
+  type FullArmoryExportOptions,
+  type FullArmoryExportResponse,
+} from "@/lib/exports/full-armory";
+import { generateFullArmoryPdf } from "@/lib/exports/full-armory-pdf";
+import { formatCurrency } from "@/lib/utils";
 
 const INPUT_CLASS =
   "w-full bg-vault-surface border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint transition-colors";
 const LABEL_CLASS =
-  "block text-xs font-medium uppercase tracking-widest text-vault-text-muted mb-1.5";
+  "block text-sm font-medium text-vault-text-muted mb-1.5";
 
 interface AppSettings {
   id: string;
@@ -43,18 +52,10 @@ interface AppSettings {
 }
 
 interface SystemInfo {
-  localIPs: string[];
-  port: string;
-  hostname: string;
   dbPath: string;
-  platform: string;
   canonicalUrl: string | null;
-  networkPolicy?: {
-    allowReleaseLookup: boolean;
-    allowImageSearchEgress: boolean;
-    allowExternalImageUrls: boolean;
-    requirePrivateNetworkForUpdates: boolean;
-  };
+  port: string;
+  localIPs: string[];
 }
 
 export default function SettingsPage() {
@@ -80,9 +81,15 @@ export default function SettingsPage() {
   const [passwordUnlocked, setPasswordUnlocked] = useState(false);
   const [verifyingPassword, setVerifyingPassword] = useState(false);
   const [verifyError, setVerifyError] = useState<string | null>(null);
-  const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
 
   const [exportPreset, setExportPreset] = useState<"CLAIMS" | "BACKUP">("CLAIMS");
+  const [exportIncludePhotos, setExportIncludePhotos] = useState(true);
+  const [exportIncludeReceipts, setExportIncludeReceipts] = useState(true);
+  const [exportImageMode, setExportImageMode] = useState<ExportImageMode>("PRIMARY_ONLY");
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportAction, setExportAction] = useState<"PDF" | "CSV" | null>(null);
+  const [exportSummary, setExportSummary] = useState<FullArmoryExportResponse["summary"] | null>(null);
+  const [exportSummaryBusy, setExportSummaryBusy] = useState(false);
   const [exportBusy, setExportBusy] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [exportSuccess, setExportSuccess] = useState<string | null>(null);
@@ -124,9 +131,30 @@ export default function SettingsPage() {
   const [showDisableConfirm, setShowDisableConfirm] = useState(false);
   const [disableInput, setDisableInput] = useState("");
   const [keyCopied, setKeyCopied] = useState(false);
+  const [copiedLink, setCopiedLink] = useState<string | null>(null);
+  const [showMainLinkHelp, setShowMainLinkHelp] = useState(false);
+  const [showTroubleshootingLinks, setShowTroubleshootingLinks] = useState(false);
   const [activeSection, setActiveSection] = useState<(typeof settingsSections)[number]["id"]>("security");
-  const localHostUrl = `http://localhost:${sysInfo?.port ?? "3000"}`;
-  const canonicalUrl = sysInfo?.canonicalUrl ?? null;
+  const networkPort = sysInfo?.port ?? "3000";
+  const localHostUrl = `http://localhost:${networkPort}`;
+  const mainLink = sysInfo?.canonicalUrl ?? localHostUrl;
+  const mainLinkConfigured = Boolean(sysInfo?.canonicalUrl);
+  const troubleshootingLinks = Array.from(
+    new Set([
+      localHostUrl,
+      ...(sysInfo?.localIPs ?? []).map((ip) => `http://${ip}:${networkPort}`),
+    ])
+  );
+
+  const exportOptions = useMemo<FullArmoryExportOptions>(
+    () => ({
+      preset: exportPreset,
+      includePhotos: exportIncludePhotos,
+      includeReceipts: exportIncludeReceipts,
+      imageMode: exportImageMode,
+    }),
+    [exportPreset, exportIncludePhotos, exportIncludeReceipts, exportImageMode]
+  );
 
   useEffect(() => {
     Promise.all([
@@ -162,12 +190,38 @@ export default function SettingsPage() {
     localStorage.setItem("blackvault:auto-backup-interval", String(autoBackupIntervalMin));
   }, [autoBackupEnabled, autoBackupIntervalMin]);
 
-  function handleCopyUrl(url: string) {
-    navigator.clipboard.writeText(url).then(() => {
-      setCopiedUrl(url);
-      setTimeout(() => setCopiedUrl(null), 2000);
-    });
-  }
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadExportSummary() {
+      setExportSummaryBusy(true);
+      try {
+        const query = buildExportQueryString({
+          preset: exportPreset,
+          includePhotos: true,
+          includeReceipts: true,
+          imageMode: "PRIMARY_ONLY",
+        });
+        const res = await fetch(`/api/exports/full-armory?${query}`, { signal: controller.signal });
+        const json = await res.json();
+        if (!res.ok) {
+          throw new Error(json.error ?? "Failed to load export summary");
+        }
+        setExportSummary(json.summary ?? null);
+      } catch (error) {
+        if ((error as Error).name !== "AbortError") {
+          setExportSummary(null);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setExportSummaryBusy(false);
+        }
+      }
+    }
+
+    void loadExportSummary();
+    return () => controller.abort();
+  }, [exportPreset]);
 
   async function handleSave(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -313,6 +367,13 @@ export default function SettingsPage() {
     });
   }
 
+  function copyLink(url: string) {
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedLink(url);
+      setTimeout(() => setCopiedLink(null), 2000);
+    });
+  }
+
   function downloadKey(key: string) {
     const blob = new Blob(
       [`BlackVault Encryption Key\n\nVAULT_ENCRYPTION_KEY=${key}\n\nKeep this file safe. Losing it means your encrypted data cannot be recovered.\n`],
@@ -326,41 +387,83 @@ export default function SettingsPage() {
     URL.revokeObjectURL(url);
   }
 
-  async function handleDownloadFullArmoryExport() {
+  async function fetchFullArmoryExport(options: FullArmoryExportOptions): Promise<FullArmoryExportResponse> {
+    const query = buildExportQueryString(options);
+    const res = await fetch(`/api/exports/full-armory?${query}`);
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error ?? "Failed to generate export");
+    return json as FullArmoryExportResponse;
+  }
+
+  function downloadCsvCompanion(payload: FullArmoryExportResponse) {
+    const timestamp = payload.meta.generatedAt.replace(/[:.]/g, "-");
+    const files: Array<{ name: string; content: string }> = [
+      { name: `inventory-items-${timestamp}.csv`, content: payload.csv.inventoryItems ?? "" },
+      { name: `attachments-index-${timestamp}.csv`, content: payload.csv.attachmentsIndex ?? "" },
+      { name: `valuation-summary-${timestamp}.csv`, content: payload.csv.valuationSummary ?? "" },
+    ];
+
+    for (const file of files) {
+      const blob = new Blob([file.content], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = file.name;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  async function handleDownloadExportPdf() {
     setExportBusy(true);
+    setExportAction("PDF");
     setExportError(null);
     setExportSuccess(null);
 
     try {
-      const res = await fetch(`/api/exports/full-armory?preset=${exportPreset}`);
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Failed to generate export");
-
-      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-
-      const files: Array<{ name: string; content: string }> = [
-        { name: `full-armory-export-${timestamp}.json`, content: JSON.stringify(json, null, 2) },
-        { name: `inventory-items-${timestamp}.csv`, content: json.csv?.inventoryItems ?? "" },
-        { name: `attachments-index-${timestamp}.csv`, content: json.csv?.attachmentsIndex ?? "" },
-        { name: `valuation-summary-${timestamp}.csv`, content: json.csv?.valuationSummary ?? "" },
-      ];
-
-      for (const file of files) {
-        const blob = new Blob([file.content], { type: file.name.endsWith(".json") ? "application/json" : "text/csv" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = file.name;
-        a.click();
-        URL.revokeObjectURL(url);
-      }
-
-      setExportSuccess("Full Armory Export generated. JSON + CSV files downloaded.");
+      const payload = await fetchFullArmoryExport(exportOptions);
+      await generateFullArmoryPdf(payload, exportOptions);
+      setExportSuccess("PDF generated and downloaded.");
+      setShowExportModal(false);
     } catch (error) {
-      setExportError(error instanceof Error ? error.message : "Failed to generate export");
+      setExportError(error instanceof Error ? error.message : "Failed to generate PDF export");
     } finally {
       setExportBusy(false);
+      setExportAction(null);
     }
+  }
+
+  async function handleDownloadCsvExport() {
+    setExportBusy(true);
+    setExportAction("CSV");
+    setExportError(null);
+    setExportSuccess(null);
+
+    try {
+      const payload = await fetchFullArmoryExport(exportOptions);
+      downloadCsvCompanion(payload);
+      setExportSuccess("CSV companion files downloaded.");
+      setShowExportModal(false);
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : "Failed to download CSV companion files");
+    } finally {
+      setExportBusy(false);
+      setExportAction(null);
+    }
+  }
+
+  function handleOpenExportPreview() {
+    setExportError(null);
+    setExportSuccess(null);
+    const query = buildExportQueryString(exportOptions);
+    const preview = window.open(`/exports/full-armory/preview?${query}`, "_blank");
+    if (!preview) {
+      setExportError("Popup blocked. Please allow popups and try again.");
+      return;
+    }
+    preview.opener = null;
+    setExportSuccess("Opened print preview in a new tab.");
+    setShowExportModal(false);
   }
 
 
@@ -728,6 +831,24 @@ export default function SettingsPage() {
     return () => observer.disconnect();
   }, [settingsSections]);
 
+  useEffect(() => {
+    function scrollToHashSection() {
+      const hash = window.location.hash.replace("#", "");
+      if (!hash) return;
+      const targetSection = settingsSections.find((section) => section.id === hash);
+      if (!targetSection) return;
+      setActiveSection(targetSection.id);
+      document.getElementById(targetSection.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    const timer = window.setTimeout(scrollToHashSection, 0);
+    window.addEventListener("hashchange", scrollToHashSection);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("hashchange", scrollToHashSection);
+    };
+  }, [settingsSections]);
+
   function scrollToSection(sectionId: (typeof settingsSections)[number]["id"]) {
     setActiveSection(sectionId);
     document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -787,8 +908,8 @@ export default function SettingsPage() {
         <div className="flex items-center gap-3">
           <Settings className="w-5 h-5 text-[#00C2FF]" />
           <div>
-            <h1 className="text-lg font-bold tracking-widest text-vault-text uppercase">Settings</h1>
-            <p className="text-xs text-vault-text-muted mt-0.5">Configure your vault preferences</p>
+            <h1 className="text-2xl font-semibold leading-tight text-vault-text">Settings</h1>
+            <p className="text-sm text-vault-text-muted mt-1">Manage security, backups, and system preferences.</p>
           </div>
         </div>
       </div>
@@ -804,7 +925,7 @@ export default function SettingsPage() {
                   key={section.id}
                   type="button"
                   onClick={() => scrollToSection(section.id)}
-                  className={`shrink-0 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-mono uppercase tracking-wider transition-colors ${isActive ? "border-[#00C2FF]/40 bg-[#00C2FF]/10 text-[#00C2FF]" : "border-vault-border text-vault-text-faint hover:text-vault-text hover:border-vault-text-muted/40"}`}
+                  className={`shrink-0 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium tracking-wide transition-colors ${isActive ? "border-[#00C2FF]/40 bg-[#00C2FF]/10 text-[#00C2FF]" : "border-vault-border text-vault-text-faint hover:text-vault-text hover:border-vault-text-muted/40"}`}
                 >
                   <Icon className="h-3.5 w-3.5" />
                   {section.label}
@@ -834,7 +955,7 @@ export default function SettingsPage() {
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <Rocket className="h-4 w-4 text-[#00C2FF]" />
-              <p className="text-xs font-mono uppercase tracking-widest text-[#00C2FF]">Quick Setup</p>
+              <p className="text-sm font-semibold text-[#00C2FF]">Quick Setup</p>
             </div>
             <p className="text-xs text-vault-text-muted">{completedWizardSteps}/{wizardSteps.length} complete</p>
           </div>
@@ -1159,107 +1280,90 @@ export default function SettingsPage() {
                   <span className="text-xs text-vault-text-muted">Local SQLite — 100% offline, no cloud sync</span>
                 </div>
               </div>
-            </div>
-          </fieldset>
 
-          {/* ── Network Access ───────────────────────────────── */}
-          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
-            <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
-              <Network className="w-3.5 h-3.5" />
-              Network Access
-            </legend>
-
-            <p className="text-xs text-vault-text-muted leading-relaxed">
-              Use a stable hostname as your primary access URL so users can install a desktop icon once and launch without typing IP addresses.
-            </p>
-
-            {canonicalUrl ? (
-              <div className="bg-[#00C853]/8 border border-[#00C853]/30 rounded-md px-3 py-3 flex items-center justify-between gap-2">
-                <div>
-                  <p className="text-[10px] text-[#00C853] font-mono uppercase mb-0.5">Primary URL (Recommended)</p>
-                  <code className="text-xs font-mono text-vault-text break-all">{canonicalUrl}</code>
-                </div>
-                <div className="shrink-0 flex items-center gap-1">
-                  <a
-                    href={canonicalUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-2.5 py-1.5 text-[11px] rounded border border-[#00C853]/40 text-[#00C853] hover:bg-[#00C853]/10 transition-colors"
-                  >
-                    Open
-                  </a>
+              <div className="rounded-md border border-vault-border bg-vault-bg px-4 py-3 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] text-[#00C2FF] font-mono mb-1">How to Open BlackVault</p>
+                    <p className="text-xs text-vault-text-faint leading-relaxed">
+                      Use this main link on all devices so everyone opens the same address.
+                    </p>
+                  </div>
                   <button
                     type="button"
-                    onClick={() => handleCopyUrl(canonicalUrl)}
-                    className="p-1.5 text-vault-text-faint hover:text-[#00C2FF] transition-colors rounded"
-                    title="Copy URL"
+                    onClick={() => setShowMainLinkHelp((v) => !v)}
+                    className="shrink-0 p-1.5 text-vault-text-faint hover:text-[#00C2FF] rounded transition-colors"
+                    aria-expanded={showMainLinkHelp}
+                    title="Show setup help"
                   >
-                    {copiedUrl === canonicalUrl ? <CheckCircle2 className="w-3.5 h-3.5 text-[#00C853]" /> : <Copy className="w-3.5 h-3.5" />}
+                    <Info className="w-3.5 h-3.5" />
                   </button>
                 </div>
-              </div>
-            ) : (
-              <div className="bg-[#F5A623]/10 border border-[#F5A623]/30 rounded-md px-4 py-3">
-                <p className="text-[11px] text-[#F5A623] font-mono mb-1">Hostname Not Configured</p>
-                <p className="text-xs text-vault-text-faint leading-relaxed">
-                  Set <code className="font-mono">APP_BASE_URL</code> to your HTTPS domain (example: <code className="font-mono">https://vault.yourdomain.com</code>) so users can open one URL across VPN and LAN and install a desktop icon.
-                </p>
-              </div>
-            )}
 
-            <div className="bg-[#00C2FF]/5 border border-[#00C2FF]/20 rounded-md px-4 py-3">
-              <p className="text-[11px] text-[#00C2FF] font-mono mb-1">Install On Desktop</p>
-              <p className="text-xs text-vault-text-faint leading-relaxed">
-                On Chrome/Edge use <span className="font-medium">Install App</span>. On Safari (macOS) use <span className="font-medium">File → Add to Dock</span>.
-                For best results, install from your HTTPS hostname URL.
-              </p>
-            </div>
-
-            <div className="bg-[#00C853]/8 border border-[#00C853]/30 rounded-md px-4 py-3">
-              <p className="text-[11px] text-[#00C853] font-mono mb-1">Internet Egress Policy</p>
-              <p className="text-xs text-vault-text-faint leading-relaxed">
-                Release lookups: <span className="font-medium">{sysInfo?.networkPolicy?.allowReleaseLookup ? "enabled" : "disabled"}</span>{" "}
-                · Image search: <span className="font-medium">{sysInfo?.networkPolicy?.allowImageSearchEgress ? "enabled" : "disabled"}</span>{" "}
-                · External image URLs: <span className="font-medium">{sysInfo?.networkPolicy?.allowExternalImageUrls ? "enabled" : "disabled"}</span>{" "}
-                · Update actions limited to private/VPN clients: <span className="font-medium">{sysInfo?.networkPolicy?.requirePrivateNetworkForUpdates ? "yes" : "no"}</span>
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <div className="bg-vault-bg border border-vault-border rounded-md px-3 py-2 flex items-center justify-between gap-2">
-                <div>
-                  <p className="text-[10px] text-vault-text-faint font-mono uppercase mb-0.5">Fallback: This Device</p>
-                  <code className="text-xs font-mono text-vault-text">{localHostUrl}</code>
-                </div>
-                <button type="button" onClick={() => handleCopyUrl(localHostUrl)}
-                  className="shrink-0 p-1.5 text-vault-text-faint hover:text-[#00C2FF] transition-colors rounded" title="Copy URL">
-                  {copiedUrl === localHostUrl ? <CheckCircle2 className="w-3.5 h-3.5 text-[#00C853]" /> : <Copy className="w-3.5 h-3.5" />}
-                </button>
-              </div>
-
-              {sysInfo?.localIPs && sysInfo.localIPs.length > 0 ? (
-                sysInfo.localIPs.map((ip) => (
-                  <div key={ip} className="bg-vault-bg border border-vault-border rounded-md px-3 py-2 flex items-center justify-between gap-2">
-                    <div>
-                      <p className="text-[10px] text-vault-text-faint font-mono uppercase mb-0.5">Fallback: Local Network</p>
-                      <code className="text-xs font-mono text-vault-text">http://{ip}:{sysInfo.port}</code>
-                    </div>
-                    <button type="button" onClick={() => handleCopyUrl(`http://${ip}:${sysInfo.port}`)}
-                      className="shrink-0 p-1.5 text-vault-text-faint hover:text-[#00C2FF] transition-colors rounded" title="Copy URL">
-                      {copiedUrl === `http://${ip}:${sysInfo.port}` ? <CheckCircle2 className="w-3.5 h-3.5 text-[#00C853]" /> : <Copy className="w-3.5 h-3.5" />}
-                    </button>
+                <div className="flex items-center gap-2 rounded-md border border-vault-border bg-vault-surface px-3 py-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-0.5">Main Link</p>
+                    <code className="text-xs font-mono text-vault-text break-all">{mainLink}</code>
                   </div>
-                ))
-              ) : (
-                <div className="text-xs text-vault-text-faint italic">No local network interfaces detected.</div>
-              )}
-            </div>
+                  <button
+                    type="button"
+                    onClick={() => copyLink(mainLink)}
+                    className="shrink-0 inline-flex items-center gap-1.5 rounded border border-vault-border px-2.5 py-1.5 text-[11px] text-vault-text-faint hover:text-[#00C2FF] hover:border-[#00C2FF]/40 transition-colors"
+                  >
+                    {copiedLink === mainLink ? <CheckCircle2 className="w-3.5 h-3.5 text-[#00C853]" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copiedLink === mainLink ? "Copied" : "Copy Link"}
+                  </button>
+                </div>
 
-            <div className="bg-[#00C2FF]/5 border border-[#00C2FF]/20 rounded-md px-4 py-3">
-              <p className="text-[11px] text-[#00C2FF] font-mono mb-1">Docker Users</p>
-              <p className="text-xs text-vault-text-faint leading-relaxed">
-                Keep container port mapping enabled (for example <code className="font-mono">-p 3000:3000</code>) and route your domain to this host through a reverse proxy (Caddy/Nginx/Traefik).
-              </p>
+                <p className="text-xs text-vault-text-faint leading-relaxed">
+                  {mainLinkConfigured
+                    ? "Main link is set up. Share this link with everyone who uses BlackVault."
+                    : "Main link not set up yet. BlackVault is using a local link for now."}
+                </p>
+
+                {showMainLinkHelp && (
+                  <div className="rounded-md border border-[#00C2FF]/25 bg-[#00C2FF]/5 px-3 py-3 space-y-2">
+                    <p className="text-[10px] font-mono uppercase tracking-widest text-[#00C2FF]">Set Up Main Link</p>
+                    <ol className="space-y-1.5 text-xs text-vault-text-muted list-decimal pl-4">
+                      <li>Choose a web address you want everyone to use (example: <code className="font-mono">https://vault.yourdomain.com</code>).</li>
+                      <li>Open your <code className="font-mono">.blackvault.env</code> file and set <code className="font-mono">APP_BASE_URL</code> to that address.</li>
+                      <li>Restart BlackVault so the change is applied.</li>
+                      <li>Come back to this page and confirm the Main Link above changed to your web address.</li>
+                      <li>Install from that same link: Chrome/Edge <span className="font-medium">Install App</span>, Safari (macOS) <span className="font-medium">File → Add to Dock</span>.</li>
+                    </ol>
+                  </div>
+                )}
+
+                <div className="rounded-md border border-vault-border bg-vault-surface">
+                  <button
+                    type="button"
+                    onClick={() => setShowTroubleshootingLinks((v) => !v)}
+                    className="w-full flex items-center justify-between gap-3 px-3 py-2 text-left"
+                    aria-expanded={showTroubleshootingLinks}
+                  >
+                    <span className="text-xs text-vault-text-muted">Troubleshooting links</span>
+                    <ChevronDown className={`w-3.5 h-3.5 text-vault-text-faint transition-transform ${showTroubleshootingLinks ? "rotate-180" : ""}`} />
+                  </button>
+
+                  {showTroubleshootingLinks && (
+                    <div className="border-t border-vault-border px-3 py-2 space-y-2">
+                      {troubleshootingLinks.map((url) => (
+                        <div key={url} className="flex items-center gap-2 rounded border border-vault-border bg-vault-bg px-2.5 py-2">
+                          <code className="text-xs font-mono text-vault-text-faint break-all flex-1">{url}</code>
+                          <button
+                            type="button"
+                            onClick={() => copyLink(url)}
+                            className="shrink-0 p-1.5 text-vault-text-faint hover:text-[#00C2FF] rounded transition-colors"
+                            title="Copy link"
+                          >
+                            {copiedLink === url ? <CheckCircle2 className="w-3.5 h-3.5 text-[#00C853]" /> : <Copy className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </fieldset>
 
@@ -1314,7 +1418,7 @@ export default function SettingsPage() {
             </legend>
 
             <p className="text-xs text-vault-text-muted leading-relaxed">
-              Build a claim-ready package with missing-evidence flags, uploaded receipts, and CSV companion files.
+              Build an adjuster-ready packet with a direct PDF export, print preview mode, and optional CSV companion files.
             </p>
 
             {exportError && (
@@ -1332,62 +1436,213 @@ export default function SettingsPage() {
             )}
 
             <div className="bg-vault-bg border border-vault-border rounded-md p-4 space-y-3">
-              <p className="text-[10px] text-vault-text-faint font-mono uppercase tracking-widest">Claims Preset</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setExportPreset("CLAIMS")}
-                  className={`rounded-md border px-3 py-2 text-left transition-colors ${
-                    exportPreset === "CLAIMS"
-                      ? "border-[#00C2FF]/40 bg-[#00C2FF]/10 text-[#00C2FF]"
-                      : "border-vault-border text-vault-text-muted hover:border-vault-text-muted/30"
-                  }`}
-                >
-                  <p className="text-xs font-medium">Insurance / Law Enforcement</p>
-                  <p className="text-[11px] mt-1">Full details, unmasked serials, all receipts included.</p>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setExportPreset("BACKUP")}
-                  className={`rounded-md border px-3 py-2 text-left transition-colors ${
-                    exportPreset === "BACKUP"
-                      ? "border-[#00C2FF]/40 bg-[#00C2FF]/10 text-[#00C2FF]"
-                      : "border-vault-border text-vault-text-muted hover:border-vault-text-muted/30"
-                  }`}
-                >
-                  <p className="text-xs font-medium">General Backup</p>
-                  <p className="text-[11px] mt-1">Masked serials with the same document/receipt coverage.</p>
-                </button>
-              </div>
+              <p className="text-[10px] text-vault-text-faint font-mono uppercase tracking-widest">Evidence Readiness Snapshot</p>
+              {exportSummaryBusy ? (
+                <div className="text-xs text-vault-text-faint flex items-center gap-2">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Loading current counts...
+                </div>
+              ) : exportSummary ? (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div className="rounded-md border border-vault-border px-3 py-2">
+                    <p className="text-[10px] text-vault-text-faint">Missing Receipts</p>
+                    <p className="text-sm font-semibold text-vault-text">{exportSummary.missingEvidence.missingReceipts}</p>
+                  </div>
+                  <div className="rounded-md border border-vault-border px-3 py-2">
+                    <p className="text-[10px] text-vault-text-faint">Missing Photos</p>
+                    <p className="text-sm font-semibold text-vault-text">{exportSummary.missingEvidence.missingPhotos}</p>
+                  </div>
+                  <div className="rounded-md border border-vault-border px-3 py-2">
+                    <p className="text-[10px] text-vault-text-faint">Missing Values</p>
+                    <p className="text-sm font-semibold text-vault-text">{exportSummary.missingEvidence.missingValues}</p>
+                  </div>
+                  <div className="rounded-md border border-vault-border px-3 py-2">
+                    <p className="text-[10px] text-vault-text-faint">Missing Serials</p>
+                    <p className="text-sm font-semibold text-vault-text">{exportSummary.missingEvidence.missingSerials}</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-vault-text-faint">Unable to load summary counters right now.</p>
+              )}
             </div>
 
             <div className="bg-vault-bg border border-vault-border rounded-md p-4 space-y-3">
-              <p className="text-[10px] text-vault-text-faint font-mono uppercase tracking-widest">What gets generated</p>
+              <p className="text-[10px] text-vault-text-faint font-mono uppercase tracking-widest">Default Export Profile</p>
               <ul className="space-y-1.5 text-xs text-vault-text-muted">
-                <li>• `full-armory-export-*.json` with complete item + attachment data.</li>
-                <li>• `inventory-items-*.csv` for line-item adjuster workflows.</li>
-                <li>• `attachments-index-*.csv` with uploaded receipt/document linkage.</li>
-                <li>• `valuation-summary-*.csv` including missing evidence counters.</li>
+                <li>• Preset: `{exportPreset}` ({exportPreset === "CLAIMS" ? "full serial detail" : "masked serials"}).</li>
+                <li>• Include item photos: {exportIncludePhotos ? "Yes" : "No"}.</li>
+                <li>• Include receipt images: {exportIncludeReceipts ? "Yes" : "No"}.</li>
+                <li>• Image depth mode: {exportImageMode === "PRIMARY_ONLY" ? "Primary only" : "All images"}.</li>
               </ul>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
               <button
                 type="button"
-                onClick={handleDownloadFullArmoryExport}
+                onClick={() => setShowExportModal(true)}
                 disabled={exportBusy}
                 className="flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 rounded-md text-sm font-medium transition-colors"
               >
                 {exportBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <DownloadCloud className="w-4 h-4" />}
-                {exportBusy ? "Generating Export..." : "Generate Full Armory Export"}
+                Configure & Export
               </button>
-              <p className="text-xs text-vault-text-faint">Includes all uploaded receipts in the attachment index output.</p>
+              <p className="text-xs text-vault-text-faint">Choose PDF download, print preview, and CSV companion options.</p>
             </div>
 
             <p className="text-xs text-vault-text-faint">
               Specification reference: <code className="font-mono">docs/full-armory-export-format.md</code>
             </p>
           </fieldset>
+
+          {showExportModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <button
+                type="button"
+                onClick={() => setShowExportModal(false)}
+                className="absolute inset-0 bg-black/70"
+                aria-label="Close export configuration dialog"
+              />
+              <div className="relative z-10 w-full max-w-2xl rounded-lg border border-vault-border bg-vault-surface p-5 space-y-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-semibold uppercase tracking-widest text-vault-text">Configure Full Armory Export</h3>
+                    <p className="text-xs text-vault-text-muted mt-1">
+                      Select how the packet should be prepared for adjuster review.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowExportModal(false)}
+                    className="rounded-md border border-vault-border p-1.5 text-vault-text-faint hover:text-vault-text"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-[10px] text-vault-text-faint font-mono uppercase tracking-widest">Preset</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setExportPreset("CLAIMS")}
+                      className={`rounded-md border px-3 py-2 text-left transition-colors ${
+                        exportPreset === "CLAIMS"
+                          ? "border-[#00C2FF]/40 bg-[#00C2FF]/10 text-[#00C2FF]"
+                          : "border-vault-border text-vault-text-muted hover:border-vault-text-muted/30"
+                      }`}
+                    >
+                      <p className="text-xs font-medium">Insurance / Law Enforcement</p>
+                      <p className="text-[11px] mt-1">Full serial numbers and maximum claim detail.</p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setExportPreset("BACKUP")}
+                      className={`rounded-md border px-3 py-2 text-left transition-colors ${
+                        exportPreset === "BACKUP"
+                          ? "border-[#00C2FF]/40 bg-[#00C2FF]/10 text-[#00C2FF]"
+                          : "border-vault-border text-vault-text-muted hover:border-vault-text-muted/30"
+                      }`}
+                    >
+                      <p className="text-xs font-medium">General Backup</p>
+                      <p className="text-[11px] mt-1">Masks serial numbers for safer sharing.</p>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-[10px] text-vault-text-faint font-mono uppercase tracking-widest">Evidence Toggles</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <label className="rounded-md border border-vault-border px-3 py-2 flex items-center gap-2 text-xs text-vault-text-muted">
+                      <input
+                        type="checkbox"
+                        checked={exportIncludePhotos}
+                        onChange={(e) => setExportIncludePhotos(e.target.checked)}
+                        className="accent-[#00C2FF]"
+                      />
+                      Include item photos
+                    </label>
+                    <label className="rounded-md border border-vault-border px-3 py-2 flex items-center gap-2 text-xs text-vault-text-muted">
+                      <input
+                        type="checkbox"
+                        checked={exportIncludeReceipts}
+                        onChange={(e) => setExportIncludeReceipts(e.target.checked)}
+                        className="accent-[#00C2FF]"
+                      />
+                      Include receipt images
+                    </label>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-[10px] text-vault-text-faint font-mono uppercase tracking-widest">Image Depth</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setExportImageMode("PRIMARY_ONLY")}
+                      className={`rounded-md border px-3 py-2 text-left transition-colors ${
+                        exportImageMode === "PRIMARY_ONLY"
+                          ? "border-[#00C2FF]/40 bg-[#00C2FF]/10 text-[#00C2FF]"
+                          : "border-vault-border text-vault-text-muted hover:border-vault-text-muted/30"
+                      }`}
+                    >
+                      <p className="text-xs font-medium">Primary only</p>
+                      <p className="text-[11px] mt-1">One image per evidence group for compact output.</p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setExportImageMode("ALL_IMAGES")}
+                      className={`rounded-md border px-3 py-2 text-left transition-colors ${
+                        exportImageMode === "ALL_IMAGES"
+                          ? "border-[#00C2FF]/40 bg-[#00C2FF]/10 text-[#00C2FF]"
+                          : "border-vault-border text-vault-text-muted hover:border-vault-text-muted/30"
+                      }`}
+                    >
+                      <p className="text-xs font-medium">All images</p>
+                      <p className="text-[11px] mt-1">Embed every eligible image receipt/photo.</p>
+                    </button>
+                  </div>
+                </div>
+
+                {exportSummary && (
+                  <div className="rounded-md border border-vault-border bg-vault-bg p-3 text-xs text-vault-text-muted">
+                    <p>
+                      Current totals: {exportSummary.totalItems} items, {formatCurrency(exportSummary.totalPurchaseValue)} purchase value,
+                      {` ${formatCurrency(exportSummary.totalReplacementValue)}`} replacement value.
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={handleDownloadExportPdf}
+                    disabled={exportBusy}
+                    className="inline-flex items-center gap-2 rounded-md border border-[#00C2FF]/30 bg-[#00C2FF]/10 px-3 py-2 text-xs text-[#00C2FF] disabled:opacity-60"
+                  >
+                    {exportBusy && exportAction === "PDF" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <DownloadCloud className="h-3.5 w-3.5" />}
+                    {exportBusy && exportAction === "PDF" ? "Generating PDF..." : "Download PDF"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleOpenExportPreview}
+                    disabled={exportBusy}
+                    className="inline-flex items-center gap-2 rounded-md border border-vault-border px-3 py-2 text-xs text-vault-text-muted disabled:opacity-60"
+                  >
+                    Open Print Preview
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDownloadCsvExport}
+                    disabled={exportBusy}
+                    className="inline-flex items-center gap-2 rounded-md border border-vault-border px-3 py-2 text-xs text-vault-text-muted disabled:opacity-60"
+                  >
+                    {exportBusy && exportAction === "CSV" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                    {exportBusy && exportAction === "CSV" ? "Downloading CSV..." : "Download CSV Companion"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* ── Secure System Backup ─────────────────────────── */}
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
