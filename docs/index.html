@@ -950,25 +950,76 @@ Use Settings &rarr; Secure Backup for encrypted exports.</code>
   <script>
     const launcherDownloadLink = document.getElementById('launcher-download-link');
     const launcherDownloadHint = document.getElementById('launcher-download-hint');
-    if (launcherDownloadLink) {
-      const ua = navigator.userAgent.toLowerCase();
-      let installerUrl = 'https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest';
-      let runHint = 'Open the latest release and download the correct installer for your OS.';
 
-      if (ua.includes('windows')) {
-        installerUrl = 'https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest/download/ProjectBlackVault-Setup.exe';
-        runHint = 'After download, run the .exe installer.';
-      } else if (ua.includes('mac os') || ua.includes('macintosh')) {
-        installerUrl = 'https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest/download/ProjectBlackVault.dmg';
-        runHint = 'After download, open the .dmg and drag ProjectBlackVault to Applications.';
-      } else if (ua.includes('linux')) {
-        installerUrl = 'https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest/download/ProjectBlackVault-Setup.AppImage';
-        runHint = 'After download, mark the AppImage executable and run it.';
+    const RELEASES_URL = 'https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest';
+    const RELEASE_API_URL = 'https://api.github.com/repos/theaveragedeveloper/ProjectBlackVault/releases/latest';
+    const EXPECTED = {
+      windows: 'ProjectBlackVault-Setup.exe',
+      mac: 'ProjectBlackVault.dmg',
+      linux: 'ProjectBlackVault-Setup.AppImage',
+    };
+
+    function detectPlatform() {
+      const ua = navigator.userAgent.toLowerCase();
+      if (ua.includes('windows')) return 'windows';
+      if (ua.includes('mac os') || ua.includes('macintosh')) return 'mac';
+      if (ua.includes('linux')) return 'linux';
+      return 'unknown';
+    }
+
+    function runHintFor(platform) {
+      if (platform === 'windows') return 'After download, run the .exe installer.';
+      if (platform === 'mac') return 'After download, open the .dmg and drag ProjectBlackVault to Applications.';
+      if (platform === 'linux') return 'After download, mark the AppImage executable and run it.';
+      return 'Open the latest release and download the correct installer for your OS.';
+    }
+
+    async function resolveInstallerUrl(platform) {
+      if (platform === 'unknown') {
+        return {
+          url: RELEASES_URL,
+          hint: runHintFor(platform),
+        };
       }
 
-      launcherDownloadLink.href = installerUrl;
-      if (launcherDownloadHint) launcherDownloadHint.textContent = ` (${runHint})`;
+      try {
+        const response = await fetch(RELEASE_API_URL, {
+          headers: { Accept: 'application/vnd.github+json' },
+        });
+        if (!response.ok) throw new Error(`release lookup failed (${response.status})`);
+
+        const release = await response.json();
+        const releaseUrl = release?.html_url || RELEASES_URL;
+        const assets = Array.isArray(release?.assets) ? release.assets : [];
+        const filename = EXPECTED[platform];
+        const match = assets.find(asset => asset?.name === filename && asset?.browser_download_url);
+
+        if (match) {
+          return {
+            url: match.browser_download_url,
+            hint: runHintFor(platform),
+          };
+        }
+
+        return {
+          url: releaseUrl,
+          hint: `${runHintFor(platform)} Asset not published yet, so this opens the latest releases page.`,
+        };
+      } catch (_error) {
+        return {
+          url: RELEASES_URL,
+          hint: `${runHintFor(platform)} If direct download is unavailable, this opens latest releases.`,
+        };
+      }
     }
+
+    (async () => {
+      if (!launcherDownloadLink) return;
+      const platform = detectPlatform();
+      const resolved = await resolveInstallerUrl(platform);
+      launcherDownloadLink.href = resolved.url;
+      if (launcherDownloadHint) launcherDownloadHint.textContent = ` (${resolved.hint})`;
+    })();
 
     const observer = new IntersectionObserver(
       entries => entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); }),
