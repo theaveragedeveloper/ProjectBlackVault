@@ -31,7 +31,7 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html { scroll-behavior: smooth; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
       background: var(--bg);
       color: var(--text);
       line-height: 1.6;
@@ -70,18 +70,49 @@
     .nav-logo {
       display: flex;
       align-items: center;
-      gap: 0.6rem;
-      font-size: 1rem;
-      font-weight: 700;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
+      gap: 0.7rem;
+      min-width: 0;
     }
 
-    .nav-logo .diamond {
-      width: 10px; height: 10px;
-      background: var(--accent);
-      transform: rotate(45deg);
-      box-shadow: 0 0 8px var(--accent);
+    .logo-badge {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      background: rgba(0, 194, 255, 0.1);
+      border: 1px solid rgba(0, 194, 255, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .logo-badge img {
+      width: 19px;
+      height: 19px;
+      display: block;
+    }
+
+    .nav-brand {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      line-height: 1.1;
+    }
+
+    .nav-brand-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text);
+    }
+
+    .nav-brand-sub {
+      font-size: 0.58rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-faint);
+      margin-top: 0.2rem;
     }
 
     .nav-links {
@@ -102,17 +133,18 @@
 
     .nav-cta {
       padding: 0.45rem 1.1rem;
-      background: var(--accent);
-      color: #000 !important;
+      background: var(--accent-dim);
+      border: 1px solid rgba(0,194,255,0.3);
+      color: var(--accent) !important;
       font-weight: 700;
       font-size: 0.75rem;
       letter-spacing: 0.1em;
       border-radius: 3px;
-      transition: box-shadow 0.2s, opacity 0.2s;
+      transition: box-shadow 0.2s, background 0.2s;
     }
     .nav-cta:hover {
-      box-shadow: 0 0 16px var(--accent-glow);
-      opacity: 0.9;
+      background: rgba(0, 194, 255, 0.2);
+      box-shadow: 0 0 16px rgba(0, 194, 255, 0.2);
     }
 
     /* ── Hero ──────────────────────────────────────────────── */
@@ -126,6 +158,25 @@
       justify-content: center;
       text-align: center;
       padding: 7rem 1.5rem 5rem;
+    }
+
+    .hero-logo {
+      width: 80px;
+      height: 80px;
+      border-radius: 16px;
+      border: 1px solid rgba(0,194,255,0.3);
+      background: var(--accent-dim);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1.2rem;
+      box-shadow: 0 0 24px rgba(0,194,255,0.12);
+    }
+
+    .hero-logo img {
+      width: 52px;
+      height: 52px;
+      display: block;
     }
 
     .hero-eyebrow {
@@ -178,18 +229,19 @@
       align-items: center;
       gap: 0.5rem;
       padding: 0.8rem 2rem;
-      background: var(--accent);
-      color: #000;
+      background: var(--accent-dim);
+      border: 1px solid rgba(0,194,255,0.3);
+      color: var(--accent);
       font-weight: 700;
       font-size: 0.85rem;
       letter-spacing: 0.08em;
       text-transform: uppercase;
       border-radius: 3px;
-      transition: box-shadow 0.2s, opacity 0.2s;
+      transition: box-shadow 0.2s, background 0.2s;
     }
     .btn-primary:hover {
-      box-shadow: 0 0 24px var(--accent-glow);
-      opacity: 0.9;
+      background: rgba(0, 194, 255, 0.2);
+      box-shadow: 0 0 24px rgba(0, 194, 255, 0.2);
     }
 
     .btn-secondary {
@@ -501,7 +553,19 @@
       text-transform: uppercase;
       color: var(--text-faint);
     }
-    .footer-logo .diamond { width: 8px; height: 8px; background: var(--text-faint); transform: rotate(45deg); }
+
+    .footer-logo .logo-badge {
+      width: 22px;
+      height: 22px;
+      border-radius: 5px;
+      background: rgba(0, 194, 255, 0.08);
+      border: 1px solid rgba(0, 194, 255, 0.22);
+    }
+
+    .footer-logo .logo-badge img {
+      width: 14px;
+      height: 14px;
+    }
 
     .footer-links { display: flex; gap: 1.5rem; list-style: none; }
     .footer-links a {
@@ -537,8 +601,13 @@
   <!-- ── Nav ──────────────────────────────────────────────── -->
   <nav>
     <div class="nav-logo">
-      <div class="diamond"></div>
-      BlackVault
+      <div class="logo-badge">
+        <img src="./assets/blackvault-logo.svg" alt="BlackVault logo" />
+      </div>
+      <div class="nav-brand">
+        <span class="nav-brand-title">BlackVault</span>
+        <span class="nav-brand-sub">Armory Platform</span>
+      </div>
     </div>
     <ul class="nav-links">
       <li><a href="#features">Features</a></li>
@@ -551,6 +620,9 @@
 
   <!-- ── Hero ─────────────────────────────────────────────── -->
   <section class="hero">
+    <div class="hero-logo">
+      <img src="./assets/blackvault-logo.svg" alt="BlackVault emblem" />
+    </div>
     <div class="hero-eyebrow">Self-Hosted &middot; Open Source &middot; Encrypted</div>
 
     <h1>Your Arsenal.<br>Your <span class="accent">Vault</span>.</h1>
@@ -827,7 +899,9 @@ cd ProjectBlackVault</code>
   <footer>
     <div class="footer-inner">
       <div class="footer-logo">
-        <div class="diamond"></div>
+        <div class="logo-badge">
+          <img src="./assets/blackvault-logo.svg" alt="BlackVault logo" />
+        </div>
         Project BlackVault
       </div>
       <ul class="footer-links">
