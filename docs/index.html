@@ -826,9 +826,9 @@
     <div class="container">
       <div class="reveal">
         <div class="section-label">Deployment</div>
-        <h2 class="section-title">Self-Host in Minutes</h2>
+        <h2 class="section-title">Production Deployment Walkthrough</h2>
         <p class="section-sub">
-          Run BlackVault on your own machine or a private VPS. Docker included &mdash; no external services required.
+          Deploy with Docker Compose using built-in install scripts. This path is production-oriented and avoids dev-mode terminal setup.
         </p>
       </div>
 
@@ -843,38 +843,67 @@
           <div class="install-step">
             <div class="step-num">1</div>
             <div class="step-body">
-              <div class="step-title">Clone the repository</div>
-              <code>git clone https://github.com/theaveragedeveloper/ProjectBlackVault.git
-cd ProjectBlackVault</code>
+              <div class="step-title">Install prerequisites</div>
+              <code>Docker Desktop (Windows/macOS)
+Docker Engine + Compose plugin (Linux)</code>
             </div>
           </div>
           <div class="install-step">
             <div class="step-num">2</div>
             <div class="step-body">
-              <div class="step-title">Configure your environment</div>
-              <code>cp .env.example .env
-# Set ENCRYPTION_KEY and VAULT_PASSWORD in .env</code>
+              <div class="step-title">Clone and run first-time installer</div>
+              <code>git clone https://github.com/theaveragedeveloper/ProjectBlackVault.git
+cd ProjectBlackVault
+# Linux/macOS
+chmod +x install.sh &amp;&amp; ./install.sh
+# Windows
+install.bat</code>
             </div>
           </div>
           <div class="install-step">
             <div class="step-num">3</div>
             <div class="step-body">
-              <div class="step-title">Start with Docker Compose</div>
-              <code>docker compose up -d</code>
+              <div class="step-title">Verify deployment health</div>
+              <code>docker compose --env-file .blackvault.env ps
+docker compose --env-file .blackvault.env logs -f
+http://localhost:3000/api/health</code>
             </div>
           </div>
           <div class="install-step">
             <div class="step-num">4</div>
             <div class="step-body">
-              <div class="step-title">Open the vault</div>
-              <code>http://localhost:3000</code>
+              <div class="step-title">Access from other devices</div>
+              <code># Find host IP, then open from phone/laptop:
+http://YOUR-HOST-IP:3000</code>
+            </div>
+          </div>
+          <div class="install-step">
+            <div class="step-num">5</div>
+            <div class="step-body">
+              <div class="step-title">Day-2 operations</div>
+              <code># Start / stop / logs
+docker compose --env-file .blackvault.env up -d
+docker compose --env-file .blackvault.env down
+docker compose --env-file .blackvault.env logs -f
+# Update
+./update.sh   (Linux/macOS)
+update.bat    (Windows)</code>
+            </div>
+          </div>
+          <div class="install-step">
+            <div class="step-num">6</div>
+            <div class="step-body">
+              <div class="step-title">Backup and recovery essentials</div>
+              <code>Back up .blackvault.env and your DATA_DIR.
+Do NOT lose VAULT_ENCRYPTION_KEY.
+Use Settings &rarr; Secure Backup for encrypted exports.</code>
             </div>
           </div>
         </div>
       </div>
 
       <p style="margin-top:1.5rem; font-size:0.82rem; color:var(--text-faint);">
-        Prefer running without Docker? Use <code class="inline">npm install &amp;&amp; npm run dev</code> for local development.
+        Desktop launcher downloads: <a href="https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest" target="_blank" rel="noopener" style="color:var(--accent);">GitHub Releases (latest)</a>
       </p>
     </div>
   </section>
