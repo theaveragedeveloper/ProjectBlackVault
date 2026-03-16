@@ -113,18 +113,19 @@ jobs:
         with:
           path: release-assets
 
-      - name: Upload installers to release
+      - name: Show downloaded installers
         run: |
-          TAG="${{ needs.prepare.outputs.tag }}"
-          mapfile -t FILES < <(find release-assets -type f | sort)
-          if [ "${#FILES[@]}" -eq 0 ]; then
-            echo "No release artifacts found."
-            exit 1
-          fi
+          find release-assets -type f -maxdepth 3 | sort
 
-          echo "Uploading files:"
-          printf '  - %s\n' "${FILES[@]}"
-          gh release upload "$TAG" "${FILES[@]}" --clobber
+      - name: Upload installers to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.prepare.outputs.tag }}
+          files: |
+            release-assets/**/ProjectBlackVault-Setup.exe
+            release-assets/**/ProjectBlackVault.dmg
+            release-assets/**/ProjectBlackVault-Setup.AppImage
+          fail_on_unmatched_files: true
 
       - name: Validate release assets
         run: |
