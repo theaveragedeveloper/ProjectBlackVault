@@ -15,7 +15,7 @@ const DOWNLOADS = {
   mac: {
     label: "Download for macOS",
     detail: "macOS 12+ · .dmg",
-    href: "https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest/download/ProjectBlackVault.dmg",
+    href: "https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest",
     icon: Apple,
     ext: ".dmg",
   },
