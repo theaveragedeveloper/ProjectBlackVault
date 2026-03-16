@@ -158,3 +158,7 @@ docker compose -f docker-compose.dev.yml down
 | `SYSTEM_UPDATE_REQUIRE_PRIVATE_NETWORK` | Recommended | `true` | Restricts in-app update actions to private LAN/VPN client IPs |
 | `VAULT_ENCRYPTION_KEY` | Yes | — | Encryption key for sensitive values |
 | `SESSION_SECRET` | Recommended | — | Signs session cookies |
+
+## Data Responsibility Notice
+
+You are solely responsible for all data you create, upload, store, or share through this app, including keeping your own backups. To the maximum extent permitted by law, we are not liable for any data loss, corruption, unauthorized access, or damages related to your data or use of the app.
