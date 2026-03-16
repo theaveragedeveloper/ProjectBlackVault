@@ -1,278 +1,127 @@
-<p align="center">
-  <img src="./public/blackvault-logo.svg" alt="BlackVault Logo" width="120" height="120" />
-</p>
+# ProjectBlackVault
 
-<h1 align="center">ProjectBlackVault</h1>
+Self-hosted firearms inventory and range tracking built with Next.js, Prisma, and SQLite.
 
-<p align="center">
-  Your personal, private firearms management app — runs on your own computer, no account or internet required.
-</p>
+## Getting Started
 
----
+Use one of these supported setup paths:
+1. Local run (Node.js)
+2. Docker run (recommended for most users)
 
-## What is ProjectBlackVault?
+## Local Run (Node.js)
 
-ProjectBlackVault is a **personal inventory and tracking app** for firearms owners. Think of it like a digital logbook — you can keep track of every gun you own, all your attachments and accessories, your ammunition stockpile, and your range sessions, all in one place.
+### Prerequisites
 
-Everything is stored **on your own computer or home server** — your data never goes to any outside company or cloud service. It's yours, private, and always accessible without an internet connection.
+- Node.js 20+
+- npm 9+
 
----
-
-## What Can It Do?
-
-| Feature | What it means |
-|---------|---------------|
-| **Vault** | Keep a record of each firearm — photos, serial numbers, purchase dates, and value |
-| **Loadout Builder** | Save different gear configurations for each gun (e.g. hunting setup vs. competition setup) |
-| **Accessories** | Track optics, suppressors, grips, triggers, and other attachments |
-| **Ammo Inventory** | See how much ammo you have by caliber, with alerts when you're running low |
-| **Range Sessions** | Log your time at the range and track round counts through each firearm and part |
-| **Training Drills** | Create drill templates, log your results, and track personal records |
-| **Documents** | Store manuals, purchase receipts, or any other important paperwork |
-| **Statistics & Charts** | See your progress and usage over time at a glance |
-
----
-
-## Getting Started — Pick Your Method
-
-There are three ways to run ProjectBlackVault. Production deployment is Docker-first.
-
----
-
-### Option 1: Desktop App (Recommended)
-
-No terminal required. Use the smart download page (auto platform detection + fallback):
-
-**[⬇ Download installer](https://theaveragedeveloper.github.io/ProjectBlackVault/)**
-
-Expected files:
-- `ProjectBlackVault-Setup.exe`
-- `ProjectBlackVault.dmg`
-- `ProjectBlackVault-Setup.AppImage`
-
-Direct links:
-- Windows: `https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest/download/ProjectBlackVault-Setup.exe`
-- macOS: `https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest/download/ProjectBlackVault.dmg`
-- Linux: `https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest/download/ProjectBlackVault-Setup.AppImage`
-
-Before launching:
-- Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows/macOS).
-- Linux users need Docker Engine + Compose plugin.
-
-Advanced alternatives (package managers):
-- Windows (`winget`, once manifest is published): `winget install --id TheAverageDeveloper.ProjectBlackVault`
-- macOS (`brew`, once tap/cask is published): `brew install --cask theaveragedeveloper/tap/projectblackvault`
-
----
-
-### Option 2: Production Self-Host Walkthrough (Docker)
-
-Use this path for home server / NAS / always-on deployment.
-
-**1) Clone repo**
+### Steps
 
 ```bash
-git clone https://github.com/theaveragedeveloper/ProjectBlackVault.git
+# 1) Clone and enter the repo
+git clone <repo-url>
 cd ProjectBlackVault
+
+# 2) Install dependencies
+npm install
+
+# 3) Configure environment
+cp .env.example .env
+
+# 4) Run database migrations
+npx prisma migrate dev
+
+# 5) (Optional) Seed sample data
+npx prisma db seed
+
+# 6) Start the app
+npm run dev
 ```
 
-**2) Run installer (generates `.blackvault.env`, keys, and data paths)**
+Open [http://localhost:3000](http://localhost:3000).
+
+## Docker Run (Published Image)
+
+This uses `docker-compose.yml` and pulls `ghcr.io/theaveragedeveloper/projectblackvault:latest`.
+
+### Prerequisites
+
+- Docker Desktop (or Docker Engine + Compose plugin)
+
+### Steps
 
 ```bash
-# Linux / macOS
-chmod +x install.sh && ./install.sh
+# 1) Clone and enter the repo
+git clone <repo-url>
+cd ProjectBlackVault
 
-# Windows
-install.bat
-```
+# 2) Create persistent data directories
+mkdir -p "$HOME/.blackvault/db" "$HOME/.blackvault/uploads"
 
-**3) Verify health**
+# 3) Create runtime config
+cat > .blackvault.env <<EOF
+DATA_DIR=$HOME/.blackvault
+PORT=3000
+VAULT_ENCRYPTION_KEY=$(openssl rand -hex 32)
+SESSION_SECRET=$(openssl rand -hex 32)
+EOF
 
-```bash
+# 4) Start container
+docker compose --env-file .blackvault.env up -d
+
+# 5) Check status/logs
 docker compose --env-file .blackvault.env ps
 docker compose --env-file .blackvault.env logs -f
 ```
 
-Open `http://localhost:3000/api/health` and confirm JSON contains `"status":"ok"`.
+Open [http://localhost:3000](http://localhost:3000).
 
-**4) Access from other devices**
-
-1. Find host IP: `ip addr` (Linux), `ipconfig` (Windows), `ifconfig` (macOS)
-2. Open `http://YOUR-HOST-IP:3000` from any LAN/VPN client
-3. Ensure firewall allows inbound TCP on your selected port
-
-**5) Day-2 operations**
+Stop:
 
 ```bash
-# Start
-docker compose --env-file .blackvault.env up -d
-
-# Stop
 docker compose --env-file .blackvault.env down
-
-# Logs
-docker compose --env-file .blackvault.env logs -f
-
-# Update
-./update.sh    # Linux/macOS
-update.bat     # Windows
 ```
 
-**6) Data + backup checklist**
-
-- `DATA_DIR` is stored in `.blackvault.env` (default `~/.blackvault`)
-- Database: `<DATA_DIR>/db/`
-- Uploads: `<DATA_DIR>/uploads/`
-- Back up `.blackvault.env` and data directory together
-- Never lose `VAULT_ENCRYPTION_KEY` or encrypted data becomes unrecoverable
-- In-app encrypted exports: **Settings → Secure Backup**
-
----
-
-### Option 3: Developer Mode (Secondary)
-
-Use this only for local development and feature work:
+Update to latest image:
 
 ```bash
-git clone https://github.com/theaveragedeveloper/ProjectBlackVault.git
-cd ProjectBlackVault
-npm install
-cp .env.example .env
-npx prisma migrate dev
-npm run dev
+docker compose --env-file .blackvault.env pull
+docker compose --env-file .blackvault.env up -d
 ```
 
-App URL: `http://localhost:3000`
+## Docker Run (Build from Local Source)
 
----
-
-## Setting a Password
-
-By default, the app has no password — it's designed for personal use on a trusted network or computer. To add one, go to **Settings** inside the app and set your password from there.
-
-> **Note:** The app password is set inside the app, not in a configuration file.
-
----
-
-## Configuration (Advanced)
-
-If you're running the app manually or on a server, you can configure it using a `.env` file. Copy `.env.example` to `.env` and edit as needed:
-
-| Setting | Required? | What it does |
-|---------|-----------|--------------|
-| `DATABASE_URL` | Yes | Where your database file is stored. Default works for local use. |
-| `SESSION_SECRET` | Required in production | A secret key that secures your login session. Generate one with: `openssl rand -hex 32` |
-| `NODE_ENV` | No | Set to `production` when deploying on a server |
-| `PORT` | No | The port the app runs on (default: `3000`) |
-
-> **Security tip:** If you deploy this on a server or expose it outside your home network, make sure to set a strong `SESSION_SECRET` and enable a password in the Settings page. Without `SESSION_SECRET`, the app won't start in production mode.
-
----
-
-## Having Trouble?
-
-**The app won't open (Mac):**
-Right-click the `.dmg` file and choose **Open**. If it still doesn't work, go to System Settings → Privacy & Security and click **Open Anyway**.
-
-**The app won't open (Windows):**
-Click **More info** on the SmartScreen warning, then **Run anyway**. The app is safe — Windows just doesn't recognize it because it's not from the Microsoft Store.
-
-**Docker Desktop isn't installed:**
-The desktop launcher can install Docker Desktop automatically on Windows and macOS — click "Install Docker Automatically" when prompted. Or [download Docker Desktop here](https://www.docker.com/products/docker-desktop/) manually — it's free. Make sure to open Docker Desktop before launching ProjectBlackVault.
-
-**The page won't load at localhost:3000:**
-Check deployment status and logs:
-`docker compose --env-file .blackvault.env ps`
-`docker compose --env-file .blackvault.env logs -f`
-If the container is stopped, restart with:
-`docker compose --env-file .blackvault.env up -d`
-
-**My data disappeared:**
-If you're running via Docker, your data is in the directory configured during setup (default `~/.blackvault`). If you used `docker compose down -v`, that removes volumes too — avoid the `-v` flag unless you want to wipe everything.
-
----
-
-## For Developers
-
-<details>
-<summary>Tech Stack, Project Structure & Scripts</summary>
-
-### Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Framework | [Next.js 16](https://nextjs.org) (App Router) |
-| Language | TypeScript 5 |
-| Database | SQLite via [Prisma ORM](https://www.prisma.io) |
-| Styling | [Tailwind CSS v4](https://tailwindcss.com) |
-| UI Components | [Radix UI](https://www.radix-ui.com) primitives |
-| Icons | [Lucide React](https://lucide.dev) |
-| Charts | [Recharts](https://recharts.org) |
-| Animation | [Framer Motion](https://www.framer.com/motion) |
-| State | [Zustand](https://zustand-demo.pmnd.rs) |
-| Validation | [Zod](https://zod.dev) |
-| Container | Docker + Docker Compose |
-
-### Project Structure
-
-```
-ProjectBlackVault/
-├── launcher/               # Electron desktop launcher
-│   ├── main.js             # Main process (Docker management, IPC)
-│   ├── preload.js          # Context bridge
-│   └── renderer/           # Launcher UI
-├── docs/
-│   └── index.html          # Download landing page (GitHub Pages)
-├── prisma/
-│   ├── schema.prisma       # Database schema
-│   ├── migrations/         # Migration history
-│   └── seed.ts             # Sample data seed script
-├── src/
-│   ├── app/                # Next.js App Router pages & API routes
-│   │   ├── api/            # REST API endpoints
-│   │   ├── download/       # Launcher download page
-│   │   ├── vault/          # Firearm management pages
-│   │   ├── accessories/    # Accessory management pages
-│   │   ├── builds/         # All loadouts overview
-│   │   ├── ammo/           # Ammo inventory pages
-│   │   ├── range/          # Range session logging
-│   │   └── settings/       # App settings
-│   ├── components/         # Shared UI components
-│   └── lib/                # Utility functions, Prisma client, types
-├── install.sh              # First-run setup wizard (Linux/macOS)
-├── install.bat             # First-run setup wizard (Windows)
-├── update.sh               # Update script (Linux/macOS)
-├── update.bat              # Update script (Windows)
-├── docker-compose.yml      # Production compose file
-└── Dockerfile
-```
-
-### Available Scripts
+This uses `docker-compose.dev.yml` and builds from your current working tree.
 
 ```bash
-npm run dev          # Start development server
-npm run build        # Build for production
-npm run start        # Run production build
-npm test             # Run tests
-npm run lint         # Lint code
-npm run typecheck    # TypeScript type checking
-npm run db:migrate   # Run database migrations
-npm run db:seed      # Seed database with sample data
+docker compose -f docker-compose.dev.yml up --build -d
+docker compose -f docker-compose.dev.yml logs -f
 ```
 
-### Maintenance: Refresh stale merge-request branches
+Open [http://localhost:3000](http://localhost:3000).
 
-Use `scripts/refresh-mr-branches.sh` to update old MR branches with the latest target branch.
+Stop:
 
 ```bash
-# Merge latest main into one or more MR branches
-scripts/refresh-mr-branches.sh feature/old-1 feature/old-2
-
-# Rebase workflow (force-with-lease push)
-scripts/refresh-mr-branches.sh --rebase -t main mr/legacy-123
-
-# Preview actions only
-scripts/refresh-mr-branches.sh --dry-run mr/legacy-123
+docker compose -f docker-compose.dev.yml down
 ```
 
-</details>
+## Environment Variables
+
+### Local (`.env`)
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `DATABASE_URL` | Yes | `file:./prisma/dev.db` | SQLite connection string for local Node.js run |
+| `SESSION_SECRET` | Recommended | — | Signs session cookies |
+| `GOOGLE_CSE_API_KEY` | No | — | Google Custom Search API key for image lookup |
+| `GOOGLE_CSE_SEARCH_ENGINE_ID` | No | — | Google CSE search engine ID |
+
+### Docker (`.blackvault.env`)
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `DATA_DIR` | Recommended | `./data` | Host path for database/uploads |
+| `PORT` | No | `3000` | Host port mapped to container port 3000 |
+| `VAULT_ENCRYPTION_KEY` | Yes | — | Encryption key for sensitive values |
+| `SESSION_SECRET` | Recommended | — | Signs session cookies |
