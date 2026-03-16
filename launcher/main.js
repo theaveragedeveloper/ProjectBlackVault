@@ -7,6 +7,13 @@ const http = require('http');
 const net = require('net');
 const { exec, spawn } = require('child_process');
 const crypto = require('crypto');
+const {
+  combineCommandOutput,
+  isCommandMissingText,
+  isComposeSubcommandMissingText,
+  isDockerDaemonNotRunningText,
+  normalizeText,
+} = require('./lib/docker-preflight');
 
 // ─── Single-instance lock ──────────────────────────────────────────────────
 
@@ -53,30 +60,142 @@ function getComposePath() {
 
 let _composeCmd = null;
 
-async function getDockerComposeCmd() {
-  if (_composeCmd) return _composeCmd;
+function execCommand(command, env) {
   return new Promise(resolve => {
-    exec('docker compose version', { env: buildEnv(null) }, err => {
-      _composeCmd = err ? ['docker-compose'] : ['docker', 'compose'];
-      resolve(_composeCmd);
+    exec(command, { env }, (error, stdout, stderr) => {
+      resolve({
+        ok: !error,
+        stdout: stdout || '',
+        stderr: stderr || '',
+        error: error
+          ? {
+              message: error.message || String(error),
+              code: error.code ?? null,
+            }
+          : null,
+      });
     });
   });
 }
 
+async function detectComposeCommand(env) {
+  if (_composeCmd) {
+    return { ok: true, cmd: _composeCmd };
+  }
+
+  const composeV2 = await execCommand('docker compose version', env);
+  if (composeV2.ok) {
+    _composeCmd = ['docker', 'compose'];
+    return { ok: true, cmd: _composeCmd };
+  }
+
+  const composeV1 = await execCommand('docker-compose version', env);
+  if (composeV1.ok) {
+    _composeCmd = ['docker-compose'];
+    return { ok: true, cmd: _composeCmd };
+  }
+
+  const composeText = combineCommandOutput(composeV2) + '\n' + combineCommandOutput(composeV1);
+  const hint = 'Install Docker Compose plugin (or docker-compose) and retry. See https://docs.docker.com/compose/install/';
+
+  return {
+    ok: false,
+    status: 'not-installed',
+    reason: 'compose_missing',
+    code: 'COMPOSE_MISSING',
+    message: 'Docker Compose is required but was not found.',
+    detail: composeText.trim() || 'Docker Compose command probes failed.',
+    hint,
+  };
+}
+
+async function getDockerComposeCmd() {
+  if (_composeCmd) return _composeCmd;
+
+  const detected = await detectComposeCommand(buildEnv(null));
+  if (detected.ok) {
+    return detected.cmd;
+  }
+
+  const error = new Error(detected.detail || detected.message);
+  error.code = detected.code;
+  throw error;
+}
+
 // ─── Docker state detection ────────────────────────────────────────────────
 
+async function runDockerPreflight() {
+  const env = buildEnv(null);
+  const dockerVersion = await execCommand('docker --version', env);
+  if (!dockerVersion.ok) {
+    const versionText = combineCommandOutput(dockerVersion);
+    const missing = isCommandMissingText(versionText);
+    return {
+      ok: false,
+      status: 'not-installed',
+      reason: 'docker_missing',
+      code: 'DOCKER_NOT_INSTALLED',
+      message: 'Docker CLI is not installed or not available in PATH.',
+      detail: versionText.trim() || 'Failed to run "docker --version".',
+      hint: missing
+        ? 'Install Docker Desktop and retry: https://www.docker.com/products/docker-desktop/'
+        : 'Verify Docker is installed and available on PATH, then retry.',
+    };
+  }
+
+  const dockerInfo = await execCommand('docker info', env);
+  if (!dockerInfo.ok) {
+    const infoText = combineCommandOutput(dockerInfo);
+    if (isCommandMissingText(infoText)) {
+      return {
+        ok: false,
+        status: 'not-installed',
+        reason: 'docker_missing',
+        code: 'DOCKER_NOT_INSTALLED',
+        message: 'Docker CLI is not installed or not available in PATH.',
+        detail: infoText.trim() || 'Failed to run "docker info".',
+        hint: 'Install Docker Desktop and retry: https://www.docker.com/products/docker-desktop/',
+      };
+    }
+    if (isDockerDaemonNotRunningText(infoText)) {
+      return {
+        ok: false,
+        status: 'not-running',
+        reason: 'docker_not_running',
+        code: 'DOCKER_NOT_RUNNING',
+        message: 'Docker is installed but the daemon is not running.',
+        detail: infoText.trim() || 'Docker daemon did not respond to "docker info".',
+        hint: 'Start Docker Desktop (or Docker daemon), wait until healthy, then retry.',
+      };
+    }
+    return {
+      ok: false,
+      status: 'not-running',
+      reason: 'docker_not_running',
+      code: 'DOCKER_NOT_RUNNING',
+      message: 'Docker is not reachable.',
+      detail: infoText.trim() || 'Docker daemon probe failed.',
+      hint: 'Start Docker Desktop (or Docker daemon), then retry.',
+    };
+  }
+
+  const composeProbe = await detectComposeCommand(env);
+  if (!composeProbe.ok) {
+    return composeProbe;
+  }
+
+  return {
+    ok: true,
+    status: 'ready',
+    reason: null,
+    code: null,
+    hint: null,
+    composeCommand: composeProbe.cmd.join(' '),
+  };
+}
+
 async function checkDocker() {
-  return new Promise(resolve => {
-    exec('docker info', { env: buildEnv(null) }, (err, _stdout, stderr) => {
-      if (!err) {
-        resolve({ status: 'ready' });
-      } else if (stderr && (stderr.includes('Cannot connect') || stderr.includes('Is the docker daemon running'))) {
-        resolve({ status: 'not-running' });
-      } else {
-        resolve({ status: 'not-installed' });
-      }
-    });
-  });
+  return runDockerPreflight();
 }
 
 // ─── Container management ──────────────────────────────────────────────────
@@ -231,8 +350,32 @@ function stopPolling() {
 }
 
 function classifyRuntimeError(rawError) {
+  if (rawError?.code === 'COMPOSE_MISSING') {
+    return {
+      code: 'COMPOSE_MISSING',
+      message: 'Docker Compose is required but was not found.',
+      detail: 'Install Docker Compose plugin (or docker-compose) and retry. See https://docs.docker.com/compose/install/',
+    };
+  }
+
+  if (rawError?.code === 'DOCKER_NOT_INSTALLED') {
+    return {
+      code: 'DOCKER_NOT_INSTALLED',
+      message: 'Docker CLI is not installed or not available in PATH.',
+      detail: 'Install Docker Desktop and retry.',
+    };
+  }
+
+  if (rawError?.code === 'DOCKER_NOT_RUNNING') {
+    return {
+      code: 'DOCKER_NOT_RUNNING',
+      message: 'Docker is not running or not reachable.',
+      detail: 'Start Docker Desktop (or Docker daemon), wait until healthy, then retry.',
+    };
+  }
+
   const text = String(rawError?.message || rawError || 'Unknown error');
-  const lowered = text.toLowerCase();
+  const lowered = normalizeText(text);
 
   if (lowered.includes('port is already allocated') || lowered.includes('address already in use')) {
     return {
@@ -245,12 +388,33 @@ function classifyRuntimeError(rawError) {
   if (
     lowered.includes('cannot connect to the docker daemon') ||
     lowered.includes('is the docker daemon running') ||
-    lowered.includes('docker desktop is shutting down')
+    lowered.includes('docker desktop is shutting down') ||
+    lowered.includes('error during connect')
   ) {
     return {
       code: 'DOCKER_NOT_RUNNING',
       message: 'Docker is not running or not reachable.',
       detail: 'Start Docker Desktop (or Docker daemon), wait until it is healthy, then retry.',
+    };
+  }
+
+  if (
+    isComposeSubcommandMissingText(lowered) ||
+    lowered.includes('docker-compose: command not found') ||
+    lowered.includes('docker-compose is not recognized')
+  ) {
+    return {
+      code: 'COMPOSE_MISSING',
+      message: 'Docker Compose is required but was not found.',
+      detail: 'Install Docker Compose plugin (or docker-compose) and retry. See https://docs.docker.com/compose/install/',
+    };
+  }
+
+  if (isCommandMissingText(lowered) && lowered.includes('docker')) {
+    return {
+      code: 'DOCKER_NOT_INSTALLED',
+      message: 'Docker CLI is not installed or not available in PATH.',
+      detail: 'Install Docker Desktop and retry.',
     };
   }
 
@@ -449,6 +613,21 @@ async function handleStart() {
     return { ok: false, code: 'MISSING_CONFIG', message: 'No launcher configuration found.' };
   }
 
+  const preflight = await runDockerPreflight();
+  if (!preflight.ok) {
+    const result = {
+      ok: false,
+      code: preflight.code,
+      message: preflight.message,
+      detail: preflight.hint || preflight.detail,
+      reason: preflight.reason,
+    };
+    dialog.showErrorBox('Start Failed', `${result.message}\n\n${result.detail}`);
+    sendLog(`[error] ${result.message}`);
+    updateTray('stopped', _config);
+    return result;
+  }
+
   // Port conflict check
   const inUse = await isPortInUse(_config.port);
   if (inUse) {
@@ -518,6 +697,22 @@ async function handleUpdate() {
     showWindow();
     return { ok: false, code: 'MISSING_CONFIG', message: 'No launcher configuration found.' };
   }
+
+  const preflight = await runDockerPreflight();
+  if (!preflight.ok) {
+    const result = {
+      ok: false,
+      code: preflight.code,
+      message: preflight.message,
+      detail: preflight.hint || preflight.detail,
+      reason: preflight.reason,
+    };
+    dialog.showErrorBox('Update Failed', `${result.message}\n\n${result.detail}`);
+    sendLog(`[error] ${result.message}`);
+    updateTray('stopped', _config);
+    return result;
+  }
+
   stopPolling();
   updateTray('starting', _config);
   try {
