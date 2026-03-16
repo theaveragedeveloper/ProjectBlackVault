@@ -5,11 +5,15 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   Shield,
+  ShieldCheck,
   Crosshair,
   Package,
   Layers,
   Target,
   Settings,
+  HardDrive,
+  Lock,
+  Archive,
   ChevronLeft,
   ChevronRight,
   Zap,
@@ -92,6 +96,12 @@ const NAV_ITEMS: NavItem[] = [
     href: "/settings",
     icon: Settings,
     description: "Configuration",
+    children: [
+      { label: "Security", href: "/settings#security", icon: ShieldCheck },
+      { label: "Encryption", href: "/settings#encryption", icon: Lock },
+      { label: "System", href: "/settings#system", icon: HardDrive },
+      { label: "Backup", href: "/settings#backup", icon: Archive },
+    ],
   },
 ];
 
@@ -102,14 +112,24 @@ interface SidebarProps {
 
 export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
+  const [currentHash, setCurrentHash] = useState("");
   const [collapsed, setCollapsed] = useState(false);
   const [rangeExpandedManual, setRangeExpandedManual] = useState(false);
+  const [settingsExpandedManual, setSettingsExpandedManual] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
   // Close mobile menu on route change
   useEffect(() => {
     onMobileClose?.();
   }, [pathname, onMobileClose]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const updateHash = () => setCurrentHash(window.location.hash);
+    updateHash();
+    window.addEventListener("hashchange", updateHash);
+    return () => window.removeEventListener("hashchange", updateHash);
+  }, [pathname]);
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -122,13 +142,14 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   }
 
   const rangeExpanded = useMemo(() => pathname.startsWith("/range") || rangeExpandedManual, [pathname, rangeExpandedManual]);
+  const settingsExpanded = useMemo(() => pathname.startsWith("/settings") || settingsExpandedManual, [pathname, settingsExpandedManual]);
 
   const navContent = (
     <>
       {/* Logo */}
-      <div className="flex items-center gap-3 px-4 h-14 border-b border-vault-border shrink-0">
-        <div className="w-7 h-7 rounded bg-[#00C2FF]/10 border border-[#00C2FF]/30 flex items-center justify-center shrink-0 p-1">
-          <Image src="/blackvault-logo.svg" alt="BlackVault logo" width={20} height={20} className="w-5 h-5" priority />
+      <div className="flex items-center gap-3 px-4 h-16 border-b border-vault-border shrink-0">
+        <div className="w-9 h-9 rounded bg-[#00C2FF]/10 border border-[#00C2FF]/30 flex items-center justify-center shrink-0 p-1">
+          <Image src="/blackvault-logo.svg" alt="BlackVault logo" width={24} height={24} className="w-6 h-6" priority />
         </div>
         {!collapsed && (
           <div className="overflow-hidden flex-1 min-w-0">
@@ -152,7 +173,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-3 space-y-0.5 px-2">
+      <nav className="flex-1 overflow-y-auto py-3 space-y-1 px-2">
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           const isActive =
@@ -160,29 +181,36 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
               ? pathname === "/"
               : pathname === item.href || (item.href !== "/range" && pathname.startsWith(item.href));
           const isRangeParent = item.href === "/range";
+          const isSettingsParent = item.href === "/settings";
           const isRangeActive = pathname.startsWith("/range");
+          const isSettingsActive = pathname.startsWith("/settings");
 
-          if (isRangeParent && item.children) {
+          if ((isRangeParent || isSettingsParent) && item.children) {
+            const parentExpanded = isRangeParent ? rangeExpanded : settingsExpanded;
+            const parentActive = isRangeParent ? isRangeActive : isSettingsActive;
+            const toggleParent = isRangeParent
+              ? () => setRangeExpandedManual((v) => !v)
+              : () => setSettingsExpandedManual((v) => !v);
             return (
               <div key={item.href}>
                 <button
-                  onClick={() => !collapsed && setRangeExpandedManual((v) => !v)}
+                  onClick={() => !collapsed && toggleParent()}
                   title={collapsed ? item.label : undefined}
                   className={cn(
                     "w-full flex items-center gap-3 px-2.5 py-2 rounded-md text-sm transition-all duration-150 group relative",
-                    isRangeActive
+                    parentActive
                       ? "bg-[#00C2FF]/10 text-[#00C2FF] border border-[#00C2FF]/20"
                       : "text-vault-text-muted hover:text-vault-text hover:bg-vault-border"
                   )}
                 >
-                  {isRangeActive && (
+                  {parentActive && (
                     <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-[#00C2FF] rounded-r-full" />
                   )}
                   <Icon
                     className={cn(
                       "shrink-0 transition-colors",
                       collapsed ? "w-5 h-5" : "w-4 h-4",
-                      isRangeActive ? "text-[#00C2FF]" : "text-vault-text-faint group-hover:text-vault-text-muted"
+                      parentActive ? "text-[#00C2FF]" : "text-vault-text-faint group-hover:text-vault-text-muted"
                     )}
                   />
                   {!collapsed && (
@@ -193,29 +221,34 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
                       <ChevronDown
                         className={cn(
                           "w-3 h-3 shrink-0 transition-transform",
-                          rangeExpanded ? "rotate-180" : ""
+                          parentExpanded ? "rotate-180" : ""
                         )}
                       />
                     </>
                   )}
                 </button>
-                {!collapsed && rangeExpanded && (
-                  <div className="ml-3 mt-0.5 space-y-0.5 border-l border-vault-border pl-3">
+                {!collapsed && parentExpanded && (
+                  <div className="ml-4 mt-1 space-y-1 border-l border-vault-border pl-3">
                     {item.children.map((child) => {
                       const ChildIcon = child.icon;
-                      const childActive = pathname === child.href;
+                      const childHasHash = child.href.includes("#");
+                      const [childPath, childHash = ""] = child.href.split("#");
+                      const childActive = childHasHash
+                        ? pathname === childPath && currentHash === `#${childHash}`
+                        : pathname === child.href;
                       return (
                         <Link
                           key={child.href}
                           href={child.href}
+                          onClick={() => onMobileClose?.()}
                           className={cn(
-                            "flex items-center gap-2.5 px-2 py-1.5 rounded-md text-xs transition-all",
+                            "flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] transition-all",
                             childActive
                               ? "text-[#00C2FF] bg-[#00C2FF]/5"
                               : "text-vault-text-faint hover:text-vault-text-muted hover:bg-vault-border"
                           )}
                         >
-                          <ChildIcon className="w-3.5 h-3.5 shrink-0" />
+                          <ChildIcon className="w-4 h-4 shrink-0" />
                           <span>{child.label}</span>
                         </Link>
                       );

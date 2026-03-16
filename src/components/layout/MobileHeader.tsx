@@ -9,7 +9,7 @@ interface MobileHeaderProps {
 
 export function MobileHeader({ onMenuOpen }: MobileHeaderProps) {
   return (
-    <header className="md:hidden sticky top-0 z-30 flex items-center gap-3 h-14 px-3 border-b border-vault-border/80 bg-vault-surface/95 backdrop-blur-sm shrink-0">
+    <header className="md:hidden sticky top-0 z-30 flex items-center gap-3 h-16 px-3 border-b border-vault-border/80 bg-vault-surface/95 backdrop-blur-sm shrink-0">
       <button
         onClick={onMenuOpen}
         className="p-2 rounded-md text-vault-text-faint hover:text-vault-text-muted hover:bg-vault-border transition-colors"
@@ -18,8 +18,8 @@ export function MobileHeader({ onMenuOpen }: MobileHeaderProps) {
         <Menu className="w-5 h-5" />
       </button>
       <div className="flex items-center gap-2 min-w-0">
-        <div className="w-6 h-6 rounded bg-[#00C2FF]/10 border border-[#00C2FF]/30 flex items-center justify-center p-1">
-          <Image src="/blackvault-logo.svg" alt="BlackVault logo" width={14} height={14} className="w-3.5 h-3.5" priority />
+        <div className="w-8 h-8 rounded bg-[#00C2FF]/10 border border-[#00C2FF]/30 flex items-center justify-center p-1">
+          <Image src="/blackvault-logo.svg" alt="BlackVault logo" width={20} height={20} className="w-5 h-5" priority />
         </div>
         <div className="min-w-0">
           <p className="text-xs font-bold text-vault-text tracking-widest uppercase truncate">BlackVault</p>
