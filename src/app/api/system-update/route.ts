@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyTokenNode } from "@/lib/session";
 import { getClientIp } from "@/lib/server/client-ip";
 import { isPrivateClientIp, requirePrivateNetworkForUpdates } from "@/lib/network-policy";
+import { prisma } from "@/lib/prisma";
 
 const execAsync = promisify(exec);
 
@@ -43,15 +44,76 @@ function isProductionAllowed() {
   return process.env.SYSTEM_UPDATE_ALLOW_PRODUCTION !== "false";
 }
 
-function hasValidSession(request: NextRequest) {
-  const sessionSecret = process.env.SESSION_SECRET;
-  const sessionCookie = request.cookies.get("vault_session")?.value;
+async function validateSession(request: NextRequest) {
+  let passwordRequired = false;
 
-  if (!sessionSecret || !sessionCookie) {
-    return false;
+  try {
+    const settings = await prisma.appSettings.findUnique({
+      where: { id: "singleton" },
+      select: { appPassword: true },
+    });
+    passwordRequired = Boolean(settings?.appPassword);
+  } catch (error) {
+    console.error("SYSTEM_UPDATE auth check failed:", error);
+    return {
+      ok: false as const,
+      response: NextResponse.json(
+        {
+          error: "Authentication check failed.",
+          message: "Could not verify the app authentication state.",
+        },
+        { status: 500 }
+      ),
+    };
   }
 
-  return verifyTokenNode(sessionCookie, sessionSecret);
+  // If the vault has no password configured, allow update actions without a session cookie.
+  if (!passwordRequired) {
+    return { ok: true as const };
+  }
+
+  const sessionCookie = request.cookies.get("vault_session")?.value;
+  if (!sessionCookie) {
+    return {
+      ok: false as const,
+      response: NextResponse.json(
+        {
+          error: "Forbidden.",
+          message: "Sign in first. This action requires an authenticated vault session.",
+        },
+        { status: 403 }
+      ),
+    };
+  }
+
+  const sessionSecret = process.env.SESSION_SECRET;
+  if (!sessionSecret) {
+    return {
+      ok: false as const,
+      response: NextResponse.json(
+        {
+          error: "Server misconfiguration.",
+          message: "SESSION_SECRET is required when an app password is enabled.",
+        },
+        { status: 500 }
+      ),
+    };
+  }
+
+  if (!verifyTokenNode(sessionCookie, sessionSecret)) {
+    return {
+      ok: false as const,
+      response: NextResponse.json(
+        {
+          error: "Forbidden.",
+          message: "Your vault session is invalid or expired. Please sign in again.",
+        },
+        { status: 403 }
+      ),
+    };
+  }
+
+  return { ok: true as const };
 }
 
 function isUpdateClientNetworkAllowed(request: NextRequest): boolean {
@@ -158,8 +220,9 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  if (!hasValidSession(request)) {
-    return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+  const session = await validateSession(request);
+  if (!session.ok) {
+    return session.response;
   }
 
   if (!isUpdateClientNetworkAllowed(request)) {
@@ -211,8 +274,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (!hasValidSession(request)) {
-    return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+  const session = await validateSession(request);
+  if (!session.ok) {
+    return session.response;
   }
 
   if (!isUpdateClientNetworkAllowed(request)) {
