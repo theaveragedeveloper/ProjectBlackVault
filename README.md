@@ -41,18 +41,27 @@ There are three ways to run ProjectBlackVault. Production deployment is Docker-f
 
 ### Option 1: Desktop App (Recommended)
 
-No terminal required. Download the launcher from the latest GitHub release:
+No terminal required. Use the smart download page (auto platform detection + fallback):
 
-**[⬇ Download launcher assets](https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest)**
+**[⬇ Download installer](https://theaveragedeveloper.github.io/ProjectBlackVault/)**
 
 Expected files:
 - `ProjectBlackVault-Setup.exe`
 - `ProjectBlackVault.dmg`
 - `ProjectBlackVault-Setup.AppImage`
 
+Direct links:
+- Windows: `https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest/download/ProjectBlackVault-Setup.exe`
+- macOS: `https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest/download/ProjectBlackVault.dmg`
+- Linux: `https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest/download/ProjectBlackVault-Setup.AppImage`
+
 Before launching:
 - Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows/macOS).
 - Linux users need Docker Engine + Compose plugin.
+
+Advanced alternatives (package managers):
+- Windows (`winget`, once manifest is published): `winget install --id TheAverageDeveloper.ProjectBlackVault`
+- macOS (`brew`, once tap/cask is published): `brew install --cask theaveragedeveloper/tap/projectblackvault`
 
 ---
 

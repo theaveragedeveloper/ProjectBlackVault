@@ -903,7 +903,12 @@ Use Settings &rarr; Secure Backup for encrypted exports.</code>
       </div>
 
       <p style="margin-top:1.5rem; font-size:0.82rem; color:var(--text-faint);">
-        Desktop launcher downloads: <a href="https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest" target="_blank" rel="noopener" style="color:var(--accent);">GitHub Releases (latest)</a>
+        Desktop launcher: <a id="launcher-download-link" href="https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest" target="_blank" rel="noopener" style="color:var(--accent);">Download Installer</a>
+        <span id="launcher-download-hint"> (falls back to all releases if platform build is unavailable)</span>
+      </p>
+      <p style="margin-top:0.5rem; font-size:0.78rem; color:var(--text-faint);">
+        Advanced channels: <code>winget install --id TheAverageDeveloper.ProjectBlackVault</code> ·
+        <code>brew install --cask theaveragedeveloper/tap/projectblackvault</code>
       </p>
     </div>
   </section>
@@ -943,6 +948,79 @@ Use Settings &rarr; Secure Backup for encrypted exports.</code>
   </footer>
 
   <script>
+    const launcherDownloadLink = document.getElementById('launcher-download-link');
+    const launcherDownloadHint = document.getElementById('launcher-download-hint');
+
+    const RELEASES_URL = 'https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest';
+    const RELEASE_API_URL = 'https://api.github.com/repos/theaveragedeveloper/ProjectBlackVault/releases/latest';
+    const EXPECTED = {
+      windows: 'ProjectBlackVault-Setup.exe',
+      mac: 'ProjectBlackVault.dmg',
+      linux: 'ProjectBlackVault-Setup.AppImage',
+    };
+
+    function detectPlatform() {
+      const ua = navigator.userAgent.toLowerCase();
+      if (ua.includes('windows')) return 'windows';
+      if (ua.includes('mac os') || ua.includes('macintosh')) return 'mac';
+      if (ua.includes('linux')) return 'linux';
+      return 'unknown';
+    }
+
+    function runHintFor(platform) {
+      if (platform === 'windows') return 'After download, run the .exe installer.';
+      if (platform === 'mac') return 'After download, open the .dmg and drag ProjectBlackVault to Applications.';
+      if (platform === 'linux') return 'After download, mark the AppImage executable and run it.';
+      return 'Open the latest release and download the correct installer for your OS.';
+    }
+
+    async function resolveInstallerUrl(platform) {
+      if (platform === 'unknown') {
+        return {
+          url: RELEASES_URL,
+          hint: runHintFor(platform),
+        };
+      }
+
+      try {
+        const response = await fetch(RELEASE_API_URL, {
+          headers: { Accept: 'application/vnd.github+json' },
+        });
+        if (!response.ok) throw new Error(`release lookup failed (${response.status})`);
+
+        const release = await response.json();
+        const releaseUrl = release?.html_url || RELEASES_URL;
+        const assets = Array.isArray(release?.assets) ? release.assets : [];
+        const filename = EXPECTED[platform];
+        const match = assets.find(asset => asset?.name === filename && asset?.browser_download_url);
+
+        if (match) {
+          return {
+            url: match.browser_download_url,
+            hint: runHintFor(platform),
+          };
+        }
+
+        return {
+          url: releaseUrl,
+          hint: `${runHintFor(platform)} Asset not published yet, so this opens the latest releases page.`,
+        };
+      } catch (_error) {
+        return {
+          url: RELEASES_URL,
+          hint: `${runHintFor(platform)} If direct download is unavailable, this opens latest releases.`,
+        };
+      }
+    }
+
+    (async () => {
+      if (!launcherDownloadLink) return;
+      const platform = detectPlatform();
+      const resolved = await resolveInstallerUrl(platform);
+      launcherDownloadLink.href = resolved.url;
+      if (launcherDownloadHint) launcherDownloadHint.textContent = ` (${resolved.hint})`;
+    })();
+
     const observer = new IntersectionObserver(
       entries => entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); }),
       { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }

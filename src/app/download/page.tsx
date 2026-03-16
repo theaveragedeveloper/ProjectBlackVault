@@ -35,11 +35,16 @@ type Platform = keyof typeof DOWNLOADS;
 type DownloadAvailability = {
   available: boolean;
   filename: string;
-  url: string;
+  installerUrl: string;
+  fallbackUrl: string;
 };
 
 type DownloadApiResponse = {
+  platform?: Platform | "unknown";
   releaseUrl?: string;
+  installerUrl?: string;
+  available?: boolean;
+  fallbackUrl?: string;
   downloads?: Partial<Record<Platform, DownloadAvailability>>;
 };
 
@@ -56,17 +61,20 @@ function fallbackAvailability(): Record<Platform, DownloadAvailability> {
     windows: {
       available: false,
       filename: DOWNLOADS.windows.filename,
-      url: RELEASES_URL,
+      installerUrl: RELEASES_URL,
+      fallbackUrl: RELEASES_URL,
     },
     mac: {
       available: false,
       filename: DOWNLOADS.mac.filename,
-      url: RELEASES_URL,
+      installerUrl: RELEASES_URL,
+      fallbackUrl: RELEASES_URL,
     },
     linux: {
       available: false,
       filename: DOWNLOADS.linux.filename,
-      url: RELEASES_URL,
+      installerUrl: RELEASES_URL,
+      fallbackUrl: RELEASES_URL,
     },
   };
 }
@@ -97,12 +105,16 @@ export default function DownloadPage() {
           setReleaseUrl(payload.releaseUrl);
         }
 
+        if (payload.platform && payload.platform !== "unknown") {
+          setPlatform(payload.platform);
+        }
+
         if (payload.downloads) {
           setAvailability((prev) => {
             const next = { ...prev };
             (Object.keys(DOWNLOADS) as Platform[]).forEach((key) => {
               const fromApi = payload.downloads?.[key];
-              if (fromApi?.url) {
+              if (fromApi?.installerUrl) {
                 next[key] = fromApi;
               }
             });
@@ -130,8 +142,9 @@ export default function DownloadPage() {
   const detectedDownload = platform ? availability[platform] : null;
   const detectedMeta = platform ? DOWNLOADS[platform] : null;
   const HeroIcon = detectedMeta?.icon ?? Download;
-  const heroUrl = detectedDownload?.url ?? releaseUrl;
+  const heroUrl = detectedDownload?.installerUrl ?? releaseUrl;
   const detectedAvailable = Boolean(detectedDownload?.available);
+  const detectedFallbackUrl = detectedDownload?.fallbackUrl ?? releaseUrl;
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-10 space-y-8">
@@ -147,27 +160,22 @@ export default function DownloadPage() {
       <div className="flex flex-col items-center gap-3">
         <a
           href={heroUrl}
-          target="_blank"
-          rel="noopener noreferrer"
           className="flex items-center gap-3 bg-[#00C853] hover:bg-[#00B847] text-black font-bold text-base px-8 py-4 rounded-xl transition-colors"
         >
           <HeroIcon className="w-5 h-5" />
           {platform
             ? detectedAvailable
-              ? detectedMeta?.label
+              ? "Download Installer"
               : "Open Latest Releases"
             : "Browse All Downloads"}
         </a>
 
         {platform && (
           <p className="text-xs text-vault-text-faint text-center">
-            {detectedMeta?.detail}
-            {!loadingAvailability && !detectedAvailable && (
-              <>
-                {" "}
-                — installer not published yet for your platform, showing release page instead.
-              </>
-            )}
+            {detectedMeta?.detail} · After download:{" "}
+            {platform === "windows" && "run the .exe installer"}
+            {platform === "mac" && "open the .dmg, then drag ProjectBlackVault to Applications"}
+            {platform === "linux" && "mark the AppImage as executable, then run it"}
           </p>
         )}
       </div>
@@ -178,7 +186,16 @@ export default function DownloadPage() {
           <div className="text-sm text-vault-text-muted leading-relaxed">
             The latest release does not currently include the expected{" "}
             <code className="text-[#F5A623]">{detectedDownload?.filename}</code> asset.
-            Use the releases page while assets are being published.
+            Use the{" "}
+            <a
+              href={detectedFallbackUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#F5A623] underline"
+            >
+              latest releases page
+            </a>{" "}
+            while assets are being published.
           </div>
         </div>
       )}
@@ -206,7 +223,7 @@ export default function DownloadPage() {
               return (
                 <a
                   key={key}
-                  href={state.url}
+                  href={state.installerUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={`flex flex-col items-center gap-2 p-5 bg-vault-surface rounded-xl border transition-all text-center hover:border-[#00C2FF]/40 ${
@@ -232,13 +249,32 @@ export default function DownloadPage() {
                   </span>
                   {!loadingAvailability && !state.available && (
                     <span className="text-[10px] uppercase tracking-wider text-[#F5A623]">
-                      Asset pending
+                      Fallback active
                     </span>
                   )}
                 </a>
               );
             }
           )}
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <p className="text-xs font-mono uppercase tracking-widest text-vault-text-faint">
+          Advanced Install Channels
+        </p>
+        <div className="bg-vault-surface border border-vault-border rounded-xl p-4 space-y-3 text-sm text-vault-text-muted">
+          <p>
+            <span className="text-vault-text font-medium">Windows (winget):</span>{" "}
+            <code className="text-vault-text">winget install --id TheAverageDeveloper.ProjectBlackVault</code>
+          </p>
+          <p>
+            <span className="text-vault-text font-medium">macOS (Homebrew):</span>{" "}
+            <code className="text-vault-text">brew install --cask theaveragedeveloper/tap/projectblackvault</code>
+          </p>
+          <p className="text-xs text-vault-text-faint">
+            If these package channels are not published yet, use the direct installer download above.
+          </p>
         </div>
       </div>
 
