@@ -1850,6 +1850,12 @@ export default function SettingsPage() {
               {saving ? "Saving..." : "Save Settings"}
             </button>
           </div>
+
+          <div className="pt-3 border-t border-vault-border">
+            <p className="text-[11px] leading-relaxed text-vault-text-faint">
+              Data Responsibility Notice: You are solely responsible for all data you create, upload, store, or share through this app, including keeping your own backups. To the maximum extent permitted by law, we are not liable for any data loss, corruption, unauthorized access, or damages related to your data or use of the app.
+            </p>
+          </div>
         </form>
       </div>
     </div>
