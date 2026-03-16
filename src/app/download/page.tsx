@@ -1,34 +1,47 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Download, Monitor, Apple, Terminal, ExternalLink, Info } from "lucide-react";
+import { AlertTriangle, Download, ExternalLink, Info, Monitor, Apple, Terminal } from "lucide-react";
 import Link from "next/link";
+
+const RELEASES_URL = "https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest";
 
 const DOWNLOADS = {
   windows: {
     label: "Download for Windows",
     detail: "Windows 10 / 11 · .exe installer",
-    href: "https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest/download/ProjectBlackVault-Setup.exe",
+    filename: "ProjectBlackVault-Setup.exe",
     icon: Monitor,
     ext: ".exe",
   },
   mac: {
     label: "Download for macOS",
     detail: "macOS 12+ · .dmg",
-    href: "https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest/download/ProjectBlackVault.dmg",
+    filename: "ProjectBlackVault.dmg",
     icon: Apple,
     ext: ".dmg",
   },
   linux: {
     label: "Download for Linux",
     detail: "x86_64 · AppImage",
-    href: "https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest/download/ProjectBlackVault-Setup.AppImage",
+    filename: "ProjectBlackVault-Setup.AppImage",
     icon: Terminal,
     ext: ".AppImage",
   },
 } as const;
 
 type Platform = keyof typeof DOWNLOADS;
+
+type DownloadAvailability = {
+  available: boolean;
+  filename: string;
+  url: string;
+};
+
+type DownloadApiResponse = {
+  releaseUrl?: string;
+  downloads?: Partial<Record<Platform, DownloadAvailability>>;
+};
 
 function detectPlatform(): Platform | null {
   const ua = navigator.userAgent.toLowerCase();
@@ -38,15 +51,87 @@ function detectPlatform(): Platform | null {
   return null;
 }
 
+function fallbackAvailability(): Record<Platform, DownloadAvailability> {
+  return {
+    windows: {
+      available: false,
+      filename: DOWNLOADS.windows.filename,
+      url: RELEASES_URL,
+    },
+    mac: {
+      available: false,
+      filename: DOWNLOADS.mac.filename,
+      url: RELEASES_URL,
+    },
+    linux: {
+      available: false,
+      filename: DOWNLOADS.linux.filename,
+      url: RELEASES_URL,
+    },
+  };
+}
+
 export default function DownloadPage() {
   const [platform, setPlatform] = useState<Platform | null>(null);
+  const [releaseUrl, setReleaseUrl] = useState(RELEASES_URL);
+  const [availability, setAvailability] = useState<Record<Platform, DownloadAvailability>>(fallbackAvailability);
+  const [loadingAvailability, setLoadingAvailability] = useState(true);
 
   useEffect(() => {
     setPlatform(detectPlatform());
   }, []);
 
-  const detected = platform ? DOWNLOADS[platform] : null;
-  const HeroIcon = detected?.icon ?? Download;
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadAvailability() {
+      try {
+        const response = await fetch("/api/releases/latest-assets", { cache: "no-store" });
+        const payload = (await response.json()) as DownloadApiResponse;
+
+        if (cancelled) {
+          return;
+        }
+
+        if (payload.releaseUrl) {
+          setReleaseUrl(payload.releaseUrl);
+        }
+
+        if (payload.downloads) {
+          setAvailability((prev) => {
+            const next = { ...prev };
+            (Object.keys(DOWNLOADS) as Platform[]).forEach((key) => {
+              const fromApi = payload.downloads?.[key];
+              if (fromApi?.url) {
+                next[key] = fromApi;
+              }
+            });
+            return next;
+          });
+        }
+      } catch {
+        if (!cancelled) {
+          setAvailability(fallbackAvailability());
+          setReleaseUrl(RELEASES_URL);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingAvailability(false);
+        }
+      }
+    }
+
+    loadAvailability();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const detectedDownload = platform ? availability[platform] : null;
+  const detectedMeta = platform ? DOWNLOADS[platform] : null;
+  const HeroIcon = detectedMeta?.icon ?? Download;
+  const heroUrl = detectedDownload?.url ?? releaseUrl;
+  const detectedAvailable = Boolean(detectedDownload?.available);
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-10 space-y-8">
@@ -59,33 +144,45 @@ export default function DownloadPage() {
         </p>
       </div>
 
-      {/* Hero CTA */}
       <div className="flex flex-col items-center gap-3">
-        {detected ? (
-          <a
-            href={detected.href}
-            className="flex items-center gap-3 bg-[#00C853] hover:bg-[#00B847] text-black font-bold text-base px-8 py-4 rounded-xl transition-colors"
-          >
-            <HeroIcon className="w-5 h-5" />
-            {detected.label}
-          </a>
-        ) : (
-          <a
-            href="https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-3 bg-[#00C853] hover:bg-[#00B847] text-black font-bold text-base px-8 py-4 rounded-xl transition-colors"
-          >
-            <Download className="w-5 h-5" />
-            Browse All Downloads
-          </a>
-        )}
-        {detected && (
-          <p className="text-xs text-vault-text-faint">{detected.detail}</p>
+        <a
+          href={heroUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-3 bg-[#00C853] hover:bg-[#00B847] text-black font-bold text-base px-8 py-4 rounded-xl transition-colors"
+        >
+          <HeroIcon className="w-5 h-5" />
+          {platform
+            ? detectedAvailable
+              ? detectedMeta?.label
+              : "Open Latest Releases"
+            : "Browse All Downloads"}
+        </a>
+
+        {platform && (
+          <p className="text-xs text-vault-text-faint text-center">
+            {detectedMeta?.detail}
+            {!loadingAvailability && !detectedAvailable && (
+              <>
+                {" "}
+                — installer not published yet for your platform, showing release page instead.
+              </>
+            )}
+          </p>
         )}
       </div>
 
-      {/* Network/VPN callout */}
+      {!loadingAvailability && platform && !detectedAvailable && (
+        <div className="flex gap-3 bg-[#F5A623]/10 border border-[#F5A623]/30 rounded-lg p-4">
+          <AlertTriangle className="w-4 h-4 text-[#F5A623] flex-shrink-0 mt-0.5" />
+          <div className="text-sm text-vault-text-muted leading-relaxed">
+            The latest release does not currently include the expected{" "}
+            <code className="text-[#F5A623]">{detectedDownload?.filename}</code> asset.
+            Use the releases page while assets are being published.
+          </div>
+        </div>
+      )}
+
       <div className="flex gap-3 bg-vault-surface border border-[#00C2FF]/20 border-l-[3px] border-l-[#00C2FF] rounded-lg p-4">
         <Info className="w-4 h-4 text-[#00C2FF] flex-shrink-0 mt-0.5" />
         <div className="text-sm text-vault-text-muted leading-relaxed">
@@ -96,7 +193,6 @@ export default function DownloadPage() {
         </div>
       </div>
 
-      {/* Platform cards */}
       <div>
         <p className="text-xs font-mono uppercase tracking-widest text-vault-text-faint mb-3">
           All Platforms
@@ -106,10 +202,13 @@ export default function DownloadPage() {
             ([key, info]) => {
               const Icon = info.icon;
               const isDetected = key === platform;
+              const state = availability[key];
               return (
                 <a
                   key={key}
-                  href={info.href}
+                  href={state.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className={`flex flex-col items-center gap-2 p-5 bg-vault-surface rounded-xl border transition-all text-center hover:border-[#00C2FF]/40 ${
                     isDetected
                       ? "border-[#00C853]/60 shadow-[0_0_12px_rgba(0,200,83,0.12)]"
@@ -131,6 +230,11 @@ export default function DownloadPage() {
                   <span className="text-xs bg-vault-surface-2 border border-vault-border px-2 py-1 rounded-full text-vault-text-muted">
                     {info.ext}
                   </span>
+                  {!loadingAvailability && !state.available && (
+                    <span className="text-[10px] uppercase tracking-wider text-[#F5A623]">
+                      Asset pending
+                    </span>
+                  )}
                 </a>
               );
             }
@@ -138,7 +242,6 @@ export default function DownloadPage() {
         </div>
       </div>
 
-      {/* Setup steps */}
       <div className="space-y-3">
         <p className="text-xs font-mono uppercase tracking-widest text-vault-text-faint">
           Setup Steps
@@ -160,13 +263,12 @@ export default function DownloadPage() {
         </ol>
       </div>
 
-      {/* Footer links */}
       <div className="flex items-center justify-between pt-2 border-t border-vault-border text-xs text-vault-text-faint">
         <Link href="/settings" className="hover:text-vault-text transition-colors">
           ← Back to Settings
         </Link>
         <a
-          href="https://github.com/theaveragedeveloper/ProjectBlackVault/releases"
+          href={releaseUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-1 hover:text-vault-text transition-colors"

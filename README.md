@@ -35,122 +35,105 @@ Everything is stored **on your own computer or home server** — your data never
 
 ## Getting Started — Pick Your Method
 
-There are three ways to run ProjectBlackVault. **Choose the one that fits you best:**
+There are three ways to run ProjectBlackVault. Production deployment is Docker-first.
 
 ---
 
-### Option 1: Desktop App — Easiest (Recommended for most users)
+### Option 1: Desktop App (Recommended)
 
-No technical knowledge needed. Just download and run it like any normal application.
+No terminal required. Download the launcher from the latest GitHub release:
 
-**[⬇ Download for your platform →](https://theaveragedeveloper.github.io/ProjectBlackVault/)**
+**[⬇ Download launcher assets](https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest)**
 
-| Your Computer | File to Download |
-|---------------|-----------------|
-| Windows | `ProjectBlackVault-Setup.exe` |
-| Mac | `ProjectBlackVault.dmg` |
-| Linux | `ProjectBlackVault-Setup.AppImage` |
+Expected files:
+- `ProjectBlackVault-Setup.exe`
+- `ProjectBlackVault.dmg`
+- `ProjectBlackVault-Setup.AppImage`
 
-**Before you start, you'll need:**
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) — a free program that runs the app in the background. The launcher can **install this automatically** for you on Windows and macOS — just click "Install Docker Automatically" when prompted. Or install it manually first and make sure it's open and running.
-
-**First-time setup tips:**
-
-- **Mac:** If a warning says the app can't be opened, right-click the file and choose **Open** instead of double-clicking.
-- **Windows:** If Windows SmartScreen shows a warning, click **More info**, then **Run anyway**.
-- **Linux:** Right-click the AppImage file → Properties → mark it as executable, then double-click to run. Or run `chmod +x ProjectBlackVault-Setup.AppImage` in a terminal.
+Before launching:
+- Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows/macOS).
+- Linux users need Docker Engine + Compose plugin.
 
 ---
 
-### Option 2: Run It Yourself (For developers / technical users)
+### Option 2: Production Self-Host Walkthrough (Docker)
 
-If you're comfortable with a terminal, you can run the app directly on your machine.
+Use this path for home server / NAS / always-on deployment.
 
-**You'll need:**
-- [Node.js](https://nodejs.org/) version 20 or higher
-- npm version 9 or higher (comes with Node.js)
-
-**Steps:**
+**1) Clone repo**
 
 ```bash
-# 1. Download the code
-git clone <repo-url>
+git clone https://github.com/theaveragedeveloper/ProjectBlackVault.git
 cd ProjectBlackVault
-
-# 2. Install the app's dependencies
-npm install
-
-# 3. Set up your configuration file
-cp .env.example .env
-# Open the .env file in a text editor — the default settings work fine for local use
-
-# 4. Set up the database
-npx prisma migrate dev
-
-# 5. (Optional) Add some sample data to explore the app
-npx prisma db seed
-
-# 6. Start the app
-npm run dev
 ```
 
-Then open your browser and go to **[http://localhost:3000](http://localhost:3000)**
-
----
-
-### Option 3: Home Server / Docker (For self-hosting enthusiasts)
-
-If you run a home server or NAS and want ProjectBlackVault always available on your network — no desktop launcher needed, any device connects with just a browser.
-
-**One-time setup:**
+**2) Run installer (generates `.blackvault.env`, keys, and data paths)**
 
 ```bash
 # Linux / macOS
-git clone https://github.com/theaveragedeveloper/ProjectBlackVault.git
-cd ProjectBlackVault
 chmod +x install.sh && ./install.sh
 
 # Windows
-git clone https://github.com/theaveragedeveloper/ProjectBlackVault.git
-cd ProjectBlackVault
 install.bat
 ```
 
-The setup wizard picks a data directory, port, and generates secret keys automatically.
-
-**Day-to-day commands (after setup):**
+**3) Verify health**
 
 ```bash
-# Start the app
-docker compose --env-file .blackvault.env up -d
-
-# See what's happening (logs)
+docker compose --env-file .blackvault.env ps
 docker compose --env-file .blackvault.env logs -f
-
-# Stop the app
-docker compose --env-file .blackvault.env down
 ```
 
-The app automatically handles database setup when it starts. Your data is saved in the directory you chose during setup (default `~/.blackvault`):
+Open `http://localhost:3000/api/health` and confirm JSON contains `"status":"ok"`.
 
-- `~/.blackvault/db/` — your database
-- `~/.blackvault/uploads/` — your uploaded photos and documents
+**4) Access from other devices**
 
-**Accessing from other devices on your network or VPN:**
+1. Find host IP: `ip addr` (Linux), `ipconfig` (Windows), `ifconfig` (macOS)
+2. Open `http://YOUR-HOST-IP:3000` from any LAN/VPN client
+3. Ensure firewall allows inbound TCP on your selected port
 
-1. Find your server's local IP: `ip addr` (Linux), `ipconfig` (Windows), `ifconfig` (macOS)
-2. On any other device, open: `http://YOUR-SERVER-IP:3000` — no extra software needed
-
-**Updating:**
+**5) Day-2 operations**
 
 ```bash
+# Start
+docker compose --env-file .blackvault.env up -d
+
+# Stop
+docker compose --env-file .blackvault.env down
+
+# Logs
+docker compose --env-file .blackvault.env logs -f
+
+# Update
 ./update.sh    # Linux/macOS
 update.bat     # Windows
 ```
 
-Or inside the app: **Settings → GitHub Updates → Update Now**
+**6) Data + backup checklist**
 
-> ⚠️ **Back up your encryption key.** It's stored in `.blackvault.env`. If you lose it, all encrypted data (serial numbers, notes) is permanently unrecoverable. Keep a copy somewhere safe. You can also export encrypted backups from inside the app: **Settings → Secure Backup**.
+- `DATA_DIR` is stored in `.blackvault.env` (default `~/.blackvault`)
+- Database: `<DATA_DIR>/db/`
+- Uploads: `<DATA_DIR>/uploads/`
+- Back up `.blackvault.env` and data directory together
+- Never lose `VAULT_ENCRYPTION_KEY` or encrypted data becomes unrecoverable
+- In-app encrypted exports: **Settings → Secure Backup**
+
+---
+
+### Option 3: Developer Mode (Secondary)
+
+Use this only for local development and feature work:
+
+```bash
+git clone https://github.com/theaveragedeveloper/ProjectBlackVault.git
+cd ProjectBlackVault
+npm install
+cp .env.example .env
+npx prisma migrate dev
+npm run dev
+```
+
+App URL: `http://localhost:3000`
 
 ---
 
@@ -189,7 +172,11 @@ Click **More info** on the SmartScreen warning, then **Run anyway**. The app is 
 The desktop launcher can install Docker Desktop automatically on Windows and macOS — click "Install Docker Automatically" when prompted. Or [download Docker Desktop here](https://www.docker.com/products/docker-desktop/) manually — it's free. Make sure to open Docker Desktop before launching ProjectBlackVault.
 
 **The page won't load at localhost:3000:**
-Make sure the app is still running in your terminal (you should see output from the dev server). If you closed the terminal, run `npm run dev` again.
+Check deployment status and logs:
+`docker compose --env-file .blackvault.env ps`
+`docker compose --env-file .blackvault.env logs -f`
+If the container is stopped, restart with:
+`docker compose --env-file .blackvault.env up -d`
 
 **My data disappeared:**
 If you're running via Docker, your data is in the directory configured during setup (default `~/.blackvault`). If you used `docker compose down -v`, that removes volumes too — avoid the `-v` flag unless you want to wipe everything.
