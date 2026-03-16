@@ -48,6 +48,13 @@ interface SystemInfo {
   hostname: string;
   dbPath: string;
   platform: string;
+  canonicalUrl: string | null;
+  networkPolicy?: {
+    allowReleaseLookup: boolean;
+    allowImageSearchEgress: boolean;
+    allowExternalImageUrls: boolean;
+    requirePrivateNetworkForUpdates: boolean;
+  };
 }
 
 export default function SettingsPage() {
@@ -118,6 +125,8 @@ export default function SettingsPage() {
   const [disableInput, setDisableInput] = useState("");
   const [keyCopied, setKeyCopied] = useState(false);
   const [activeSection, setActiveSection] = useState<(typeof settingsSections)[number]["id"]>("security");
+  const localHostUrl = `http://localhost:${sysInfo?.port ?? "3000"}`;
+  const canonicalUrl = sysInfo?.canonicalUrl ?? null;
 
   useEffect(() => {
     Promise.all([
@@ -577,46 +586,81 @@ export default function SettingsPage() {
 
     try {
       const statusRes = await fetch("/api/system-update");
-      const statusJson = await statusRes.json();
+      const statusJson = (await statusRes.json()) as Record<string, unknown>;
+      const metadata = (statusJson.metadata ?? null) as Record<string, unknown> | null;
+      const currentVersion = typeof metadata?.currentVersion === "string" ? metadata.currentVersion : "unknown";
+      const latestVersion = typeof metadata?.latestVersion === "string" ? metadata.latestVersion : null;
+      const checkedAt = typeof metadata?.checkedAt === "string" ? metadata.checkedAt : null;
+      const checkedAtLine = checkedAt ? `Checked: ${new Date(checkedAt).toLocaleString()}` : null;
+      const statusLines = [
+        `Current: ${currentVersion}`,
+        latestVersion ? `Latest: ${latestVersion}` : null,
+        checkedAtLine,
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      const statusError = typeof statusJson.error === "string" ? statusJson.error : null;
+      const statusMessage = typeof statusJson.message === "string" ? statusJson.message : null;
+      const statusRecommendation = typeof statusJson.recommendation === "string" ? statusJson.recommendation : null;
+      const statusDetails = typeof statusJson.details === "string" ? statusJson.details : null;
 
       if (!statusRes.ok) {
-        const details = typeof statusJson.details === "string" ? `\n\n${statusJson.details}` : "";
-        setUpdateError(`${statusJson.error ?? "Failed to check update status."}${details}`);
+        const failureParts = [
+          statusError ?? "Failed to check update status.",
+          statusMessage,
+          statusRecommendation,
+          statusDetails,
+        ].filter(Boolean);
+        setUpdateError(failureParts.join("\n\n"));
         return;
       }
 
       if (typeof statusJson.unsupported === "string") {
-        setUpdateError(statusJson.unsupported);
+        const unsupportedParts = [
+          statusLines || null,
+          statusMessage,
+          statusJson.unsupported,
+          statusRecommendation,
+        ].filter(Boolean);
+        setUpdateOutput(unsupportedParts.join("\n\n"));
         return;
       }
 
       if (!statusJson.writable) {
-        setUpdateError(
-          statusJson.message ??
-            "Update command execution is disabled. Set SYSTEM_UPDATE_EXEC_ENABLED=true to enable this button."
-        );
+        const nonWritableParts = [
+          statusLines || null,
+          statusMessage ??
+            "Update command execution is disabled. Set SYSTEM_UPDATE_EXEC_ENABLED=true (or unset it) to enable this button.",
+          statusRecommendation,
+        ].filter(Boolean);
+        setUpdateOutput(nonWritableParts.join("\n\n"));
         return;
       }
 
       const updateRes = await fetch("/api/system-update", { method: "POST" });
-      const updateJson = await updateRes.json();
+      const updateJson = (await updateRes.json()) as Record<string, unknown>;
 
       if (!updateRes.ok) {
-        const details = typeof updateJson.details === "string" ? `\n\n${updateJson.details}` : "";
-        setUpdateError(`${updateJson.error ?? "Failed to update application."}${details}`);
+        const updateError = typeof updateJson.error === "string" ? updateJson.error : "Failed to update application.";
+        const updateMessage = typeof updateJson.message === "string" ? updateJson.message : null;
+        const updateRecommendation = typeof updateJson.recommendation === "string" ? updateJson.recommendation : null;
+        const updateDetails = typeof updateJson.details === "string" ? updateJson.details : null;
+        const failureParts = [updateError, updateMessage, updateRecommendation, updateDetails].filter(Boolean);
+        setUpdateError(failureParts.join("\n\n"));
         return;
       }
 
-      const metadata = updateJson.metadata ?? {};
-      const currentVersion = typeof metadata.currentVersion === "string" ? metadata.currentVersion : "unknown";
-      const latestVersion = typeof metadata.latestVersion === "string" ? metadata.latestVersion : null;
-      const checkedAt = typeof metadata.checkedAt === "string" ? metadata.checkedAt : null;
-      const checkedAtLine = checkedAt ? `Checked: ${new Date(checkedAt).toLocaleString()}` : null;
+      const updateMetadata = (updateJson.metadata ?? {}) as Record<string, unknown>;
+      const updatedCurrentVersion = typeof updateMetadata.currentVersion === "string" ? updateMetadata.currentVersion : "unknown";
+      const updatedLatestVersion = typeof updateMetadata.latestVersion === "string" ? updateMetadata.latestVersion : null;
+      const updatedCheckedAt = typeof updateMetadata.checkedAt === "string" ? updateMetadata.checkedAt : null;
+      const updatedCheckedAtLine = updatedCheckedAt ? `Checked: ${new Date(updatedCheckedAt).toLocaleString()}` : null;
 
       const versionLines = [
-        `Current: ${currentVersion}`,
-        latestVersion ? `Latest: ${latestVersion}` : null,
-        checkedAtLine,
+        `Current: ${updatedCurrentVersion}`,
+        updatedLatestVersion ? `Latest: ${updatedLatestVersion}` : null,
+        updatedCheckedAtLine,
         updateJson.changed === true
           ? "\nUpdate applied. Restart BlackVault if your process manager does not auto-reload."
           : updateJson.changed === false
@@ -1126,19 +1170,70 @@ export default function SettingsPage() {
             </legend>
 
             <p className="text-xs text-vault-text-muted leading-relaxed">
-              Access BlackVault from any device on your local network using the addresses below.
-              Make sure BlackVault is bound to <code className="text-vault-text-faint font-mono">0.0.0.0</code> (not just localhost).
+              Use a stable hostname as your primary access URL so users can install a desktop icon once and launch without typing IP addresses.
             </p>
+
+            {canonicalUrl ? (
+              <div className="bg-[#00C853]/8 border border-[#00C853]/30 rounded-md px-3 py-3 flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-[10px] text-[#00C853] font-mono uppercase mb-0.5">Primary URL (Recommended)</p>
+                  <code className="text-xs font-mono text-vault-text break-all">{canonicalUrl}</code>
+                </div>
+                <div className="shrink-0 flex items-center gap-1">
+                  <a
+                    href={canonicalUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-2.5 py-1.5 text-[11px] rounded border border-[#00C853]/40 text-[#00C853] hover:bg-[#00C853]/10 transition-colors"
+                  >
+                    Open
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyUrl(canonicalUrl)}
+                    className="p-1.5 text-vault-text-faint hover:text-[#00C2FF] transition-colors rounded"
+                    title="Copy URL"
+                  >
+                    {copiedUrl === canonicalUrl ? <CheckCircle2 className="w-3.5 h-3.5 text-[#00C853]" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-[#F5A623]/10 border border-[#F5A623]/30 rounded-md px-4 py-3">
+                <p className="text-[11px] text-[#F5A623] font-mono mb-1">Hostname Not Configured</p>
+                <p className="text-xs text-vault-text-faint leading-relaxed">
+                  Set <code className="font-mono">APP_BASE_URL</code> to your HTTPS domain (example: <code className="font-mono">https://vault.yourdomain.com</code>) so users can open one URL across VPN and LAN and install a desktop icon.
+                </p>
+              </div>
+            )}
+
+            <div className="bg-[#00C2FF]/5 border border-[#00C2FF]/20 rounded-md px-4 py-3">
+              <p className="text-[11px] text-[#00C2FF] font-mono mb-1">Install On Desktop</p>
+              <p className="text-xs text-vault-text-faint leading-relaxed">
+                On Chrome/Edge use <span className="font-medium">Install App</span>. On Safari (macOS) use <span className="font-medium">File → Add to Dock</span>.
+                For best results, install from your HTTPS hostname URL.
+              </p>
+            </div>
+
+            <div className="bg-[#00C853]/8 border border-[#00C853]/30 rounded-md px-4 py-3">
+              <p className="text-[11px] text-[#00C853] font-mono mb-1">Internet Egress Policy</p>
+              <p className="text-xs text-vault-text-faint leading-relaxed">
+                Release lookups: <span className="font-medium">{sysInfo?.networkPolicy?.allowReleaseLookup ? "enabled" : "disabled"}</span>{" "}
+                · Image search: <span className="font-medium">{sysInfo?.networkPolicy?.allowImageSearchEgress ? "enabled" : "disabled"}</span>{" "}
+                · External image URLs: <span className="font-medium">{sysInfo?.networkPolicy?.allowExternalImageUrls ? "enabled" : "disabled"}</span>{" "}
+                · Update actions limited to private/VPN clients: <span className="font-medium">{sysInfo?.networkPolicy?.requirePrivateNetworkForUpdates ? "yes" : "no"}</span>
+              </p>
+            </div>
 
             <div className="space-y-2">
               <div className="bg-vault-bg border border-vault-border rounded-md px-3 py-2 flex items-center justify-between gap-2">
                 <div>
-                  <p className="text-[10px] text-vault-text-faint font-mono uppercase mb-0.5">This Device</p>
-                  <code className="text-xs font-mono text-vault-text">http://localhost:{sysInfo?.port ?? "3000"}</code>
+                  <p className="text-[10px] text-vault-text-faint font-mono uppercase mb-0.5">Fallback: This Device</p>
+                  <code className="text-xs font-mono text-vault-text">{localHostUrl}</code>
                 </div>
-                <button type="button" onClick={() => handleCopyUrl(`http://localhost:${sysInfo?.port ?? "3000"}`)}
+                <button type="button" onClick={() => handleCopyUrl(localHostUrl)}
                   className="shrink-0 p-1.5 text-vault-text-faint hover:text-[#00C2FF] transition-colors rounded" title="Copy URL">
-                  {copiedUrl === `http://localhost:${sysInfo?.port ?? "3000"}` ? <CheckCircle2 className="w-3.5 h-3.5 text-[#00C853]" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copiedUrl === localHostUrl ? <CheckCircle2 className="w-3.5 h-3.5 text-[#00C853]" /> : <Copy className="w-3.5 h-3.5" />}
                 </button>
               </div>
 
@@ -1146,7 +1241,7 @@ export default function SettingsPage() {
                 sysInfo.localIPs.map((ip) => (
                   <div key={ip} className="bg-vault-bg border border-vault-border rounded-md px-3 py-2 flex items-center justify-between gap-2">
                     <div>
-                      <p className="text-[10px] text-vault-text-faint font-mono uppercase mb-0.5">Local Network</p>
+                      <p className="text-[10px] text-vault-text-faint font-mono uppercase mb-0.5">Fallback: Local Network</p>
                       <code className="text-xs font-mono text-vault-text">http://{ip}:{sysInfo.port}</code>
                     </div>
                     <button type="button" onClick={() => handleCopyUrl(`http://${ip}:${sysInfo.port}`)}
@@ -1163,28 +1258,9 @@ export default function SettingsPage() {
             <div className="bg-[#00C2FF]/5 border border-[#00C2FF]/20 rounded-md px-4 py-3">
               <p className="text-[11px] text-[#00C2FF] font-mono mb-1">Docker Users</p>
               <p className="text-xs text-vault-text-faint leading-relaxed">
-                Ensure the container port is mapped with <code className="font-mono">-p 3000:3000</code> or equivalent in docker-compose.yml.
+                Keep container port mapping enabled (for example <code className="font-mono">-p 3000:3000</code>) and route your domain to this host through a reverse proxy (Caddy/Nginx/Traefik).
               </p>
             </div>
-          </fieldset>
-
-          {/* ── Desktop Launcher ───────────────────────────── */}
-          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-3">
-            <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
-              <Download className="w-3.5 h-3.5" />
-              Desktop Launcher
-            </legend>
-            <p className="text-xs text-vault-text-muted leading-relaxed">
-              The desktop launcher lets you start, stop, and manage your ProjectBlackVault Docker container without a terminal.
-              If you&apos;re accessing this app over a network or VPN, you don&apos;t need to install anything — the launcher is only needed on the machine running Docker.
-            </p>
-            <a
-              href="/download"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 text-xs transition-colors"
-            >
-              <Download className="w-3.5 h-3.5" />
-              Get the Desktop Launcher →
-            </a>
           </fieldset>
 
           {/* ── GitHub Updates ─────────────────────────────── */}

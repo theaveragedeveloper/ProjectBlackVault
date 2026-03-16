@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { allowReleaseLookup } from "@/lib/network-policy";
 
 const OWNER = "theaveragedeveloper";
 const REPO = "ProjectBlackVault";
@@ -79,6 +80,23 @@ export async function GET(request: Request) {
   const override = parsePlatformOverride(url.searchParams.get("platform"));
   const platform = override || detectPlatform(request.headers.get("user-agent"));
   const fallbackUrl = RELEASES_URL;
+
+  if (!allowReleaseLookup()) {
+    return NextResponse.json(
+      {
+        platform,
+        releaseUrl: RELEASES_URL,
+        installerUrl: fallbackUrl,
+        available: false,
+        fallbackUrl,
+        downloads: fallback,
+        source: "disabled",
+        checkedAt: new Date().toISOString(),
+        message: "Release lookup is disabled by policy. Set ALLOW_RELEASE_LOOKUP=true to enable.",
+      },
+      { status: 200 }
+    );
+  }
 
   try {
     const response = await fetch(RELEASE_API_URL, {
