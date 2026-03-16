@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   exec: vi.fn(),
   existsSync: vi.fn(),
   verifyTokenNode: vi.fn(),
+  findSettings: vi.fn(),
 }));
 
 vi.mock("node:child_process", () => ({
@@ -17,6 +18,14 @@ vi.mock("node:fs", () => ({
 
 vi.mock("@/lib/session", () => ({
   verifyTokenNode: mocks.verifyTokenNode,
+}));
+
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    appSettings: {
+      findUnique: mocks.findSettings,
+    },
+  },
 }));
 
 import { POST } from "./route";
@@ -57,6 +66,7 @@ describe("POST /api/system-update", () => {
       NODE_ENV: "test",
     };
     mocks.verifyTokenNode.mockReturnValue(true);
+    mocks.findSettings.mockResolvedValue({ appPassword: "hash" });
   });
 
   afterEach(() => {
