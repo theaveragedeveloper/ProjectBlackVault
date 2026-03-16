@@ -270,7 +270,7 @@ export default function RangeHistoryPage() {
   return (
     <div className="min-h-full">
       <PageHeader
-        title="RANGE HISTORY"
+        title="Range History"
         subtitle={`${sessions.length} session${sessions.length !== 1 ? "s" : ""} logged`}
         actions={
           <Link href="/range"
@@ -285,19 +285,19 @@ export default function RangeHistoryPage() {
         {/* Summary strip */}
         <div className="flex items-center gap-6 mb-6 bg-vault-surface border border-vault-border rounded-lg px-5 py-3 flex-wrap">
           <div>
-            <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-0.5">Total Sessions</p>
+            <p className="text-xs text-vault-text-faint mb-0.5">Total sessions</p>
             <p className="text-lg font-bold font-mono text-vault-text">{sessions.length}</p>
           </div>
           <div className="w-px h-8 bg-vault-border" />
           <div>
-            <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-0.5">Rounds Fired</p>
+            <p className="text-xs text-vault-text-faint mb-0.5">Rounds fired</p>
             <p className="text-lg font-bold font-mono text-[#00C2FF]">{formatNumber(totalRounds)}</p>
           </div>
           {avgRoundsPerSession > 0 && (
             <>
               <div className="w-px h-8 bg-vault-border" />
               <div>
-                <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-0.5">Avg / Session</p>
+                <p className="text-xs text-vault-text-faint mb-0.5">Avg / session</p>
                 <p className="text-lg font-bold font-mono text-vault-text">{formatNumber(avgRoundsPerSession)}</p>
               </div>
             </>
@@ -306,7 +306,7 @@ export default function RangeHistoryPage() {
             <>
               <div className="w-px h-8 bg-vault-border" />
               <div>
-                <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-0.5">Platforms</p>
+                <p className="text-xs text-vault-text-faint mb-0.5">Platforms</p>
                 <p className="text-lg font-bold font-mono text-vault-text">{uniqueFirearms.length}</p>
               </div>
             </>
@@ -447,7 +447,7 @@ export default function RangeHistoryPage() {
             ) : (
               <div className="space-y-6">
                 <div className="bg-vault-surface border border-vault-border rounded-lg p-4">
-                  <p className="text-xs font-mono uppercase tracking-widest text-vault-text-muted mb-4">
+                  <p className="text-sm font-semibold text-vault-text-muted mb-4">
                     Rounds Fired — Last 12 Months
                   </p>
                   <ResponsiveContainer width="100%" height={220}>
@@ -462,7 +462,7 @@ export default function RangeHistoryPage() {
                 </div>
 
                 <div className="bg-vault-surface border border-vault-border rounded-lg p-4">
-                  <p className="text-xs font-mono uppercase tracking-widest text-vault-text-muted mb-4">
+                  <p className="text-sm font-semibold text-vault-text-muted mb-4">
                     Sessions Per Month
                   </p>
                   <ResponsiveContainer width="100%" height={180}>
@@ -478,7 +478,7 @@ export default function RangeHistoryPage() {
 
                 {groupTrend.length >= 2 && (
                   <div className="bg-vault-surface border border-vault-border rounded-lg p-4">
-                    <p className="text-xs font-mono uppercase tracking-widest text-vault-text-muted mb-4">
+                    <p className="text-sm font-semibold text-vault-text-muted mb-4">
                       Best Group Size Trend (inches)
                     </p>
                     <ResponsiveContainer width="100%" height={200}>
@@ -534,7 +534,7 @@ export default function RangeHistoryPage() {
                       : []),
                   ].map((chip) => (
                     <div key={chip.label} className="rounded-md border border-vault-border bg-vault-surface px-4 py-2 text-center">
-                      <p className="text-[10px] uppercase tracking-widest text-vault-text-faint">{chip.label}</p>
+                      <p className="text-xs text-vault-text-faint">{chip.label}</p>
                       <p className={`text-base font-bold font-mono ${chip.color}`}>{chip.value}</p>
                     </div>
                   ))}
@@ -543,7 +543,7 @@ export default function RangeHistoryPage() {
                 {/* Monthly spend chart */}
                 {costData.monthlyPurchases.some((m) => m.amount > 0) && (
                   <div className="bg-vault-surface border border-vault-border rounded-lg p-4">
-                    <p className="text-xs font-mono uppercase tracking-widest text-vault-text-muted mb-4">
+                    <p className="text-sm font-semibold text-vault-text-muted mb-4">
                       Monthly Ammo Spend — Last 12 Months
                     </p>
                     <ResponsiveContainer width="100%" height={200}>
@@ -565,7 +565,7 @@ export default function RangeHistoryPage() {
                 {costData.costPerRound.length > 0 && (
                   <div className="bg-vault-surface border border-vault-border rounded-lg overflow-hidden">
                     <div className="px-4 py-2.5 border-b border-vault-border">
-                      <p className="text-xs font-semibold text-vault-text-faint uppercase tracking-widest">Cost Per Round by Caliber</p>
+                      <p className="text-sm font-semibold text-vault-text-faint">Cost Per Round by Caliber</p>
                     </div>
                     <div className="divide-y divide-vault-border">
                       {costData.costPerRound.map((c) => (
@@ -618,7 +618,7 @@ export default function RangeHistoryPage() {
                     { label: "Avg / Week", value: String(calendarData.avgSessionsPerWeek), color: "text-vault-text" },
                   ].map((chip) => (
                     <div key={chip.label} className="rounded-md border border-vault-border bg-vault-surface px-4 py-2 text-center">
-                      <p className="text-[10px] uppercase tracking-widest text-vault-text-faint">{chip.label}</p>
+                      <p className="text-xs text-vault-text-faint">{chip.label}</p>
                       <p className={`text-base font-bold font-mono ${chip.color}`}>{chip.value}</p>
                     </div>
                   ))}
@@ -626,7 +626,7 @@ export default function RangeHistoryPage() {
 
                 {/* Calendar heatmap */}
                 <div className="bg-vault-surface border border-vault-border rounded-lg p-4 overflow-x-auto">
-                  <p className="text-xs font-mono uppercase tracking-widest text-vault-text-muted mb-3">
+                  <p className="text-sm font-semibold text-vault-text-muted mb-3">
                     Training Activity — {calendarYear}
                   </p>
 

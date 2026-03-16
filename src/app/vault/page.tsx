@@ -368,7 +368,7 @@ export default function VaultPage() {
   return (
     <div className="min-h-full">
       <PageHeader
-        title="VAULT"
+        title="Vault"
         subtitle={`${firearms.length} firearm${firearms.length !== 1 ? "s" : ""} in inventory`}
         actions={
           <div className="flex items-center gap-2">

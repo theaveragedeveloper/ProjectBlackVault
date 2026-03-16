@@ -24,7 +24,7 @@ import {
 
 const INPUT_CLASS =
   "w-full bg-vault-surface border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint transition-colors";
-const LABEL_CLASS = "block text-xs font-medium uppercase tracking-widest text-vault-text-muted mb-1.5";
+const LABEL_CLASS = "block text-sm font-medium text-vault-text-muted mb-1.5";
 
 interface Firearm {
   id: string;
@@ -492,7 +492,7 @@ export default function RangeSessionPage() {
   if (success) {
     return (
       <div className="min-h-full">
-        <PageHeader title="RANGE SESSION" subtitle="Log your range session rounds and usage" />
+        <PageHeader title="Range Session" subtitle="Log rounds and keep your training history up to date." />
         <div className="flex flex-col items-center justify-center py-24 text-center px-6">
           <div className="w-20 h-20 rounded-full bg-[#00C853]/10 border border-[#00C853]/30 flex items-center justify-center mb-6">
             <CheckCircle2 className="w-10 h-10 text-[#00C853]" />
@@ -506,7 +506,7 @@ export default function RangeSessionPage() {
           )}
           <p className="text-vault-text-muted mb-6 max-w-sm">Range session recorded successfully.</p>
           <div className="bg-vault-surface border border-vault-border rounded-lg p-5 text-left max-w-sm w-full mb-8">
-            <p className="text-xs uppercase tracking-widest text-vault-text-faint mb-3">Session Summary</p>
+            <p className="text-sm font-medium text-vault-text-faint mb-3">Session summary</p>
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span className="text-sm text-vault-text-muted">Rounds fired</span>
@@ -553,7 +553,7 @@ export default function RangeSessionPage() {
 
   return (
     <div className="min-h-full">
-      <PageHeader title="RANGE SESSION" subtitle="Log rounds fired, deduct ammo, and update accessory round counts" />
+      <PageHeader title="Range Session" subtitle="Log rounds, update ammo counts, and track accessory usage." />
 
       <div className="max-w-2xl mx-auto px-6 py-8">
         {error && (
@@ -566,7 +566,7 @@ export default function RangeSessionPage() {
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Firearm & Build */}
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
-            <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
+            <legend className="text-sm font-semibold text-[#00C2FF] px-1 -ml-1">
               Firearm & Build
             </legend>
 
@@ -631,7 +631,7 @@ export default function RangeSessionPage() {
 
           {/* Range Location */}
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
-            <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
+            <legend className="text-sm font-semibold text-[#00C2FF] px-1 -ml-1">
               Range Location
             </legend>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -663,7 +663,7 @@ export default function RangeSessionPage() {
 
           {/* Rounds & Ammo */}
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
-            <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
+            <legend className="text-sm font-semibold text-[#00C2FF] px-1 -ml-1">
               Rounds Fired
             </legend>
 
@@ -738,7 +738,7 @@ export default function RangeSessionPage() {
           {/* Accessories Round Attribution */}
           {selectedBuildData && buildAccessories.length > 0 && (
             <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-3">
-              <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
+              <legend className="text-sm font-semibold text-[#00C2FF] px-1 -ml-1">
                 Attribute Rounds To Accessories
               </legend>
               <p className="text-xs text-vault-text-muted">
@@ -803,7 +803,7 @@ export default function RangeSessionPage() {
               className="w-full flex items-center justify-between px-5 py-3 text-left hover:bg-vault-border/20 transition-colors">
               <div className="flex items-center gap-2">
                 <Thermometer className="w-4 h-4 text-[#00C2FF]" />
-                <span className="text-xs font-mono uppercase tracking-widest text-[#00C2FF]">Environment & Weather</span>
+                <span className="text-sm font-semibold text-[#00C2FF]">Environment & Weather</span>
                 <span className="text-xs text-vault-text-faint">(optional)</span>
               </div>
               <ChevronDown className={`w-4 h-4 text-vault-text-faint transition-transform ${showEnvFieldset ? "rotate-180" : ""}`} />
@@ -889,7 +889,7 @@ export default function RangeSessionPage() {
               className="w-full flex items-center justify-between px-5 py-3 text-left hover:bg-vault-border/20 transition-colors">
               <div className="flex items-center gap-2">
                 <Target className="w-4 h-4 text-[#00C2FF]" />
-                <span className="text-xs font-mono uppercase tracking-widest text-[#00C2FF]">Shot Group Data</span>
+                <span className="text-sm font-semibold text-[#00C2FF]">Shot Group Data</span>
                 <span className="text-xs text-vault-text-faint">(optional)</span>
               </div>
               <ChevronDown className={`w-4 h-4 text-vault-text-faint transition-transform ${showGroupFieldset ? "rotate-180" : ""}`} />
@@ -936,7 +936,7 @@ export default function RangeSessionPage() {
               className="w-full flex items-center justify-between px-5 py-3 text-left hover:bg-vault-border/20 transition-colors">
               <div className="flex items-center gap-2">
                 <ClipboardList className="w-4 h-4 text-[#00C2FF]" />
-                <span className="text-xs font-mono uppercase tracking-widest text-[#00C2FF]">Drills</span>
+                <span className="text-sm font-semibold text-[#00C2FF]">Drills</span>
                 {inlineDrills.length > 0 && (
                   <span className="text-xs text-[#00C853] ml-1">{inlineDrills.length} logged</span>
                 )}
@@ -976,7 +976,7 @@ export default function RangeSessionPage() {
                 {/* Add drill form */}
                 {addingDrill ? (
                   <div className="mt-4 rounded-md border border-[#00C2FF]/20 bg-[#00C2FF]/5 p-4 space-y-3">
-                    <p className="text-xs font-semibold text-[#00C2FF] uppercase tracking-widest">Add Drill</p>
+                    <p className="text-sm font-semibold text-[#00C2FF]">Add Drill</p>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="sm:col-span-2">
@@ -1105,7 +1105,7 @@ export default function RangeSessionPage() {
 
           {/* Session Note */}
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
-            <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
+            <legend className="text-sm font-semibold text-[#00C2FF] px-1 -ml-1">
               Session Notes
             </legend>
             <div>

@@ -35,7 +35,7 @@ interface DopeRow {
 
 const INPUT_CLASS =
   "w-full rounded-md border border-vault-border bg-vault-surface px-3 py-2 text-sm text-vault-text placeholder-vault-text-faint focus:border-[#00C2FF] focus:outline-none";
-const LABEL_CLASS = "mb-1 block text-xs font-semibold uppercase tracking-widest text-vault-text-muted";
+const LABEL_CLASS = "mb-1 block text-sm font-medium text-vault-text-muted";
 
 const PRESET_TEMPLATES = {
   "100-1000 yd (100 yd)": Array.from({ length: 10 }, (_, i) => 100 + i * 100),
@@ -154,7 +154,7 @@ export default function DopeCardsPage() {
     <main className="min-h-screen bg-vault-bg pb-10">
       <PageHeader
         title="DOPE Cards"
-        subtitle="Build quick-reference hold cards and print in field-ready formats."
+        subtitle="Build quick reference hold cards and print field-ready layouts."
         actions={
           <>
             <Link href="/range" className="rounded-md border border-vault-border px-3 py-2 text-xs text-vault-text-muted hover:bg-vault-muted">
@@ -182,7 +182,7 @@ export default function DopeCardsPage() {
 
       <div className="mx-auto grid w-full max-w-6xl gap-6 p-4 lg:grid-cols-[minmax(360px,420px)_1fr]">
         <section className="print:hidden rounded-lg border border-vault-border bg-vault-surface p-4">
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest text-vault-text-muted">Card Setup</h2>
+          <h2 className="mb-4 text-sm font-semibold text-vault-text-muted">Card Setup</h2>
 
           <div className="space-y-4">
             <div>
@@ -300,7 +300,7 @@ export default function DopeCardsPage() {
 
         <section className="rounded-lg border border-vault-border bg-vault-surface p-4">
           <div className="mb-3 flex items-center justify-between print:hidden">
-            <h2 className="text-sm font-semibold uppercase tracking-widest text-vault-text-muted">Distance / Hold Rows</h2>
+            <h2 className="text-sm font-semibold text-vault-text-muted">Distance / Hold Rows</h2>
             <button
               type="button"
               onClick={addRow}

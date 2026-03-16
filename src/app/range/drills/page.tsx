@@ -32,7 +32,7 @@ import {
 
 const INPUT_CLASS =
   "w-full bg-vault-surface border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint transition-colors";
-const LABEL_CLASS = "block text-xs font-medium uppercase tracking-widest text-vault-text-muted mb-1.5";
+const LABEL_CLASS = "block text-sm font-medium text-vault-text-muted mb-1.5";
 
 interface DrillTemplate {
   id: string;
@@ -103,7 +103,7 @@ function TemplateForm({
     <form onSubmit={handleSubmit} className="bg-vault-surface border border-[#00C2FF]/30 rounded-lg p-4 space-y-4">
       <div className="flex items-center gap-2 mb-1">
         <BookOpen className="w-4 h-4 text-[#00C2FF]" />
-        <span className="text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
+        <span className="text-sm font-semibold text-[#00C2FF]">
           {initialValues?.id ? "Edit Template" : "New Drill Template"}
         </span>
       </div>
@@ -251,7 +251,7 @@ export default function DrillLibraryPage() {
 
   return (
     <div className="min-h-full">
-      <PageHeader title="DRILL LIBRARY" subtitle="Manage reusable drill templates for your training sessions" />
+      <PageHeader title="Drill Library" subtitle="Create and manage reusable drills for training sessions." />
 
       <div className="max-w-3xl mx-auto px-6 py-8 space-y-6">
         {error && (
@@ -303,7 +303,7 @@ export default function DrillLibraryPage() {
             {/* Custom templates */}
             {custom.length > 0 && (
               <div>
-                <p className="text-xs uppercase tracking-widest text-vault-text-faint mb-3">Your Templates</p>
+                <p className="text-sm font-medium text-vault-text-faint mb-3">Your Templates</p>
                 <div className="space-y-3">
                   {custom.map((t) =>
                     editingTemplate?.id === t.id ? (
@@ -329,7 +329,7 @@ export default function DrillLibraryPage() {
             {/* Built-in templates */}
             {builtIn.length > 0 && (
               <div>
-                <p className="text-xs uppercase tracking-widest text-vault-text-faint mb-3">
+                <p className="text-sm font-medium text-vault-text-faint mb-3">
                   Built-in Drills <span className="text-vault-text-faint normal-case tracking-normal">(read-only)</span>
                 </p>
                 <div className="space-y-3">
@@ -463,7 +463,7 @@ function DrillProgressPanel({ template }: { template: DrillTemplate }) {
       {/* Time chart */}
       {showTime && (
         <div>
-          <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-2">Time (seconds)</p>
+          <p className="text-xs text-vault-text-faint mb-2">Time (seconds)</p>
           <ResponsiveContainer width="100%" height={140}>
             <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
@@ -488,7 +488,7 @@ function DrillProgressPanel({ template }: { template: DrillTemplate }) {
       {/* Score chart */}
       {showScore && (
         <div>
-          <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-2">Score</p>
+          <p className="text-xs text-vault-text-faint mb-2">Score</p>
           <ResponsiveContainer width="100%" height={140}>
             <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
@@ -513,7 +513,7 @@ function DrillProgressPanel({ template }: { template: DrillTemplate }) {
       {/* Accuracy chart */}
       {showAccuracy && (
         <div>
-          <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-2">Accuracy (%)</p>
+          <p className="text-xs text-vault-text-faint mb-2">Accuracy (%)</p>
           <ResponsiveContainer width="100%" height={140}>
             <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
