@@ -92,6 +92,9 @@ function mapRuntimeError(result, fallbackMessage) {
   if (result.code === 'IMAGE_PULL_FAILED') {
     return 'Image pull failed. Check internet access and retry.';
   }
+  if (result.code === 'STOP_FAILED') {
+    return result.message || 'Unable to stop ProjectBlackVault. Check Docker and retry.';
+  }
 
   return result.message || fallbackMessage;
 }
@@ -316,14 +319,36 @@ document.getElementById('btn-launcher-update-check').addEventListener('click', a
 
 document.getElementById('btn-start-stop').addEventListener('click', async () => {
   if (_status === 'running') {
-    applyStatus('stopped');
-    await window.vault.stop();
+    const btn = document.getElementById('btn-start-stop');
+    withButtonBusyState(btn, 'Stop', 'Stopping...');
+    const result = await window.vault.stop();
+    restoreButtonState(btn);
+    if (result?.ok) {
+      applyStatus('stopped');
+      return;
+    }
+
+    const refreshed = await window.vault.getStatus();
+    applyStatus(refreshed || 'running');
+    const message = mapRuntimeError(result, 'Unable to stop ProjectBlackVault.');
+    const statusEl = document.getElementById('launcher-update-status');
+    if (statusEl && message) {
+      statusEl.style.color = '#f59e0b';
+      statusEl.textContent = `Launcher updates: ${message}`;
+    }
     return;
   }
 
   if (_status === 'stopped') {
     applyStatus('starting');
     const result = await window.vault.start();
+    if (result?.ok) {
+      if (result.code === 'ALREADY_RUNNING') {
+        applyStatus('running');
+      }
+      return;
+    }
+
     if (!result?.ok) {
       applyStatus('stopped');
       const message = mapRuntimeError(result, 'Unable to start ProjectBlackVault.');

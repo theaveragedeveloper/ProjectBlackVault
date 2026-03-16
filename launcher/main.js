@@ -202,6 +202,22 @@ function checkHealthOnce(port, onStatusChange) {
   req.setTimeout(5000, () => req.destroy());
 }
 
+function checkHealthEndpoint(port, timeoutMs = 4000) {
+  return new Promise(resolve => {
+    const req = http.get(`http://localhost:${port}/api/health`, res => {
+      const healthy = res.statusCode === 200;
+      res.resume();
+      resolve(healthy);
+    });
+
+    req.on('error', () => resolve(false));
+    req.setTimeout(timeoutMs, () => {
+      req.destroy();
+      resolve(false);
+    });
+  });
+}
+
 function pollHealth(port, onStatusChange) {
   clearInterval(_pollInterval);
   // Fire once immediately to detect already-running container
@@ -436,6 +452,15 @@ async function handleStart() {
   // Port conflict check
   const inUse = await isPortInUse(_config.port);
   if (inUse) {
+    const alreadyRunning = await checkHealthEndpoint(_config.port, 2500);
+    if (alreadyRunning) {
+      _currentStatus = 'running';
+      updateTray('running', _config);
+      pollHealth(_config.port, status => updateTray(status, _config));
+      sendLog('[setup] Existing healthy ProjectBlackVault instance detected.');
+      return { ok: true, code: 'ALREADY_RUNNING', message: 'ProjectBlackVault is already running.' };
+    }
+
     const result = {
       ok: false,
       code: 'PORT_IN_USE',
@@ -473,15 +498,17 @@ async function handleStart() {
 async function handleStop() {
   _config = loadConfig();
   if (!_config) return { ok: false, code: 'MISSING_CONFIG', message: 'No launcher configuration found.' };
-  stopPolling();
-  _currentStatus = 'stopped';
-  updateTray('stopped', _config);
   try {
     await stopContainer(_config);
+    stopPolling();
+    _currentStatus = 'stopped';
+    updateTray('stopped', _config);
     return { ok: true };
   } catch (err) {
-    dialog.showErrorBox('Stop Failed', err.message);
-    return { ok: false, code: 'STOP_FAILED', message: String(err.message || err) };
+    const message = String(err?.message || err || 'Unknown stop error');
+    dialog.showErrorBox('Stop Failed', message);
+    pollHealth(_config.port, status => updateTray(status, _config));
+    return { ok: false, code: 'STOP_FAILED', message };
   }
 }
 
