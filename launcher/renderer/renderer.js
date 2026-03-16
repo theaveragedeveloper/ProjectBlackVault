@@ -3,6 +3,17 @@
 // ─── View management ───────────────────────────────────────────────────────
 
 const VIEWS = ['docker-missing', 'docker-not-running', 'docker-installing', 'setup', 'dashboard', 'installing'];
+const DOCKER_DESKTOP_URL = 'https://www.docker.com/products/docker-desktop/';
+const DOCKER_COMPOSE_INSTALL_URL = 'https://docs.docker.com/compose/install/';
+
+const DEFAULT_DOCKER_MISSING_COPY = {
+  name: 'Docker Required',
+  subtitle: 'ProjectBlackVault needs Docker Desktop to run',
+  cardTitle: 'Setup Required',
+  description: 'Docker Desktop is a free tool that lets ProjectBlackVault run safely on your computer.',
+  downloadLabel: 'Download Manually',
+  hint: 'After installing Docker Desktop, make sure it\'s running (look for the Docker whale icon in your taskbar/menu bar) before clicking Check Again.',
+};
 
 function showView(name) {
   VIEWS.forEach(v => {
@@ -15,6 +26,47 @@ function showView(name) {
 
 let _config = null;
 let _status = 'stopped';
+let _dockerIssueReason = null;
+
+function applyDockerMissingCopy(copy) {
+  const merged = { ...DEFAULT_DOCKER_MISSING_COPY, ...(copy || {}) };
+  const nameEl = document.getElementById('docker-missing-name');
+  const subtitleEl = document.getElementById('docker-missing-subtitle');
+  const cardTitleEl = document.getElementById('docker-missing-card-title');
+  const descriptionEl = document.getElementById('docker-missing-description');
+  const downloadBtn = document.getElementById('btn-docker-download');
+  const hintEl = document.getElementById('docker-missing-hint');
+  const autoInstallBtn = document.getElementById('btn-docker-auto-install');
+
+  if (nameEl) nameEl.textContent = merged.name;
+  if (subtitleEl) subtitleEl.textContent = merged.subtitle;
+  if (cardTitleEl) cardTitleEl.textContent = merged.cardTitle;
+  if (descriptionEl) descriptionEl.textContent = merged.description;
+  if (downloadBtn) downloadBtn.textContent = merged.downloadLabel;
+  if (hintEl) hintEl.textContent = merged.hint;
+  if (autoInstallBtn) autoInstallBtn.style.display = 'none';
+}
+
+function configureDockerMissingView(docker) {
+  _dockerIssueReason = docker?.reason || 'docker_missing';
+
+  if (_dockerIssueReason === 'compose_missing') {
+    applyDockerMissingCopy({
+      name: 'Docker Compose Required',
+      subtitle: 'Docker is installed, but Docker Compose is missing',
+      cardTitle: 'Install Docker Compose',
+      description: 'ProjectBlackVault needs Docker Compose (`docker compose` or `docker-compose`) to start containers.',
+      downloadLabel: 'Open Compose Install Guide',
+      hint: docker?.hint || 'Install Docker Compose, then click Check Again.',
+    });
+    return;
+  }
+
+  applyDockerMissingCopy({
+    hint: docker?.hint || DEFAULT_DOCKER_MISSING_COPY.hint,
+    downloadLabel: 'Download Manually',
+  });
+}
 
 function applyLauncherUpdateStatus(state) {
   const el = document.getElementById('launcher-update-status');
@@ -80,6 +132,12 @@ function clearSetupError() {
 function mapRuntimeError(result, fallbackMessage) {
   if (!result || result.ok) return fallbackMessage;
 
+  if (result.code === 'DOCKER_NOT_INSTALLED') {
+    return 'Docker is not installed. Install Docker Desktop and try again.';
+  }
+  if (result.code === 'COMPOSE_MISSING') {
+    return 'Docker Compose is missing. Install the Compose plugin and try again.';
+  }
   if (result.code === 'PORT_IN_USE') {
     return `Port conflict: ${result.message}`;
   }
@@ -114,11 +172,18 @@ async function init() {
   // 1. Check Docker
   const docker = await window.vault.dockerCheck();
 
+  if (docker.reason === 'compose_missing') {
+    configureDockerMissingView(docker);
+    showView('docker-missing');
+    return;
+  }
+
   if (docker.status === 'not-installed') {
+    configureDockerMissingView(docker);
     showView('docker-missing');
     // Show auto-install button on Windows and macOS
     const platform = await getPlatform();
-    if (platform === 'win32' || platform === 'darwin') {
+    if ((platform === 'win32' || platform === 'darwin') && docker.reason !== 'compose_missing') {
       document.getElementById('btn-docker-auto-install').style.display = '';
       document.getElementById('btn-docker-download').textContent = 'Download Manually Instead';
     }
@@ -126,6 +191,7 @@ async function init() {
   }
 
   if (docker.status === 'not-running') {
+    _dockerIssueReason = docker.reason || 'docker_not_running';
     showView('docker-not-running');
     return;
   }
@@ -208,6 +274,15 @@ document.getElementById('btn-docker-auto-install').addEventListener('click', asy
       if (docker.status === 'ready') {
         clearInterval(poll);
         init();
+      } else if (docker.reason === 'compose_missing') {
+        clearInterval(poll);
+        configureDockerMissingView(docker);
+        showView('docker-missing');
+      } else if (docker.status === 'not-installed') {
+        clearInterval(poll);
+        configureDockerMissingView(docker);
+        msgEl.textContent = 'Docker command is still unavailable. Complete manual setup, then click Check Again.';
+        setTimeout(() => showView('docker-missing'), 2000);
       } else if (docker.status === 'not-running') {
         clearInterval(poll);
         msgEl.textContent = 'Docker is installed. Please start Docker Desktop and wait for it to be ready.';
@@ -215,37 +290,36 @@ document.getElementById('btn-docker-auto-install').addEventListener('click', asy
       }
     }, 5000);
   } else if (result.error === 'homebrew-not-found' || result.error === 'unsupported-platform') {
-    // Already opened the download page, go back to missing view
+    // Already opened the download page, go back to missing view with explicit fallback guidance
+    const hintEl = document.getElementById('docker-missing-hint');
+    if (hintEl) {
+      hintEl.textContent = 'Automatic install is unavailable on this host. Complete a manual Docker install, then click Check Again.';
+    }
     showView('docker-missing');
   } else {
     // Install failed — show error and go back
-    document.getElementById('docker-install-msg').textContent = `Installation failed: ${result.error}`;
+    document.getElementById('docker-install-msg').textContent = `Automatic install failed: ${result.error}`;
+    const hintEl = document.getElementById('docker-missing-hint');
+    if (hintEl) {
+      hintEl.textContent = 'Automatic install did not complete. Use manual install, then click Check Again.';
+    }
     setTimeout(() => showView('docker-missing'), 3000);
   }
 });
 
 document.getElementById('btn-docker-download').addEventListener('click', () => {
-  window.vault.openExternal('https://www.docker.com/products/docker-desktop/');
+  const url = _dockerIssueReason === 'compose_missing' ? DOCKER_COMPOSE_INSTALL_URL : DOCKER_DESKTOP_URL;
+  window.vault.openExternal(url);
 });
 
 document.getElementById('btn-docker-recheck').addEventListener('click', async () => {
-  const docker = await window.vault.dockerCheck();
-  if (docker.status === 'ready') {
-    init();
-  } else if (docker.status === 'not-running') {
-    showView('docker-not-running');
-  }
-  // else stay on current view
+  await init();
 });
 
 // ─── Docker not running view ───────────────────────────────────────────────
 
 document.getElementById('btn-docker-retry').addEventListener('click', async () => {
-  const docker = await window.vault.dockerCheck();
-  if (docker.status === 'ready') {
-    init();
-  }
-  // else stay
+  await init();
 });
 
 // ─── Setup view ───────────────────────────────────────────────────────────
