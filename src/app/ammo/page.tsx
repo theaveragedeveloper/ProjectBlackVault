@@ -125,7 +125,7 @@ function AddRoundsModal({
         )}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">
+            <label className="block text-sm font-medium text-vault-text-muted mb-1.5">
               Quantity to Add <span className="text-[#E53935]">*</span>
             </label>
             <input
@@ -140,7 +140,7 @@ function AddRoundsModal({
             <p className="text-xs text-vault-text-faint mt-1">Current: {formatNumber(stock.quantity)} rds</p>
           </div>
           <div>
-            <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">Note</label>
+            <label className="block text-sm font-medium text-vault-text-muted mb-1.5">Note</label>
             <input
               type="text"
               value={note}
@@ -216,7 +216,7 @@ function LogUseModal({
         )}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">
+            <label className="block text-sm font-medium text-vault-text-muted mb-1.5">
               Rounds Used <span className="text-[#E53935]">*</span>
             </label>
             <input
@@ -231,7 +231,7 @@ function LogUseModal({
             />
           </div>
           <div>
-            <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">Note</label>
+            <label className="block text-sm font-medium text-vault-text-muted mb-1.5">Note</label>
             <input
               type="text"
               value={note}
@@ -353,46 +353,46 @@ function EditAmmoModal({
         <form onSubmit={handleSave} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">Caliber</label>
+              <label className="block text-sm font-medium text-vault-text-muted mb-1.5">Caliber</label>
               <input value={caliber} onChange={(e) => setCaliber(e.target.value)} required className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF]" />
             </div>
             <div>
-              <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">Brand</label>
+              <label className="block text-sm font-medium text-vault-text-muted mb-1.5">Brand</label>
               <input value={brand} onChange={(e) => setBrand(e.target.value)} required className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF]" />
             </div>
             <div>
-              <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">Quantity</label>
+              <label className="block text-sm font-medium text-vault-text-muted mb-1.5">Quantity</label>
               <input type="number" min={0} value={quantity} onChange={(e) => setQuantity(e.target.value)} required className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF]" />
             </div>
             <div>
-              <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">Bullet Type</label>
+              <label className="block text-sm font-medium text-vault-text-muted mb-1.5">Bullet Type</label>
               <input value={bulletType} onChange={(e) => setBulletType(e.target.value)} className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF]" />
             </div>
             <div>
-              <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">Grain Weight</label>
+              <label className="block text-sm font-medium text-vault-text-muted mb-1.5">Grain Weight</label>
               <input type="number" min={0} step="0.5" value={grainWeight} onChange={(e) => setGrainWeight(e.target.value)} className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF]" />
             </div>
             <div>
-              <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">Low Stock Alert</label>
+              <label className="block text-sm font-medium text-vault-text-muted mb-1.5">Low Stock Alert</label>
               <input type="number" min={0} value={lowStockAlert} onChange={(e) => setLowStockAlert(e.target.value)} className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF]" />
             </div>
             <div>
-              <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">Purchase Price</label>
+              <label className="block text-sm font-medium text-vault-text-muted mb-1.5">Purchase Price</label>
               <input type="number" min={0} step="0.01" value={purchasePrice} onChange={(e) => setPurchasePrice(e.target.value)} className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF]" />
             </div>
             <div>
-              <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">Purchase Date</label>
+              <label className="block text-sm font-medium text-vault-text-muted mb-1.5">Purchase Date</label>
               <input type="date" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF]" />
             </div>
           </div>
 
           <div>
-            <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">Storage Location</label>
+            <label className="block text-sm font-medium text-vault-text-muted mb-1.5">Storage Location</label>
             <input value={storageLocation} onChange={(e) => setStorageLocation(e.target.value)} className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF]" />
           </div>
 
           <div>
-            <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">Notes</label>
+            <label className="block text-sm font-medium text-vault-text-muted mb-1.5">Notes</label>
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF]" />
           </div>
 
@@ -501,8 +501,8 @@ export default function AmmoPage() {
   return (
     <div className="min-h-full">
       <PageHeader
-        title="AMMUNITION DEPOT"
-        subtitle="Inventory by caliber — stock levels and usage tracking"
+        title="Ammo"
+        subtitle="Track stock levels by caliber and monitor usage."
         actions={
           <Link
             href="/ammo/new"
@@ -530,19 +530,19 @@ export default function AmmoPage() {
         {/* Summary */}
         <div className="flex items-center gap-6 mb-6 bg-vault-surface border border-vault-border rounded-lg px-5 py-3">
           <div>
-            <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-0.5">Calibers</p>
+            <p className="text-xs text-vault-text-faint mb-0.5">Calibers</p>
             <p className="text-lg font-bold font-mono text-vault-text">{filteredGroups.length}</p>
           </div>
           <div className="w-px h-8 bg-vault-border" />
           <div>
-            <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-0.5">Total Rounds</p>
+            <p className="text-xs text-vault-text-faint mb-0.5">Total rounds</p>
             <p className="text-lg font-bold font-mono text-[#F5A623]">{formatNumber(totalRounds)}</p>
           </div>
           {inventoryValue > 0 && (
             <>
               <div className="w-px h-8 bg-vault-border" />
               <div>
-                <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-0.5">Inventory Value</p>
+                <p className="text-xs text-vault-text-faint mb-0.5">Inventory value</p>
                 <p className="text-lg font-bold font-mono text-[#00C2FF]">{formatCurrency(inventoryValue)}</p>
               </div>
             </>

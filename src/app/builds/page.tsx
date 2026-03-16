@@ -52,7 +52,7 @@ export default async function BuildsPage() {
   return (
     <div className="min-h-full">
       <PageHeader
-        title="ALL LOADOUTS"
+        title="Loadouts"
         subtitle={`${totalBuilds} build${totalBuilds !== 1 ? "s" : ""} across ${firearms.length} firearm${firearms.length !== 1 ? "s" : ""}`}
       />
 
@@ -60,21 +60,21 @@ export default async function BuildsPage() {
         {/* Summary strip */}
         <div className="flex items-center gap-6 bg-vault-surface border border-vault-border rounded-lg px-5 py-3">
           <div>
-            <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-0.5">
-              Total Builds
+            <p className="text-xs text-vault-text-faint mb-0.5">
+              Total builds
             </p>
             <p className="text-lg font-bold font-mono text-vault-text">{totalBuilds}</p>
           </div>
           <div className="w-px h-8 bg-vault-border" />
           <div>
-            <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-0.5">
-              Active Builds
+            <p className="text-xs text-vault-text-faint mb-0.5">
+              Active builds
             </p>
             <p className="text-lg font-bold font-mono text-[#00C853]">{activeBuilds}</p>
           </div>
           <div className="w-px h-8 bg-vault-border" />
           <div>
-            <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-0.5">
+            <p className="text-xs text-vault-text-faint mb-0.5">
               Platforms
             </p>
             <p className="text-lg font-bold font-mono text-vault-text">{firearms.length}</p>

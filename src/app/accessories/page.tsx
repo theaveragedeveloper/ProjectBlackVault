@@ -92,8 +92,8 @@ export default function AccessoriesPage() {
   return (
     <div className="min-h-full">
       <PageHeader
-        title="ACCESSORIES"
-        subtitle={`${accessories.length} part${accessories.length !== 1 ? "s" : ""} & attachment${accessories.length !== 1 ? "s" : ""}`}
+        title="Accessories"
+        subtitle={`${accessories.length} part${accessories.length !== 1 ? "s" : ""} and attachment${accessories.length !== 1 ? "s" : ""}`}
         actions={
           <Link
             href="/accessories/new"
@@ -109,12 +109,12 @@ export default function AccessoriesPage() {
         {/* Summary bar */}
         <div className="flex items-center gap-6 mb-4 bg-vault-surface border border-vault-border rounded-lg px-5 py-3">
           <div>
-            <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-0.5">Total Parts</p>
+            <p className="text-xs text-vault-text-faint mb-0.5">Total parts</p>
             <p className="text-lg font-bold font-mono text-vault-text">{formatNumber(accessories.length)}</p>
           </div>
           <div className="w-px h-8 bg-vault-border" />
           <div>
-            <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-0.5">Total Rounds Through</p>
+            <p className="text-xs text-vault-text-faint mb-0.5">Total rounds through</p>
             <p className="text-lg font-bold font-mono text-[#00C2FF]">{formatNumber(totalRounds)}</p>
           </div>
         </div>
@@ -133,14 +133,14 @@ export default function AccessoriesPage() {
 
         {/* Type Filter */}
         <div className="mb-4 flex items-center gap-3">
-          <span className="text-[10px] uppercase tracking-widest text-vault-text-faint whitespace-nowrap">Filter by Type</span>
+          <span className="text-xs text-vault-text-faint whitespace-nowrap">Filter by type</span>
           <div className="relative">
             <select
               value={typeFilter}
               onChange={(e) => {
                 setTypeFilter(e.target.value);
               }}
-              className="appearance-none bg-vault-surface border border-vault-border text-vault-text text-xs font-mono rounded-md pl-3 pr-8 py-1.5 focus:outline-none focus:border-[#00C2FF] cursor-pointer transition-colors hover:border-vault-text-muted/40"
+              className="appearance-none bg-vault-surface border border-vault-border text-vault-text text-xs rounded-md pl-3 pr-8 py-1.5 focus:outline-none focus:border-[#00C2FF] cursor-pointer transition-colors hover:border-vault-text-muted/40"
             >
               <option value="ALL">All Types</option>
               {availableTypes.map((type) => (
@@ -200,14 +200,14 @@ export default function AccessoriesPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-vault-border">
-                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium w-12">Img</th>
-                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium">Name</th>
-                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium hidden md:table-cell">Type</th>
-                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium hidden lg:table-cell">Manufacturer</th>
-                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium">Rounds</th>
-                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium hidden xl:table-cell">Installed On</th>
-                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium hidden lg:table-cell">Price</th>
-                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium hidden xl:table-cell">Acquired</th>
+                    <th className="text-left px-4 py-3 text-xs text-vault-text-faint font-medium w-12">Img</th>
+                    <th className="text-left px-4 py-3 text-xs text-vault-text-faint font-medium">Name</th>
+                    <th className="text-left px-4 py-3 text-xs text-vault-text-faint font-medium hidden md:table-cell">Type</th>
+                    <th className="text-left px-4 py-3 text-xs text-vault-text-faint font-medium hidden lg:table-cell">Manufacturer</th>
+                    <th className="text-left px-4 py-3 text-xs text-vault-text-faint font-medium">Rounds</th>
+                    <th className="text-left px-4 py-3 text-xs text-vault-text-faint font-medium hidden xl:table-cell">Installed On</th>
+                    <th className="text-left px-4 py-3 text-xs text-vault-text-faint font-medium hidden lg:table-cell">Price</th>
+                    <th className="text-left px-4 py-3 text-xs text-vault-text-faint font-medium hidden xl:table-cell">Acquired</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-vault-border">
@@ -241,7 +241,7 @@ export default function AccessoriesPage() {
                           </Link>
                         </td>
                         <td className="px-4 py-3 hidden md:table-cell">
-                          <span className="text-xs px-2 py-0.5 rounded border border-vault-border text-vault-text-muted font-mono uppercase">
+                          <span className="text-xs px-2 py-0.5 rounded border border-vault-border text-vault-text-muted font-medium">
                             {SLOT_TYPE_LABELS_LOCAL[accessory.type] ?? accessory.type}
                           </span>
                         </td>
