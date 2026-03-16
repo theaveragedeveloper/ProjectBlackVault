@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SafeImage } from "@/components/shared/SafeImage";
@@ -49,27 +49,50 @@ export default function AccessoriesPage() {
   const [typeFilter, setTypeFilter] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
 
-  function fetchAccessories() {
-    setLoading(true);
-    setError(null);
-    fetch("/api/accessories")
-      .then((r) => {
-        if (!r.ok) throw new Error("Failed to load accessories");
-        return r.json();
-      })
-      .then((data) => {
-        if (Array.isArray(data)) setAllAccessories(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        setError(err.message ?? "Failed to load accessories");
-        setLoading(false);
-      });
-  }
+  const loadAccessories = useCallback(async (): Promise<Accessory[]> => {
+    const response = await fetch("/api/accessories");
+    if (!response.ok) throw new Error("Failed to load accessories");
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  }, []);
 
   useEffect(() => {
-    fetchAccessories();
-  }, []);
+    let isCancelled = false;
+
+    const loadInitialData = async () => {
+      try {
+        const data = await loadAccessories();
+        if (isCancelled) return;
+        setAllAccessories(data);
+        setError(null);
+      } catch (err) {
+        if (isCancelled) return;
+        setError(err instanceof Error ? err.message : "Failed to load accessories");
+      } finally {
+        if (!isCancelled) setLoading(false);
+      }
+    };
+
+    void loadInitialData();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [loadAccessories]);
+
+  const handleRetry = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const data = await loadAccessories();
+      setAllAccessories(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load accessories");
+    } finally {
+      setLoading(false);
+    }
+  }, [loadAccessories]);
 
   const accessories = allAccessories.filter((accessory) => {
     if (typeFilter !== "ALL" && accessory.type !== typeFilter) return false;
@@ -165,7 +188,9 @@ export default function AccessoriesPage() {
             <h3 className="text-lg font-semibold text-vault-text mb-2">Failed to load accessories</h3>
             <p className="text-sm text-vault-text-muted mb-6 max-w-sm">{error}</p>
             <button
-              onClick={fetchAccessories}
+              onClick={() => {
+                void handleRetry();
+              }}
               className="flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 px-4 py-2 rounded text-sm font-medium transition-colors"
             >
               Retry
