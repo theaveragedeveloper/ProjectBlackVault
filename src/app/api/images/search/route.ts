@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { decryptField } from "@/lib/crypto";
 import { isTrustedExternalImageUrl } from "@/lib/image-host-allowlist";
+import { allowImageSearchEgress } from "@/lib/network-policy";
 
 interface GoogleCseItem {
   title: string;
@@ -26,6 +27,16 @@ interface GoogleCseItem {
 // If no API key, returns 400 with helpful message.
 export async function POST(request: NextRequest) {
   try {
+    if (!allowImageSearchEgress()) {
+      return NextResponse.json(
+        {
+          error:
+            "External image search is disabled by policy. Set ALLOW_IMAGE_SEARCH_EGRESS=true to enable.",
+        },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const { query } = body;
 

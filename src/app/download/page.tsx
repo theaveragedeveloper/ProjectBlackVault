@@ -45,6 +45,8 @@ type DownloadApiResponse = {
   installerUrl?: string;
   available?: boolean;
   fallbackUrl?: string;
+  source?: "github" | "fallback" | "disabled";
+  message?: string;
   downloads?: Partial<Record<Platform, DownloadAvailability>>;
 };
 
@@ -84,6 +86,7 @@ export default function DownloadPage() {
   const [releaseUrl, setReleaseUrl] = useState(RELEASES_URL);
   const [availability, setAvailability] = useState<Record<Platform, DownloadAvailability>>(fallbackAvailability);
   const [loadingAvailability, setLoadingAvailability] = useState(true);
+  const [policyMessage, setPolicyMessage] = useState<string | null>(null);
 
   useEffect(() => {
     setPlatform(detectPlatform());
@@ -120,6 +123,10 @@ export default function DownloadPage() {
             });
             return next;
           });
+        }
+
+        if (payload.source === "disabled" && payload.message) {
+          setPolicyMessage(payload.message);
         }
       } catch {
         if (!cancelled) {
@@ -197,6 +204,13 @@ export default function DownloadPage() {
             </a>{" "}
             while assets are being published.
           </div>
+        </div>
+      )}
+
+      {policyMessage && (
+        <div className="flex gap-3 bg-[#00C2FF]/10 border border-[#00C2FF]/30 rounded-lg p-4">
+          <Info className="w-4 h-4 text-[#00C2FF] flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-vault-text-muted leading-relaxed">{policyMessage}</p>
         </div>
       )}
 

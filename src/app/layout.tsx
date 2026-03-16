@@ -1,15 +1,27 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import { NavShell } from "@/components/layout/NavShell";
 import { ThemeProvider } from "@/components/layout/ThemeProvider";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
-
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+import { ServiceWorkerRegistrar } from "@/components/pwa/ServiceWorkerRegistrar";
 
 export const metadata: Metadata = {
   title: "Project BlackVault",
   description: "Tactical firearm inventory & build management platform",
+  applicationName: "Project BlackVault",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
+  },
+  appleWebApp: {
+    capable: true,
+    title: "Project BlackVault",
+    statusBarStyle: "black-translucent",
+  },
 };
 
 export default function RootLayout({
@@ -27,7 +39,8 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${inter.variable} antialiased bg-vault-bg text-vault-text`}>
+      <body className="antialiased bg-vault-bg text-vault-text">
+        <ServiceWorkerRegistrar />
         <ThemeProvider>
           <NavShell>{children}</NavShell>
           <ThemeToggle />

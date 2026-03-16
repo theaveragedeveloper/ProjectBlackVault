@@ -1,10 +1,13 @@
 import { isLocalImagePath, isTrustedExternalImageUrl } from "@/lib/image-host-allowlist";
+import { allowExternalImageUrls } from "@/lib/network-policy";
 
 export const IMAGE_URL_ALLOWLIST_ERROR =
   "Image URL host is not allowed. Use uploads or a trusted image host.";
 
 export function isAllowedImageUrlForStorage(url: string): boolean {
-  return isLocalImagePath(url) || isTrustedExternalImageUrl(url);
+  if (isLocalImagePath(url)) return true;
+  if (!allowExternalImageUrls()) return false;
+  return isTrustedExternalImageUrl(url);
 }
 
 export function validateOptionalImageUrl(url: unknown): { valid: true; normalized: string | null } | { valid: false; error: string } {
