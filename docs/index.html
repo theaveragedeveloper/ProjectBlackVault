@@ -903,7 +903,12 @@ Use Settings &rarr; Secure Backup for encrypted exports.</code>
       </div>
 
       <p style="margin-top:1.5rem; font-size:0.82rem; color:var(--text-faint);">
-        Desktop launcher downloads: <a href="https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest" target="_blank" rel="noopener" style="color:var(--accent);">GitHub Releases (latest)</a>
+        Desktop launcher: <a id="launcher-download-link" href="https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest" target="_blank" rel="noopener" style="color:var(--accent);">Download Installer</a>
+        <span id="launcher-download-hint"> (falls back to all releases if platform build is unavailable)</span>
+      </p>
+      <p style="margin-top:0.5rem; font-size:0.78rem; color:var(--text-faint);">
+        Advanced channels: <code>winget install --id TheAverageDeveloper.ProjectBlackVault</code> ·
+        <code>brew install --cask theaveragedeveloper/tap/projectblackvault</code>
       </p>
     </div>
   </section>
@@ -943,6 +948,28 @@ Use Settings &rarr; Secure Backup for encrypted exports.</code>
   </footer>
 
   <script>
+    const launcherDownloadLink = document.getElementById('launcher-download-link');
+    const launcherDownloadHint = document.getElementById('launcher-download-hint');
+    if (launcherDownloadLink) {
+      const ua = navigator.userAgent.toLowerCase();
+      let installerUrl = 'https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest';
+      let runHint = 'Open the latest release and download the correct installer for your OS.';
+
+      if (ua.includes('windows')) {
+        installerUrl = 'https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest/download/ProjectBlackVault-Setup.exe';
+        runHint = 'After download, run the .exe installer.';
+      } else if (ua.includes('mac os') || ua.includes('macintosh')) {
+        installerUrl = 'https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest/download/ProjectBlackVault.dmg';
+        runHint = 'After download, open the .dmg and drag ProjectBlackVault to Applications.';
+      } else if (ua.includes('linux')) {
+        installerUrl = 'https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest/download/ProjectBlackVault-Setup.AppImage';
+        runHint = 'After download, mark the AppImage executable and run it.';
+      }
+
+      launcherDownloadLink.href = installerUrl;
+      if (launcherDownloadHint) launcherDownloadHint.textContent = ` (${runHint})`;
+    }
+
     const observer = new IntersectionObserver(
       entries => entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); }),
       { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }

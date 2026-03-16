@@ -11,10 +11,13 @@ contextBridge.exposeInMainWorld('vault', {
   start:          ()    => ipcRenderer.invoke('start'),
   stop:           ()    => ipcRenderer.invoke('stop'),
   update:         ()    => ipcRenderer.invoke('update'),
+  checkLauncherUpdates: () => ipcRenderer.invoke('check-launcher-updates'),
+  getLauncherUpdateStatus: () => ipcRenderer.invoke('get-launcher-update-status'),
   getStatus:      ()    => ipcRenderer.invoke('get-status'),
   openDirDialog:  ()    => ipcRenderer.invoke('open-dir-dialog'),
   openExternal:   (url) => ipcRenderer.invoke('open-external', url),
   onStatusChange: (cb)  => ipcRenderer.on('status-change', (_event, status) => cb(status)),
   onInstallLog:   (cb)  => ipcRenderer.on('install-log', (_event, line) => cb(line)),
+  onLauncherUpdateStatus: (cb) => ipcRenderer.on('launcher-update-status', (_event, status) => cb(status)),
   openPath:       (p)   => ipcRenderer.invoke('open-path', p),
 });

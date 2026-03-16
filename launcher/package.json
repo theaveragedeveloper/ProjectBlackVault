@@ -12,6 +12,7 @@
     "electron-updater": "^6.3.0"
   },
   "devDependencies": {
+    "@electron/notarize": "^2.5.0",
     "electron": "^33.0.0",
     "electron-builder": "^25.0.0"
   },
@@ -25,11 +26,14 @@
     "files": [
       "main.js",
       "preload.js",
+      "scripts/**",
       "renderer/**",
       "assets/**"
     ],
+    "afterSign": "scripts/notarize.js",
     "artifactName": "${productName}-Setup.${ext}",
     "win": {
+      "signAndEditExecutable": true,
       "target": "nsis"
     },
     "nsis": {
@@ -41,6 +45,11 @@
     "mac": {
       "target": "dmg",
       "artifactName": "${productName}.${ext}",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "assets/entitlements.mac.plist",
+      "entitlementsInherit": "assets/entitlements.mac.inherit.plist",
+      "notarize": true,
       "extendInfo": {
         "NSUIElement": 1
       }
