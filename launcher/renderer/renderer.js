@@ -16,6 +16,21 @@ function showView(name) {
 let _config = null;
 let _status = 'stopped';
 
+function applyLauncherUpdateStatus(state) {
+  const el = document.getElementById('launcher-update-status');
+  if (!el || !state) return;
+
+  const prefix = 'Launcher updates: ';
+  if (state.status === 'available') {
+    el.style.color = '#22c55e';
+  } else if (state.status === 'error') {
+    el.style.color = '#f59e0b';
+  } else {
+    el.style.color = '#888';
+  }
+  el.textContent = prefix + (state.message || 'Status unavailable.');
+}
+
 function applyStatus(status) {
   _status = status;
 
@@ -47,6 +62,38 @@ function applyStatus(status) {
     btnStartStop.className = 'btn btn-secondary';
     btnStartStop.disabled = false;
   }
+}
+
+function showSetupError(message) {
+  const errEl = document.getElementById('setup-error');
+  if (!errEl) return;
+  errEl.textContent = message;
+  errEl.style.display = 'block';
+}
+
+function clearSetupError() {
+  const errEl = document.getElementById('setup-error');
+  if (!errEl) return;
+  errEl.style.display = 'none';
+}
+
+function mapRuntimeError(result, fallbackMessage) {
+  if (!result || result.ok) return fallbackMessage;
+
+  if (result.code === 'PORT_IN_USE') {
+    return `Port conflict: ${result.message}`;
+  }
+  if (result.code === 'DOCKER_NOT_RUNNING') {
+    return 'Docker is not running. Start Docker Desktop and try again.';
+  }
+  if (result.code === 'HEALTH_TIMEOUT') {
+    return 'Container started but health check timed out. Check logs and retry.';
+  }
+  if (result.code === 'IMAGE_PULL_FAILED') {
+    return 'Image pull failed. Check internet access and retry.';
+  }
+
+  return result.message || fallbackMessage;
 }
 
 // ─── Platform detection ────────────────────────────────────────────────────
@@ -99,6 +146,9 @@ async function init() {
   // Get current status
   const currentStatus = await window.vault.getStatus();
   applyStatus(currentStatus);
+
+  const launcherUpdateState = await window.vault.getLauncherUpdateStatus();
+  applyLauncherUpdateStatus(launcherUpdateState);
 }
 
 function getDefaultDataDir() {
@@ -129,6 +179,10 @@ window.vault.onStatusChange(status => {
   }
 });
 
+window.vault.onLauncherUpdateStatus(status => {
+  applyLauncherUpdateStatus(status);
+});
+
 // ─── Docker missing view ───────────────────────────────────────────────────
 
 document.getElementById('btn-docker-auto-install').addEventListener('click', async () => {
@@ -138,11 +192,8 @@ document.getElementById('btn-docker-auto-install').addEventListener('click', asy
   const logEl = document.getElementById('docker-install-log');
   const msgEl = document.getElementById('docker-install-msg');
 
-  const unsubscribe = window.vault.onInstallLog(line => {
-    if (!logEl) return;
-    logEl.textContent += line + '\n';
-    logEl.scrollTop = logEl.scrollHeight;
-  });
+  if (logEl) logEl.textContent = '';
+  if (msgEl) msgEl.textContent = 'Installing Docker Desktop...';
 
   const result = await window.vault.installDocker();
 
@@ -206,76 +257,121 @@ document.getElementById('btn-browse').addEventListener('click', async () => {
 document.getElementById('btn-install').addEventListener('click', async () => {
   const dataDir = document.getElementById('input-data-dir').value.trim();
   const portStr = document.getElementById('input-port').value.trim();
-  const errEl = document.getElementById('setup-error');
-
-  errEl.style.display = 'none';
+  clearSetupError();
 
   if (!dataDir) {
-    errEl.textContent = 'Please choose a data folder.';
-    errEl.style.display = 'block';
+    showSetupError('Please choose a data folder.');
     return;
   }
 
   const port = parseInt(portStr, 10);
   if (!port || port < 1024 || port > 65535) {
-    errEl.textContent = 'Port must be between 1024 and 65535.';
-    errEl.style.display = 'block';
+    showSetupError('Port must be between 1024 and 65535.');
     return;
   }
 
   showView('installing');
+  const installLog = document.getElementById('install-log');
+  if (installLog) installLog.textContent = '';
 
   const cfg = { dataDir, port, firstRunDone: true };
   await window.vault.saveConfig(cfg);
   _config = cfg;
 
-  document.getElementById('install-msg').textContent = 'Downloading ProjectBlackVault...';
+  document.getElementById('install-msg').textContent = 'Step 1/3: Starting ProjectBlackVault services...';
 
-  try {
-    await window.vault.start();
+  const result = await window.vault.start();
+  if (result?.ok) {
+    document.getElementById('install-msg').textContent = 'Step 3/3: Health checks passed. Opening dashboard...';
     showView('dashboard');
     populateDashboard(cfg);
-    applyStatus('starting');
-  } catch {
-    showView('setup');
-    errEl.textContent = 'Failed to start. Is Docker Desktop running?';
-    errEl.style.display = 'block';
+    applyStatus('running');
+    return;
   }
+
+  showView('setup');
+  showSetupError(mapRuntimeError(result, 'Failed to start. Is Docker Desktop running?'));
 });
 
-// ─── Dashboard view ────────────────────────────────────────────────────────
+function withButtonBusyState(btn, label, busyLabel) {
+  btn.disabled = true;
+  btn.dataset.prevLabel = label;
+  btn.textContent = busyLabel;
+}
 
-document.getElementById('btn-open').addEventListener('click', () => {
-  const port = _config ? _config.port : 3000;
-  window.vault.openExternal(`http://localhost:${port}`);
+function restoreButtonState(btn) {
+  btn.disabled = false;
+  if (btn.dataset.prevLabel) {
+    btn.textContent = btn.dataset.prevLabel;
+    delete btn.dataset.prevLabel;
+  }
+}
+
+document.getElementById('btn-launcher-update-check').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-launcher-update-check');
+  withButtonBusyState(btn, 'Check Launcher Update', 'Checking...');
+  await window.vault.checkLauncherUpdates();
+  restoreButtonState(btn);
 });
 
 document.getElementById('btn-start-stop').addEventListener('click', async () => {
   if (_status === 'running') {
     applyStatus('stopped');
     await window.vault.stop();
-  } else if (_status === 'stopped') {
+    return;
+  }
+
+  if (_status === 'stopped') {
     applyStatus('starting');
-    await window.vault.start();
+    const result = await window.vault.start();
+    if (!result?.ok) {
+      applyStatus('stopped');
+      const message = mapRuntimeError(result, 'Unable to start ProjectBlackVault.');
+      if (message) {
+        const statusEl = document.getElementById('launcher-update-status');
+        if (statusEl) {
+          statusEl.style.color = '#f59e0b';
+          statusEl.textContent = `Launcher updates: ${message}`;
+        }
+      }
+    }
   }
 });
 
 document.getElementById('btn-update').addEventListener('click', async () => {
   const btn = document.getElementById('btn-update');
-  btn.disabled = true;
-  btn.textContent = 'Updating...';
-  await window.vault.update();
-  btn.disabled = false;
-  btn.textContent = 'Check for Updates';
+  withButtonBusyState(btn, 'Update Vault Image', 'Updating...');
+  const result = await window.vault.update();
+  if (!result?.ok) {
+    const message = mapRuntimeError(result, 'Update failed.');
+    const statusEl = document.getElementById('launcher-update-status');
+    if (statusEl && message) {
+      statusEl.style.color = '#f59e0b';
+      statusEl.textContent = `Launcher updates: ${message}`;
+    }
+  }
+  restoreButtonState(btn);
+});
+
+document.getElementById('btn-open').addEventListener('click', () => {
+  const port = _config ? _config.port : 3000;
+  window.vault.openExternal(`http://localhost:${port}`);
 });
 
 // ─── Install log streaming ────────────────────────────────────────────────
 
-const installLog = document.getElementById('install-log');
 window.vault.onInstallLog(line => {
-  if (!installLog) return;
-  installLog.textContent += line + '\n';
-  installLog.scrollTop = installLog.scrollHeight;
+  const installLog = document.getElementById('install-log');
+  if (installLog) {
+    installLog.textContent += line + '\n';
+    installLog.scrollTop = installLog.scrollHeight;
+  }
+
+  const dockerInstallLog = document.getElementById('docker-install-log');
+  if (dockerInstallLog) {
+    dockerInstallLog.textContent += line + '\n';
+    dockerInstallLog.scrollTop = dockerInstallLog.scrollHeight;
+  }
 });
 
 // ─── Restore existing vault button ────────────────────────────────────────
@@ -283,39 +379,38 @@ window.vault.onInstallLog(line => {
 document.getElementById('btn-restore-mode').addEventListener('click', async () => {
   const dataDir = document.getElementById('input-data-dir').value.trim();
   const portStr = document.getElementById('input-port').value.trim();
-  const errEl = document.getElementById('setup-error');
-  errEl.style.display = 'none';
+  clearSetupError();
 
   if (!dataDir) {
-    errEl.textContent = 'Please choose a data folder first.';
-    errEl.style.display = 'block';
+    showSetupError('Please choose a data folder first.');
     return;
   }
   const port = parseInt(portStr, 10);
   if (!port || port < 1024 || port > 65535) {
-    errEl.textContent = 'Port must be between 1024 and 65535.';
-    errEl.style.display = 'block';
+    showSetupError('Port must be between 1024 and 65535.');
     return;
   }
 
   showView('installing');
-  document.getElementById('install-msg').textContent = 'Starting ProjectBlackVault...';
+  document.getElementById('install-msg').textContent = 'Starting ProjectBlackVault in restore mode...';
+  const installLog = document.getElementById('install-log');
+  if (installLog) installLog.textContent = '';
 
   const cfg = { dataDir, port, firstRunDone: true };
   await window.vault.saveConfig(cfg);
   _config = cfg;
 
-  await window.vault.start();
+  const result = await window.vault.start();
+  if (!result?.ok) {
+    showView('setup');
+    showSetupError(mapRuntimeError(result, 'Failed to start restore mode.'));
+    return;
+  }
 
-  // Once running, open the Settings page in the browser for restore flow
-  window.vault.onStatusChange(status => {
-    if (status === 'running') {
-      window.vault.openExternal(`http://localhost:${port}/settings#backup`);
-      showView('dashboard');
-      populateDashboard(cfg);
-      applyStatus('running');
-    }
-  });
+  window.vault.openExternal(`http://localhost:${port}/settings#backup`);
+  showView('dashboard');
+  populateDashboard(cfg);
+  applyStatus('running');
 });
 
 // ─── Boot ──────────────────────────────────────────────────────────────────

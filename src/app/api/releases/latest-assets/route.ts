@@ -12,6 +12,7 @@ const EXPECTED_ASSETS = {
 } as const;
 
 type Platform = keyof typeof EXPECTED_ASSETS;
+type ResolvedPlatform = Platform | "unknown";
 
 type ReleaseAsset = {
   name: string;
@@ -26,7 +27,8 @@ type LatestRelease = {
 type DownloadResult = {
   available: boolean;
   filename: string;
-  url: string;
+  installerUrl: string;
+  fallbackUrl: string;
 };
 
 function fallbackDownloads(): Record<Platform, DownloadResult> {
@@ -34,23 +36,49 @@ function fallbackDownloads(): Record<Platform, DownloadResult> {
     windows: {
       available: false,
       filename: EXPECTED_ASSETS.windows,
-      url: RELEASES_URL,
+      installerUrl: RELEASES_URL,
+      fallbackUrl: RELEASES_URL,
     },
     mac: {
       available: false,
       filename: EXPECTED_ASSETS.mac,
-      url: RELEASES_URL,
+      installerUrl: RELEASES_URL,
+      fallbackUrl: RELEASES_URL,
     },
     linux: {
       available: false,
       filename: EXPECTED_ASSETS.linux,
-      url: RELEASES_URL,
+      installerUrl: RELEASES_URL,
+      fallbackUrl: RELEASES_URL,
     },
   };
 }
 
-export async function GET() {
+function detectPlatform(userAgent: string | null): ResolvedPlatform {
+  if (!userAgent) {
+    return "unknown";
+  }
+
+  const ua = userAgent.toLowerCase();
+  if (ua.includes("windows")) return "windows";
+  if (ua.includes("mac os") || ua.includes("macintosh")) return "mac";
+  if (ua.includes("linux")) return "linux";
+  return "unknown";
+}
+
+function parsePlatformOverride(value: string | null): ResolvedPlatform | null {
+  if (value === "windows" || value === "mac" || value === "linux" || value === "unknown") {
+    return value;
+  }
+  return null;
+}
+
+export async function GET(request: Request) {
   const fallback = fallbackDownloads();
+  const url = new URL(request.url);
+  const override = parsePlatformOverride(url.searchParams.get("platform"));
+  const platform = override || detectPlatform(request.headers.get("user-agent"));
+  const fallbackUrl = RELEASES_URL;
 
   try {
     const response = await fetch(RELEASE_API_URL, {
@@ -64,7 +92,11 @@ export async function GET() {
     if (!response.ok) {
       return NextResponse.json(
         {
+          platform,
           releaseUrl: RELEASES_URL,
+          installerUrl: fallbackUrl,
+          available: false,
+          fallbackUrl,
           downloads: fallback,
           source: "fallback",
           checkedAt: new Date().toISOString(),
@@ -85,16 +117,23 @@ export async function GET() {
         acc[platform] = {
           available: Boolean(url),
           filename,
-          url: url || releaseUrl,
+          installerUrl: url || releaseUrl,
+          fallbackUrl: releaseUrl,
         };
         return acc;
       },
       fallback
     );
 
+    const resolved = platform !== "unknown" ? downloads[platform] : null;
+
     return NextResponse.json(
       {
+        platform,
         releaseUrl,
+        installerUrl: resolved?.installerUrl || releaseUrl,
+        available: resolved?.available ?? false,
+        fallbackUrl: releaseUrl,
         downloads,
         source: "github",
         checkedAt: new Date().toISOString(),
@@ -104,7 +143,11 @@ export async function GET() {
   } catch {
     return NextResponse.json(
       {
+        platform,
         releaseUrl: RELEASES_URL,
+        installerUrl: fallbackUrl,
+        available: false,
+        fallbackUrl,
         downloads: fallback,
         source: "fallback",
         checkedAt: new Date().toISOString(),

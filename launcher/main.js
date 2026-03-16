@@ -111,10 +111,17 @@ async function runCompose(args, config, { onLog } = {}) {
     });
 
     let stderr = '';
+    proc.stdout.on('data', d => {
+      const line = d.toString().trim();
+      if (onLog && line) {
+        onLog(line);
+      }
+    });
+
     proc.stderr.on('data', d => {
       const line = d.toString().trim();
       stderr += line + '\n';
-      // Stream pull progress lines to the renderer
+      // Stream compose stderr lines to the renderer
       if (onLog && line) {
         onLog(line);
       }
@@ -154,6 +161,29 @@ function isPortInUse(port) {
 
 let _currentStatus = 'stopped';
 let _pollInterval = null;
+let _autoUpdater = null;
+let _launcherUpdateState = {
+  status: 'idle',
+  message: 'Launcher update status unavailable.',
+  available: false,
+  latestVersion: null,
+  checkedAt: null,
+};
+
+function broadcastLauncherUpdateState() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('launcher-update-status', _launcherUpdateState);
+  }
+}
+
+function setLauncherUpdateState(patch) {
+  _launcherUpdateState = {
+    ..._launcherUpdateState,
+    ...patch,
+    checkedAt: new Date().toISOString(),
+  };
+  broadcastLauncherUpdateState();
+}
 
 function checkHealthOnce(port, onStatusChange) {
   const req = http.get(`http://localhost:${port}/api/health`, res => {
@@ -182,6 +212,84 @@ function pollHealth(port, onStatusChange) {
 function stopPolling() {
   clearInterval(_pollInterval);
   _pollInterval = null;
+}
+
+function classifyRuntimeError(rawError) {
+  const text = String(rawError?.message || rawError || 'Unknown error');
+  const lowered = text.toLowerCase();
+
+  if (lowered.includes('port is already allocated') || lowered.includes('address already in use')) {
+    return {
+      code: 'PORT_IN_USE',
+      message: 'Selected port is already in use by another process.',
+      detail: 'Choose a different port in launcher setup and try again.',
+    };
+  }
+
+  if (
+    lowered.includes('cannot connect to the docker daemon') ||
+    lowered.includes('is the docker daemon running') ||
+    lowered.includes('docker desktop is shutting down')
+  ) {
+    return {
+      code: 'DOCKER_NOT_RUNNING',
+      message: 'Docker is not running or not reachable.',
+      detail: 'Start Docker Desktop (or Docker daemon), wait until it is healthy, then retry.',
+    };
+  }
+
+  if (
+    lowered.includes('pull access denied') ||
+    lowered.includes('manifest unknown') ||
+    lowered.includes('requested access to the resource is denied')
+  ) {
+    return {
+      code: 'IMAGE_PULL_FAILED',
+      message: 'Unable to pull the latest ProjectBlackVault image.',
+      detail: 'Check network connectivity and image availability, then retry.',
+    };
+  }
+
+  return {
+    code: 'UNKNOWN',
+    message: 'Operation failed while starting or updating ProjectBlackVault.',
+    detail: text,
+  };
+}
+
+async function waitForHealth(port, timeoutMs = 90000) {
+  const startedAt = Date.now();
+
+  return new Promise(resolve => {
+    const check = () => {
+      const req = http.get(`http://localhost:${port}/api/health`, res => {
+        if (res.statusCode === 200) {
+          resolve({ ok: true });
+          return;
+        }
+        res.resume();
+        scheduleNext();
+      });
+
+      req.on('error', scheduleNext);
+      req.setTimeout(4000, () => req.destroy());
+    };
+
+    const scheduleNext = () => {
+      if (Date.now() - startedAt >= timeoutMs) {
+        resolve({
+          ok: false,
+          code: 'HEALTH_TIMEOUT',
+          message: 'ProjectBlackVault container started but did not become healthy in time.',
+          detail: `Timed out after ${Math.round(timeoutMs / 1000)} seconds waiting for /api/health.`,
+        });
+        return;
+      }
+      setTimeout(check, 2000);
+    };
+
+    check();
+  });
 }
 
 // ─── Window ────────────────────────────────────────────────────────────────
@@ -320,53 +428,90 @@ function sendLog(line) {
 
 async function handleStart() {
   _config = loadConfig();
-  if (!_config) { showWindow(); return; }
+  if (!_config) {
+    showWindow();
+    return { ok: false, code: 'MISSING_CONFIG', message: 'No launcher configuration found.' };
+  }
 
   // Port conflict check
   const inUse = await isPortInUse(_config.port);
   if (inUse) {
-    dialog.showErrorBox(
-      'Port Already in Use',
-      `Port ${_config.port} is already in use by another application.\n\nChange the port in the launcher setup and try again.`
-    );
-    return;
+    const result = {
+      ok: false,
+      code: 'PORT_IN_USE',
+      message: `Port ${_config.port} is already in use by another application.`,
+      detail: 'Change the port in launcher setup and try again.',
+    };
+    dialog.showErrorBox('Port Already in Use', `${result.message}\n\n${result.detail}`);
+    return result;
   }
 
+  sendLog('[setup] Checking Docker and preparing container startup...');
   updateTray('starting', _config);
   try {
+    sendLog('[setup] Starting ProjectBlackVault container...');
     await startContainer(_config);
+    sendLog('[setup] Waiting for health check (/api/health)...');
+    const health = await waitForHealth(_config.port);
+    if (!health.ok) {
+      updateTray('stopped', _config);
+      return { ok: false, ...health };
+    }
+
+    sendLog('[setup] Health check passed. ProjectBlackVault is ready.');
     pollHealth(_config.port, status => updateTray(status, _config));
+    return { ok: true };
   } catch (err) {
-    dialog.showErrorBox('Start Failed', err.message);
+    const friendly = classifyRuntimeError(err);
+    dialog.showErrorBox('Start Failed', `${friendly.message}\n\n${friendly.detail}`);
+    sendLog(`[error] ${friendly.message}`);
     updateTray('stopped', _config);
+    return { ok: false, ...friendly };
   }
 }
 
 async function handleStop() {
   _config = loadConfig();
-  if (!_config) return;
+  if (!_config) return { ok: false, code: 'MISSING_CONFIG', message: 'No launcher configuration found.' };
   stopPolling();
   _currentStatus = 'stopped';
   updateTray('stopped', _config);
   try {
     await stopContainer(_config);
+    return { ok: true };
   } catch (err) {
     dialog.showErrorBox('Stop Failed', err.message);
+    return { ok: false, code: 'STOP_FAILED', message: String(err.message || err) };
   }
 }
 
 async function handleUpdate() {
   _config = loadConfig();
-  if (!_config) { showWindow(); return; }
+  if (!_config) {
+    showWindow();
+    return { ok: false, code: 'MISSING_CONFIG', message: 'No launcher configuration found.' };
+  }
   stopPolling();
   updateTray('starting', _config);
   try {
+    sendLog('[update] Pulling latest container image...');
     await pullLatestImage(_config, sendLog);
+    sendLog('[update] Waiting for health check (/api/health)...');
+    const health = await waitForHealth(_config.port);
+    if (!health.ok) {
+      updateTray('stopped', _config);
+      return { ok: false, ...health };
+    }
+
     pollHealth(_config.port, status => updateTray(status, _config));
     dialog.showMessageBox({ type: 'info', title: 'Updated', message: 'ProjectBlackVault has been updated to the latest version.' });
+    return { ok: true };
   } catch (err) {
-    dialog.showErrorBox('Update Failed', err.message);
+    const friendly = classifyRuntimeError(err);
+    dialog.showErrorBox('Update Failed', `${friendly.message}\n\n${friendly.detail}`);
+    sendLog(`[error] ${friendly.message}`);
     updateTray('stopped', _config);
+    return { ok: false, ...friendly };
   }
 }
 
@@ -487,22 +632,57 @@ ipcMain.handle('save-config', async (_event, cfg) => {
 });
 
 ipcMain.handle('start', async () => {
-  await handleStart();
-  return { ok: true };
+  return handleStart();
 });
 
 ipcMain.handle('stop', async () => {
-  await handleStop();
-  return { ok: true };
+  return handleStop();
 });
 
 ipcMain.handle('update', async () => {
-  await handleUpdate();
-  return { ok: true };
+  return handleUpdate();
 });
 
 ipcMain.handle('get-status', () => {
   return _currentStatus;
+});
+
+ipcMain.handle('get-launcher-update-status', () => {
+  return _launcherUpdateState;
+});
+
+ipcMain.handle('check-launcher-updates', async () => {
+  if (!_autoUpdater) {
+    const result = {
+      ok: false,
+      code: 'UNAVAILABLE',
+      message: 'Launcher auto-update is unavailable in this build.',
+    };
+    setLauncherUpdateState({
+      status: 'unavailable',
+      message: result.message,
+      available: false,
+    });
+    return result;
+  }
+
+  try {
+    setLauncherUpdateState({
+      status: 'checking',
+      message: 'Checking for launcher updates...',
+      available: false,
+    });
+    await _autoUpdater.checkForUpdates();
+    return { ok: true };
+  } catch (error) {
+    const message = String(error?.message || error || 'Failed to check launcher updates.');
+    setLauncherUpdateState({
+      status: 'error',
+      message,
+      available: false,
+    });
+    return { ok: false, code: 'CHECK_FAILED', message };
+  }
 });
 
 ipcMain.handle('open-dir-dialog', async () => {
@@ -546,8 +726,65 @@ app.whenReady().then(async () => {
   if (app.isPackaged) {
     try {
       const { autoUpdater } = require('electron-updater');
-      autoUpdater.checkForUpdatesAndNotify();
-      autoUpdater.on('update-downloaded', () => {
+      _autoUpdater = autoUpdater;
+      setLauncherUpdateState({
+        status: 'checking',
+        message: 'Checking for launcher updates...',
+        available: false,
+      });
+
+      _autoUpdater.on('checking-for-update', () => {
+        setLauncherUpdateState({
+          status: 'checking',
+          message: 'Checking for launcher updates...',
+          available: false,
+        });
+      });
+
+      _autoUpdater.on('update-available', info => {
+        setLauncherUpdateState({
+          status: 'available',
+          message: `Launcher update available (${info.version}).`,
+          available: true,
+          latestVersion: info.version || null,
+        });
+      });
+
+      _autoUpdater.on('update-not-available', info => {
+        setLauncherUpdateState({
+          status: 'up_to_date',
+          message: 'Launcher is up to date.',
+          available: false,
+          latestVersion: info?.version || null,
+        });
+      });
+
+      _autoUpdater.on('error', err => {
+        setLauncherUpdateState({
+          status: 'error',
+          message: String(err?.message || err || 'Launcher update check failed.'),
+          available: false,
+        });
+      });
+
+      _autoUpdater.on('download-progress', progress => {
+        const percent = typeof progress?.percent === 'number' ? progress.percent.toFixed(1) : null;
+        setLauncherUpdateState({
+          status: 'downloading',
+          message: percent
+            ? `Downloading launcher update (${percent}%).`
+            : 'Downloading launcher update...',
+          available: true,
+        });
+      });
+
+      _autoUpdater.on('update-downloaded', info => {
+        setLauncherUpdateState({
+          status: 'ready',
+          message: `Launcher update ${info?.version || ''} downloaded. Restart to apply.`,
+          available: true,
+          latestVersion: info?.version || null,
+        });
         dialog.showMessageBox({
           type: 'info',
           title: 'Launcher Update Ready',
@@ -556,12 +793,24 @@ app.whenReady().then(async () => {
           buttons: ['Restart Now', 'Later'],
           defaultId: 1,
         }).then(result => {
-          if (result.response === 0) autoUpdater.quitAndInstall();
+          if (result.response === 0) _autoUpdater.quitAndInstall();
         });
       });
+
+      _autoUpdater.checkForUpdatesAndNotify();
     } catch {
-      // electron-updater not available in dev
+      setLauncherUpdateState({
+        status: 'error',
+        message: 'Launcher updater failed to initialize.',
+        available: false,
+      });
     }
+  } else {
+    setLauncherUpdateState({
+      status: 'unavailable',
+      message: 'Launcher auto-update is available in packaged builds only.',
+      available: false,
+    });
   }
 
   // Auto-start container if configured
