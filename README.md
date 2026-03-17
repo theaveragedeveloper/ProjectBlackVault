@@ -30,8 +30,14 @@ Choose one installation path below based on how you want to run the app.
 #### 2) Clone this repo
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/theaveragedeveloper/ProjectBlackVault.git
 cd ProjectBlackVault
+```
+
+Quick copy/paste (clone + enter folder):
+
+```bash
+git clone https://github.com/theaveragedeveloper/ProjectBlackVault.git && cd ProjectBlackVault
 ```
 
 #### 3) Run first-time installer
@@ -89,9 +95,15 @@ update.bat
 #### 2) Clone and install dependencies
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/theaveragedeveloper/ProjectBlackVault.git
 cd ProjectBlackVault
 npm install
+```
+
+Quick copy/paste (clone + enter folder + install):
+
+```bash
+git clone https://github.com/theaveragedeveloper/ProjectBlackVault.git && cd ProjectBlackVault && npm install
 ```
 
 #### 3) Create local config
