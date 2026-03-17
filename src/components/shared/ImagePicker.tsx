@@ -7,7 +7,7 @@ import Image from "next/image";
 import { Camera, Link, Loader2, X, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
 
 interface ImagePickerProps {
-  entityType: "firearm" | "accessory";
+  entityType: "firearm" | "accessory" | "build";
   entityId?: string; // undefined on new forms; a temp UUID will be used
   currentUrl?: string | null;
   onChange: (url: string | null, source: string | null) => void;

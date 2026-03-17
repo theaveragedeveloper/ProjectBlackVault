@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { validateOptionalImageUrl } from "@/lib/image-url-validation";
 
 // GET /api/builds/[id] - Get a single build with slots and accessories populated
 export async function GET(
@@ -53,11 +54,16 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, description, isActive } = body;
+    const { name, description, isActive, imageUrl, imageSource } = body;
 
     const existing = await prisma.build.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: "Build not found" }, { status: 404 });
+    }
+
+    const imageValidation = imageUrl !== undefined ? validateOptionalImageUrl(imageUrl) : null;
+    if (imageValidation && !imageValidation.valid) {
+      return NextResponse.json({ error: imageValidation.error }, { status: 400 });
     }
 
     // If activating this build, deactivate others for same firearm
@@ -74,6 +80,8 @@ export async function PUT(
         ...(name !== undefined && { name }),
         ...(description !== undefined && { description }),
         ...(isActive !== undefined && { isActive }),
+        ...(imageUrl !== undefined && imageValidation?.valid && { imageUrl: imageValidation.normalized }),
+        ...(imageSource !== undefined && { imageSource: imageSource ?? null }),
       },
       include: {
         firearm: {

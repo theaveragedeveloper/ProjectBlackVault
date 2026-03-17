@@ -11,6 +11,7 @@ const ALLOWED_ENTITY_TYPES = new Set([
   "firearm",
   "accessory",
   "ammo",
+  "build",
 ]);
 
 // POST /api/images/upload - Upload an image for an entity
