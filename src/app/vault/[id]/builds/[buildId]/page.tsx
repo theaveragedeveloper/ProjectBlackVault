@@ -928,9 +928,8 @@ function LoadoutGrid({
 
                     if (!acc) {
                       return (
-                        <button
+                        <div
                           key={slot.id}
-                          onClick={() => onSlotClick(slot.slotType)}
                           className="group bg-vault-surface rounded-lg border border-vault-border hover:border-[#00C2FF]/25 hover:bg-[#00C2FF]/[0.03] transition-colors text-left p-2.5"
                         >
                           <div className="flex items-start justify-between gap-1">
@@ -939,13 +938,17 @@ function LoadoutGrid({
                           </div>
                           <p className="text-[10px] text-vault-border mt-1.5">Empty</p>
                           <div className="flex items-center gap-1 mt-2">
-                            <span className="inline-flex items-center gap-1 text-[9px] text-vault-border group-hover:text-[#00C2FF] border border-vault-border group-hover:border-[#00C2FF]/40 px-1.5 py-0.5 rounded transition-colors">
+                            <button
+                              onClick={() => onSlotClick(slot.slotType)}
+                              className="inline-flex items-center gap-1 text-[9px] text-vault-border hover:text-[#00C2FF] border border-vault-border hover:border-[#00C2FF]/40 px-1.5 py-0.5 rounded transition-colors"
+                              aria-label={`Attach accessory to ${customLabel}`}
+                            >
                               <Plus className="w-2 h-2" />
                               Attach
-                            </span>
+                            </button>
                             {isEditing && (
                               <button
-                                onClick={(e) => { e.stopPropagation(); onDeleteCustomSlot(slot.slotType); }}
+                                onClick={() => onDeleteCustomSlot(slot.slotType)}
                                 className="w-5 h-5 flex items-center justify-center text-vault-text-muted hover:text-[#E53935] hover:bg-[#E53935]/10 rounded transition-colors"
                                 title="Delete slot"
                               >
@@ -953,7 +956,7 @@ function LoadoutGrid({
                               </button>
                             )}
                           </div>
-                        </button>
+                        </div>
                       );
                     }
 
@@ -1086,9 +1089,8 @@ function LoadoutGrid({
 
                   if (!acc) {
                     return (
-                      <button
+                      <div
                         key={slot.id}
-                        onClick={() => onSlotClick(slot.slotType)}
                         className="group bg-vault-surface rounded-lg border border-vault-border hover:border-[#00C2FF]/25 hover:bg-[#00C2FF]/[0.03] transition-colors text-left p-2.5"
                       >
                         <div className="flex items-start justify-between gap-1">
@@ -1097,13 +1099,17 @@ function LoadoutGrid({
                         </div>
                         <p className="text-[10px] text-vault-border mt-1.5">Empty</p>
                         <div className="flex items-center gap-1 mt-2">
-                          <span className="inline-flex items-center gap-1 text-[9px] text-vault-border group-hover:text-[#00C2FF] border border-vault-border group-hover:border-[#00C2FF]/40 px-1.5 py-0.5 rounded transition-colors">
+                          <button
+                            onClick={() => onSlotClick(slot.slotType)}
+                            className="inline-flex items-center gap-1 text-[9px] text-vault-border hover:text-[#00C2FF] border border-vault-border hover:border-[#00C2FF]/40 px-1.5 py-0.5 rounded transition-colors"
+                            aria-label={`Attach accessory to ${customLabel}`}
+                          >
                             <Plus className="w-2 h-2" />
                             Attach
-                          </span>
+                          </button>
                           {isEditing && (
                             <button
-                              onClick={(e) => { e.stopPropagation(); onDeleteCustomSlot(slot.slotType); }}
+                              onClick={() => onDeleteCustomSlot(slot.slotType)}
                               className="w-5 h-5 flex items-center justify-center text-vault-text-muted hover:text-[#E53935] hover:bg-[#E53935]/10 rounded transition-colors"
                               title="Delete slot"
                             >
@@ -1111,7 +1117,7 @@ function LoadoutGrid({
                             </button>
                           )}
                         </div>
-                      </button>
+                      </div>
                     );
                   }
 
