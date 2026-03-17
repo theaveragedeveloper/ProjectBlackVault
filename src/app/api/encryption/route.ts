@@ -6,11 +6,15 @@ import { enforceRateLimit } from "@/lib/rate-limit";
 import { clearKeyCache } from "@/lib/crypto";
 import { getClientIp } from "@/lib/server/client-ip";
 import crypto from "crypto";
+import { requireAuth } from "@/lib/server/auth";
 
 const HEX_KEY_RE = /^[0-9a-fA-F]{64}$/;
 
 // POST /api/encryption — generate a new random key and save it
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const ip = getClientIp(request);
     const rate = await enforceRateLimit({ key: `encryption:generate:${ip}`, windowMs: 60_000, maxAttempts: 5 });
@@ -50,6 +54,9 @@ export async function POST(request: NextRequest) {
 
 // PUT /api/encryption — save a user-supplied key
 export async function PUT(request: NextRequest) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const ip = getClientIp(request);
     const rate = await enforceRateLimit({ key: `encryption:import:${ip}`, windowMs: 60_000, maxAttempts: 5 });
@@ -91,6 +98,9 @@ export async function PUT(request: NextRequest) {
 
 // DELETE /api/encryption — remove the DB-stored key (disables encryption)
 export async function DELETE(request: NextRequest) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const ip = getClientIp(request);
     const rate = await enforceRateLimit({ key: `encryption:delete:${ip}`, windowMs: 60_000, maxAttempts: 5 });

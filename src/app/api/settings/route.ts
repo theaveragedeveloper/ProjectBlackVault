@@ -5,9 +5,13 @@ import { hashPassword, verifyPassword } from "@/lib/password";
 import { getSessionCookieOptions } from "@/lib/session-config";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/server/client-ip";
+import { requireAuth } from "@/lib/server/auth";
 
 // GET /api/settings - Get the singleton AppSettings
 export async function GET() {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     // Try to find the singleton settings record
     let settings = await prisma.appSettings.findUnique({
@@ -45,6 +49,9 @@ export async function GET() {
 
 // PUT /api/settings - Update the singleton AppSettings
 export async function PUT(request: NextRequest) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     // Rate-limit password change attempts to prevent brute-force via currentPassword
     const ip = getClientIp(request);

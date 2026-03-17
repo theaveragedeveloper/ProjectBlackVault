@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth } from "@/lib/server/auth";
 
 // GET /api/drill-templates - List all drill templates
 export async function GET() {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const templates = await prisma.drillTemplate.findMany({
       orderBy: [{ category: "asc" }, { name: "asc" }],
@@ -16,6 +20,9 @@ export async function GET() {
 
 // POST /api/drill-templates - Create a custom drill template
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const body = await request.json();
     const { name, description, category, scoringType, parTime, maxScore } = body;

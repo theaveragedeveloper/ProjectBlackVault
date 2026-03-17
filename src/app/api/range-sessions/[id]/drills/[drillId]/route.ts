@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth } from "@/lib/server/auth";
 
 // PUT /api/range-sessions/[id]/drills/[drillId]
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; drillId: string }> }
 ) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const { drillId } = await params;
     const body = await request.json();
@@ -50,6 +54,9 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string; drillId: string }> }
 ) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const { drillId } = await params;
     await prisma.sessionDrill.delete({ where: { id: drillId } });

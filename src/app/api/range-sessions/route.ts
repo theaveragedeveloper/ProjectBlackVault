@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { revalidateDashboardCaches } from "@/lib/server/dashboard";
+import { requireAuth } from "@/lib/server/auth";
 
 type FirearmPayload = {
   firearmId?: unknown;
@@ -19,6 +20,9 @@ const firearmInclude = {
 
 // GET /api/range-sessions - List range sessions, optional ?firearmId= filter, ?include=analytics
 export async function GET(request: NextRequest) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const { searchParams } = new URL(request.url);
     const firearmId = searchParams.get("firearmId");
@@ -52,6 +56,9 @@ export async function GET(request: NextRequest) {
 
 // POST /api/range-sessions - Create a new range session
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const body = await request.json();
     const {

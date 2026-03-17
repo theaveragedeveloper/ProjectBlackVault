@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { allowReleaseLookup } from "@/lib/network-policy";
+import { requireAuth } from "@/lib/server/auth";
 
 const OWNER = "theaveragedeveloper";
 const REPO = "ProjectBlackVault";
@@ -75,6 +76,9 @@ function parsePlatformOverride(value: string | null): ResolvedPlatform | null {
 }
 
 export async function GET(request: Request) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   const fallback = fallbackDownloads();
   const url = new URL(request.url);
   const override = parsePlatformOverride(url.searchParams.get("platform"));

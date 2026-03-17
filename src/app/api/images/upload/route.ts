@@ -4,6 +4,7 @@ import path from "path";
 import { detectFileSignature, isHeicFamilySignature } from "@/lib/server/file-signatures";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/server/client-ip";
+import { requireAuth } from "@/lib/server/auth";
 
 const ALLOWED_EXTENSIONS = new Set(["jpg", "png", "webp", "avif"]);
 
@@ -19,6 +20,9 @@ const ALLOWED_ENTITY_TYPES = new Set([
 // Saves to /storage/uploads/images/{entityType}s/{entityId}.{ext}
 // Returns the URL path.
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     // Rate limiting
     const ip = getClientIp(request);

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { SLOT_TYPES } from "@/lib/types";
+import { requireAuth } from "@/lib/server/auth";
 
 function isCustomSlotType(slotType: string): boolean {
   if (!slotType.startsWith("CUSTOM:")) return false;
@@ -22,6 +23,9 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const { id: buildId } = await params;
     const body = await request.json();
@@ -124,6 +128,9 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const { id: buildId } = await params;
     const { searchParams } = new URL(request.url);

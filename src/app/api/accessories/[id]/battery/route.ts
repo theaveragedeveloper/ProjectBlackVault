@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { revalidateDashboardCaches } from "@/lib/server/dashboard";
+import { requireAuth } from "@/lib/server/auth";
 
 // POST /api/accessories/[id]/battery - Log a battery change
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   const { id } = await params;
 
   let changedAt = new Date();

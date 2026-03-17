@@ -7,6 +7,7 @@ import {
   allowReleaseLookup,
   requirePrivateNetworkForUpdates,
 } from "@/lib/network-policy";
+import { requireAuth } from "@/lib/server/auth";
 
 function resolveCanonicalUrl(rawUrl: string | undefined): string | null {
   if (!rawUrl) return null;
@@ -28,6 +29,9 @@ function resolveCanonicalUrl(rawUrl: string | undefined): string | null {
 }
 
 export async function GET() {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     // Collect local IP addresses (IPv4 only, skip loopback)
     const interfaces = os.networkInterfaces();

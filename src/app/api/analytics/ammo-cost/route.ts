@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth } from "@/lib/server/auth";
 
 function getMonthKey(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
@@ -15,6 +16,9 @@ function getMonthLabel(key: string): string {
 
 // GET /api/analytics/ammo-cost
 export async function GET() {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const [purchaseTransactions, allStocks] = await Promise.all([
       prisma.ammoTransaction.findMany({

@@ -9,6 +9,9 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
+    appSettings: {
+      findUnique: vi.fn().mockResolvedValue(null),
+    },
     firearm: {
       findMany: mocks.findFirearms,
     },

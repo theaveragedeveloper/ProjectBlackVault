@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { detectFileSignature } from "@/lib/server/file-signatures";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/server/client-ip";
+import { requireAuth } from "@/lib/server/auth";
 
 const ALLOWED_EXTENSIONS = new Set(["pdf", "jpg", "png", "webp"]);
 
@@ -15,6 +16,9 @@ const MAX_SIZE = 20 * 1024 * 1024; // 20MB
 // Saves to /storage/uploads/documents/{uuid}.{ext}
 // Creates a Document record and returns it.
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     // Rate limiting
     const ip = getClientIp(request);
