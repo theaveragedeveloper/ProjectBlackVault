@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { SLOTS_BY_FIREARM_TYPE, SLOT_TYPE_LABELS, FirearmType, SlotType } from "@/lib/types";
 import { SafeImage } from "@/components/shared/SafeImage";
+import ImagePicker from "@/components/shared/ImagePicker";
 import { SLOT_ICONS } from "@/lib/configurator/slot-icons";
 
 // ─── Types ────────────────────────────────────────────────────
@@ -32,6 +33,7 @@ interface Accessory {
   caliber: string | null;
   roundCount: number;
   imageUrl: string | null;
+  imageSource: string | null;
   purchasePrice: number | null;
   notes: string | null;
 }
@@ -97,7 +99,8 @@ function AccessoryEditModal({ accessory, onClose, onSaved }: AccessoryEditModalP
     model: accessory.model ?? "",
     caliber: accessory.caliber ?? "",
     purchasePrice: accessory.purchasePrice != null ? String(accessory.purchasePrice) : "",
-    imageUrl: accessory.imageUrl ?? "",
+    imageUrl: accessory.imageUrl,
+    imageSource: accessory.imageSource,
     notes: accessory.notes ?? "",
   });
   const [saving, setSaving] = useState(false);
@@ -120,7 +123,8 @@ function AccessoryEditModal({ accessory, onClose, onSaved }: AccessoryEditModalP
           model: form.model.trim() || null,
           caliber: form.caliber.trim() || null,
           purchasePrice: form.purchasePrice ? parseFloat(form.purchasePrice) : null,
-          imageUrl: form.imageUrl.trim() || null,
+          imageUrl: form.imageUrl,
+          imageSource: form.imageSource,
           notes: form.notes.trim() || null,
         }),
       });
@@ -232,13 +236,13 @@ function AccessoryEditModal({ accessory, onClose, onSaved }: AccessoryEditModalP
 
           <div>
             <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">
-              Image URL
+              Photo
             </label>
-            <input
-              value={form.imageUrl}
-              onChange={(e) => setForm((f) => ({ ...f, imageUrl: e.target.value }))}
-              className={FIELD_CLASS}
-              placeholder="https://..."
+            <ImagePicker
+              entityType="accessory"
+              entityId={accessory.id}
+              currentUrl={form.imageUrl}
+              onChange={(url, source) => setForm((f) => ({ ...f, imageUrl: url, imageSource: source }))}
             />
           </div>
 
@@ -302,7 +306,7 @@ function AccessoryBrowserModal({
   const [assignError, setAssignError] = useState<string | null>(null);
 
   const [view, setView] = useState<"browse" | "create">("browse");
-  const [form, setForm] = useState({ name: "", manufacturer: "", model: "", caliber: "", purchasePrice: "", imageUrl: "" });
+  const [form, setForm] = useState({ name: "", manufacturer: "", model: "", caliber: "", purchasePrice: "", imageUrl: null as string | null, imageSource: null as string | null });
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -373,7 +377,8 @@ function AccessoryBrowserModal({
           type: slotType,
           caliber: form.caliber.trim() || undefined,
           purchasePrice: form.purchasePrice ? parseFloat(form.purchasePrice) : undefined,
-          imageUrl: form.imageUrl.trim() || undefined,
+          imageUrl: form.imageUrl ?? undefined,
+          imageSource: form.imageSource ?? undefined,
           hasBattery: ["OPTIC", "LIGHT", "LASER"].includes(slotType),
         }),
       });
@@ -610,9 +615,12 @@ function AccessoryBrowserModal({
                     className={FIELD_CLASS} placeholder="0.00" />
                 </div>
                 <div>
-                  <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Image URL</label>
-                  <input value={form.imageUrl} onChange={e => setForm(f => ({...f, imageUrl: e.target.value}))}
-                    className={FIELD_CLASS} placeholder="https://..." />
+                  <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Photo</label>
+                  <ImagePicker
+                    entityType="accessory"
+                    currentUrl={form.imageUrl}
+                    onChange={(url, source) => setForm(f => ({ ...f, imageUrl: url, imageSource: source }))}
+                  />
                 </div>
               </div>
             </div>
