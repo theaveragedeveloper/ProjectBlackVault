@@ -90,7 +90,7 @@ There are three ways to run ProjectBlackVault. **Choose the one that fits you be
 
 ### Option A: Desktop App — No Docker Required (Recommended)
 
-The app includes its own built-in server — nothing else to install.
+The app includes its own built-in server — nothing else to install. No technical knowledge needed. Just download and run it like any normal application. No Docker, no terminal.
 
 **[Download for your platform](https://theaveragedeveloper.github.io/ProjectBlackVault/)**
 
@@ -105,6 +105,8 @@ The app includes its own built-in server — nothing else to install.
 - **Mac — "App can't be opened" warning:** Right-click the app and choose **Open**. If it still doesn't work, go to System Settings → Privacy & Security and click **Open Anyway**.
 - **Windows — SmartScreen warning:** Click **More info**, then **Run anyway**. The app is safe — Windows doesn't recognize it because it's not from the Microsoft Store.
 - **Linux:** Run `chmod +x ProjectBlackVault-Setup.AppImage` in a terminal to make it executable, then double-click to run.
+
+**Want Docker instead?** A separate Docker-based launcher is also available on the [Releases](https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest) page. It requires [Docker Desktop](https://www.docker.com/products/docker-desktop/) but is useful if you want to share the vault across your network — other devices connect with just a browser URL.
 
 ---
 
@@ -310,6 +312,18 @@ Avoid using `docker-compose down -v` — the `-v` flag removes your data volumes
 
 ```
 ProjectBlackVault/
+├── electron/               # Standalone desktop app (bundles Next.js, no Docker)
+│   ├── main.js             # Main process (port detection, server spawn, auto-update)
+│   ├── preload.js          # Context bridge
+│   ├── splash.html         # Tactical loading screen
+│   ├── notarize.js         # Optional macOS notarization
+│   └── package.json        # electron-builder config
+├── launcher/               # Docker-based desktop launcher
+│   ├── main.js             # Main process (Docker management, IPC)
+│   ├── preload.js          # Context bridge
+│   └── renderer/           # Launcher UI
+├── docs/
+│   └── index.html          # Download landing page (GitHub Pages)
 ├── prisma/
 │   ├── schema.prisma       # Database schema
 │   ├── migrations/         # Migration history
@@ -325,10 +339,6 @@ ProjectBlackVault/
 │   │   └── settings/       # App settings
 │   ├── components/         # Shared UI components
 │   └── lib/                # Utility functions, Prisma client, types
-├── electron/               # Electron desktop app wrapper
-│   ├── main.js             # Main process (server spawn, window mgmt)
-│   ├── splash.html         # Loading splash screen
-│   └── package.json        # Electron builder config
 ├── scripts/                # Utility scripts
 │   └── bootstrap-session-secret.sh  # Docker session secret auto-gen
 ├── Dockerfile
