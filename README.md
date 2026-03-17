@@ -379,6 +379,8 @@ docker compose -f docker-compose.dev.yml down
 | `SESSION_MAX_AGE_SECONDS` | No | `28800` | Session cookie lifetime in seconds (min 300, max 86400) |
 | `GOOGLE_CSE_API_KEY` | No | — | Google Custom Search API key for image lookup |
 | `GOOGLE_CSE_SEARCH_ENGINE_ID` | No | — | Google CSE search engine ID |
+| `PASSWORD_RECOVERY_SECRET` | No | — | Emergency password reset secret used by `/api/auth/recover` |
+| `ALLOW_SESSION_SECRET_PASSWORD_RESET` | No | `false` | Allows `SESSION_SECRET` fallback for password reset when recovery secret is unset |
 
 #### Docker (`.blackvault.env`)
 
