@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
-import crypto from "crypto";
 import { verifyPassword } from "@/lib/password";
-import { signToken } from "@/lib/session";
+import { createSessionToken, signToken } from "@/lib/session";
 import { parseJsonBody, validationErrorResponse } from "@/lib/validation/request";
 import { authSchemas } from "@/lib/validation/schemas/api";
 import { enforceRateLimit } from "@/lib/rate-limit";
@@ -37,7 +36,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!settings) {
-      settings = await prisma.appSettings.create({ data: { id: "singleton" } });
+      settings = await prisma.appSettings.create({ data: { id: "singleton", sessionVersion: 1 } });
     }
 
     const secret = process.env.SESSION_SECRET;
@@ -48,7 +47,7 @@ export async function POST(request: NextRequest) {
 
     // If no password is set, always allow access
     if (!settings.appPassword) {
-      const token = crypto.randomBytes(32).toString("hex");
+      const token = createSessionToken(settings.sessionVersion || 1);
       const cookieValue = signToken(token, secret);
       const cookieStore = await cookies();
       cookieStore.set("vault_session", cookieValue, getSessionCookieOptions());
@@ -60,7 +59,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid password" }, { status: 401 });
     }
 
-    const token = crypto.randomBytes(32).toString("hex");
+    const token = createSessionToken(settings.sessionVersion || 1);
     const cookieValue = signToken(token, secret);
     const cookieStore = await cookies();
     cookieStore.set("vault_session", cookieValue, getSessionCookieOptions());
