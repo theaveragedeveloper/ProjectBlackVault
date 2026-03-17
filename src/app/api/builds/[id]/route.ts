@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { validateOptionalImageUrl } from "@/lib/image-url-validation";
 
 // GET /api/builds/[id] - Get a single build with slots and accessories populated
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
@@ -40,7 +41,7 @@ export async function GET(
     console.error("GET /api/builds/[id] error:", error);
     return NextResponse.json(
       { error: "Failed to fetch build" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -48,22 +49,38 @@ export async function GET(
 // PUT /api/builds/[id] - Update a build
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, description, isActive } = body;
+    const { name, description, isActive, imageUrl, imageSource } = body;
 
     const existing = await prisma.build.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: "Build not found" }, { status: 404 });
     }
 
+    let normalizedImageUrl: string | null | undefined;
+    if (imageUrl !== undefined) {
+      const imageValidation = validateOptionalImageUrl(imageUrl);
+      if (!imageValidation.valid) {
+        return NextResponse.json(
+          { error: imageValidation.error },
+          { status: 400 },
+        );
+      }
+      normalizedImageUrl = imageValidation.normalized;
+    }
+
     // If activating this build, deactivate others for same firearm
     if (isActive === true && !existing.isActive) {
       await prisma.build.updateMany({
-        where: { firearmId: existing.firearmId, isActive: true, id: { not: id } },
+        where: {
+          firearmId: existing.firearmId,
+          isActive: true,
+          id: { not: id },
+        },
         data: { isActive: false },
       });
     }
@@ -74,6 +91,8 @@ export async function PUT(
         ...(name !== undefined && { name }),
         ...(description !== undefined && { description }),
         ...(isActive !== undefined && { isActive }),
+        ...(imageUrl !== undefined && { imageUrl: normalizedImageUrl }),
+        ...(imageSource !== undefined && { imageSource }),
       },
       include: {
         firearm: {
@@ -100,7 +119,7 @@ export async function PUT(
     console.error("PUT /api/builds/[id] error:", error);
     return NextResponse.json(
       { error: "Failed to update build" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -108,7 +127,7 @@ export async function PUT(
 // DELETE /api/builds/[id] - Delete a build
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
@@ -125,7 +144,7 @@ export async function DELETE(
     console.error("DELETE /api/builds/[id] error:", error);
     return NextResponse.json(
       { error: "Failed to delete build" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
