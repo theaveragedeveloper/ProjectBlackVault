@@ -13,7 +13,7 @@ describe("hashPassword", () => {
     expect(h1).not.toBe(h2);
   });
 
-  it("includes three colon-separated segments after prefix", () => {
+  it("includes two colon-separated segments after prefix", () => {
     const hash = hashPassword("test");
     // format: "scrypt:<salt>:<hash>"
     const withoutPrefix = hash.slice("scrypt:".length);
