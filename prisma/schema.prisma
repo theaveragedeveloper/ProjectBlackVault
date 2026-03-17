@@ -48,6 +48,8 @@ model Build {
   id          String      @id @default(cuid())
   name        String
   description String?
+  imageUrl    String?
+  imageSource String?
   isActive    Boolean     @default(false)
   sortOrder   Int         @default(0)
   firearmId   String
