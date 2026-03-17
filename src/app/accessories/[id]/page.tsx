@@ -24,7 +24,7 @@ import {
   Upload,
   ExternalLink,
 } from "lucide-react";
-import ImagePicker from "@/components/shared/ImagePicker";
+import PhotoGallery from "@/components/shared/PhotoGallery";
 import { DocumentUploader, type UploadedDocument } from "@/components/shared/DocumentUploader";
 import BatterySettingsFields from "@/components/shared/BatterySettingsFields";
 
@@ -244,16 +244,8 @@ export default function AccessoryDetailPage() {
   const roundColor = roundCountColor(accessory.roundCount, accessory.type);
   const visibleLogs = historyExpanded ? accessory.roundCountLogs : accessory.roundCountLogs.slice(0, 5);
 
-  async function handlePhotoChange(url: string | null, source: string | null) {
-    const res = await fetch(`/api/accessories/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ imageUrl: url, imageSource: source }),
-    });
-    if (res.ok) {
-      setLocalImageUrl(url);
-      setPhotoModalOpen(false);
-    }
+  function handlePhotoChange(url: string | null) {
+    setLocalImageUrl(url);
   }
 
   return (
@@ -730,19 +722,26 @@ export default function AccessoryDetailPage() {
           <div className="flex items-center justify-between px-5 py-4 border-b border-vault-border">
             <div className="flex items-center gap-2">
               <Camera className="w-4 h-4 text-[#00C2FF]" />
-              <h2 className="text-sm font-semibold text-vault-text">Update Photo</h2>
+              <h2 className="text-sm font-semibold text-vault-text">Photos</h2>
             </div>
             <button onClick={() => setPhotoModalOpen(false)} className="text-vault-text-faint hover:text-vault-text transition-colors">
               <X className="w-4 h-4" />
             </button>
           </div>
           <div className="p-5">
-            <ImagePicker
+            <PhotoGallery
               entityType="accessory"
               entityId={id}
-              currentUrl={localImageUrl}
-              onChange={handlePhotoChange}
+              onPrimaryChange={handlePhotoChange}
             />
+          </div>
+          <div className="px-5 pb-4 flex justify-end">
+            <button
+              onClick={() => setPhotoModalOpen(false)}
+              className="text-sm text-vault-text-muted hover:text-vault-text border border-vault-border px-4 py-1.5 rounded-md transition-colors"
+            >
+              Done
+            </button>
           </div>
         </div>
       </div>

@@ -381,6 +381,22 @@ model DopeCard {
   @@index([updatedAt])
 }
 
+// ─── PHOTOS ───────────────────────────────────────────────────
+
+model Photo {
+  id         String   @id @default(cuid())
+  // entityType: "firearm" | "accessory" | "build" | "ammo"
+  entityType String
+  entityId   String
+  url        String
+  // source: "uploaded"
+  source     String
+  isPrimary  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+}
+
 // ─── IMAGE CACHE ──────────────────────────────────────────────
 
 model ImageCache {
