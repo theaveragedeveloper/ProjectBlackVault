@@ -55,6 +55,7 @@ RUN addgroup --system --gid 1001 nodejs && \
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
+COPY --from=builder /app/scripts ./scripts
 
 # Copy Prisma schema and migrations so we can run migrate deploy at startup.
 # Also copy the CLI package directly so we use the project's pinned version
@@ -77,4 +78,4 @@ ENV HOSTNAME="0.0.0.0"
 ENV DATABASE_URL="file:/app/data/vault.db"
 
 # Run migrations then start the server
-CMD ["sh", "-c", "node ./node_modules/prisma/build/index.js migrate deploy && node server.js"]
+CMD ["sh", "-c", ". ./scripts/bootstrap-session-secret.sh && node ./node_modules/prisma/build/index.js migrate deploy && node server.js"]

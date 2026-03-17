@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyTokenEdge } from "@/lib/session-edge";
+import { getSessionSecret } from "@/lib/session-config";
 
 const PUBLIC_PATHS = ["/login", "/api/auth", "/api/health", "/_next", "/favicon.ico"];
 
@@ -30,7 +31,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  const sessionSecret = process.env.SESSION_SECRET;
+  const sessionSecret = getSessionSecret();
   if (!sessionSecret) {
     if (isApiRoute) {
       return NextResponse.json(
