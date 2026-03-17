@@ -87,9 +87,11 @@ echo "Generating secret keys..."
 if command -v openssl &>/dev/null; then
   VAULT_ENCRYPTION_KEY=$(openssl rand -hex 32)
   SESSION_SECRET=$(openssl rand -hex 32)
+  PASSWORD_RECOVERY_SECRET=$(openssl rand -hex 32)
 elif command -v python3 &>/dev/null; then
   VAULT_ENCRYPTION_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
   SESSION_SECRET=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+  PASSWORD_RECOVERY_SECRET=$(python3 -c "import secrets; print(secrets.token_hex(32))")
 else
   echo "ERROR: Neither 'openssl' nor 'python3' is available to generate secret keys."
   echo "       Install one of them and re-run."
@@ -112,6 +114,8 @@ DATA_DIR=$DATA_DIR
 PORT=$PORT
 VAULT_ENCRYPTION_KEY=$VAULT_ENCRYPTION_KEY
 SESSION_SECRET=$SESSION_SECRET
+PASSWORD_RECOVERY_SECRET=$PASSWORD_RECOVERY_SECRET
+ALLOW_SESSION_SECRET_PASSWORD_RESET=false
 EOF
 
 echo "Configuration written to .blackvault.env"

@@ -73,6 +73,10 @@ for /f "delims=" %%k in ('powershell -NoProfile -Command "([System.BitConverter]
   set SESSION_SECRET=%%k
 )
 
+for /f "delims=" %%k in ('powershell -NoProfile -Command "([System.BitConverter]::ToString([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32)) -replace '-','').ToLower()"') do (
+  set PASSWORD_RECOVERY_SECRET=%%k
+)
+
 if "!VAULT_ENCRYPTION_KEY!"=="" (
   echo ERROR: Failed to generate VAULT_ENCRYPTION_KEY. Ensure PowerShell is available.
   pause
@@ -81,6 +85,12 @@ if "!VAULT_ENCRYPTION_KEY!"=="" (
 
 if "!SESSION_SECRET!"=="" (
   echo ERROR: Failed to generate SESSION_SECRET. Ensure PowerShell is available.
+  pause
+  exit /b 1
+)
+
+if "!PASSWORD_RECOVERY_SECRET!"=="" (
+  echo ERROR: Failed to generate PASSWORD_RECOVERY_SECRET. Ensure PowerShell is available.
   pause
   exit /b 1
 )
@@ -102,6 +112,8 @@ if not exist "!DATA_DIR!\uploads" mkdir "!DATA_DIR!\uploads"
   echo PORT=!PORT!
   echo VAULT_ENCRYPTION_KEY=!VAULT_ENCRYPTION_KEY!
   echo SESSION_SECRET=!SESSION_SECRET!
+  echo PASSWORD_RECOVERY_SECRET=!PASSWORD_RECOVERY_SECRET!
+  echo ALLOW_SESSION_SECRET_PASSWORD_RESET=false
 ) > .blackvault.env
 
 echo Configuration written to .blackvault.env
