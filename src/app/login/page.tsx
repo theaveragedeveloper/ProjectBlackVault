@@ -19,11 +19,19 @@ export default function LoginPage() {
       .then(async (data) => {
         if (!data.passwordRequired) {
           // No password set — auto-login and redirect
-          await fetch("/api/auth/login", {
+          const autoLoginRes = await fetch("/api/auth/login", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ password: "" }),
           });
+
+          if (!autoLoginRes.ok) {
+            const json = await autoLoginRes.json().catch(() => null);
+            setError(json?.error ?? "Auto-login failed. Set SESSION_SECRET in your .env and restart dev mode.");
+            setLoading(false);
+            return;
+          }
+
           router.replace("/");
         } else if (data.authenticated) {
           router.replace("/");
