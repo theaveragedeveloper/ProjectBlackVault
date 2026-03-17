@@ -1,0 +1,64 @@
+{
+  "name": "projectblackvault",
+  "version": "0.1.0",
+  "description": "Project Black Vault — self-hosted tactical firearms inventory",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --publish never",
+    "dist": "electron-builder --publish always"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.0"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "io.github.theaveragedeveloper.projectblackvault",
+    "productName": "Project Black Vault",
+    "icon": "../launcher/assets/icon.png",
+    "copyright": "Copyright © 2025 theaveragedeveloper",
+    "extraResources": [
+      { "from": "../.next/standalone", "to": "app" },
+      { "from": "../.next/static",     "to": "app/.next/static" },
+      { "from": "../public",           "to": "app/public" }
+    ],
+    "files": [
+      "main.js",
+      "preload.js",
+      "splash.html"
+    ],
+    "win": {
+      "target": "nsis",
+      "artifactName": "${productName}-Setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "mac": {
+      "target": "dmg",
+      "artifactName": "${productName}.${ext}",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "entitlements.plist",
+      "entitlementsInherit": "entitlements.plist",
+      "afterSign": "notarize.js"
+    },
+    "linux": {
+      "target": "AppImage",
+      "artifactName": "${productName}-Setup.${ext}",
+      "category": "Utility"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "theaveragedeveloper",
+      "repo": "ProjectBlackVault"
+    }
+  }
+}

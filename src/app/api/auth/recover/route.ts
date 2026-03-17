@@ -27,14 +27,10 @@ function getExpectedRecoverySecret(): string | null {
 }
 
 function timingSafeSecretMatch(providedSecret: string, expectedSecret: string): boolean {
-  const provided = Buffer.from(providedSecret, "utf8");
-  const expected = Buffer.from(expectedSecret, "utf8");
-
-  if (provided.byteLength !== expected.byteLength) {
-    return false;
-  }
-
-  return crypto.timingSafeEqual(provided, expected);
+  const key = crypto.randomBytes(32);
+  const a = crypto.createHmac("sha256", key).update(providedSecret).digest();
+  const b = crypto.createHmac("sha256", key).update(expectedSecret).digest();
+  return crypto.timingSafeEqual(a, b);
 }
 
 export async function POST(request: NextRequest) {
