@@ -63,24 +63,39 @@ set /p PORT_INPUT="Port to run BlackVault on [3000]: "
 if "%PORT_INPUT%"=="" set PORT=3000
 if not "%PORT_INPUT%"=="" set PORT=%PORT_INPUT%
 
-:: ── Generate secret keys ───────────────────────────────────────
+:: ── Secrets (minimal by default, optional advanced branch) ─────────────
 echo.
-echo Generating secret keys...
-for /f "delims=" %%k in ('powershell -NoProfile -Command "([System.BitConverter]::ToString([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32)) -replace '-','').ToLower()"') do (
-  set VAULT_ENCRYPTION_KEY=%%k
-)
-for /f "delims=" %%k in ('powershell -NoProfile -Command "([System.BitConverter]::ToString([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32)) -replace '-','').ToLower()"') do (
-  set SESSION_SECRET=%%k
+set /p ADVANCED_SETUP="Advanced setup (provide your own secrets)? [y/N]: "
+
+if /i "!ADVANCED_SETUP!"=="Y" (
+  echo.
+  echo Advanced setup selected. Leave blank to auto-generate.
+  set /p VAULT_ENCRYPTION_KEY="  VAULT_ENCRYPTION_KEY [auto-generate if blank]: "
+  set /p SESSION_SECRET="  SESSION_SECRET [auto-generate if blank]: "
 )
 
 if "!VAULT_ENCRYPTION_KEY!"=="" (
-  echo ERROR: Failed to generate VAULT_ENCRYPTION_KEY. Ensure PowerShell is available.
+  for /f "delims=" %%k in ('powershell -NoProfile -Command "([System.BitConverter]::ToString([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32)) -replace '-','').ToLower()"') do (
+    set VAULT_ENCRYPTION_KEY=%%k
+  )
+)
+
+if "!SESSION_SECRET!"=="" (
+  for /f "delims=" %%k in ('powershell -NoProfile -Command "([System.BitConverter]::ToString([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32)) -replace '-','').ToLower()"') do (
+    set SESSION_SECRET=%%k
+  )
+)
+
+if "!VAULT_ENCRYPTION_KEY!"=="" (
+  echo ERROR: Failed to set VAULT_ENCRYPTION_KEY.
+  echo        Use advanced setup to provide a manual value, or ensure PowerShell is available.
   pause
   exit /b 1
 )
 
 if "!SESSION_SECRET!"=="" (
-  echo ERROR: Failed to generate SESSION_SECRET. Ensure PowerShell is available.
+  echo ERROR: Failed to set SESSION_SECRET.
+  echo        Use advanced setup to provide a manual value, or ensure PowerShell is available.
   pause
   exit /b 1
 )
@@ -127,13 +142,7 @@ echo ╚════════════════════════
 echo.
 echo   URL:         http://localhost:!PORT!
 echo   Data stored: !DATA_DIR!
-echo.
-echo   WARNING: Back up your secret keys!
-echo   If you lose them, your serial numbers and notes
-echo   will be permanently unrecoverable.
-echo.
-echo   Key stored in: .blackvault.env
-echo   Back up that file to a secure location now.
+echo   Backup now:  .blackvault.env + !DATA_DIR!
 echo.
 echo   To stop BlackVault:
 echo     %COMPOSE% --env-file .blackvault.env down

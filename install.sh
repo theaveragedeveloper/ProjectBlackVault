@@ -26,6 +26,16 @@ else
   COMPOSE="docker-compose"
 fi
 
+generate_hex_secret() {
+  if command -v openssl &>/dev/null; then
+    openssl rand -hex 32
+  elif command -v python3 &>/dev/null; then
+    python3 -c "import secrets; print(secrets.token_hex(32))"
+  else
+    return 1
+  fi
+}
+
 # ── Existing installation guard ──────────────────────────────
 if [ -f ".blackvault.env" ]; then
   echo "WARNING: .blackvault.env already exists."
@@ -81,19 +91,31 @@ echo ""
 read -rp "Port to run BlackVault on [3000]: " PORT_INPUT
 PORT="${PORT_INPUT:-3000}"
 
-# ── Generate secret keys ──────────────────────────────────────
+# ── Secrets (minimal by default, optional advanced branch) ───
 echo ""
-echo "Generating secret keys..."
-if command -v openssl &>/dev/null; then
-  VAULT_ENCRYPTION_KEY=$(openssl rand -hex 32)
-  SESSION_SECRET=$(openssl rand -hex 32)
-elif command -v python3 &>/dev/null; then
-  VAULT_ENCRYPTION_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
-  SESSION_SECRET=$(python3 -c "import secrets; print(secrets.token_hex(32))")
-else
-  echo "ERROR: Neither 'openssl' nor 'python3' is available to generate secret keys."
-  echo "       Install one of them and re-run."
-  exit 1
+read -rp "Advanced setup (provide your own secrets)? [y/N]: " ADVANCED_SETUP
+
+if [[ "$ADVANCED_SETUP" =~ ^[Yy]$ ]]; then
+  echo ""
+  echo "Advanced setup selected. Leave blank to auto-generate."
+  read -rp "  VAULT_ENCRYPTION_KEY [auto-generate if blank]: " VAULT_ENCRYPTION_KEY
+  read -rp "  SESSION_SECRET [auto-generate if blank]: " SESSION_SECRET
+fi
+
+if [ -z "${VAULT_ENCRYPTION_KEY:-}" ]; then
+  VAULT_ENCRYPTION_KEY=$(generate_hex_secret) || {
+    echo "ERROR: Unable to generate VAULT_ENCRYPTION_KEY."
+    echo "       Install 'openssl' or 'python3', or use advanced setup with manual secrets."
+    exit 1
+  }
+fi
+
+if [ -z "${SESSION_SECRET:-}" ]; then
+  SESSION_SECRET=$(generate_hex_secret) || {
+    echo "ERROR: Unable to generate SESSION_SECRET."
+    echo "       Install 'openssl' or 'python3', or use advanced setup with manual secrets."
+    exit 1
+  }
 fi
 
 # ── Create directories ────────────────────────────────────────
@@ -149,13 +171,7 @@ echo "╚═══════════════════════�
 echo ""
 echo "  URL:         http://localhost:$PORT"
 echo "  Data stored: $DATA_DIR"
-echo ""
-echo "  ⚠  CRITICAL: Back up your encryption key!"
-echo "     If you lose it, your serial numbers and notes"
-echo "     will be permanently unrecoverable."
-echo ""
-echo "     Key stored in: .blackvault.env"
-echo "     Back up that file to a secure location now."
+echo "  Backup now:  .blackvault.env + $DATA_DIR"
 echo ""
 echo "  To stop BlackVault:"
 echo "    $COMPOSE --env-file .blackvault.env down"
