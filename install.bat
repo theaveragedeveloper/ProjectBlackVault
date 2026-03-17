@@ -24,8 +24,8 @@ if %errorlevel% neq 0 (
 :: ── Existing installation guard ──────────────────────────────
 if exist ".blackvault.env" (
   echo WARNING: .blackvault.env already exists.
-  echo   Re-running install will generate NEW secret keys.
-  echo   Any existing encrypted data will become unrecoverable.
+  echo   Re-running install can generate NEW secret keys.
+  echo   Any existing encrypted data may become unrecoverable if keys change.
   echo.
   set /p KEEP_EXISTING="  Keep existing config and just restart? [Y/n]: "
   if "!KEEP_EXISTING!"=="" set KEEP_EXISTING=Y
@@ -63,6 +63,11 @@ set /p PORT_INPUT="Port to run BlackVault on [3000]: "
 if "%PORT_INPUT%"=="" set PORT=3000
 if not "%PORT_INPUT%"=="" set PORT=%PORT_INPUT%
 
+:: ── Password recovery secret option ───────────────────────────
+echo.
+set /p GENERATE_RECOVERY_SECRET="Generate PASSWORD_RECOVERY_SECRET for account recovery workflows? [y/N]: "
+if "!GENERATE_RECOVERY_SECRET!"=="" set GENERATE_RECOVERY_SECRET=N
+
 :: ── Generate secret keys ───────────────────────────────────────
 echo.
 echo Generating secret keys...
@@ -73,6 +78,12 @@ for /f "delims=" %%k in ('powershell -NoProfile -Command "([System.BitConverter]
   set SESSION_SECRET=%%k
 )
 
+if /i "!GENERATE_RECOVERY_SECRET!"=="Y" (
+  for /f "delims=" %%k in ('powershell -NoProfile -Command "([System.BitConverter]::ToString([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32)) -replace '-','').ToLower()"') do (
+    set PASSWORD_RECOVERY_SECRET=%%k
+  )
+)
+
 if "!VAULT_ENCRYPTION_KEY!"=="" (
   echo ERROR: Failed to generate VAULT_ENCRYPTION_KEY. Ensure PowerShell is available.
   pause
@@ -81,6 +92,12 @@ if "!VAULT_ENCRYPTION_KEY!"=="" (
 
 if "!SESSION_SECRET!"=="" (
   echo ERROR: Failed to generate SESSION_SECRET. Ensure PowerShell is available.
+  pause
+  exit /b 1
+)
+
+if /i "!GENERATE_RECOVERY_SECRET!"=="Y" if "!PASSWORD_RECOVERY_SECRET!"=="" (
+  echo ERROR: Failed to generate PASSWORD_RECOVERY_SECRET. Ensure PowerShell is available.
   pause
   exit /b 1
 )
@@ -97,12 +114,20 @@ if not exist "!DATA_DIR!\uploads" mkdir "!DATA_DIR!\uploads"
   echo # CRITICAL: Keep this file safe.
   echo #   Losing VAULT_ENCRYPTION_KEY makes encrypted data unrecoverable.
   echo #   Losing SESSION_SECRET will invalidate active sessions.
+  echo #   PASSWORD_RECOVERY_SECRET is optional but should be unique and never shared.
   echo.
   echo DATA_DIR=!DATA_DIR!
   echo PORT=!PORT!
   echo VAULT_ENCRYPTION_KEY=!VAULT_ENCRYPTION_KEY!
   echo SESSION_SECRET=!SESSION_SECRET!
 ) > .blackvault.env
+
+if /i "!GENERATE_RECOVERY_SECRET!"=="Y" (
+  >> .blackvault.env echo PASSWORD_RECOVERY_SECRET=!PASSWORD_RECOVERY_SECRET!
+  echo Included PASSWORD_RECOVERY_SECRET in .blackvault.env
+) else (
+  echo Skipped PASSWORD_RECOVERY_SECRET generation. You can add it later manually.
+)
 
 echo Configuration written to .blackvault.env
 
@@ -128,12 +153,12 @@ echo.
 echo   URL:         http://localhost:!PORT!
 echo   Data stored: !DATA_DIR!
 echo.
-echo   WARNING: Back up your secret keys!
-echo   If you lose them, your serial numbers and notes
-echo   will be permanently unrecoverable.
+echo   WARNING: Back up your secrets!
+echo   Losing VAULT_ENCRYPTION_KEY can make encrypted data unrecoverable.
+echo   Exposing PASSWORD_RECOVERY_SECRET can enable account takeover via recovery flows.
 echo.
-echo   Key stored in: .blackvault.env
-echo   Back up that file to a secure location now.
+echo   Secrets stored in: .blackvault.env
+echo   Back up that file to a secure location now, and never share it in screenshots/logs.
 echo.
 echo   To stop BlackVault:
 echo     %COMPOSE% --env-file .blackvault.env down
