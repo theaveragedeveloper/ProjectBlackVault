@@ -4,9 +4,13 @@ import { backupSchemas } from "@/lib/validation/schemas/api";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/server/client-ip";
 import { collectBackupData } from "@/lib/backup";
+import { requireStepUpAuth } from "@/lib/server/step-up-auth";
 
 export async function POST(request: NextRequest) {
   try {
+    const stepUp = await requireStepUpAuth(request);
+    if (stepUp) return stepUp;
+
     const ip = getClientIp(request);
     const rate = await enforceRateLimit({ key: `backup:export:${ip}`, windowMs: 60_000, maxAttempts: 10 });
     if (!rate.allowed) return NextResponse.json({ error: "Too many requests" }, { status: 429 });

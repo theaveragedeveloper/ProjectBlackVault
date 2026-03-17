@@ -19,7 +19,7 @@ export async function GET() {
     const passwordRequired = !!settings.appPassword;
     const secret = getSessionSecret();
     const authenticated = session?.value
-      ? (secret ? verifyTokenNode(session.value, secret) : true)
+      ? (secret ? verifyTokenNode(session.value, secret) : false)
       : false;
 
     return NextResponse.json({ passwordRequired, authenticated });
