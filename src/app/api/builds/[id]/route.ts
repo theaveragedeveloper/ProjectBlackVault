@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireEntityWriteAccess } from "@/lib/server/entity-write-access";
 
 // GET /api/builds/[id] - Get a single build with slots and accessories populated
 export async function GET(
@@ -52,6 +53,11 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
+    const entityAccess = await requireEntityWriteAccess(request, "build", id);
+    if (!entityAccess.ok) {
+      return entityAccess.response;
+    }
+
     const body = await request.json();
     const { name, description, isActive } = body;
 
@@ -107,11 +113,16 @@ export async function PUT(
 
 // DELETE /api/builds/[id] - Delete a build
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
+
+    const entityAccess = await requireEntityWriteAccess(request, "build", id);
+    if (!entityAccess.ok) {
+      return entityAccess.response;
+    }
 
     const existing = await prisma.build.findUnique({ where: { id } });
     if (!existing) {
