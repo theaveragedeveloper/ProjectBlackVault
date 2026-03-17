@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { revalidateDashboardCaches } from "@/lib/server/dashboard";
 import { validateOptionalImageUrl } from "@/lib/image-url-validation";
+import { requireEntityWriteAccess } from "@/lib/server/entity-write-access";
 
 // GET /api/accessories/[id] - Get a single accessory with roundCountLogs and current buildSlots
 export async function GET(
@@ -100,6 +101,11 @@ export async function PUT(
     } = body;
 
     const existing = await prisma.accessory.findUnique({ where: { id } });
+    const entityAccess = await requireEntityWriteAccess(request, "accessory", id);
+    if (!entityAccess.ok) {
+      return entityAccess.response;
+    }
+
     if (!existing) {
       return NextResponse.json(
         { error: "Accessory not found" },
@@ -176,13 +182,18 @@ export async function PUT(
 
 // DELETE /api/accessories/[id] - Delete an accessory
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
 
     const existing = await prisma.accessory.findUnique({ where: { id } });
+    const entityAccess = await requireEntityWriteAccess(request, "accessory", id);
+    if (!entityAccess.ok) {
+      return entityAccess.response;
+    }
+
     if (!existing) {
       return NextResponse.json(
         { error: "Accessory not found" },

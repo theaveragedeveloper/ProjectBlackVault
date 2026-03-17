@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { encryptField, decryptField } from "@/lib/crypto";
 import { revalidateDashboardCaches } from "@/lib/server/dashboard";
 import { validateOptionalImageUrl } from "@/lib/image-url-validation";
+import { requireEntityWriteAccess } from "@/lib/server/entity-write-access";
 
 // GET /api/firearms/[id] - Get a single firearm with active build, slots, and accessories
 export async function GET(
@@ -79,9 +80,9 @@ export async function PUT(
       imageSource,
     } = body;
 
-    const existing = await prisma.firearm.findUnique({ where: { id } });
-    if (!existing) {
-      return NextResponse.json({ error: "Firearm not found" }, { status: 404 });
+    const entityAccess = await requireEntityWriteAccess(request, "firearm", id);
+    if (!entityAccess.ok) {
+      return entityAccess.response;
     }
 
     if (imageUrl !== undefined) {
@@ -165,15 +166,15 @@ export async function PUT(
 
 // DELETE /api/firearms/[id] - Delete a firearm
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
 
-    const existing = await prisma.firearm.findUnique({ where: { id } });
-    if (!existing) {
-      return NextResponse.json({ error: "Firearm not found" }, { status: 404 });
+    const entityAccess = await requireEntityWriteAccess(request, "firearm", id);
+    if (!entityAccess.ok) {
+      return entityAccess.response;
     }
 
     await prisma.firearm.delete({ where: { id } });

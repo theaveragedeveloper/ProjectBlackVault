@@ -4,13 +4,14 @@ import path from "path";
 import { detectFileSignature } from "@/lib/server/file-signatures";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/server/client-ip";
+import { requireEntityWriteAccess, type WritableEntityType } from "@/lib/server/entity-write-access";
 
 const ALLOWED_EXTENSIONS = new Set(["jpg", "png", "webp", "avif"]);
 
 const ALLOWED_ENTITY_TYPES = new Set([
   "firearm",
   "accessory",
-  "ammo",
+  "build",
 ]);
 
 // POST /api/images/upload - Upload an image for an entity
@@ -65,6 +66,15 @@ export async function POST(request: NextRequest) {
         { error: "Invalid entityId" },
         { status: 400 }
       );
+    }
+
+    const entityAccess = await requireEntityWriteAccess(
+      request,
+      entityType as WritableEntityType,
+      sanitizedEntityId
+    );
+    if (!entityAccess.ok) {
+      return entityAccess.response;
     }
 
     // Check file size (limit to 10MB)
