@@ -50,8 +50,9 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: allowExternalImageUrls
       ? TRUSTED_IMAGE_HOSTNAMES.map((hostname) => ({
-          protocol: "https",
-          hostname,
+          protocol: "https" as const,
+          // Next.js requires "**" prefix for wildcard subdomain matching ("*.foo.com" → "**.foo.com")
+          hostname: hostname.startsWith("*.") ? `*${hostname}` : hostname,
         }))
       : [],
   },
