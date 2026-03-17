@@ -41,15 +41,15 @@ export async function POST(request: NextRequest) {
     }
 
     const secret = process.env.SESSION_SECRET;
-    if (!secret && process.env.NODE_ENV === "production") {
-      console.error("POST /api/auth/login: SESSION_SECRET is not set in production");
+    if (!secret) {
+      console.error("POST /api/auth/login: SESSION_SECRET is not set");
       return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
     }
 
     // If no password is set, always allow access
     if (!settings.appPassword) {
       const token = crypto.randomBytes(32).toString("hex");
-      const cookieValue = secret ? signToken(token, secret) : token;
+      const cookieValue = signToken(token, secret);
       const cookieStore = await cookies();
       cookieStore.set("vault_session", cookieValue, getSessionCookieOptions());
       return NextResponse.json({ success: true });
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     }
 
     const token = crypto.randomBytes(32).toString("hex");
-    const cookieValue = secret ? signToken(token, secret) : token;
+    const cookieValue = signToken(token, secret);
     const cookieStore = await cookies();
     cookieStore.set("vault_session", cookieValue, getSessionCookieOptions());
 

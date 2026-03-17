@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { prisma } from "@/lib/prisma";
+import { requireStepUpAuth } from "@/lib/server/step-up-auth";
 
 // ─── Type helpers ──────────────────────────────────────────────────────────
 
@@ -38,6 +39,9 @@ function boolOr(v: unknown, def: boolean): boolean {
 
 export async function POST(request: NextRequest) {
   try {
+    const stepUp = await requireStepUpAuth(request);
+    if (stepUp) return stepUp;
+
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
 
     // 1 restore per 5 minutes per IP
