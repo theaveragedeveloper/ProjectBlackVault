@@ -1,7 +1,7 @@
 import crypto from "crypto";
 
 /**
- * Sign a raw token with HMAC-SHA256. Returns "token.hmachex".
+ * Sign a raw token with HMAC-SHA256. Returns "<token>.<hmacHex>".
  * Used by Node.js API routes (login, auth/check).
  */
 export function signToken(token: string, secret: string): string {
