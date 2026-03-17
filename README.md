@@ -2,30 +2,39 @@
 
 Self-hosted firearms inventory and range tracking built with Next.js, Prisma, and SQLite.
 
-## Choose Your Setup
+## Features
 
-Use either option below. Both run on your local machine.
+- **Firearms inventory management** with structured records you host and control.
+- **Range session tracking** to log performance and session details over time.
+- **Self-hosted by default** so your data stays on your infrastructure.
+- **Simple deployment options** with either Docker (recommended) or direct Node.js runtime.
+- **Local SQLite storage** for low-maintenance setup and backup workflows.
+- **Security-focused configuration** including session secrets, encryption key support, and outbound network controls.
+
+## Installation
+
+Choose one installation path below based on how you want to run the app.
 
 | Setup Path | Best For | What You Install | First Run |
 |---|---|---|---|
 | Docker | Most users | Docker Desktop (or Docker Engine + Compose plugin) | Guided setup script |
 | Local (Node.js) | Development/customization | Node.js 20+ and npm 9+ | Run app directly with npm |
 
-## Option A: Docker (Recommended)
+### Option A: Docker (Recommended)
 
-### 1) Install prerequisites
+#### 1) Install prerequisites
 
 - Windows/macOS: Docker Desktop
 - Linux: Docker Engine + Docker Compose plugin
 
-### 2) Clone this repo
+#### 2) Clone this repo
 
 ```bash
 git clone <repo-url>
 cd ProjectBlackVault
 ```
 
-### 3) Run first-time installer
+#### 3) Run first-time installer
 
 macOS/Linux:
 
@@ -42,7 +51,7 @@ install.bat
 
 The installer creates `.blackvault.env`, generates secret keys, creates data folders, and starts the container.
 
-### 4) Open the app
+#### 4) Open the app
 
 Open [http://localhost:3000](http://localhost:3000) (or the port you chose during setup).
 
@@ -70,14 +79,14 @@ Update:
 update.bat
 ```
 
-## Option B: Local Machine (Node.js)
+### Option B: Local Machine (Node.js)
 
-### 1) Install prerequisites
+#### 1) Install prerequisites
 
 - Node.js 20+
 - npm 9+
 
-### 2) Clone and install dependencies
+#### 2) Clone and install dependencies
 
 ```bash
 git clone <repo-url>
@@ -85,19 +94,19 @@ cd ProjectBlackVault
 npm install
 ```
 
-### 3) Create local config
+#### 3) Create local config
 
 ```bash
 cp .env.example .env
 ```
 
-### 4) Create/update database schema
+#### 4) Create/update database schema
 
 ```bash
 npx prisma migrate dev
 ```
 
-### 5) Start the app
+#### 5) Start the app
 
 ```bash
 npm run dev
