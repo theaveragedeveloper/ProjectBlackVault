@@ -99,6 +99,7 @@ export default function SettingsPage() {
   const [backupSuccess, setBackupSuccess] = useState<string | null>(null);
   const [backupPassphrase, setBackupPassphrase] = useState("");
   const [backupConfirm, setBackupConfirm] = useState("");
+  const [backupActionPassword, setBackupActionPassword] = useState("");
   const [includeDocumentFilesInBackup, setIncludeDocumentFilesInBackup] = useState(true);
   const [autoBackupEnabled, setAutoBackupEnabled] = useState(false);
   const [autoBackupIntervalMin, setAutoBackupIntervalMin] = useState(15);
@@ -504,6 +505,12 @@ export default function SettingsPage() {
     };
   }
 
+  function buildSensitiveActionHeaders() {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (backupActionPassword) headers["x-vault-password"] = backupActionPassword;
+    return headers;
+  }
+
   async function handleCreateSecureBackup() {
     setBackupError(null);
     setBackupSuccess(null);
@@ -523,7 +530,7 @@ export default function SettingsPage() {
     try {
       const res = await fetch("/api/backup/export", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: buildSensitiveActionHeaders(),
         body: JSON.stringify({ includeDocumentFiles: includeDocumentFilesInBackup }),
       });
 
@@ -653,7 +660,7 @@ export default function SettingsPage() {
 
       const res = await fetch("/api/backup/restore", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: buildSensitiveActionHeaders(),
         body: JSON.stringify(backupJson),
       });
       const json = await res.json();
@@ -1685,6 +1692,15 @@ export default function SettingsPage() {
                 value={backupConfirm}
                 onChange={(e) => setBackupConfirm(e.target.value)}
                 placeholder="Re-enter passphrase"
+                className={INPUT_CLASS}
+              />
+
+              <label className={LABEL_CLASS}>App Password (Step-up for export/restore)</label>
+              <input
+                type="password"
+                value={backupActionPassword}
+                onChange={(e) => setBackupActionPassword(e.target.value)}
+                placeholder="Required if app password is enabled"
                 className={INPUT_CLASS}
               />
 

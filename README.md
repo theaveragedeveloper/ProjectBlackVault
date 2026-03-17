@@ -185,7 +185,8 @@ docker compose -f docker-compose.dev.yml down
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `DATABASE_URL` | Yes | `file:./prisma/dev.db` | SQLite connection string for local Node.js run |
-| `SESSION_SECRET` | Recommended | — | Signs session cookies |
+| `SESSION_SECRET` | Yes | — | Signs and verifies session cookies for all protected API routes |
+| `SESSION_MAX_AGE_SECONDS` | No | `28800` | Session cookie lifetime in seconds (min 300, max 86400) |
 | `GOOGLE_CSE_API_KEY` | No | — | Google Custom Search API key for image lookup |
 | `GOOGLE_CSE_SEARCH_ENGINE_ID` | No | — | Google CSE search engine ID |
 
@@ -201,7 +202,8 @@ docker compose -f docker-compose.dev.yml down
 | `ALLOW_EXTERNAL_IMAGE_URLS` | Recommended | `false` | Allows storing/loading images from trusted third-party hosts |
 | `SYSTEM_UPDATE_REQUIRE_PRIVATE_NETWORK` | Recommended | `true` | Restricts in-app update actions to private LAN/VPN client IPs |
 | `VAULT_ENCRYPTION_KEY` | Yes | — | Encryption key for sensitive values |
-| `SESSION_SECRET` | Recommended | — | Signs session cookies |
+| `SESSION_SECRET` | Yes | — | Signs and verifies session cookies for all protected API routes |
+| `SESSION_MAX_AGE_SECONDS` | No | `28800` | Session cookie lifetime in seconds (min 300, max 86400) |
 
 ### Optional Launcher And Package Channels
 
