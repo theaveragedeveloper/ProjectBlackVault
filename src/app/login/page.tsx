@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Lock, Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
+import { Lock, Eye, EyeOff, Loader2, AlertCircle, KeyRound } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -12,6 +12,14 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [showRecovery, setShowRecovery] = useState(false);
+  const [recoverySecret, setRecoverySecret] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [recoverySubmitting, setRecoverySubmitting] = useState(false);
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
+  const [recoverySuccess, setRecoverySuccess] = useState<string | null>(null);
 
   useEffect(() => {
     // Check if password is required
@@ -64,6 +72,45 @@ export default function LoginPage() {
     }
   }
 
+  async function handleRecoverySubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setRecoveryError(null);
+    setRecoverySuccess(null);
+
+    if (newPassword !== confirmNewPassword) {
+      setRecoveryError("New passwords do not match.");
+      return;
+    }
+
+    setRecoverySubmitting(true);
+
+    try {
+      const res = await fetch("/api/auth/recover", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recoverySecret, newPassword }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) {
+        setRecoveryError(json.error ?? "Recovery failed");
+        setRecoverySubmitting(false);
+        return;
+      }
+
+      setRecoverySuccess("Password reset. Sign in with your new password.");
+      setPassword("");
+      setRecoverySecret("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+      setShowRecovery(false);
+      setRecoverySubmitting(false);
+    } catch {
+      setRecoveryError("Connection error. Please try again.");
+      setRecoverySubmitting(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-vault-bg">
@@ -75,7 +122,6 @@ export default function LoginPage() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-vault-bg tactical-grid">
       <div className="w-full max-w-sm mx-auto px-6">
-        {/* Logo / Title */}
         <div className="text-center mb-10">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#00C2FF]/10 border border-[#00C2FF]/30 mb-4 p-2">
             <Image src="/blackvault-logo.png" alt="BlackVault logo" width={32} height={32} className="w-8 h-8" priority />
@@ -88,7 +134,6 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Login Card */}
         <div className="bg-vault-surface border border-vault-border rounded-xl p-6 shadow-2xl">
           <div className="flex items-center gap-2 mb-6">
             <Lock className="w-4 h-4 text-[#00C2FF]" />
@@ -104,6 +149,12 @@ export default function LoginPage() {
             </div>
           )}
 
+          {recoverySuccess && (
+            <div className="flex items-center gap-2 bg-[#43A047]/10 border border-[#43A047]/30 rounded-md px-3 py-2 mb-4">
+              <p className="text-xs text-[#43A047]">{recoverySuccess}</p>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5 font-mono">
@@ -114,7 +165,7 @@ export default function LoginPage() {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter vault password..."
+                  placeholder="Leave blank if no password is set"
                   autoFocus
                   className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2.5 pr-10 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint transition-colors"
                   autoComplete="current-password"
@@ -131,7 +182,7 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              disabled={submitting || !password}
+              disabled={submitting}
               className="w-full flex items-center justify-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2.5 rounded-md text-sm font-medium transition-colors"
             >
               {submitting ? (
@@ -143,12 +194,78 @@ export default function LoginPage() {
             </button>
           </form>
 
+          <button
+            type="button"
+            onClick={() => {
+              setShowRecovery((prev) => !prev);
+              setRecoveryError(null);
+            }}
+            className="mt-4 w-full text-xs text-vault-text-muted hover:text-vault-text transition-colors"
+          >
+            {showRecovery ? "Cancel password recovery" : "Forgot password? Use recovery secret"}
+          </button>
+
+          {showRecovery && (
+            <form onSubmit={handleRecoverySubmit} className="mt-4 space-y-3 border-t border-vault-border pt-4">
+              <div className="flex items-center gap-2 text-xs text-vault-text-muted">
+                <KeyRound className="w-3.5 h-3.5" />
+                <span>Recovery requires a server-side secret.</span>
+              </div>
+
+              {recoveryError && (
+                <div className="flex items-center gap-2 bg-[#E53935]/10 border border-[#E53935]/30 rounded-md px-3 py-2">
+                  <AlertCircle className="w-4 h-4 text-[#E53935] shrink-0" />
+                  <p className="text-xs text-[#E53935]">{recoveryError}</p>
+                </div>
+              )}
+
+              <input
+                type="password"
+                value={recoverySecret}
+                onChange={(e) => setRecoverySecret(e.target.value)}
+                placeholder="Recovery secret"
+                className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF]"
+                autoComplete="off"
+                required
+              />
+
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="New password (min 8 chars)"
+                className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF]"
+                autoComplete="new-password"
+                minLength={8}
+                required
+              />
+
+              <input
+                type="password"
+                value={confirmNewPassword}
+                onChange={(e) => setConfirmNewPassword(e.target.value)}
+                placeholder="Confirm new password"
+                className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF]"
+                autoComplete="new-password"
+                minLength={8}
+                required
+              />
+
+              <button
+                type="submit"
+                disabled={recoverySubmitting}
+                className="w-full bg-[#F5A623]/10 border border-[#F5A623]/30 text-[#F5A623] hover:bg-[#F5A623]/20 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 rounded-md text-sm font-medium transition-colors"
+              >
+                {recoverySubmitting ? "Resetting..." : "Reset Password"}
+              </button>
+            </form>
+          )}
+
           <p className="text-[10px] text-vault-text-faint text-center mt-4">
             Password can be changed in Settings
           </p>
         </div>
 
-        {/* Corner brackets decoration */}
         <div className="mt-6 flex justify-between px-2">
           <div className="w-6 h-6 border-t border-l border-[#00C2FF]/20" />
           <div className="w-6 h-6 border-t border-r border-[#00C2FF]/20" />

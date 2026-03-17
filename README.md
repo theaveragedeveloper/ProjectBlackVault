@@ -210,6 +210,8 @@ docker compose -f docker-compose.dev.yml down
 | `SESSION_MAX_AGE_SECONDS` | No | `28800` | Session cookie lifetime in seconds (min 300, max 86400) |
 | `GOOGLE_CSE_API_KEY` | No | — | Google Custom Search API key for image lookup |
 | `GOOGLE_CSE_SEARCH_ENGINE_ID` | No | — | Google CSE search engine ID |
+| `PASSWORD_RECOVERY_SECRET` | No | — | Emergency password reset secret used by `/api/auth/recover` |
+| `ALLOW_SESSION_SECRET_PASSWORD_RESET` | No | `false` | Allows `SESSION_SECRET` fallback for password reset when recovery secret is unset |
 
 #### Docker (`.blackvault.env`)
 
@@ -224,6 +226,8 @@ docker compose -f docker-compose.dev.yml down
 | `SYSTEM_UPDATE_REQUIRE_PRIVATE_NETWORK` | Recommended | `true` | Restricts in-app update actions to private LAN/VPN client IPs |
 | `VAULT_ENCRYPTION_KEY` | Yes | — | Encryption key for sensitive values |
 | `SESSION_SECRET` | Yes | — | Signs and verifies session cookies for all protected API routes |
+| `PASSWORD_RECOVERY_SECRET` | No | — | Emergency password reset secret used by `/api/auth/recover` |
+| `ALLOW_SESSION_SECRET_PASSWORD_RESET` | No | `false` | Allows `SESSION_SECRET` fallback for password reset when recovery secret is unset |
 | `SESSION_MAX_AGE_SECONDS` | No | `28800` | Session cookie lifetime in seconds (min 300, max 86400) |
 
 ### Optional Launcher And Package Channels
