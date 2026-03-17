@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
-import { detectFileSignature } from "@/lib/server/file-signatures";
+import { detectFileSignature, isHeicFamilySignature } from "@/lib/server/file-signatures";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/server/client-ip";
 
@@ -81,6 +81,15 @@ export async function POST(request: NextRequest) {
     const detected = detectFileSignature(buffer);
 
     if (!detected || !ALLOWED_EXTENSIONS.has(detected.extension)) {
+      if (isHeicFamilySignature(buffer) || ["image/heic", "image/heif"].includes(file.type)) {
+        return NextResponse.json(
+          {
+            error: "HEIC/HEIF photos must be converted before upload. Please try again from a supported browser to auto-convert, or export as JPG/WebP.",
+          },
+          { status: 400 }
+        );
+      }
+
       return NextResponse.json(
         {
           error: `Invalid file type. Only raster formats are allowed: ${Array.from(ALLOWED_EXTENSIONS).join(", ")}`,
