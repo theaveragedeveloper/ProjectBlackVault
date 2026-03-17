@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 import { TRUSTED_IMAGE_HOSTNAMES } from "./src/lib/image-host-allowlist";
 
 const isProduction = process.env.NODE_ENV === "production";
+const isElectron = process.env.ELECTRON_APP === "1";
 const allowExternalImageUrls =
   process.env.ALLOW_EXTERNAL_IMAGE_URLS === "true" ||
   process.env.NEXT_PUBLIC_ALLOW_EXTERNAL_IMAGE_URLS === "true";
@@ -23,13 +24,14 @@ const securityHeaders = [
     key: "Permissions-Policy",
     value: "camera=(), microphone=(), geolocation=()",
   },
-  // HSTS: only set in production — local dev is typically HTTP, and sending HSTS
-  // over HTTP has no effect (and can confuse some tools).
-  ...(isProduction
+  // HSTS: only in production browser deploys — Electron serves over plain HTTP
+  // on localhost so HSTS is both useless and potentially confusing.
+  ...(isProduction && !isElectron
     ? [{ key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" }]
     : []),
   {
-    // 'unsafe-inline' required for the theme-flash inline script in layout.tsx
+    // 'unsafe-inline' required for the theme-flash inline script in layout.tsx.
+    // connect-src includes 127.0.0.1 so Electron-served pages can reach the API.
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
@@ -37,7 +39,7 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https:",
       "font-src 'self'",
-      "connect-src 'self'",
+      "connect-src 'self' http://127.0.0.1:*",
       "frame-ancestors 'none'",
     ].join("; "),
   },
