@@ -13,8 +13,47 @@ interface ImagePickerProps {
   onChange: (url: string | null, source: string | null) => void;
 }
 
-const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/avif"];
+const ACCEPTED_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "image/avif",
+  "image/heic",
+  "image/heif",
+];
+const HEIC_TYPES = new Set(["image/heic", "image/heif"]);
 const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
+
+async function convertHeicLikeFile(file: File): Promise<File> {
+  const bitmap = await createImageBitmap(file);
+  const canvas = document.createElement("canvas");
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+
+  const context = canvas.getContext("2d");
+  if (!context) {
+    throw new Error("Could not initialize image conversion context.");
+  }
+
+  context.drawImage(bitmap, 0, 0);
+  bitmap.close();
+
+  const targetType = "image/webp";
+  const convertedBlob = await new Promise<Blob | null>((resolve) => {
+    canvas.toBlob(resolve, targetType, 0.92);
+  });
+
+  if (!convertedBlob) {
+    throw new Error("Could not convert HEIC/HEIF photo. Please export as JPG and try again.");
+  }
+
+  const normalizedName = file.name.replace(/\.[^.]+$/, "") || "photo";
+  return new File([convertedBlob], `${normalizedName}.webp`, {
+    type: targetType,
+    lastModified: Date.now(),
+  });
+}
 
 export default function ImagePicker({
   entityType,
@@ -40,7 +79,7 @@ export default function ImagePicker({
     setError(null);
 
     if (!ACCEPTED_TYPES.includes(file.type)) {
-      setError("Only JPG, PNG, GIF, WebP, and AVIF photos are supported.");
+      setError("Only JPG, PNG, GIF, WebP, AVIF, and phone HEIC/HEIF photos are supported.");
       return;
     }
     if (file.size > MAX_BYTES) {
@@ -50,8 +89,10 @@ export default function ImagePicker({
 
     setUploading(true);
     try {
+      const uploadFile = HEIC_TYPES.has(file.type) ? await convertHeicLikeFile(file) : file;
+
       const fd = new FormData();
-      fd.append("file", file);
+      fd.append("file", uploadFile);
       fd.append("entityType", entityType);
       fd.append("entityId", entityId ?? tempId.current);
 
@@ -65,8 +106,9 @@ export default function ImagePicker({
 
       setPreview(json.url);
       onChange(json.url, "uploaded");
-    } catch {
-      setError("Upload failed. Check your connection and try again.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Upload failed. Check your connection and try again.";
+      setError(message);
     } finally {
       setUploading(false);
     }
@@ -162,10 +204,10 @@ export default function ImagePicker({
               <div className="text-center">
                 <p className="text-sm font-medium text-vault-text">Add a Photo</p>
                 <p className="text-xs text-vault-text-faint mt-0.5">
-                  Click to choose, or drag and drop
+                  Click to choose, or drag and drop. iPhone/Android photos are supported and may be auto-converted.
                 </p>
                 <p className="text-[10px] text-vault-text-faint mt-1 font-mono">
-                  JPG · PNG · GIF · WebP &nbsp;·&nbsp; Max 10 MB
+                  JPG · PNG · GIF · WebP · AVIF · HEIC/HEIF &nbsp;·&nbsp; Max 10 MB
                 </p>
               </div>
             </>
