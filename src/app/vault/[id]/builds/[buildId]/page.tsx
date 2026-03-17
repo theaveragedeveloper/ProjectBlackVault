@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { SLOTS_BY_FIREARM_TYPE, SLOT_TYPE_LABELS, FirearmType, SlotType } from "@/lib/types";
 import { SafeImage } from "@/components/shared/SafeImage";
+import ImagePicker from "@/components/shared/ImagePicker";
 import { SLOT_ICONS } from "@/lib/configurator/slot-icons";
 
 // ─── Types ────────────────────────────────────────────────────
@@ -98,6 +99,7 @@ function AccessoryEditModal({ accessory, onClose, onSaved }: AccessoryEditModalP
     caliber: accessory.caliber ?? "",
     purchasePrice: accessory.purchasePrice != null ? String(accessory.purchasePrice) : "",
     imageUrl: accessory.imageUrl ?? "",
+    imageSource: accessory.imageUrl ? "url" : null,
     notes: accessory.notes ?? "",
   });
   const [saving, setSaving] = useState(false);
@@ -121,6 +123,7 @@ function AccessoryEditModal({ accessory, onClose, onSaved }: AccessoryEditModalP
           caliber: form.caliber.trim() || null,
           purchasePrice: form.purchasePrice ? parseFloat(form.purchasePrice) : null,
           imageUrl: form.imageUrl.trim() || null,
+          imageSource: form.imageUrl.trim() ? form.imageSource : null,
           notes: form.notes.trim() || null,
         }),
       });
@@ -232,13 +235,19 @@ function AccessoryEditModal({ accessory, onClose, onSaved }: AccessoryEditModalP
 
           <div>
             <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">
-              Image URL
+              Image
             </label>
-            <input
-              value={form.imageUrl}
-              onChange={(e) => setForm((f) => ({ ...f, imageUrl: e.target.value }))}
-              className={FIELD_CLASS}
-              placeholder="https://..."
+            <ImagePicker
+              entityType="accessory"
+              entityId={accessory.id}
+              currentUrl={form.imageUrl || null}
+              onChange={(url, source) =>
+                setForm((f) => ({
+                  ...f,
+                  imageUrl: url ?? "",
+                  imageSource: source,
+                }))
+              }
             />
           </div>
 
@@ -302,7 +311,7 @@ function AccessoryBrowserModal({
   const [assignError, setAssignError] = useState<string | null>(null);
 
   const [view, setView] = useState<"browse" | "create">("browse");
-  const [form, setForm] = useState({ name: "", manufacturer: "", model: "", caliber: "", purchasePrice: "", imageUrl: "" });
+  const [form, setForm] = useState({ name: "", manufacturer: "", model: "", caliber: "", purchasePrice: "", imageUrl: "", imageSource: null as string | null });
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -374,6 +383,7 @@ function AccessoryBrowserModal({
           caliber: form.caliber.trim() || undefined,
           purchasePrice: form.purchasePrice ? parseFloat(form.purchasePrice) : undefined,
           imageUrl: form.imageUrl.trim() || undefined,
+          imageSource: form.imageUrl.trim() ? form.imageSource : undefined,
           hasBattery: ["OPTIC", "LIGHT", "LASER"].includes(slotType),
         }),
       });
@@ -609,10 +619,19 @@ function AccessoryBrowserModal({
                   <input type="number" value={form.purchasePrice} onChange={e => setForm(f => ({...f, purchasePrice: e.target.value}))}
                     className={FIELD_CLASS} placeholder="0.00" />
                 </div>
-                <div>
-                  <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Image URL</label>
-                  <input value={form.imageUrl} onChange={e => setForm(f => ({...f, imageUrl: e.target.value}))}
-                    className={FIELD_CLASS} placeholder="https://..." />
+                <div className="sm:col-span-2">
+                  <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Image</label>
+                  <ImagePicker
+                    entityType="accessory"
+                    currentUrl={form.imageUrl || null}
+                    onChange={(url, source) =>
+                      setForm((f) => ({
+                        ...f,
+                        imageUrl: url ?? "",
+                        imageSource: source,
+                      }))
+                    }
+                  />
                 </div>
               </div>
             </div>
