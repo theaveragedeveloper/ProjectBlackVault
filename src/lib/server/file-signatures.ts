@@ -3,6 +3,8 @@ type FileSignature = {
   mimeType: string;
 };
 
+const HEIC_FAMILY_BRANDS = ["heic", "heix", "hevc", "hevx", "mif1", "msf1"];
+
 const JPEG_SOI_1 = 0xff;
 const JPEG_SOI_2 = 0xd8;
 const JPEG_SOI_3 = 0xff;
@@ -81,3 +83,26 @@ export function detectFileSignature(buffer: Buffer): FileSignature | null {
   return null;
 }
 
+export function isHeicFamilySignature(buffer: Buffer): boolean {
+  if (buffer.length < 12) {
+    return false;
+  }
+
+  // HEIC/HEIF: ISO BMFF container with ftyp and HEIC-family brands.
+  if (
+    buffer[4] !== 0x66 ||
+    buffer[5] !== 0x74 ||
+    buffer[6] !== 0x79 ||
+    buffer[7] !== 0x70
+  ) {
+    return false;
+  }
+
+  const majorBrand = buffer.subarray(8, 12).toString("ascii");
+  const compatibleBrands = buffer.subarray(8, 96).toString("ascii");
+
+  return (
+    HEIC_FAMILY_BRANDS.includes(majorBrand) ||
+    HEIC_FAMILY_BRANDS.some((brand) => compatibleBrands.includes(brand))
+  );
+}
