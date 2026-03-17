@@ -1175,6 +1175,7 @@ export default function BuildConfiguratorPage() {
   const [allBuilds, setAllBuilds] = useState<Build[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [activatingBuild, setActivatingBuild] = useState(false);
 
   const [browserSlot, setBrowserSlot] = useState<string | null>(null);
@@ -1211,16 +1212,40 @@ export default function BuildConfiguratorPage() {
     fetchBuild();
   }, [fetchBuild]);
 
+  async function parseErrorMessage(res: Response, fallback: string) {
+    try {
+      const data = await res.json();
+      return typeof data?.error === "string" && data.error.trim() ? data.error : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
   async function handleRemoveSlot(slotType: string) {
     if (!build) return;
     try {
-      await fetch(`/api/builds/${buildId}/slots`, {
+      const res = await fetch(`/api/builds/${buildId}/slots`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ slotType, accessoryId: null }),
       });
-      fetchBuild();
-    } catch { /* silently fail */ }
+
+      if (!res.ok) {
+        const fallback = res.status === 409
+          ? "Slot could not be updated because of a conflict. Please refresh and try again."
+          : "Failed to remove slot accessory.";
+        setActionError(await parseErrorMessage(res, fallback));
+        return;
+      }
+
+      setActionError(null);
+      await fetchBuild();
+    } catch (err) {
+      if (process.env.NODE_ENV === "development") {
+        console.error("Failed to remove slot accessory", err);
+      }
+      setActionError("Unable to remove slot accessory right now. Please try again.");
+    }
   }
 
 
@@ -1232,37 +1257,79 @@ export default function BuildConfiguratorPage() {
       const slotType = addingSlotInGroup
         ? `CUSTOM:${addingSlotInGroup}|${name}`
         : `CUSTOM:${name}`;
-      await fetch(`/api/builds/${buildId}/slots`, {
+      const res = await fetch(`/api/builds/${buildId}/slots`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ slotType, accessoryId: null }),
       });
+
+      if (!res.ok) {
+        const fallback = res.status === 409
+          ? "A slot with that name already exists in this section."
+          : "Failed to add custom slot.";
+        setActionError(await parseErrorMessage(res, fallback));
+        return;
+      }
+
       setCustomSlotInput("");
       setAddingSlotInGroup(null);
-      fetchBuild();
-    } catch { /* silently fail */ }
+      setActionError(null);
+      await fetchBuild();
+    } catch (err) {
+      if (process.env.NODE_ENV === "development") {
+        console.error("Failed to add custom slot", err);
+      }
+      setActionError("Unable to add custom slot right now. Please try again.");
+    }
   }
 
   async function handleDeleteCustomSlot(slotType: string) {
     try {
-      await fetch(`/api/builds/${buildId}/slots?slotType=${encodeURIComponent(slotType)}`, {
+      const res = await fetch(`/api/builds/${buildId}/slots?slotType=${encodeURIComponent(slotType)}`, {
         method: "DELETE",
       });
-      fetchBuild();
-    } catch { /* silently fail */ }
+
+      if (!res.ok) {
+        const fallback = res.status === 409
+          ? "This slot cannot be deleted right now because of a conflict."
+          : "Failed to delete custom slot.";
+        setActionError(await parseErrorMessage(res, fallback));
+        return;
+      }
+
+      setActionError(null);
+      await fetchBuild();
+    } catch (err) {
+      if (process.env.NODE_ENV === "development") {
+        console.error("Failed to delete custom slot", err);
+      }
+      setActionError("Unable to delete custom slot right now. Please try again.");
+    }
   }
 
   async function handleActivate() {
     if (!build || build.isActive) return;
     setActivatingBuild(true);
     try {
-      await fetch(`/api/builds/${buildId}`, {
+      const res = await fetch(`/api/builds/${buildId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive: true }),
       });
-      fetchBuild();
-    } catch { /* silently fail */ }
+
+      if (!res.ok) {
+        setActionError(await parseErrorMessage(res, "Failed to activate build."));
+        return;
+      }
+
+      setActionError(null);
+      await fetchBuild();
+    } catch (err) {
+      if (process.env.NODE_ENV === "development") {
+        console.error("Failed to activate build", err);
+      }
+      setActionError("Unable to activate build right now. Please try again.");
+    }
     finally { setActivatingBuild(false); }
   }
 
@@ -1331,6 +1398,13 @@ export default function BuildConfiguratorPage() {
           )}
         </div>
       </div>
+
+      {actionError && (
+        <div className="mx-4 mt-3 mb-1 flex items-center gap-2 bg-[#E53935]/10 border border-[#E53935]/30 rounded-md px-3 py-2">
+          <AlertCircle className="w-4 h-4 text-[#E53935] shrink-0" />
+          <p className="text-xs text-[#E53935]">{actionError}</p>
+        </div>
+      )}
 
       {/* Loadout layout */}
       <GunBanner build={build} />
