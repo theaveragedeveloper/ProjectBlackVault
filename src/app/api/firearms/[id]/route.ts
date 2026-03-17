@@ -3,12 +3,16 @@ import { prisma } from "@/lib/prisma";
 import { encryptField, decryptField } from "@/lib/crypto";
 import { revalidateDashboardCaches } from "@/lib/server/dashboard";
 import { validateOptionalImageUrl } from "@/lib/image-url-validation";
+import { requireAuth } from "@/lib/server/auth";
 
 // GET /api/firearms/[id] - Get a single firearm with active build, slots, and accessories
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const { id } = await params;
 
@@ -60,6 +64,9 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const { id } = await params;
     const body = await request.json();
@@ -168,6 +175,9 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const { id } = await params;
 

@@ -4,9 +4,13 @@ import { encryptField, decryptField } from "@/lib/crypto";
 import { revalidateDashboardCaches } from "@/lib/server/dashboard";
 import { validateOptionalImageUrl } from "@/lib/image-url-validation";
 import { FIREARM_TYPES } from "@/lib/types";
+import { requireAuth } from "@/lib/server/auth";
 
 // GET /api/firearms - List all firearms with build count
 export async function GET() {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const firearms = await prisma.firearm.findMany({
       include: {
@@ -54,6 +58,9 @@ export async function GET() {
 
 // POST /api/firearms - Create a new firearm
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const body = await request.json();
 

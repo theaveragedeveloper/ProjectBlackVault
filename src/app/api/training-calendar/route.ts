@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth } from "@/lib/server/auth";
 
 function toDateStr(date: Date): string {
   return date.toISOString().split("T")[0];
@@ -7,6 +8,9 @@ function toDateStr(date: Date): string {
 
 // GET /api/training-calendar?year=2026
 export async function GET(request: NextRequest) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const { searchParams } = new URL(request.url);
     const year = parseInt(searchParams.get("year") ?? String(new Date().getFullYear()), 10);

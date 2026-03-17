@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
+import { requireAuth } from "@/lib/server/auth";
 
 const MIME_BY_EXTENSION: Record<string, string> = {
   jpg: "image/jpeg",
@@ -21,6 +22,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ segments: string[] }> }
 ) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const { segments } = await params;
     if (!Array.isArray(segments) || segments.length === 0) {

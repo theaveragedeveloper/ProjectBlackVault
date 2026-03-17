@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { revalidateDashboardCaches } from "@/lib/server/dashboard";
+import { requireAuth } from "@/lib/server/auth";
 
 // GET /api/ammo - List all AmmoStock grouped by caliber
 export async function GET() {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const stocks = await prisma.ammoStock.findMany({
       include: {
@@ -60,6 +64,9 @@ export async function GET() {
 
 // POST /api/ammo - Create a new AmmoStock entry
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const body = await request.json();
 

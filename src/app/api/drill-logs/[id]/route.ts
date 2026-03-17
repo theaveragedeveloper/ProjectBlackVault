@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth } from "@/lib/server/auth";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   const { id } = await params;
   const log = await prisma.drillLog.findUnique({
     where: { id },
@@ -12,6 +16,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   const { id } = await params;
   const body = await req.json();
   const { drillName, performedAt, timeSeconds, hits, totalShots, accuracy, score, notes, templateId } = body;
@@ -68,6 +75,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   const { id } = await params;
   try {
     await prisma.drillLog.delete({ where: { id } });

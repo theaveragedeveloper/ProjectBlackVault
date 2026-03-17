@@ -5,8 +5,12 @@ import { enforceRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/server/client-ip";
 import { collectBackupData } from "@/lib/backup";
 import { requireStepUpAuth } from "@/lib/server/step-up-auth";
+import { requireAuth } from "@/lib/server/auth";
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const stepUp = await requireStepUpAuth(request);
     if (stepUp) return stepUp;

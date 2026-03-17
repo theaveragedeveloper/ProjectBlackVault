@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { getDashboardAggregates } from "@/lib/server/dashboard";
+import { requireAuth } from "@/lib/server/auth";
 
 // GET /api/stats - Dashboard stats
 // Returns: total firearms, total accessories, total ammo by caliber,
 //          total investment value, recent items
 export async function GET() {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const data = await getDashboardAggregates();
 
