@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { signToken, verifyTokenNode } from "../session";
+import { extractSessionVersion, signToken, verifyTokenNode } from "../session";
 
 describe("signToken", () => {
   it("returns a string containing the original token", () => {
@@ -28,6 +28,19 @@ describe("signToken", () => {
   });
 });
 
+
+
+describe("extractSessionVersion", () => {
+  it("returns version for versioned token", () => {
+    const signed = signToken("3:abc", "secret");
+    expect(extractSessionVersion(signed)).toBe(3);
+  });
+
+  it("returns null for legacy token", () => {
+    const signed = signToken("abc", "secret");
+    expect(extractSessionVersion(signed)).toBeNull();
+  });
+});
 describe("verifyTokenNode", () => {
   it("returns true for a correctly signed token", () => {
     const signed = signToken("mytoken", "mysecret");

@@ -41,7 +41,8 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  const valid = await verifyTokenEdge(session, sessionSecret);
+  const hasVersionPrefix = /^\d+:[^\s]+\./.test(session);
+  const valid = hasVersionPrefix ? await verifyTokenEdge(session, sessionSecret) : false;
   if (!valid) {
     if (isApiRoute) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

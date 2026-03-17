@@ -7,6 +7,7 @@ const optionalInt = z.coerce.number().int().optional();
 
 export const authSchemas = {
   login: z.object({ password: z.string().max(1024) }).strict(),
+  recover: z.object({ recoverySecret: z.string().min(1).max(1024), newPassword: z.string().min(8).max(1024) }).strict(),
 };
 
 export const encryptionSchemas = {
