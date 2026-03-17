@@ -1,4 +1,5 @@
 const isProduction = process.env.NODE_ENV === "production";
+const DEV_SESSION_SECRET = "blackvault-dev-session-secret-insecure";
 
 function getSessionMaxAgeSeconds(): number {
   const raw = process.env.SESSION_MAX_AGE_SECONDS;
@@ -11,14 +12,18 @@ function getSessionMaxAgeSeconds(): number {
   return Math.max(5 * 60, Math.min(Math.floor(parsed), 60 * 60 * 24));
 }
 
-export function getSessionSecret(): string | undefined {
+export function getSessionSecret(): string {
   const secret = process.env.SESSION_SECRET;
 
-  if (isProduction && !secret) {
+  if (secret) {
+    return secret;
+  }
+
+  if (isProduction) {
     throw new Error("[blackvault] SESSION_SECRET must be set in production.");
   }
 
-  return secret;
+  return DEV_SESSION_SECRET;
 }
 
 export function getSessionCookieOptions() {
