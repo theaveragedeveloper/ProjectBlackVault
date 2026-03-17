@@ -9,6 +9,23 @@ export function signToken(token: string, secret: string): string {
   return `${token}.${hmac}`;
 }
 
+export function createSessionToken(sessionVersion: number): string {
+  return `${sessionVersion}:${crypto.randomBytes(32).toString("hex")}`;
+}
+
+export function extractSessionVersion(signed: string): number | null {
+  const lastDot = signed.lastIndexOf(".");
+  if (lastDot === -1) return null;
+
+  const token = signed.slice(0, lastDot);
+  const separator = token.indexOf(":");
+  if (separator === -1) return null;
+
+  const version = Number(token.slice(0, separator));
+  if (!Number.isInteger(version) || version < 1) return null;
+  return version;
+}
+
 /**
  * Verify a signed cookie value produced by signToken.
  * Uses timing-safe comparison to prevent timing attacks.

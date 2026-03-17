@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
-import { verifyTokenNode } from "@/lib/session";
+import { extractSessionVersion, verifyTokenNode } from "@/lib/session";
 import { getSessionSecret } from "@/lib/session-config";
 
 export async function GET() {
@@ -11,15 +11,19 @@ export async function GET() {
     });
 
     if (!settings) {
-      settings = await prisma.appSettings.create({ data: { id: "singleton" } });
+      settings = await prisma.appSettings.create({ data: { id: "singleton", sessionVersion: 1 } });
     }
 
     const cookieStore = await cookies();
     const session = cookieStore.get("vault_session");
     const passwordRequired = !!settings.appPassword;
     const secret = getSessionSecret();
-    const authenticated = session?.value
-      ? (secret ? verifyTokenNode(session.value, secret) : false)
+    const authenticated = session?.value && secret
+      ? (() => {
+          if (!verifyTokenNode(session.value, secret)) return false;
+          const sessionVersion = extractSessionVersion(session.value);
+          return sessionVersion !== null && sessionVersion === (settings.sessionVersion || 1);
+        })()
       : false;
 
     return NextResponse.json({ passwordRequired, authenticated });
