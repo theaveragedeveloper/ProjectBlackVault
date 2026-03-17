@@ -1,5 +1,7 @@
+import { ALLOWED_IMAGE_EXTENSIONS } from "@/lib/image-formats";
+
 type FileSignature = {
-  extension: string;
+  extension: (typeof ALLOWED_IMAGE_EXTENSIONS)[number] | "pdf";
   mimeType: string;
 };
 
