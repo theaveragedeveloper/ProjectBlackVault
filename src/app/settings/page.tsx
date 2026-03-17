@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Save,
   Loader2,
@@ -59,6 +60,7 @@ interface SystemInfo {
 }
 
 export default function SettingsPage() {
+  const router = useRouter();
   const settingsSections = useMemo(
     () => [
       { id: "security", label: "Security", icon: ShieldCheck },
@@ -81,6 +83,13 @@ export default function SettingsPage() {
   const [passwordUnlocked, setPasswordUnlocked] = useState(false);
   const [verifyingPassword, setVerifyingPassword] = useState(false);
   const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [showRecoveryReset, setShowRecoveryReset] = useState(false);
+  const [recoverBusy, setRecoverBusy] = useState(false);
+  const [recoverError, setRecoverError] = useState<string | null>(null);
+  const [recoverSuccess, setRecoverSuccess] = useState<string | null>(null);
+  const [recoverySecret, setRecoverySecret] = useState("");
+  const [recoverPassword, setRecoverPassword] = useState("");
+  const [recoverConfirmPassword, setRecoverConfirmPassword] = useState("");
 
   const [exportPreset, setExportPreset] = useState<"CLAIMS" | "BACKUP">("CLAIMS");
   const [exportIncludePhotos, setExportIncludePhotos] = useState(true);
@@ -286,6 +295,58 @@ export default function SettingsPage() {
       setVerifyError("Network error. Please try again.");
     } finally {
       setVerifyingPassword(false);
+    }
+  }
+
+  async function handleRecoverReset(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setRecoverError(null);
+    setRecoverSuccess(null);
+
+    if (!recoverySecret.trim()) {
+      setRecoverError("Recovery secret is required.");
+      return;
+    }
+
+    if (!recoverPassword || recoverPassword.length < 8) {
+      setRecoverError("New password must be at least 8 characters.");
+      return;
+    }
+
+    if (recoverPassword !== recoverConfirmPassword) {
+      setRecoverError("New password and confirmation do not match.");
+      return;
+    }
+
+    setRecoverBusy(true);
+    try {
+      const res = await fetch("/api/auth/recover", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recoverySecret,
+          newPassword: recoverPassword,
+          confirmPassword: recoverConfirmPassword,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) {
+        setRecoverError(json.error ?? "Recovery reset failed.");
+        return;
+      }
+
+      setRecoverSuccess("Password reset successful. Redirecting to login...");
+      setTimeout(() => {
+        router.push("/login");
+      }, 1200);
+    } catch {
+      setRecoverError("Network error. Please try again.");
+    } finally {
+      setRecoverBusy(false);
+      setRecoverySecret("");
+      setRecoverPassword("");
+      setRecoverConfirmPassword("");
     }
   }
 
@@ -958,6 +1019,13 @@ export default function SettingsPage() {
           </div>
         )}
 
+        {recoverSuccess && (
+          <div className="fixed right-6 top-20 z-40 flex items-center gap-3 bg-[#00C853]/10 border border-[#00C853]/30 rounded-lg px-4 py-3 animate-slide-up shadow-lg shadow-black/20">
+            <CheckCircle2 className="w-4 h-4 text-[#00C853] shrink-0" />
+            <p className="text-sm text-[#00C853]">{recoverSuccess}</p>
+          </div>
+        )}
+
         <div className="mb-6 rounded-lg border border-vault-border bg-vault-surface p-4 space-y-3">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
@@ -1073,6 +1141,83 @@ export default function SettingsPage() {
                 </div>
               </div>
             )}
+
+            <div className="border border-[#E53935]/30 rounded-md bg-[#E53935]/5">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowRecoveryReset((prev) => {
+                    if (prev) {
+                      setRecoverError(null);
+                      setRecoverySecret("");
+                      setRecoverPassword("");
+                      setRecoverConfirmPassword("");
+                    }
+                    return !prev;
+                  });
+                }}
+                className="w-full flex items-center justify-between gap-2 px-3 py-2.5"
+              >
+                <span className="text-xs font-mono uppercase tracking-widest text-[#E53935]">Danger / Advanced: Forgot password recovery reset</span>
+                {showRecoveryReset ? <ChevronUp className="w-3.5 h-3.5 text-[#E53935]" /> : <ChevronDown className="w-3.5 h-3.5 text-[#E53935]" />}
+              </button>
+
+              {showRecoveryReset && (
+                <div className="border-t border-[#E53935]/30 px-3 pb-3 pt-2 space-y-3">
+                  <div className="flex items-start gap-2 bg-[#E53935]/10 border border-[#E53935]/30 rounded-md px-3 py-2">
+                    <AlertCircle className="w-3.5 h-3.5 text-[#E53935] shrink-0 mt-0.5" />
+                    <p className="text-xs text-[#E53935] leading-relaxed">Warning: possession of this recovery secret grants password reset ability. Keep it protected and do not share it.</p>
+                  </div>
+
+                  {recoverError && <p className="text-xs text-[#E53935]">{recoverError}</p>}
+
+                  <form onSubmit={handleRecoverReset} className="space-y-3">
+                    <div>
+                      <label className={LABEL_CLASS}>Recovery Secret</label>
+                      <input
+                        type="password"
+                        value={recoverySecret}
+                        onChange={(e) => setRecoverySecret(e.target.value)}
+                        className={INPUT_CLASS}
+                        autoComplete="off"
+                        placeholder="Enter recovery secret"
+                      />
+                    </div>
+                    <div>
+                      <label className={LABEL_CLASS}>New Password</label>
+                      <input
+                        type="password"
+                        value={recoverPassword}
+                        onChange={(e) => setRecoverPassword(e.target.value)}
+                        className={INPUT_CLASS}
+                        autoComplete="new-password"
+                        placeholder="Enter new password"
+                      />
+                    </div>
+                    <div>
+                      <label className={LABEL_CLASS}>Confirm New Password</label>
+                      <input
+                        type="password"
+                        value={recoverConfirmPassword}
+                        onChange={(e) => setRecoverConfirmPassword(e.target.value)}
+                        className={INPUT_CLASS}
+                        autoComplete="new-password"
+                        placeholder="Confirm new password"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={recoverBusy || !recoverySecret || !recoverPassword || !recoverConfirmPassword}
+                      className="w-full flex items-center justify-center gap-2 rounded-md bg-[#E53935]/10 border border-[#E53935]/30 px-4 py-2 text-xs font-medium text-[#E53935] hover:bg-[#E53935]/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {recoverBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                      {recoverBusy ? "Resetting password..." : "Reset Password with Recovery Secret"}
+                    </button>
+                  </form>
+                </div>
+              )}
+            </div>
           </fieldset>
 
           {/* ── Encryption at Rest ──────────────────────────── */}
