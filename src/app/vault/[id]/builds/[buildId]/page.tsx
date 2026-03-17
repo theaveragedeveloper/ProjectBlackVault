@@ -17,9 +17,11 @@ import {
   Pencil,
   Save,
 } from "lucide-react";
+import { Camera } from "lucide-react";
 import { SLOTS_BY_FIREARM_TYPE, SLOT_TYPE_LABELS, FirearmType, SlotType } from "@/lib/types";
 import { SafeImage } from "@/components/shared/SafeImage";
 import ImagePicker from "@/components/shared/ImagePicker";
+import PhotoGallery from "@/components/shared/PhotoGallery";
 import { SLOT_ICONS } from "@/lib/configurator/slot-icons";
 
 // ─── Types ────────────────────────────────────────────────────
@@ -50,6 +52,8 @@ interface Build {
   description: string | null;
   isActive: boolean;
   firearmId: string;
+  imageUrl: string | null;
+  imageSource: string | null;
   slots: BuildSlot[];
   firearm: {
     id: string;
@@ -1208,6 +1212,8 @@ export default function BuildConfiguratorPage() {
   const [addingSlotInGroup, setAddingSlotInGroup] = useState<string | null>(null);
   const [customSlotInput, setCustomSlotInput] = useState("");
   const [editingAccessory, setEditingAccessory] = useState<Accessory | null>(null);
+  const [photoModalOpen, setPhotoModalOpen] = useState(false);
+  const [localBuildImageUrl, setLocalBuildImageUrl] = useState<string | null>(null);
 
   const fetchBuild = useCallback(async () => {
     try {
@@ -1222,6 +1228,7 @@ export default function BuildConfiguratorPage() {
         setError(buildData.error ?? "Build not found");
       } else {
         setBuild(buildData);
+        setLocalBuildImageUrl(buildData.imageUrl ?? null);
       }
       if (allBuildsRes.ok && Array.isArray(allBuildsData)) {
         setAllBuilds(allBuildsData);
@@ -1406,6 +1413,14 @@ export default function BuildConfiguratorPage() {
             {build.firearm.type}
           </span>
           <button
+            onClick={() => setPhotoModalOpen(true)}
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded border border-vault-border text-vault-text-faint hover:text-[#00C2FF] hover:border-[#00C2FF]/40 transition-colors"
+            title="Manage build photos"
+          >
+            <Camera className="w-3 h-3" />
+            Photos
+          </button>
+          <button
             onClick={() => setIsEditing((v) => !v)}
             className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded border transition-colors ${isEditing ? "border-[#00C2FF]/50 text-[#00C2FF] bg-[#00C2FF]/10" : "border-vault-border text-vault-text-faint hover:text-vault-text"}`}
           >
@@ -1467,6 +1482,38 @@ export default function BuildConfiguratorPage() {
           onClose={() => setEditingAccessory(null)}
           onSaved={() => { setEditingAccessory(null); fetchBuild(); }}
         />
+      )}
+
+      {/* Build Photo Modal */}
+      {photoModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(5,7,9,0.85)" }}>
+          <div className="bg-vault-surface border border-vault-border rounded-xl w-full max-w-md shadow-2xl animate-slide-up">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-vault-border">
+              <div className="flex items-center gap-2">
+                <Camera className="w-4 h-4 text-[#00C2FF]" />
+                <h2 className="text-sm font-semibold text-vault-text">Build Photos</h2>
+              </div>
+              <button onClick={() => setPhotoModalOpen(false)} className="text-vault-text-faint hover:text-vault-text transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-5">
+              <PhotoGallery
+                entityType="build"
+                entityId={buildId}
+                onPrimaryChange={(url) => setLocalBuildImageUrl(url)}
+              />
+            </div>
+            <div className="px-5 pb-4 flex justify-end">
+              <button
+                onClick={() => setPhotoModalOpen(false)}
+                className="text-sm text-vault-text-muted hover:text-vault-text border border-vault-border px-4 py-1.5 rounded-md transition-colors"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
