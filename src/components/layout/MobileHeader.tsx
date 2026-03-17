@@ -19,7 +19,7 @@ export function MobileHeader({ onMenuOpen }: MobileHeaderProps) {
       </button>
       <div className="flex items-center gap-2 min-w-0">
         <div className="w-8 h-8 rounded bg-[#00C2FF]/10 border border-[#00C2FF]/30 flex items-center justify-center p-1">
-          <Image src="/blackvault-logo.png" alt="BlackVault logo" width={20} height={20} className="w-5 h-5" priority />
+          <Image src="/blackvault-logo.svg" alt="BlackVault logo" width={20} height={20} className="w-5 h-5" priority />
         </div>
         <div className="min-w-0">
           <p className="text-xs font-bold text-vault-text tracking-widest uppercase truncate">BlackVault</p>
