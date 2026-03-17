@@ -55,7 +55,7 @@ Windows (Command Prompt or PowerShell):
 install.bat
 ```
 
-The installer creates `.blackvault.env`, generates secret keys, creates data folders, and starts the container.
+The installer creates `.blackvault.env`, generates secret keys, creates data folders, and starts the container. It can also generate a dedicated `PASSWORD_RECOVERY_SECRET` if you opt in during setup.
 
 #### 4) Open the app
 
@@ -133,6 +133,33 @@ Open [http://localhost:3000](http://localhost:3000).
 3. Back up your secrets:
    - Docker installs: back up `.blackvault.env` and your `DATA_DIR`.
    - Do not lose `VAULT_ENCRYPTION_KEY` if you store encrypted data.
+   - If enabled, protect `PASSWORD_RECOVERY_SECRET` like a root credential; exposure can enable account takeover through recovery flows.
+
+
+## Password Recovery Secret (Operational Guidance)
+
+Use a **dedicated** `PASSWORD_RECOVERY_SECRET` for account/password recovery workflows.
+
+- Generate with a cryptographically secure random value (example: `openssl rand -hex 32`).
+- Store it in `.blackvault.env` (Docker) or `.env` (local) with your other secrets.
+- **Do not** reuse `VAULT_ENCRYPTION_KEY` for recovery or auth logic; encryption-at-rest and authentication recovery must remain separated.
+- Treat this value as highly sensitive. If it appears in screenshots, logs, terminal recordings, chat paste, or support tickets, an attacker could potentially reset accounts and take over access.
+
+### Recovery Runbook
+
+If you suspect recovery compromise or perform emergency account recovery:
+
+1. Rotate `PASSWORD_RECOVERY_SECRET` immediately.
+2. Rotate any other potentially exposed secrets (`SESSION_SECRET`, API keys, and any externally integrated credentials).
+3. Restart BlackVault so the new secrets take effect.
+4. Force re-authentication for all users (for example by rotating `SESSION_SECRET` if needed).
+5. Ask all users to log in again and verify no unauthorized account changes occurred.
+
+Post-recovery hardening:
+
+- Audit logs and shell history for accidental secret exposure.
+- Remove/redact compromised screenshots, logs, ticket attachments, or chat messages containing secret values.
+- Move secret storage to a dedicated secret manager if you currently keep plaintext copies outside `.blackvault.env`/`.env`.
 
 ## Common Issues
 
@@ -208,6 +235,7 @@ docker compose -f docker-compose.dev.yml down
 | `DATABASE_URL` | Yes | `file:./prisma/dev.db` | SQLite connection string for local Node.js run |
 | `SESSION_SECRET` | Yes | — | Signs and verifies session cookies for all protected API routes |
 | `SESSION_MAX_AGE_SECONDS` | No | `28800` | Session cookie lifetime in seconds (min 300, max 86400) |
+| `PASSWORD_RECOVERY_SECRET` | Recommended | — | Dedicated secret for password/account recovery workflows; do not reuse `VAULT_ENCRYPTION_KEY` |
 | `GOOGLE_CSE_API_KEY` | No | — | Google Custom Search API key for image lookup |
 | `GOOGLE_CSE_SEARCH_ENGINE_ID` | No | — | Google CSE search engine ID |
 
@@ -225,6 +253,7 @@ docker compose -f docker-compose.dev.yml down
 | `VAULT_ENCRYPTION_KEY` | Yes | — | Encryption key for sensitive values |
 | `SESSION_SECRET` | Yes | — | Signs and verifies session cookies for all protected API routes |
 | `SESSION_MAX_AGE_SECONDS` | No | `28800` | Session cookie lifetime in seconds (min 300, max 86400) |
+| `PASSWORD_RECOVERY_SECRET` | Recommended | — | Dedicated secret for password/account recovery workflows; do not reuse `VAULT_ENCRYPTION_KEY` |
 
 ### Optional Launcher And Package Channels
 

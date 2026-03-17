@@ -81,18 +81,35 @@ echo ""
 read -rp "Port to run BlackVault on [3000]: " PORT_INPUT
 PORT="${PORT_INPUT:-3000}"
 
+# ── Password recovery secret option ───────────────────────────
+echo ""
+read -rp "Generate PASSWORD_RECOVERY_SECRET for account recovery workflows? [y/N]: " GENERATE_RECOVERY_SECRET
+GENERATE_RECOVERY_SECRET="${GENERATE_RECOVERY_SECRET:-N}"
+
 # ── Generate secret keys ──────────────────────────────────────
 echo ""
 echo "Generating secret keys..."
 if command -v openssl &>/dev/null; then
   VAULT_ENCRYPTION_KEY=$(openssl rand -hex 32)
   SESSION_SECRET=$(openssl rand -hex 32)
+  if [[ "$GENERATE_RECOVERY_SECRET" =~ ^[Yy]$ ]]; then
+    PASSWORD_RECOVERY_SECRET=$(openssl rand -hex 32)
+  fi
 elif command -v python3 &>/dev/null; then
   VAULT_ENCRYPTION_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
   SESSION_SECRET=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+  if [[ "$GENERATE_RECOVERY_SECRET" =~ ^[Yy]$ ]]; then
+    PASSWORD_RECOVERY_SECRET=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+  fi
 else
   echo "ERROR: Neither 'openssl' nor 'python3' is available to generate secret keys."
   echo "       Install one of them and re-run."
+  exit 1
+fi
+
+
+if [[ "$GENERATE_RECOVERY_SECRET" =~ ^[Yy]$ ]] && [ -z "$PASSWORD_RECOVERY_SECRET" ]; then
+  echo "ERROR: Failed to generate PASSWORD_RECOVERY_SECRET."
   exit 1
 fi
 
@@ -107,6 +124,7 @@ cat > .blackvault.env <<EOF
 # CRITICAL: Keep this file safe and backed up.
 #   Losing VAULT_ENCRYPTION_KEY makes all encrypted data permanently unrecoverable.
 #   Losing SESSION_SECRET will log out all active sessions.
+#   PASSWORD_RECOVERY_SECRET is optional but should be unique and never shared.
 
 DATA_DIR=$DATA_DIR
 PORT=$PORT
@@ -114,7 +132,16 @@ VAULT_ENCRYPTION_KEY=$VAULT_ENCRYPTION_KEY
 SESSION_SECRET=$SESSION_SECRET
 EOF
 
+if [[ "$GENERATE_RECOVERY_SECRET" =~ ^[Yy]$ ]]; then
+  echo "PASSWORD_RECOVERY_SECRET=$PASSWORD_RECOVERY_SECRET" >> .blackvault.env
+fi
+
 echo "Configuration written to .blackvault.env"
+if [[ "$GENERATE_RECOVERY_SECRET" =~ ^[Yy]$ ]]; then
+  echo "Included PASSWORD_RECOVERY_SECRET in .blackvault.env"
+else
+  echo "Skipped PASSWORD_RECOVERY_SECRET generation. You can add it later manually."
+fi
 
 # ── Pull and start ────────────────────────────────────────────
 echo ""
