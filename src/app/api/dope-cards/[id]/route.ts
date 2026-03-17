@@ -1,32 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-
-const toOptionalString = (value: unknown, maxLength: number) => {
-  if (value === undefined) return undefined;
-  if (value === null || value === "") return null;
-  if (typeof value !== "string") return null;
-  return value.slice(0, maxLength);
-};
-
-const toOptionalNumber = (value: unknown) => {
-  if (value === undefined) return undefined;
-  if (value === null || value === "") return null;
-  const parsed = parseFloat(String(value));
-  return Number.isFinite(parsed) ? parsed : null;
-};
-
-const toOptionalDate = (value: unknown) => {
-  if (value === undefined) return undefined;
-  if (value === null || value === "") return null;
-  const parsed = new Date(String(value));
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-};
-
-const toOptionalObject = (value: unknown) => {
-  if (value === undefined) return undefined;
-  if (value === null) return null;
-  return typeof value === "object" && !Array.isArray(value) ? value : null;
-};
+import { requireAuth } from "@/lib/server/auth";
+import { parseJsonBody, RequestValidationError, validationErrorResponse } from "@/lib/validation/request";
+import { dopeSchemas } from "@/lib/validation/schemas/api";
 
 const isNotFoundError = (error: unknown) => {
   if (!error || typeof error !== "object") return false;
@@ -39,6 +15,9 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const { id } = await params;
 
@@ -65,20 +44,22 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const { id } = await params;
-    const body = await request.json();
-    const { firearmId, name, notes, zeroRangeYd, profile, unit } = body ?? {};
+    const body = await parseJsonBody(request, dopeSchemas.cardUpdate, { maxBytes: 256 * 1024 });
 
     const card = await prisma.dopeCard.update({
       where: { id },
       data: {
-        firearmId: firearmId !== undefined ? firearmId || null : undefined,
-        name: toOptionalString(name, 200) ?? undefined,
-        notes: toOptionalString(notes, 5000),
-        zeroDistanceYd: toOptionalNumber(zeroRangeYd) ?? undefined,
-        unit: toOptionalString(unit, 10) ?? undefined,
-        rows: profile !== undefined ? (typeof profile === "object" && profile !== null ? JSON.stringify(profile) : "[]") : undefined,
+        firearmId:      body.firearmId,
+        name:           body.name,
+        notes:          body.notes,
+        zeroDistanceYd: body.zeroRangeYd,
+        unit:           body.unit,
+        rows:           body.profile !== undefined ? JSON.stringify(body.profile) : undefined,
       },
       include: {
         firearm: { select: { id: true, name: true, caliber: true } },
@@ -87,6 +68,7 @@ export async function PUT(
 
     return NextResponse.json(card);
   } catch (error) {
+    if (error instanceof RequestValidationError) return validationErrorResponse(error);
     if (isNotFoundError(error)) {
       return NextResponse.json({ error: "Dope card not found" }, { status: 404 });
     }
@@ -100,6 +82,9 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const { id } = await params;
     await prisma.dopeCard.delete({ where: { id } });

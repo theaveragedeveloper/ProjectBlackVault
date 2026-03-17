@@ -72,9 +72,20 @@ export const rangeSchemas = {
   drillUpdate: z.object({ templateId: z.string().nullable().optional(), drillName: z.string().min(1).optional(), timeSeconds: optionalNumber, hits: optionalInt, totalShots: optionalInt, accuracy: optionalNumber, score: optionalNumber, notes: optionalString, sortOrder: optionalInt }).strict(),
 };
 
+export const dopeCardRowSchema = z.object({
+  distanceYd: z.number().nonnegative(),
+  dropIn:     z.number(),
+  windIn:     z.number(),
+  dropMil:    z.number(),
+  dropMoa:    z.number(),
+  windMil:    z.number(),
+  windMoa:    z.number(),
+  confirmed:  z.boolean(),
+}).strict();
+
 export const dopeSchemas = {
-  card: z.object({ firearmId: z.string().min(1), name: z.string().min(1), notes: optionalString, zeroRangeYd: z.coerce.number().positive(), profile: z.record(z.string(), z.unknown()), confirmedAt: optionalString }).strict(),
-  cardUpdate: z.object({ firearmId: z.string().min(1).optional(), name: z.string().min(1).optional(), notes: optionalString, zeroRangeYd: z.coerce.number().positive().optional(), profile: z.record(z.string(), z.unknown()).optional(), confirmedAt: optionalString }).strict(),
+  card: z.object({ firearmId: z.string().min(1), name: z.string().min(1), notes: optionalString, zeroRangeYd: z.coerce.number().positive(), profile: z.array(dopeCardRowSchema), unit: optionalString, confirmedAt: optionalString }).strict(),
+  cardUpdate: z.object({ firearmId: z.string().min(1).optional(), name: z.string().min(1).optional(), notes: optionalString, zeroRangeYd: z.coerce.number().positive().optional(), profile: z.array(dopeCardRowSchema).optional(), unit: optionalString, confirmedAt: optionalString }).strict(),
 };
 
 export const settingsSchemas = {

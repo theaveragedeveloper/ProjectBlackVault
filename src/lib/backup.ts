@@ -38,6 +38,7 @@ export async function collectBackupData(includeDocumentFiles: boolean) {
     ammo,
     ammoTransactions,
     documents,
+    sessionAmmoLinks,
   ] = await Promise.all([
     prisma.appSettings.findUnique({ where: { id: "singleton" } }),
     prisma.firearm.findMany(),
@@ -53,6 +54,7 @@ export async function collectBackupData(includeDocumentFiles: boolean) {
     prisma.ammoStock.findMany(),
     prisma.ammoTransaction.findMany(),
     prisma.document.findMany(),
+    prisma.sessionAmmoLink.findMany(),
   ]);
 
   const documentFiles = includeDocumentFiles
@@ -82,6 +84,7 @@ export async function collectBackupData(includeDocumentFiles: boolean) {
     ammoTransactions,
     documents,
     documentFiles,
+    sessionAmmoLinks,
   };
 }
 

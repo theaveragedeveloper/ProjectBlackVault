@@ -18,6 +18,9 @@ const mocks = vi.hoisted(() => {
 
   const prisma = {
     $transaction: vi.fn(),
+    appSettings: {
+      findUnique: vi.fn().mockResolvedValue(null),
+    },
     rangeSession: {
       findUnique: vi.fn(),
     },

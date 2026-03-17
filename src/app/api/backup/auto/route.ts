@@ -7,6 +7,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import crypto from "crypto";
 import { collectBackupData, latestBackupChangeToken } from "@/lib/backup";
+import { requireAuth } from "@/lib/server/auth";
 
 type AutoBackupState = {
   lastToken: number;
@@ -45,6 +46,9 @@ function encryptForServerBackup(payload: unknown, passphrase: string) {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const ip = getClientIp(request);
     const rate = await enforceRateLimit({ key: `backup:auto:${ip}`, windowMs: 60_000, maxAttempts: 10 });

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth } from "@/lib/server/auth";
 
 
 type JsonValue = string | number | boolean | null | JsonObject | JsonValue[];
@@ -36,6 +37,9 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const { id } = await params;
 
