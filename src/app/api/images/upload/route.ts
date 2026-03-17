@@ -4,8 +4,9 @@ import path from "path";
 import { detectFileSignature } from "@/lib/server/file-signatures";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/server/client-ip";
+import { ALLOWED_IMAGE_EXTENSIONS, SUPPORTED_IMAGE_FORMATS_LABEL } from "@/lib/image-formats";
 
-const ALLOWED_EXTENSIONS = new Set(["jpg", "png", "webp", "avif"]);
+const ALLOWED_EXTENSIONS = new Set<string>(ALLOWED_IMAGE_EXTENSIONS);
 
 const ALLOWED_ENTITY_TYPES = new Set([
   "firearm",
@@ -83,7 +84,7 @@ export async function POST(request: NextRequest) {
     if (!detected || !ALLOWED_EXTENSIONS.has(detected.extension)) {
       return NextResponse.json(
         {
-          error: `Invalid file type. Only raster formats are allowed: ${Array.from(ALLOWED_EXTENSIONS).join(", ")}`,
+          error: `Invalid file type. Supported formats: ${SUPPORTED_IMAGE_FORMATS_LABEL}.`,
         },
         { status: 400 }
       );

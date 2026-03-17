@@ -3,6 +3,11 @@
 import { useRef, useState } from "react";
 import { isAllowedImageUrlForStorage, IMAGE_URL_ALLOWLIST_ERROR } from "@/lib/image-url-validation";
 import { allowExternalImageUrls } from "@/lib/network-policy";
+import {
+  ALLOWED_IMAGE_MIME_TYPES,
+  SUPPORTED_IMAGE_FORMATS_LABEL,
+  IMAGE_PICKER_ACCEPT,
+} from "@/lib/image-formats";
 import Image from "next/image";
 import { Camera, Link, Loader2, X, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
 
@@ -13,7 +18,6 @@ interface ImagePickerProps {
   onChange: (url: string | null, source: string | null) => void;
 }
 
-const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/avif"];
 const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
 
 export default function ImagePicker({
@@ -39,8 +43,8 @@ export default function ImagePicker({
   async function handleFile(file: File) {
     setError(null);
 
-    if (!ACCEPTED_TYPES.includes(file.type)) {
-      setError("Only JPG, PNG, GIF, WebP, and AVIF photos are supported.");
+    if (!ALLOWED_IMAGE_MIME_TYPES.includes(file.type as (typeof ALLOWED_IMAGE_MIME_TYPES)[number])) {
+      setError(`Only ${SUPPORTED_IMAGE_FORMATS_LABEL} photos are supported.`);
       return;
     }
     if (file.size > MAX_BYTES) {
@@ -165,7 +169,7 @@ export default function ImagePicker({
                   Click to choose, or drag and drop
                 </p>
                 <p className="text-[10px] text-vault-text-faint mt-1 font-mono">
-                  JPG · PNG · GIF · WebP &nbsp;·&nbsp; Max 10 MB
+                  JPG · PNG · WebP · AVIF &nbsp;·&nbsp; Max 10 MB
                 </p>
               </div>
             </>
@@ -176,7 +180,7 @@ export default function ImagePicker({
       <input
         ref={fileInputRef}
         type="file"
-        accept={ACCEPTED_TYPES.join(",")}
+        accept={IMAGE_PICKER_ACCEPT}
         className="hidden"
         onChange={handleFileInput}
       />
