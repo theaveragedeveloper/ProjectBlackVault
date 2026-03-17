@@ -156,6 +156,18 @@ Open [http://localhost:3000](http://localhost:3000).
 - If `VAULT_ENCRYPTION_KEY` is lost after data is encrypted, that encrypted data cannot be recovered.
 - Back up `.blackvault.env` in a secure location.
 
+### Regenerate secrets safely
+
+- Regenerating `VAULT_ENCRYPTION_KEY` means previously encrypted data can no longer be decrypted.
+- Only rotate `VAULT_ENCRYPTION_KEY` if you are intentionally starting fresh or have migrated/re-encrypted data.
+- To regenerate installer-managed secrets, stop BlackVault, back up `.blackvault.env`, remove old secret values, then run `install.sh` or `install.bat` and use **Advanced setup** if you want to provide custom values.
+
+### Session invalidation after `SESSION_SECRET` change
+
+- Changing `SESSION_SECRET` immediately invalidates all active logins (all users are signed out).
+- This is expected behavior and can be used for emergency session reset.
+- After rotating `SESSION_SECRET`, ask users to sign in again.
+
 ## Advanced / Optional
 
 ### Home Server Deployment (Reverse Proxy + HTTPS)
