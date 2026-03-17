@@ -326,7 +326,6 @@ export default function SettingsPage() {
         body: JSON.stringify({
           recoverySecret,
           newPassword: recoverPassword,
-          confirmPassword: recoverConfirmPassword,
         }),
       });
 
