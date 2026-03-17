@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { validateOptionalImageUrl } from "@/lib/image-url-validation";
 
 // GET /api/builds - List all builds, optional ?firearmId= filter and batched ?firearmIds=id1,id2
 export async function GET(request: NextRequest) {
@@ -30,6 +31,8 @@ export async function GET(request: NextRequest) {
             name: true,
             isActive: true,
             sortOrder: true,
+            imageUrl: true,
+            imageSource: true,
             slots: {
               select: {
                 id: true,
@@ -82,7 +85,12 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, description, firearmId, isActive } = body;
+    const { name, description, firearmId, isActive, imageUrl, imageSource } = body;
+
+    const imageValidation = validateOptionalImageUrl(imageUrl);
+    if (!imageValidation.valid) {
+      return NextResponse.json({ error: imageValidation.error }, { status: 400 });
+    }
 
     if (!name || !firearmId) {
       return NextResponse.json(
@@ -111,6 +119,8 @@ export async function POST(request: NextRequest) {
         description: description ?? null,
         firearmId,
         isActive: isActive ?? false,
+        imageUrl: imageValidation.normalized,
+        imageSource: imageSource ?? null,
       },
       include: {
         firearm: {
