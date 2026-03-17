@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { decryptField } from "@/lib/crypto";
 import { isTrustedExternalImageUrl } from "@/lib/image-host-allowlist";
 import { allowImageSearchEgress } from "@/lib/network-policy";
+import { requireAuth } from "@/lib/server/auth";
 
 interface GoogleCseItem {
   title: string;
@@ -26,6 +27,9 @@ interface GoogleCseItem {
 // Returns array of image results.
 // If no API key, returns 400 with helpful message.
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     if (!allowImageSearchEgress()) {
       return NextResponse.json(

@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { validateOptionalImageUrl } from "@/lib/image-url-validation";
+import { requireAuth } from "@/lib/server/auth";
 
 // GET /api/builds - List all builds, optional ?firearmId= filter and batched ?firearmIds=id1,id2
 export async function GET(request: NextRequest) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const { searchParams } = new URL(request.url);
     const firearmId = searchParams.get("firearmId");
@@ -86,6 +90,9 @@ export async function GET(request: NextRequest) {
 
 // POST /api/builds - Create a new build
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const body = await request.json();
     const { name, description, firearmId, isActive, imageUrl, imageSource } =

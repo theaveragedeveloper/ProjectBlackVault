@@ -1,35 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-
-const toOptionalString = (value: unknown, maxLength: number) => {
-  if (value === undefined) return undefined;
-  if (value === null || value === "") return null;
-  if (typeof value !== "string") return null;
-  return value.slice(0, maxLength);
-};
-
-const toOptionalNumber = (value: unknown) => {
-  if (value === undefined) return undefined;
-  if (value === null || value === "") return null;
-  const parsed = parseFloat(String(value));
-  return Number.isFinite(parsed) ? parsed : null;
-};
-
-const toOptionalDate = (value: unknown) => {
-  if (value === undefined) return undefined;
-  if (value === null || value === "") return null;
-  const parsed = new Date(String(value));
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-};
-
-const toOptionalObject = (value: unknown) => {
-  if (value === undefined) return undefined;
-  if (value === null) return null;
-  return typeof value === "object" && !Array.isArray(value) ? value : null;
-};
+import { requireAuth } from "@/lib/server/auth";
+import { parseJsonBody, RequestValidationError, validationErrorResponse } from "@/lib/validation/request";
+import { dopeSchemas } from "@/lib/validation/schemas/api";
 
 // GET /api/dope-cards - List cards, optional ?firearmId= filter, optional ?limit=
 export async function GET(request: NextRequest) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const { searchParams } = new URL(request.url);
     const firearmId = searchParams.get("firearmId");
@@ -54,22 +33,20 @@ export async function GET(request: NextRequest) {
 
 // POST /api/dope-cards - Create a new dope card
 export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { firearmId, name, notes, zeroRangeYd, profile, unit } = body ?? {};
+  const auth = await requireAuth();
+  if (auth) return auth;
 
-    if (!firearmId) {
-      return NextResponse.json({ error: "Missing required field: firearmId" }, { status: 400 });
-    }
+  try {
+    const body = await parseJsonBody(request, dopeSchemas.card, { maxBytes: 256 * 1024 });
 
     const card = await prisma.dopeCard.create({
       data: {
-        firearmId,
-        name: toOptionalString(name, 200) ?? "",
-        notes: toOptionalString(notes, 5000),
-        zeroDistanceYd: toOptionalNumber(zeroRangeYd) ?? 0,
-        unit: toOptionalString(unit, 10) ?? "MOA",
-        rows: typeof profile === "object" && profile !== null ? JSON.stringify(profile) : "[]",
+        firearmId:      body.firearmId,
+        name:           body.name,
+        notes:          body.notes ?? null,
+        zeroDistanceYd: body.zeroRangeYd,
+        unit:           body.unit ?? "MOA",
+        rows:           JSON.stringify(body.profile),
       },
       include: {
         firearm: { select: { id: true, name: true, caliber: true } },
@@ -78,6 +55,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(card, { status: 201 });
   } catch (error) {
+    if (error instanceof RequestValidationError) return validationErrorResponse(error);
     console.error("POST /api/dope-cards error:", error);
     return NextResponse.json({ error: "Failed to create dope card" }, { status: 500 });
   }

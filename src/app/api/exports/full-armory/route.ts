@@ -4,6 +4,7 @@ import {
   type ExportPreset,
   parseExportOptionsFromSearchParams,
 } from "@/lib/exports/full-armory";
+import { requireAuth } from "@/lib/server/auth";
 
 function csvEscape(value: unknown): string {
   if (value === null || value === undefined) return "";
@@ -36,6 +37,9 @@ function maskSerial(serialNumber: string | null | undefined): string {
 }
 
 export async function GET(request: NextRequest) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const exportOptions = parseExportOptionsFromSearchParams(request.nextUrl.searchParams);
     const preset: ExportPreset = exportOptions.preset;

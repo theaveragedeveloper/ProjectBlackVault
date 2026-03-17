@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { prisma } from "@/lib/prisma";
 import { requireStepUpAuth } from "@/lib/server/step-up-auth";
+import { requireAuth } from "@/lib/server/auth";
 
 // ─── Type helpers ──────────────────────────────────────────────────────────
 
@@ -38,6 +39,9 @@ function boolOr(v: unknown, def: boolean): boolean {
 // ─── Route ─────────────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const stepUp = await requireStepUpAuth(request);
     if (stepUp) return stepUp;
@@ -104,6 +108,7 @@ export async function POST(request: NextRequest) {
     const ammo           = (data.ammo           as Record<string, unknown>[]) ?? [];
     const ammoTransactions = (data.ammoTransactions as Record<string, unknown>[]) ?? [];
     const documents      = (data.documents      as Record<string, unknown>[]) ?? [];
+    const sessionAmmoLinks = (data.sessionAmmoLinks as unknown as Record<string, unknown>[]) ?? [];
     const settings       = data.settings as Record<string, unknown> | null | undefined;
 
     // 3. Run everything in a single transaction
@@ -416,6 +421,17 @@ export async function POST(request: NextRequest) {
             })),
           });
         }
+
+        // Session ammo links (depends on rangeSessions + ammoTransactions)
+        if (sessionAmmoLinks.length) {
+          await tx.sessionAmmoLink.createMany({
+            data: sessionAmmoLinks.map((l) => ({
+              id:            str(l.id),
+              sessionId:     str(l.sessionId),
+              transactionId: str(l.transactionId),
+            })),
+          });
+        }
       },
       { timeout: 60_000 }
     );
@@ -436,6 +452,7 @@ export async function POST(request: NextRequest) {
         ammoStocks:          ammo.length,
         ammoTransactions:    ammoTransactions.length,
         documents:           documents.length,
+        sessionAmmoLinks:    sessionAmmoLinks.length,
       },
     });
   } catch (error) {
