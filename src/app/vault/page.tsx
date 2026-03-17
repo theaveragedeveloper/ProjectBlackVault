@@ -34,6 +34,7 @@ interface ActiveBuild {
   id: string;
   name: string;
   isActive: boolean;
+  imageUrl: string | null;
   slots: { id: string; slotType: string; accessoryId: string | null; accessory: { roundCount: number } | null }[];
 }
 
@@ -96,13 +97,15 @@ function FirearmCard({ firearm, editMode, editBuilds, onDeleteBuild }: FirearmCa
   const activeBuild = firearm.activeBuild;
   const accessoryCount = activeBuild?.slots?.filter((s) => s.accessoryId).length ?? 0;
   const totalRounds = activeBuild?.slots?.reduce((sum, s) => sum + (s.accessory?.roundCount ?? 0), 0) ?? 0;
+  // Use firearm photo if available; fall back to active build's photo
+  const displayImageUrl = firearm.imageUrl ?? activeBuild?.imageUrl ?? null;
 
   return (
     <div className="bg-vault-surface border border-vault-border rounded-lg overflow-hidden hover:border-[#00C2FF]/30 transition-colors group flex flex-col">
       {/* Image / Placeholder */}
       <div className="h-40 bg-vault-bg relative overflow-hidden border-b border-vault-border">
         <SafeImage
-          src={firearm.imageUrl}
+          src={displayImageUrl}
           alt={firearm.name}
           fill
           sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"

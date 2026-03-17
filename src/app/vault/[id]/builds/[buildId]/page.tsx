@@ -693,7 +693,10 @@ function GunBanner({ build }: { build: Build }) {
   const availableSlots = SLOTS_BY_FIREARM_TYPE[firearmType] ?? [];
   const filledCount = build.slots.filter((s) => s.accessoryId).length;
   const pct = Math.round((filledCount / (availableSlots.length || 1)) * 100);
-  const hasPhoto = !!(build.firearm.imageUrl && !imgError);
+  // Build's own photo takes priority; fall back to firearm photo for the blurred background
+  const buildPhoto = build.imageUrl;
+  const bgPhoto = buildPhoto ?? build.firearm.imageUrl;
+  const hasPhoto = !!(bgPhoto && !imgError);
 
   return (
     <div className="relative h-28 shrink-0 overflow-hidden bg-vault-canvas border-b border-vault-border">
@@ -701,7 +704,7 @@ function GunBanner({ build }: { build: Build }) {
         <>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={build.firearm.imageUrl!}
+            src={bgPhoto!}
             alt=""
             className="absolute inset-0 w-full h-full object-cover"
             onError={() => setImgError(true)}
@@ -737,11 +740,22 @@ function GunBanner({ build }: { build: Build }) {
             )}
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-vault-text-faint font-mono">{filledCount}/{availableSlots.length} slots</span>
-            <div className="w-20 h-1 bg-vault-border rounded-full overflow-hidden">
-              <div className="h-full bg-[#00C2FF] rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+            {buildPhoto && !imgError && (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={buildPhoto}
+                alt={build.name}
+                className="h-16 w-16 object-cover rounded border border-vault-border/40 shrink-0"
+                onError={() => setImgError(true)}
+              />
+            )}
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-vault-text-faint font-mono">{filledCount}/{availableSlots.length} slots</span>
+              <div className="w-20 h-1 bg-vault-border rounded-full overflow-hidden">
+                <div className="h-full bg-[#00C2FF] rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+              </div>
+              <span className="text-[10px] font-mono" style={{ color: "rgba(0,194,255,0.6)" }}>{pct}%</span>
             </div>
-            <span className="text-[10px] font-mono" style={{ color: "rgba(0,194,255,0.6)" }}>{pct}%</span>
           </div>
         </div>
       </div>

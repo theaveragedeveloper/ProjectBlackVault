@@ -61,6 +61,7 @@ interface Build {
   name: string;
   description: string | null;
   isActive: boolean;
+  imageUrl: string | null;
   slots: BuildSlot[];
 }
 
@@ -523,6 +524,14 @@ export default function FirearmDetailPage() {
                             <p className="text-xs text-vault-text-muted truncate">{build.description}</p>
                           )}
                         </div>
+                        {build.imageUrl && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={build.imageUrl}
+                            alt={build.name}
+                            className="w-14 h-14 object-cover rounded border border-vault-border ml-3 shrink-0"
+                          />
+                        )}
                       </div>
 
                       <div className="mb-4">
