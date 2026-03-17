@@ -362,4 +362,51 @@ npm run electron:build # Build Electron installers without publishing
 npm run release        # Tag version and push to trigger CI release
 ```
 
+Stop:
+
+```bash
+docker compose -f docker-compose.dev.yml down
+```
+
+### Environment Variables
+
+#### Local (`.env`)
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `DATABASE_URL` | Yes | `file:./prisma/dev.db` | SQLite connection string for local Node.js run |
+| `SESSION_SECRET` | Yes (local Node) | — | Signs and verifies session cookies for all protected API routes |
+| `SESSION_MAX_AGE_SECONDS` | No | `28800` | Session cookie lifetime in seconds (min 300, max 86400) |
+| `GOOGLE_CSE_API_KEY` | No | — | Google Custom Search API key for image lookup |
+| `GOOGLE_CSE_SEARCH_ENGINE_ID` | No | — | Google CSE search engine ID |
+
+#### Docker (`.blackvault.env`)
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `DATA_DIR` | Recommended | `./data` | Host path for database/uploads |
+| `PORT` | No | `3000` | Host port mapped to container port 3000 |
+| `APP_BASE_URL` | Recommended | — | Canonical HTTPS URL shown in-app |
+| `ALLOW_RELEASE_LOOKUP` | Recommended | `false` | Allows GitHub release metadata lookups |
+| `ALLOW_IMAGE_SEARCH_EGRESS` | Recommended | `false` | Allows outbound Google CSE image search calls |
+| `ALLOW_EXTERNAL_IMAGE_URLS` | Recommended | `false` | Allows storing/loading images from trusted third-party hosts |
+| `SYSTEM_UPDATE_REQUIRE_PRIVATE_NETWORK` | Recommended | `true` | Restricts in-app update actions to private LAN/VPN client IPs |
+| `VAULT_ENCRYPTION_KEY` | Yes | — | Encryption key for sensitive values |
+| `SESSION_SECRET` | No (auto-managed) | — | If unset, generated once at startup and persisted to `DATA_DIR/db/config/session.env` with restrictive permissions |
+| `SESSION_MAX_AGE_SECONDS` | No | `28800` | Session cookie lifetime in seconds (min 300, max 86400) |
+
+BlackVault Docker installs auto-bootstrap `SESSION_SECRET` on first start:
+- If `SESSION_SECRET` is already set in the environment, that value is used and persisted.
+- If missing, the container generates a 32-byte hex secret once and stores it at `DATA_DIR/db/config/session.env` (permissions restricted to owner).
+- Deleting/resetting `session.env` forces a new secret and logs out all active sessions.
+
+### Optional Launcher And Package Channels
+
+- Launcher downloads are available on GitHub Releases.
+- Advanced package channels (like winget/homebrew tap) may not always be published for every release; if unavailable, use the direct installer download from releases.
+
 </details>
+
+## Data Responsibility Notice
+
+You are solely responsible for all data you create, upload, store, or share through this app, including keeping your own backups. To the maximum extent permitted by law, we are not liable for any data loss, corruption, unauthorized access, or damages related to your data or use of the app.

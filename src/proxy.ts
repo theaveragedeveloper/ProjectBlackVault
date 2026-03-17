@@ -32,6 +32,15 @@ export async function proxy(request: NextRequest) {
   }
 
   const sessionSecret = getSessionSecret();
+  if (!sessionSecret) {
+    if (isApiRoute) {
+      return NextResponse.json(
+        { error: "Server misconfiguration: SESSION_SECRET is required for protected API routes." },
+        { status: 500 }
+      );
+    }
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
 
   const hasVersionPrefix = /^\d+:[^\s]+\./.test(session);
   const valid = hasVersionPrefix ? await verifyTokenEdge(session, sessionSecret) : false;

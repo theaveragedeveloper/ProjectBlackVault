@@ -40,6 +40,10 @@ export async function POST(request: NextRequest) {
     }
 
     const secret = getSessionSecret();
+    if (!secret) {
+      console.error("POST /api/auth/login: SESSION_SECRET is not set");
+      return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
+    }
 
     // If no password is set, always allow access
     if (!settings.appPassword) {
