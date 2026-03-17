@@ -6,7 +6,7 @@ import { createSessionToken, signToken } from "@/lib/session";
 import { parseJsonBody, validationErrorResponse } from "@/lib/validation/request";
 import { authSchemas } from "@/lib/validation/schemas/api";
 import { enforceRateLimit } from "@/lib/rate-limit";
-import { getSessionCookieOptions } from "@/lib/session-config";
+import { getSessionCookieOptions, getSessionSecret } from "@/lib/session-config";
 import { getClientIp } from "@/lib/server/client-ip";
 
 const MAX_ATTEMPTS = 10;
@@ -39,11 +39,7 @@ export async function POST(request: NextRequest) {
       settings = await prisma.appSettings.create({ data: { id: "singleton", sessionVersion: 1 } });
     }
 
-    const secret = process.env.SESSION_SECRET;
-    if (!secret) {
-      console.error("POST /api/auth/login: SESSION_SECRET is not set");
-      return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
-    }
+    const secret = getSessionSecret();
 
     // If no password is set, always allow access
     if (!settings.appPassword) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyTokenEdge } from "@/lib/session-edge";
+import { getSessionSecret } from "@/lib/session-config";
 
 const PUBLIC_PATHS = ["/login", "/api/auth", "/api/health", "/_next", "/favicon.ico"];
 
@@ -30,16 +31,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  const sessionSecret = process.env.SESSION_SECRET;
-  if (!sessionSecret) {
-    if (isApiRoute) {
-      return NextResponse.json(
-        { error: "Server misconfiguration: SESSION_SECRET is required for protected API routes." },
-        { status: 500 }
-      );
-    }
-    return NextResponse.redirect(new URL("/login", request.url));
-  }
+  const sessionSecret = getSessionSecret();
 
   const hasVersionPrefix = /^\d+:[^\s]+\./.test(session);
   const valid = hasVersionPrefix ? await verifyTokenEdge(session, sessionSecret) : false;
