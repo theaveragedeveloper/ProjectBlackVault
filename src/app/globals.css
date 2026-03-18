@@ -19,7 +19,7 @@
   --vault-success-dim:  rgba(0, 200, 83, 0.12);
   --vault-text:         #F7F9FC;
   --vault-text-muted:   #9AA5B4;
-  --vault-text-faint:   #5C6E82;
+  --vault-text-faint:   #6B7E94;
 
   --background: var(--vault-bg);
   --foreground: var(--vault-text);
@@ -74,6 +74,13 @@ body {
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Accessible placeholder text ──────────────────────────── */
+input::placeholder,
+textarea::placeholder {
+  color: var(--vault-text-muted);
+  opacity: 1;
 }
 
 /* ── Tactical Grid Background ─────────────────────────────── */
