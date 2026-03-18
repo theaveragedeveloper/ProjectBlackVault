@@ -29,6 +29,8 @@ import {
 } from "lucide-react";
 import ImagePicker from "@/components/shared/ImagePicker";
 
+const SLOT_TYPE_LABELS_LOCAL: Record<string, string> = SLOT_TYPE_LABELS as Record<string, string>;
+
 const FIREARM_TYPE_LABELS: Record<string, string> = {
   PISTOL: "Pistol",
   RIFLE: "Rifle",
@@ -444,7 +446,7 @@ export default function FirearmDetailPage() {
                             {filledSlots.slice(0, 4).map((slot) => (
                               <div key={slot.id} className="flex items-center gap-2">
                                 <span className="text-[10px] font-mono text-vault-text-faint w-24 shrink-0">
-                                  {SLOT_TYPE_LABELS[slot.slotType] ?? slot.slotType}
+                                  {SLOT_TYPE_LABELS_LOCAL[slot.slotType] ?? slot.slotType}
                                 </span>
                                 <span className="text-xs text-vault-text-muted truncate">
                                   {slot.accessory?.name ?? "—"}

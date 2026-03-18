@@ -135,14 +135,12 @@ export default function HitFactorCalculatorPage() {
     const penaltyCount = misses + noShoots + procedurals;
     const penaltyPoints = penaltyCount * PENALTY;
     const netPoints = grossPoints + penaltyPoints;
+    const totalShots = totalHits + misses;
 
     const hitFactor = time > 0 ? netPoints / time : null;
     const hitFactorStr = hitFactor != null ? truncate4(hitFactor) : null;
 
-    // What-if: all Alphas (same total shots, same time)
-    const totalShots = totalHits + misses;
-    const allAlphaPoints = totalShots * pz.alpha + steel * pz.steel - steel * pz.steel;
-    // Actually: if all shots were Alphas instead of C/D/M
+    // What-if: all shots were Alphas instead of C/D/M
     const whatIfAlphaGross = (alpha + charlie + delta + misses) * pz.alpha + steel * pz.steel;
     const whatIfAlphaNet = whatIfAlphaGross; // no penalties since no misses assumed
     const whatIfAlphaHF = time > 0 ? whatIfAlphaNet / time : null;
@@ -462,7 +460,7 @@ export default function HitFactorCalculatorPage() {
               <span className="text-xs font-mono uppercase tracking-widest text-vault-text-muted">Stage Percentage</span>
             </div>
             <p className="text-xs text-vault-text-faint mb-3">
-              Enter the stage winner's hit factor to calculate your stage score (70 points max awarded to winner).
+              Enter the stage winner&apos;s hit factor to calculate your stage score (70 points max awarded to winner).
             </p>
             <div className="flex items-center gap-3">
               <div className="flex-1">
