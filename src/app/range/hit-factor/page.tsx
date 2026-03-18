@@ -135,13 +135,12 @@ export default function HitFactorCalculatorPage() {
     const penaltyCount = misses + noShoots + procedurals;
     const penaltyPoints = penaltyCount * PENALTY;
     const netPoints = grossPoints + penaltyPoints;
+    const totalShots = totalHits + misses;
 
     const hitFactor = time > 0 ? netPoints / time : null;
     const hitFactorStr = hitFactor != null ? truncate4(hitFactor) : null;
 
-    // What-if: all Alphas (same total shots, same time)
-    const totalShots = totalHits + misses;
-    // Actually: if all shots were Alphas instead of C/D/M
+    // What-if: all shots were Alphas instead of C/D/M
     const whatIfAlphaGross = (alpha + charlie + delta + misses) * pz.alpha + steel * pz.steel;
     const whatIfAlphaNet = whatIfAlphaGross; // no penalties since no misses assumed
     const whatIfAlphaHF = time > 0 ? whatIfAlphaNet / time : null;
