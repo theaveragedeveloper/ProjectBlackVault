@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Breadcrumb } from "@/components/shared/Breadcrumb";
 import {
   Save,
   Loader2,
@@ -132,6 +133,7 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-full">
+      <Breadcrumb />
       {/* Page header */}
       <div className="flex items-center justify-between px-6 py-5 border-b border-vault-border">
         <div className="flex items-center gap-3">
