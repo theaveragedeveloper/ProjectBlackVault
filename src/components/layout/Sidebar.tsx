@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
+import { useVaultStore } from "@/lib/store";
 
 const NAV_ITEMS = [
   {
@@ -70,6 +71,7 @@ interface SidebarProps {
 export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const setHasSeenIntro = useVaultStore((s) => s.setHasSeenIntro);
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -143,6 +145,18 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
           );
         })}
       </nav>
+
+      {/* Help button */}
+      <div className="px-2 pb-1 shrink-0">
+        <button
+          onClick={() => setHasSeenIntro(false)}
+          title="Show intro guide"
+          className="w-full flex items-center gap-2 px-2.5 py-2 rounded-md text-vault-text-faint hover:text-vault-text-muted hover:bg-vault-border transition-colors"
+        >
+          <span className="w-5 h-5 flex items-center justify-center rounded-full border border-vault-text-faint text-[10px] font-bold shrink-0">?</span>
+          {!collapsed && <span className="text-xs tracking-wider uppercase">Help</span>}
+        </button>
+      </div>
 
       {/* Collapse toggle — desktop only */}
       <div className="hidden md:block px-2 pb-3 shrink-0 border-t border-vault-border pt-2">
