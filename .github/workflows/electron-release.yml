@@ -1,23 +1,42 @@
-name: Build & Release Electron App
+name: Electron Tagged Release
 
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to validate (for example v0.1.0). Optional for test builds."
+        required: false
+        type: string
+      publish:
+        description: "Publish installers to GitHub Releases"
+        required: true
+        default: false
+        type: boolean
 
 permissions:
-  contents: write   # required to create/upload GitHub Release assets
+  contents: write
+
+concurrency:
+  group: electron-release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build:
-    name: Build (${{ matrix.os }})
+    name: Build ${{ matrix.platform_name }} (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
-
-    runs-on: ${{ matrix.os }}
+        include:
+          - os: windows-latest
+            platform_name: Windows
+          - os: macos-latest
+            platform_name: macOS
+          - os: ubuntu-latest
+            platform_name: Linux
 
     steps:
       - name: Checkout
@@ -26,30 +45,131 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            electron/package-lock.json
 
       - name: Install root dependencies
         run: npm ci
 
-      - name: Build Next.js standalone
+      - name: Build Next.js production bundle
         run: npm run build
         env:
           NODE_ENV: production
 
       - name: Install Electron dependencies
-        run: npm install
+        run: npm ci
         working-directory: electron
 
-      - name: Build & publish installer
+      - name: Resolve release mode
+        id: release_mode
+        shell: bash
+        run: |
+          PUBLISH="false"
+          RELEASE_TAG=""
+
+          if [ "${{ github.event_name }}" = "push" ]; then
+            PUBLISH="true"
+            RELEASE_TAG="${GITHUB_REF#refs/tags/}"
+          elif [ "${{ inputs.publish }}" = "true" ]; then
+            if [ -z "${{ inputs.tag }}" ]; then
+              echo "workflow_dispatch publish=true requires an explicit tag input."
+              exit 1
+            fi
+            PUBLISH="true"
+            RELEASE_TAG="${{ inputs.tag }}"
+          elif [ -n "${{ inputs.tag }}" ]; then
+            RELEASE_TAG="${{ inputs.tag }}"
+          fi
+
+          echo "publish=${PUBLISH}" >> "$GITHUB_OUTPUT"
+          echo "release_tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Validate requested release tag format
+        if: steps.release_mode.outputs.release_tag != ''
+        shell: bash
+        run: |
+          TAG="${{ steps.release_mode.outputs.release_tag }}"
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.]+)?$ ]]; then
+            echo "Tag '$TAG' is not a valid semantic version tag (expected vX.Y.Z)."
+            exit 1
+          fi
+
+      - name: Configure signing and notarization environment
+        id: signing
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "CSC_IDENTITY_AUTO_DISCOVERY=false" >> "$GITHUB_ENV"
+          SIGNING_MODE="unsigned"
+          NOTARIZATION_MODE="disabled"
+
+          if [ "${{ matrix.os }}" = "macos-latest" ]; then
+            if [ -n "${{ secrets.APPLE_CERTIFICATE_P12 }}" ] && [ -n "${{ secrets.APPLE_CERTIFICATE_PASSWORD }}" ]; then
+              CERT_PATH="$RUNNER_TEMP/apple-signing-cert.p12"
+              echo "${{ secrets.APPLE_CERTIFICATE_P12 }}" | base64 --decode > "$CERT_PATH"
+              echo "CSC_LINK=$CERT_PATH" >> "$GITHUB_ENV"
+              echo "CSC_KEY_PASSWORD=${{ secrets.APPLE_CERTIFICATE_PASSWORD }}" >> "$GITHUB_ENV"
+              if [ -n "${{ secrets.APPLE_SIGNING_IDENTITY }}" ]; then
+                echo "CSC_NAME=${{ secrets.APPLE_SIGNING_IDENTITY }}" >> "$GITHUB_ENV"
+              fi
+              SIGNING_MODE="signed"
+            fi
+
+            if [ -n "${{ secrets.APPLE_ID }}" ] && [ -n "${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}" ] && [ -n "${{ secrets.APPLE_TEAM_ID }}" ]; then
+              echo "APPLE_ID=${{ secrets.APPLE_ID }}" >> "$GITHUB_ENV"
+              echo "APPLE_APP_SPECIFIC_PASSWORD=${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}" >> "$GITHUB_ENV"
+              echo "APPLE_TEAM_ID=${{ secrets.APPLE_TEAM_ID }}" >> "$GITHUB_ENV"
+              NOTARIZATION_MODE="enabled"
+            fi
+          fi
+
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            if [ -n "${{ secrets.WINDOWS_CERTIFICATE_P12 }}" ] && [ -n "${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}" ]; then
+              CERT_PATH="$RUNNER_TEMP/windows-signing-cert.p12"
+              echo "${{ secrets.WINDOWS_CERTIFICATE_P12 }}" | base64 --decode > "$CERT_PATH"
+              echo "CSC_LINK=$CERT_PATH" >> "$GITHUB_ENV"
+              echo "CSC_KEY_PASSWORD=${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}" >> "$GITHUB_ENV"
+              SIGNING_MODE="signed"
+            fi
+          fi
+
+          if [ "$SIGNING_MODE" = "unsigned" ]; then
+            echo "::notice::${{ matrix.platform_name }} build will be unsigned (no signing certificate secrets configured)."
+          else
+            echo "::notice::${{ matrix.platform_name }} build will use signing certificate secrets."
+          fi
+
+          if [ "${{ matrix.os }}" = "macos-latest" ]; then
+            if [ "$NOTARIZATION_MODE" = "enabled" ]; then
+              echo "::notice::macOS notarization is enabled for this build."
+            else
+              echo "::notice::macOS notarization is disabled (notarization secrets missing)."
+            fi
+          fi
+
+          echo "signing_mode=$SIGNING_MODE" >> "$GITHUB_OUTPUT"
+          echo "notarization_mode=$NOTARIZATION_MODE" >> "$GITHUB_OUTPUT"
+
+      - name: Build installers and publish (tag/release mode)
+        if: steps.release_mode.outputs.publish == 'true'
         run: npm run dist
         working-directory: electron
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # macOS code signing (optional — set these secrets to enable)
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-          # macOS notarization (optional — set these secrets to enable)
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Build installers only (artifact test mode)
+        if: steps.release_mode.outputs.publish != 'true'
+        run: npm run build
+        working-directory: electron
+
+      - name: Upload workflow artifacts (dist)
+        uses: actions/upload-artifact@v4
+        with:
+          name: electron-dist-${{ matrix.platform_name }}
+          path: |
+            electron/dist/**/*
+          if-no-files-found: error
