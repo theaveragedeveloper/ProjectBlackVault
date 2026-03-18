@@ -200,6 +200,42 @@ export const SLOTS_BY_FIREARM_TYPE: Record<FirearmType, SlotType[]> = {
   ],
 };
 
+// ─── Build Statuses ────────────────────────────────────────────
+export const BUILD_STATUSES = [
+  { value: "in-progress", label: "In Progress" },
+  { value: "complete", label: "Complete" },
+  { value: "wishlist", label: "Wishlist" },
+] as const;
+
+export type BuildStatus = (typeof BUILD_STATUSES)[number]["value"];
+
+// ─── Slot Categories (for grouping in build detail) ────────────
+export const SLOT_CATEGORIES: { label: string; slots: string[] }[] = [
+  {
+    label: "Upper Assembly",
+    slots: [
+      "UPPER_RECEIVER",
+      "BARREL",
+      "HANDGUARD",
+      "MUZZLE",
+      "COMPENSATOR",
+      "SUPPRESSOR",
+      "CHARGING_HANDLE",
+    ],
+  },
+  {
+    label: "Lower Assembly",
+    slots: ["LOWER_RECEIVER", "STOCK", "BUFFER_TUBE", "GRIP", "TRIGGER"],
+  },
+  { label: "Sighting", slots: ["OPTIC", "OPTIC_MOUNT"] },
+  { label: "Magazine", slots: ["MAGAZINE"] },
+  {
+    label: "Attachments",
+    slots: ["LIGHT", "LASER", "UNDERBARREL", "BIPOD", "SLING"],
+  },
+  { label: "Pistol Frame", slots: ["FRAME", "SLIDE"] },
+];
+
 // ─── Ammo Transaction Types ────────────────────────────────────
 export const TRANSACTION_TYPES = [
   "PURCHASE",
