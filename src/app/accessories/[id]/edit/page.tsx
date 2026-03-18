@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { SLOT_TYPES, SLOT_TYPE_LABELS, COMMON_CALIBERS } from "@/lib/types";
-import { ArrowLeft, Save, Loader2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Save, Loader2, AlertCircle, Upload } from "lucide-react";
 
 const INPUT_CLASS =
   "w-full bg-vault-surface border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint transition-colors";
@@ -49,6 +49,11 @@ export default function EditAccessoryPage() {
   const [caliberInput, setCaliberInput] = useState("");
   const [caliberDropdownOpen, setCaliberDropdownOpen] = useState(false);
 
+  const [imageUrlInput, setImageUrlInput] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const filteredCalibers = COMMON_CALIBERS.filter((c) =>
     c.toLowerCase().includes(caliberInput.toLowerCase())
   );
@@ -62,6 +67,7 @@ export default function EditAccessoryPage() {
         } else {
           setAccessory(data);
           setCaliberInput(data.caliber ?? "");
+          setImageUrlInput(data.imageUrl ?? "");
         }
         setDataLoading(false);
       })
@@ -70,6 +76,31 @@ export default function EditAccessoryPage() {
         setDataLoading(false);
       });
   }, [accessoryId]);
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setUploadError(null);
+    const form = new FormData();
+    form.append("file", file);
+    form.append("entityType", "accessory");
+    form.append("entityId", accessoryId);
+    try {
+      const res = await fetch("/api/images/upload", { method: "POST", body: form });
+      const json = await res.json();
+      if (res.ok) {
+        setImageUrlInput(json.url);
+      } else {
+        setUploadError(json.error ?? "Upload failed");
+      }
+    } catch {
+      setUploadError("Upload failed. Please try again.");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -332,6 +363,31 @@ export default function EditAccessoryPage() {
               Image
             </legend>
             <div>
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleFileUpload}
+              />
+              {/* Upload button */}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="flex items-center gap-2 mb-3 px-3 py-2 text-sm rounded-md border border-vault-border text-vault-text-muted hover:text-vault-text hover:border-[#00C2FF]/40 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {uploading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Upload className="w-4 h-4" />
+                )}
+                {uploading ? "Uploading..." : "Upload Photo"}
+              </button>
+              {uploadError && (
+                <p className="text-xs text-[#E53935] mb-2">{uploadError}</p>
+              )}
               <label htmlFor="imageUrl" className={LABEL_CLASS}>
                 Image URL
               </label>
@@ -339,15 +395,16 @@ export default function EditAccessoryPage() {
                 id="imageUrl"
                 name="imageUrl"
                 type="url"
-                defaultValue={accessory.imageUrl ?? ""}
+                value={imageUrlInput}
+                onChange={(e) => setImageUrlInput(e.target.value)}
                 placeholder="https://example.com/image.jpg"
                 className={INPUT_CLASS}
               />
-              {accessory.imageUrl && (
+              {imageUrlInput && (
                 <div className="mt-3 w-full h-28 rounded-md overflow-hidden border border-vault-border">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={accessory.imageUrl}
+                    src={imageUrlInput}
                     alt={accessory.name}
                     className="w-full h-full object-contain bg-vault-bg"
                   />
