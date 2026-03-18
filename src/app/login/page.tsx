@@ -11,30 +11,40 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [passwordRequired, setPasswordRequired] = useState(false);
 
   useEffect(() => {
     // Check if password is required
     fetch("/api/auth/check")
-      .then((r) => r.json())
+      .then(async (r) => ({ ok: r.ok, data: await r.json() }))
       .then(async (data) => {
-        if (!data.passwordRequired) {
+        if (!data.ok || data.data?.error) {
+          setError(data.data?.error ?? "Authentication service is unavailable.");
+          setLoading(false);
+          return;
+        }
+
+        if (!data.data.passwordRequired) {
           // No password set — auto-login and redirect
-          await fetch("/api/auth/login", {
+          const res = await fetch("/api/auth/login", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ password: "" }),
           });
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            setError(body.error ?? "Authentication failed.");
+            setLoading(false);
+            return;
+          }
           router.replace("/");
-        } else if (data.authenticated) {
+        } else if (data.data.authenticated) {
           router.replace("/");
         } else {
-          setPasswordRequired(true);
           setLoading(false);
         }
       })
       .catch(() => {
-        setPasswordRequired(false);
+        setError("Failed to connect to authentication service.");
         setLoading(false);
       });
   }, [router]);

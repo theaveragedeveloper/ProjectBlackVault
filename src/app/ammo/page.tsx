@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { formatCurrency, formatNumber } from "@/lib/utils";
@@ -247,16 +247,26 @@ export default function AmmoPage() {
   const [addModal, setAddModal] = useState<AmmoStock | null>(null);
   const [logModal, setLogModal] = useState<AmmoStock | null>(null);
 
-  const fetchAmmo = useCallback(async () => {
-    const res = await fetch("/api/ammo");
-    const data = await res.json();
-    setGroups(data.grouped ?? []);
-    setLoading(false);
-  }, []);
-
   useEffect(() => {
-    fetchAmmo();
-  }, [fetchAmmo]);
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await fetch("/api/ammo");
+        const data = await res.json();
+        if (!cancelled) {
+          setGroups(data.grouped ?? []);
+          setLoading(false);
+        }
+      } catch {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function handleQtyUpdate(stockId: string, newQty: number) {
     setGroups((prev) =>
