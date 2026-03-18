@@ -1,4 +1,7 @@
 import crypto from "crypto";
+import { cookies } from "next/headers";
+import { prisma } from "@/lib/prisma";
+import { getSessionSecret } from "@/lib/session-config";
 
 /**
  * Sign a raw token with HMAC-SHA256. Returns "<token>.<hmacHex>".
@@ -45,4 +48,29 @@ export function verifyTokenNode(signed: string, secret: string): boolean {
   } catch {
     return false;
   }
+}
+
+export async function getSession(): Promise<{ authenticated: boolean }> {
+  const settings = await prisma.appSettings.findUnique({
+    where: { id: "singleton" },
+    select: { appPassword: true, sessionVersion: true },
+  });
+
+  if (!settings?.appPassword) {
+    return { authenticated: true };
+  }
+
+  const secret = getSessionSecret();
+  if (!secret) return { authenticated: false };
+
+  const cookieStore = await cookies();
+  const signed = cookieStore.get("vault_session")?.value;
+  if (!signed || !verifyTokenNode(signed, secret)) {
+    return { authenticated: false };
+  }
+
+  const tokenVersion = extractSessionVersion(signed);
+  const expectedVersion = settings.sessionVersion ?? 1;
+
+  return { authenticated: tokenVersion !== null && tokenVersion === expectedVersion };
 }

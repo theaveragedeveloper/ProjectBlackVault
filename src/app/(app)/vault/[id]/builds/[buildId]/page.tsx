@@ -1227,7 +1227,7 @@ export default function BuildConfiguratorPage() {
   const [customSlotInput, setCustomSlotInput] = useState("");
   const [editingAccessory, setEditingAccessory] = useState<Accessory | null>(null);
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
-  const [localBuildImageUrl, setLocalBuildImageUrl] = useState<string | null>(null);
+  const [, setLocalBuildImageUrl] = useState<string | null>(null);
 
   const fetchBuild = useCallback(async () => {
     try {
