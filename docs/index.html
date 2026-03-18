@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Project BlackVault — Self-Hosted Armory Platform</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:           #080B0F;
+      --surface:      #0D1117;
+      --surface-2:    #161B22;
+      --border:       #21262D;
+      --muted:        #1C2128;
+      --accent:       #00C2FF;
+      --accent-dim:   rgba(0, 194, 255, 0.12);
+      --accent-border:rgba(0, 194, 255, 0.3);
+      --warn:         #F5A623;
+      --success:      #00C853;
+      --text:         #F7F9FC;
+      --text-muted:   #9AA5B4;
+      --text-faint:   #6B7E94;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Grid background ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0, 194, 255, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 194, 255, 0.025) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Above-the-fold hero ── */
+    .hero {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 24px;
+      text-align: center;
+    }
+
+    .logo-wrap {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+
+    .logo-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 12px;
+      background: var(--accent-dim);
+      border: 1px solid var(--accent-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .logo-icon svg { width: 28px; height: 28px; color: var(--accent); }
+
+    .logo-text {
+      text-align: left;
+    }
+
+    .logo-name {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--text);
+      line-height: 1;
+    }
+
+    .logo-sub {
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--text-faint);
+      margin-top: 4px;
+    }
+
+    .hero-heading {
+      font-size: clamp(28px, 5vw, 48px);
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -0.01em;
+      max-width: 700px;
+      margin-bottom: 16px;
+    }
+
+    .hero-heading span { color: var(--accent); }
+
+    .hero-sub {
+      font-size: clamp(14px, 2vw, 17px);
+      color: var(--text-muted);
+      max-width: 520px;
+      line-height: 1.65;
+      margin-bottom: 40px;
+    }
+
+    /* ── Download buttons ── */
+    .download-row {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+
+    .btn-download {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 14px 28px;
+      border-radius: 10px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 15px;
+      letter-spacing: 0.02em;
+      transition: all 0.15s ease;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      min-width: 200px;
+      cursor: pointer;
+    }
+
+    .btn-download:hover {
+      border-color: var(--accent-border);
+      background: var(--accent-dim);
+      color: var(--accent);
+    }
+
+    .btn-download .btn-icon {
+      font-size: 22px;
+      margin-bottom: 2px;
+    }
+
+    .btn-download .btn-rec {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--accent);
+      opacity: 0;
+      height: 14px;
+      transition: opacity 0.15s;
+    }
+
+    .btn-download.highlighted {
+      border: 2px solid var(--accent);
+      background: var(--accent-dim);
+      color: var(--accent);
+      box-shadow: 0 0 24px rgba(0, 194, 255, 0.15);
+    }
+
+    .btn-download.highlighted .btn-rec {
+      opacity: 1;
+    }
+
+    .install-note {
+      font-size: 12px;
+      color: var(--text-faint);
+      margin-top: 4px;
+    }
+
+    /* ── Scroll hint ── */
+    .scroll-hint {
+      position: absolute;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-faint);
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      animation: bounce 2s ease-in-out infinite;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateX(-50%) translateY(0); }
+      50%       { transform: translateX(-50%) translateY(6px); }
+    }
+
+    /* ── Content sections ── */
+    .content {
+      position: relative;
+      z-index: 1;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 60px 24px 80px;
+    }
+
+    .section-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-family: 'Courier New', monospace;
+      margin-bottom: 20px;
+    }
+
+    /* ── Features grid ── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      margin-bottom: 60px;
+    }
+
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+    }
+
+    .feature-icon {
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+
+    .feature-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .feature-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.55;
+    }
+
+    /* ── Self-hosting steps ── */
+    .steps {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 28px;
+      margin-bottom: 60px;
+    }
+
+    .steps h2 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 20px;
+      color: var(--text);
+    }
+
+    .step {
+      display: flex;
+      gap: 16px;
+      padding: 16px 0;
+      border-top: 1px solid var(--border);
+    }
+
+    .step:first-of-type { border-top: none; padding-top: 0; }
+
+    .step-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--accent-dim);
+      border: 1px solid var(--accent-border);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .step-body { flex: 1; }
+    .step-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+    .step-desc  { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+
+    code {
+      font-family: 'Courier New', monospace;
+      background: var(--muted);
+      color: var(--text-muted);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    /* ── Tech stack ── */
+    .stack-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .stack-tag {
+      font-size: 12px;
+      font-family: 'Courier New', monospace;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 5px 12px;
+      border-radius: 6px;
+    }
+
+    /* ── Footer ── */
+    footer {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      padding: 24px;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text-faint);
+    }
+
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    @media (max-width: 480px) {
+      .logo-wrap { flex-direction: column; text-align: center; }
+      .logo-text { text-align: center; }
+      .btn-download { min-width: 160px; padding: 12px 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Hero ─────────────────────────────────────────────── -->
+<section class="hero">
+  <div class="logo-wrap">
+    <div class="logo-icon">
+      <!-- Shield icon (inline SVG) -->
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#00C2FF">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+    </div>
+    <div class="logo-text">
+      <div class="logo-name">BlackVault</div>
+      <div class="logo-sub">Armory Platform</div>
+    </div>
+  </div>
+
+  <h1 class="hero-heading">
+    Your firearms inventory,<br>
+    <span>fully under your control.</span>
+  </h1>
+
+  <p class="hero-sub">
+    A self-hosted armory platform built for serious collectors and builders.
+    Track your arsenal, configure loadouts, and log range sessions — all on your own hardware.
+  </p>
+
+  <div class="download-row">
+    <a id="btn-mac" href="install.sh" class="btn-download" download>
+      <span class="btn-icon"></span>
+      Download for macOS
+      <span class="btn-rec">Recommended for your OS</span>
+    </a>
+    <a id="btn-win" href="install.bat" class="btn-download" download>
+      <span class="btn-icon">🪟</span>
+      Download for Windows
+      <span class="btn-rec">Recommended for your OS</span>
+    </a>
+  </div>
+  <p class="install-note">Requires Docker Desktop &nbsp;·&nbsp; No cloud account needed &nbsp;·&nbsp; 100% local</p>
+
+  <div class="scroll-hint">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+    Learn more
+  </div>
+</section>
+
+<!-- ── Features ──────────────────────────────────────────── -->
+<section class="content">
+  <p class="section-label">// Features</p>
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon">🔫</div>
+      <div class="feature-title">Firearm Inventory</div>
+      <div class="feature-desc">Catalog every firearm with make, model, caliber, serial number, and photos. Serial numbers encrypted at rest.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🛠</div>
+      <div class="feature-title">Visual Configurator</div>
+      <div class="feature-desc">Call of Duty–style build editor. Assign parts to slots, group by category, track cost per build.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📦</div>
+      <div class="feature-title">Accessories & Ammo</div>
+      <div class="feature-desc">Manage your optics, suppressors, lights, and ammunition stock. Round counts auto-update from range sessions.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🎯</div>
+      <div class="feature-title">Range Sessions</div>
+      <div class="feature-desc">Log sessions to track rounds fired, deduct ammo, and keep usage records across all firearms.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🔒</div>
+      <div class="feature-title">Encryption at Rest</div>
+      <div class="feature-desc">AES-256-GCM encryption for sensitive fields. Key generated automatically by the installer.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🏠</div>
+      <div class="feature-title">Fully Self-Hosted</div>
+      <div class="feature-desc">Runs locally via Docker. No telemetry, no accounts, no cloud. Your data never leaves your machine.</div>
+    </div>
+  </div>
+
+  <!-- ── Self-hosting steps ── -->
+  <p class="section-label">// Self-Hosting in 3 Steps</p>
+  <div class="steps">
+    <h2>Get up and running in minutes</h2>
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">Install Docker Desktop</div>
+        <div class="step-desc">Download and install Docker Desktop for your operating system from <a href="https://www.docker.com/products/docker-desktop" style="color:var(--accent)">docker.com</a>. Ensure it's running before continuing.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">Run the installer</div>
+        <div class="step-desc">
+          <strong>macOS / Linux:</strong> open Terminal and run <code>bash install.sh</code><br>
+          <strong>Windows:</strong> double-click <code>install.bat</code> or run it in Command Prompt.<br><br>
+          The installer will prompt for a data directory and port, generate your encryption key, and start the app automatically.
+        </div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">Open BlackVault</div>
+        <div class="step-desc">Navigate to <code>http://localhost:3000</code> (or the port you chose). Your vault is ready — add your first firearm to get started.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Tech stack ── -->
+  <p class="section-label">// Tech Stack</p>
+  <div class="stack-row">
+    <span class="stack-tag">Next.js 16</span>
+    <span class="stack-tag">TypeScript</span>
+    <span class="stack-tag">Prisma 5</span>
+    <span class="stack-tag">SQLite</span>
+    <span class="stack-tag">Tailwind CSS v4</span>
+    <span class="stack-tag">Framer Motion</span>
+    <span class="stack-tag">Zustand</span>
+    <span class="stack-tag">Radix UI</span>
+    <span class="stack-tag">Docker</span>
+    <span class="stack-tag">AES-256-GCM</span>
+  </div>
+</section>
+
+<!-- ── Footer ── -->
+<footer>
+  <a href="https://github.com/theaveragedeveloper/ProjectBlackVault">GitHub</a>
+  &nbsp;·&nbsp;
+  Project BlackVault &nbsp;·&nbsp; Self-hosted armory management
+</footer>
+
+<script>
+  // Highlight the download button matching the user's OS
+  (function () {
+    var isWin = navigator.userAgent.toLowerCase().indexOf('win') !== -1;
+    var isMac = navigator.userAgent.toLowerCase().indexOf('mac') !== -1;
+    if (isWin) {
+      document.getElementById('btn-win').classList.add('highlighted');
+    } else if (isMac) {
+      document.getElementById('btn-mac').classList.add('highlighted');
+    } else {
+      // Default to macOS/Linux for other platforms (Linux, etc.)
+      document.getElementById('btn-mac').classList.add('highlighted');
+    }
+  })();
+</script>
+
+</body>
+</html>
