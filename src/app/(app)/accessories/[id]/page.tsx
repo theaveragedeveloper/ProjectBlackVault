@@ -28,6 +28,7 @@ import PhotoGallery from "@/components/shared/PhotoGallery";
 import { DocumentUploader, type UploadedDocument } from "@/components/shared/DocumentUploader";
 import BatterySettingsFields from "@/components/shared/BatterySettingsFields";
 
+const SLOT_TYPE_LABELS_LOCAL: Record<string, string> = SLOT_TYPE_LABELS as Record<string, string>;
 
 interface RoundCountLog {
   id: string;

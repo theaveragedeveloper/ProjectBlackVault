@@ -33,6 +33,18 @@ export async function GET() {
   if (auth) return auth;
 
   try {
+    const isProduction = process.env.NODE_ENV === "production";
+    const exposeSystemInfo = ["1", "true", "yes", "on"].includes(
+      (process.env.EXPOSE_SYSTEM_INFO ?? "").trim().toLowerCase()
+    );
+
+    if (isProduction && !exposeSystemInfo) {
+      return NextResponse.json(
+        { error: "System info endpoint is disabled in production." },
+        { status: 403 }
+      );
+    }
+
     // Collect local IP addresses (IPv4 only, skip loopback)
     const interfaces = os.networkInterfaces();
     const localIPs: string[] = [];

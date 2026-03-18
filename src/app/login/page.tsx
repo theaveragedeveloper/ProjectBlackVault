@@ -29,9 +29,15 @@ export default function LoginPage() {
   useEffect(() => {
     // Check if password is required
     fetch("/api/auth/check")
-      .then((r) => r.json())
+      .then(async (r) => ({ ok: r.ok, data: await r.json() }))
       .then(async (data) => {
-        if (!data.passwordRequired) {
+        if (!data.ok || data.data?.error) {
+          setError(data.data?.error ?? "Authentication service is unavailable.");
+          setLoading(false);
+          return;
+        }
+
+        if (!data.data.passwordRequired) {
           // No password set — auto-login and redirect
           const autoLoginRes = await fetch("/api/auth/login", {
             method: "POST",
@@ -46,8 +52,9 @@ export default function LoginPage() {
             return;
           }
 
+
           router.replace("/");
-        } else if (data.authenticated) {
+        } else if (data.data.authenticated) {
           router.replace("/");
         } else {
           setLoading(false);

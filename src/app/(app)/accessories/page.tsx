@@ -163,7 +163,7 @@ export default function AccessoriesPage() {
               onChange={(e) => {
                 setTypeFilter(e.target.value);
               }}
-              className="appearance-none bg-vault-surface border border-vault-border text-vault-text text-xs rounded-md pl-3 pr-8 py-1.5 focus:outline-none focus:border-[#00C2FF] cursor-pointer transition-colors hover:border-vault-text-muted/40"
+              className="appearance-none bg-vault-surface border border-vault-border text-vault-text text-xs font-mono rounded-md pl-3 pr-8 py-1.5 focus:outline-none focus:border-[#00C2FF] cursor-pointer transition-colors hover:border-vault-text-muted/40"
             >
               <option value="ALL">All Types</option>
               {availableTypes.map((type) => (

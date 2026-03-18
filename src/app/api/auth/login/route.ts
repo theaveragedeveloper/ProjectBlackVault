@@ -11,9 +11,26 @@ import { getClientIp } from "@/lib/server/client-ip";
 
 const MAX_ATTEMPTS = 10;
 const WINDOW_MS = 60 * 1000;
+const MAX_TRACKED_IPS = 5000;
+
+function parseBooleanEnv(value: string | undefined): boolean | undefined {
+  if (value === undefined) return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) return true;
+  if (["0", "false", "no", "off"].includes(normalized)) return false;
+  return undefined;
+}
 
 export async function POST(request: NextRequest) {
   try {
+    const secret = process.env.SESSION_SECRET;
+    if (!secret) {
+      return NextResponse.json(
+        { error: "Server is not configured for authentication. Missing SESSION_SECRET." },
+        { status: 503 }
+      );
+    }
+
     // Rate limiting
     const ip = getClientIp(request);
     const rate = await enforceRateLimit({ key: `auth:login:${ip}`, windowMs: WINDOW_MS, maxAttempts: MAX_ATTEMPTS });
@@ -38,8 +55,6 @@ export async function POST(request: NextRequest) {
     if (!settings) {
       settings = await prisma.appSettings.create({ data: { id: "singleton", sessionVersion: 1 } });
     }
-
-    const secret = getSessionSecret();
 
     // If no password is set, always allow access
     if (!settings.appPassword) {

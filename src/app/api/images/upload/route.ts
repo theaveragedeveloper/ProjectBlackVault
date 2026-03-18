@@ -19,6 +19,60 @@ const ALLOWED_ENTITY_TYPES = new Set([
 // Accepts multipart form data: file, entityType, entityId
 // Saves to /storage/uploads/images/{entityType}s/{entityId}.{ext}
 // Returns the URL path.
+function detectImageType(buffer: Buffer): "jpg" | "png" | "gif" | "webp" | "avif" | null {
+  if (buffer.length < 12) return null;
+
+  // JPEG
+  if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return "jpg";
+
+  // PNG
+  if (
+    buffer[0] === 0x89 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x4e &&
+    buffer[3] === 0x47 &&
+    buffer[4] === 0x0d &&
+    buffer[5] === 0x0a &&
+    buffer[6] === 0x1a &&
+    buffer[7] === 0x0a
+  ) return "png";
+
+  // GIF87a / GIF89a
+  if (
+    buffer[0] === 0x47 &&
+    buffer[1] === 0x49 &&
+    buffer[2] === 0x46 &&
+    buffer[3] === 0x38 &&
+    (buffer[4] === 0x37 || buffer[4] === 0x39) &&
+    buffer[5] === 0x61
+  ) return "gif";
+
+  // WebP (RIFF....WEBP)
+  if (
+    buffer[0] === 0x52 &&
+    buffer[1] === 0x49 &&
+    buffer[2] === 0x46 &&
+    buffer[3] === 0x46 &&
+    buffer[8] === 0x57 &&
+    buffer[9] === 0x45 &&
+    buffer[10] === 0x42 &&
+    buffer[11] === 0x50
+  ) return "webp";
+
+  // AVIF (ISO BMFF with ftyp and avif/avis brand)
+  if (
+    buffer[4] === 0x66 &&
+    buffer[5] === 0x74 &&
+    buffer[6] === 0x79 &&
+    buffer[7] === 0x70
+  ) {
+    const brand = buffer.subarray(8, 12).toString("ascii");
+    if (brand === "avif" || brand === "avis") return "avif";
+  }
+
+  return null;
+}
+
 export async function POST(request: NextRequest) {
   const auth = await requireAuth();
   if (auth) return auth;
@@ -116,6 +170,7 @@ export async function POST(request: NextRequest) {
 
     // Ensure the directory exists
     await fs.mkdir(uploadDir, { recursive: true });
+
 
     await fs.writeFile(filePath, buffer);
 
