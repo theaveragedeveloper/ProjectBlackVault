@@ -4,10 +4,25 @@ import { clearKeyCache } from "@/lib/crypto";
 import crypto from "crypto";
 
 const HEX_KEY_RE = /^[0-9a-fA-F]{64}$/;
+const isProduction = process.env.NODE_ENV === "production";
+
+function parseBooleanEnv(value: string | undefined): boolean {
+  return ["1", "true", "yes", "on"].includes((value ?? "").trim().toLowerCase());
+}
+
+const allowDbKeyManagement = parseBooleanEnv(process.env.ALLOW_DB_ENCRYPTION_KEY_MANAGEMENT);
+const allowKeyExport = parseBooleanEnv(process.env.ALLOW_ENCRYPTION_KEY_EXPORT);
 
 // GET /api/encryption — export the DB-stored key (not shown if set via env var)
 export async function GET() {
   try {
+    if (isProduction && !allowKeyExport) {
+      return NextResponse.json(
+        { error: "Encryption key export is disabled in production." },
+        { status: 403 }
+      );
+    }
+
     // Never expose a key that was set via env var — it's managed outside the app
     if (process.env.VAULT_ENCRYPTION_KEY) {
       return NextResponse.json({ error: "Key is managed via environment variable" }, { status: 403 });
@@ -28,6 +43,13 @@ export async function GET() {
 // POST /api/encryption — generate a new random key and save it
 export async function POST() {
   try {
+    if (isProduction && !allowDbKeyManagement) {
+      return NextResponse.json(
+        { error: "UI key generation is disabled in production. Set VAULT_ENCRYPTION_KEY instead." },
+        { status: 403 }
+      );
+    }
+
     if (process.env.VAULT_ENCRYPTION_KEY) {
       return NextResponse.json(
         { error: "Encryption is already active via environment variable. Remove VAULT_ENCRYPTION_KEY to use the UI setup instead." },
@@ -63,6 +85,13 @@ export async function POST() {
 // PUT /api/encryption — save a user-supplied key
 export async function PUT(request: NextRequest) {
   try {
+    if (isProduction && !allowDbKeyManagement) {
+      return NextResponse.json(
+        { error: "UI key management is disabled in production. Set VAULT_ENCRYPTION_KEY instead." },
+        { status: 403 }
+      );
+    }
+
     if (process.env.VAULT_ENCRYPTION_KEY) {
       return NextResponse.json(
         { error: "Encryption is managed via environment variable" },
@@ -98,6 +127,13 @@ export async function PUT(request: NextRequest) {
 // DELETE /api/encryption — remove the DB-stored key (disables encryption)
 export async function DELETE() {
   try {
+    if (isProduction && !allowDbKeyManagement) {
+      return NextResponse.json(
+        { error: "UI key management is disabled in production. Set VAULT_ENCRYPTION_KEY instead." },
+        { status: 403 }
+      );
+    }
+
     if (process.env.VAULT_ENCRYPTION_KEY) {
       return NextResponse.json(
         { error: "Encryption is managed via environment variable. Remove VAULT_ENCRYPTION_KEY from your environment to disable it." },
