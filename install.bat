@@ -78,6 +78,9 @@ if /i "!ADVANCED_SETUP!"=="Y" (
   echo Advanced setup selected. Leave blank to auto-generate.
   set /p VAULT_ENCRYPTION_KEY="  VAULT_ENCRYPTION_KEY [auto-generate if blank]: "
 )
+for /f "delims=" %%s in ('powershell -NoProfile -Command "[Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32))"') do (
+  set SESSION_SECRET=%%s
+)
 
 if "!VAULT_ENCRYPTION_KEY!"=="" (
   for /f "delims=" %%k in ('powershell -NoProfile -Command "([System.BitConverter]::ToString([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32)) -replace '-','').ToLower()"') do (
@@ -103,6 +106,11 @@ if /i "!GENERATE_RECOVERY_SECRET!"=="Y" if "!PASSWORD_RECOVERY_SECRET!"=="" (
   pause
   exit /b 1
 )
+if "!SESSION_SECRET!"=="" (
+  echo ERROR: Failed to generate session secret. Ensure PowerShell is available.
+  pause
+  exit /b 1
+)
 
 :: ── Create directories ────────────────────────────────────────
 echo.
@@ -121,6 +129,7 @@ if not exist "!DATA_DIR!\uploads" mkdir "!DATA_DIR!\uploads"
   echo DATA_DIR=!DATA_DIR!
   echo PORT=!PORT!
   echo VAULT_ENCRYPTION_KEY=!VAULT_ENCRYPTION_KEY!
+  echo SESSION_SECRET=!SESSION_SECRET!
 ) > .blackvault.env
 
 if /i "!GENERATE_RECOVERY_SECRET!"=="Y" (
