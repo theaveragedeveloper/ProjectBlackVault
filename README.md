@@ -1,17 +1,21 @@
 # ProjectBlackVault
 
-Self-hosted firearms inventory and range tracking built with Next.js, Prisma, and SQLite.
+## What ProjectBlackVault Does
 
-## Choose Your Setup
+ProjectBlackVault is a practical self-hosted system for managing your armory records in one place.
 
-Use either option below. Both run on your local machine.
+- Register firearms with serials, photos, acquisition details, and build configurations.
+- Manage build components and accessories (optics, suppressors, lights, and more).
+- Track ammo inventory by caliber with stock levels, transactions, and spend trends.
+- Log range sessions and drills with round counts and historical performance data.
+- Schedule and record maintenance using round-count or time-based intervals.
+- Store manuals and documents, then export and restore encrypted backups.
 
-| Setup Path | Best For | What You Install | First Run |
-|---|---|---|---|
-| Docker | Most users | Docker Desktop (or Docker Engine + Compose plugin) | Guided setup script |
-| Local (Node.js) | Development/customization | Node.js 20+ and npm 9+ | Run app directly with npm |
+Self-hosted by default means your data stays on infrastructure you control, with no required cloud account.
 
-## Option A: Docker (Recommended)
+## Quickstart (Docker Recommended)
+
+This is the fastest path for most users.
 
 ### 1) Install prerequisites
 
@@ -42,11 +46,21 @@ install.bat
 
 The installer creates `.blackvault.env`, generates secret keys, creates data folders, and starts the container.
 
-### 4) Open the app
+### 4) Open the app and verify first launch
 
-Open [http://localhost:3000](http://localhost:3000) (or the port you chose during setup).
+1. Open [http://localhost:3000](http://localhost:3000) (or the port you chose during setup).
+2. Verify health endpoint: [http://localhost:3000/api/health](http://localhost:3000/api/health) (should return `{"ok":true}`).
+3. Back up your secrets:
+   - Docker installs: back up `.blackvault.env` and your `DATA_DIR`.
+   - Do not lose `VAULT_ENCRYPTION_KEY` if you store encrypted data.
 
-### Day-2 Docker commands
+### 5) Day-2 Docker operations
+
+Start:
+
+```bash
+docker compose --env-file .blackvault.env up -d
+```
 
 Stop:
 
@@ -54,10 +68,10 @@ Stop:
 docker compose --env-file .blackvault.env down
 ```
 
-Start:
+Logs:
 
 ```bash
-docker compose --env-file .blackvault.env up -d
+docker compose --env-file .blackvault.env logs -f
 ```
 
 Update:
@@ -70,7 +84,9 @@ Update:
 update.bat
 ```
 
-## Option B: Local Machine (Node.js)
+## Developer Setup (Local Node.js)
+
+Use this path if you are developing or customizing the app directly.
 
 ### 1) Install prerequisites
 
@@ -104,14 +120,6 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
-
-## What To Do After First Launch
-
-1. Open [http://localhost:3000](http://localhost:3000).
-2. Verify health endpoint: [http://localhost:3000/api/health](http://localhost:3000/api/health) (should return `{"ok":true}`).
-3. Back up your secrets:
-   - Docker installs: back up `.blackvault.env` and your `DATA_DIR`.
-   - Do not lose `VAULT_ENCRYPTION_KEY` if you store encrypted data.
 
 ## Common Issues
 
