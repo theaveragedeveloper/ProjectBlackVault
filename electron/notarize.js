@@ -3,27 +3,32 @@
 /**
  * macOS notarization — runs as electron-builder afterSign hook.
  *
- * Prerequisites (optional — removes Gatekeeper warnings):
- *   1. Apple Developer account ($99/yr)
- *   2. Set these CI secrets:
- *      APPLE_ID                  — your Apple ID email
- *      APPLE_APP_SPECIFIC_PASSWORD — app-specific password from appleid.apple.com
- *      APPLE_TEAM_ID             — 10-char team ID from developer.apple.com
+ * Secrets contract (all 3 required):
+ *   - APPLE_ID
+ *   - APPLE_APP_SPECIFIC_PASSWORD
+ *   - APPLE_TEAM_ID
  *
- * If these env vars are absent the hook is a no-op, so unsigned builds work fine.
- * Install the notarization tool: npm install --save-dev @electron/notarize
+ * If any notarization value is missing, this hook exits safely and the build remains unsigned/unnotarized.
  */
 
 exports.default = async function notarize(context) {
   if (process.platform !== 'darwin') return;
-  if (!process.env.APPLE_ID) return; // skip if not configured
 
-  // Lazily require so the package is optional in dev
+  const appleId = process.env.APPLE_ID;
+  const appleIdPassword = process.env.APPLE_APP_SPECIFIC_PASSWORD;
+  const teamId = process.env.APPLE_TEAM_ID;
+
+  if (!appleId || !appleIdPassword || !teamId) {
+    console.warn('[notarize] Missing notarization secrets. Skipping notarization.');
+    return;
+  }
+
+  // Lazily require so local development is unaffected when notarization tooling is not installed.
   let notarizeLib;
   try {
     notarizeLib = require('@electron/notarize');
   } catch {
-    console.warn('[notarize] @electron/notarize not installed — skipping notarization.');
+    console.warn('[notarize] @electron/notarize is not installed. Skipping notarization.');
     return;
   }
 
@@ -36,9 +41,9 @@ exports.default = async function notarize(context) {
     tool: 'notarytool',
     appBundleId: 'io.github.theaveragedeveloper.projectblackvault',
     appPath,
-    appleId: process.env.APPLE_ID,
-    appleIdPassword: process.env.APPLE_APP_SPECIFIC_PASSWORD,
-    teamId: process.env.APPLE_TEAM_ID,
+    appleId,
+    appleIdPassword,
+    teamId,
   });
 
   console.log('[notarize] Done.');

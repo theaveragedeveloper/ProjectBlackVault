@@ -73,3 +73,11 @@ prisma/prisma/
 *.db-wal
 *.db-shm
 *.bak
+# Signing artifacts and certificate exports
+*.p12
+*.pfx
+*.cer
+*.key
+*.mobileprovision
+.signing/
+
