@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { Breadcrumb } from "@/components/shared/Breadcrumb";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/utils";
 import {
   ArrowLeft,
@@ -104,6 +105,7 @@ export default async function FirearmDetailPage({
 
   return (
     <div className="min-h-full">
+      <Breadcrumb dynamicLabels={{ [firearm.id]: firearm.name }} />
       {/* Hero Banner */}
       <div className="relative h-56 bg-vault-bg overflow-hidden">
         {firearm.imageUrl ? (

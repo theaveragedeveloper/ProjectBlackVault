@@ -18,6 +18,7 @@ import { useVaultStore, useToast } from '@/lib/store'
 import { BuildStatusBadge } from '@/components/builds/BuildStatusBadge'
 import { BUILD_STATUSES } from '@/lib/types'
 import { formatCurrency } from '@/lib/utils'
+import { Breadcrumb } from '@/components/shared/Breadcrumb'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -158,6 +159,7 @@ export function BuildsClient({ initialFirearms }: { initialFirearms: Firearm[] }
   if (totalBuildsAll === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-32 text-center px-6">
+
         <div className="w-20 h-20 rounded-full bg-[#00C2FF]/10 border border-[#00C2FF]/20 flex items-center justify-center mb-6">
           <Layers className="w-10 h-10 text-[#00C2FF]" />
         </div>
@@ -186,6 +188,8 @@ export function BuildsClient({ initialFirearms }: { initialFirearms: Firearm[] }
   }
 
   return (
+    <div>
+      <Breadcrumb />
     <div className="p-6 space-y-8">
       {/* Summary strip */}
       <div className="flex items-center gap-6 bg-vault-surface border border-vault-border rounded-lg px-5 py-3 flex-wrap">
@@ -357,6 +361,7 @@ export function BuildsClient({ initialFirearms }: { initialFirearms: Firearm[] }
           </section>
         )
       })}
+    </div>
     </div>
   )
 }
