@@ -9,9 +9,26 @@ import { signToken } from "@/lib/session";
 const attempts = new Map<string, { count: number; resetAt: number }>();
 const MAX_ATTEMPTS = 10;
 const WINDOW_MS = 60 * 1000;
+const MAX_TRACKED_IPS = 5000;
+
+function parseBooleanEnv(value: string | undefined): boolean | undefined {
+  if (value === undefined) return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) return true;
+  if (["0", "false", "no", "off"].includes(normalized)) return false;
+  return undefined;
+}
 
 function checkRateLimit(ip: string): boolean {
   const now = Date.now();
+
+  // Opportunistic cleanup keeps memory bounded for long-running processes.
+  if (attempts.size > MAX_TRACKED_IPS) {
+    for (const [key, value] of attempts) {
+      if (now > value.resetAt) attempts.delete(key);
+    }
+  }
+
   const rec = attempts.get(ip);
   if (!rec || now > rec.resetAt) {
     attempts.set(ip, { count: 1, resetAt: now + WINDOW_MS });
@@ -24,6 +41,14 @@ function checkRateLimit(ip: string): boolean {
 
 export async function POST(request: NextRequest) {
   try {
+    const secret = process.env.SESSION_SECRET;
+    if (!secret) {
+      return NextResponse.json(
+        { error: "Server is not configured for authentication. Missing SESSION_SECRET." },
+        { status: 503 }
+      );
+    }
+
     // Rate limiting
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
     if (!checkRateLimit(ip)) {
@@ -52,12 +77,13 @@ export async function POST(request: NextRequest) {
     // If no password is set, always allow access
     if (!settings.appPassword) {
       const token = crypto.randomBytes(32).toString("hex");
-      const secret = process.env.SESSION_SECRET;
-      const cookieValue = secret ? signToken(token, secret) : token;
+      const cookieValue = signToken(token, secret);
+      const secure = parseBooleanEnv(process.env.SESSION_COOKIE_SECURE) ?? process.env.NODE_ENV === "production";
       const cookieStore = await cookies();
       cookieStore.set("vault_session", cookieValue, {
         httpOnly: true,
         sameSite: "lax",
+        secure,
         path: "/",
         maxAge: 60 * 60 * 24 * 30,
       });
@@ -70,12 +96,13 @@ export async function POST(request: NextRequest) {
     }
 
     const token = crypto.randomBytes(32).toString("hex");
-    const secret = process.env.SESSION_SECRET;
-    const cookieValue = secret ? signToken(token, secret) : token;
+    const cookieValue = signToken(token, secret);
+    const secure = parseBooleanEnv(process.env.SESSION_COOKIE_SECURE) ?? process.env.NODE_ENV === "production";
     const cookieStore = await cookies();
     cookieStore.set("vault_session", cookieValue, {
       httpOnly: true,
       sameSite: "lax",
+      secure,
       path: "/",
       maxAge: 60 * 60 * 24 * 30,
     });

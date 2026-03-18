@@ -84,7 +84,12 @@ Data is persisted in named Docker volumes:
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `DATABASE_URL` | Yes | `file:./prisma/dev.db` | SQLite connection string |
-| `SESSION_SECRET` | Recommended | — | Signs session cookies to prevent forgery. Generate: `openssl rand -hex 32` |
+| `SESSION_SECRET` | Yes | — | Signs session cookies to prevent forgery. Generate: `openssl rand -hex 32` |
+| `SESSION_COOKIE_SECURE` | No | `true` in production, `false` in development | Overrides the session cookie `Secure` flag |
+| `VAULT_ENCRYPTION_KEY` | Recommended in production | — | External key for field encryption; preferred over DB-stored key management |
+| `ALLOW_DB_ENCRYPTION_KEY_MANAGEMENT` | No | `false` in production | Enables UI-based encryption key create/update/delete in production |
+| `ALLOW_ENCRYPTION_KEY_EXPORT` | No | `false` in production | Enables key export via `/api/encryption` in production |
+| `EXPOSE_SYSTEM_INFO` | No | `false` in production | Enables `/api/system-info` in production |
 | `NODE_ENV` | No | `development` | Set to `production` in deployed environments |
 | `PORT` | No | `3000` | Port exposed by Docker Compose |
 | `GOOGLE_CSE_API_KEY` | No | — | Google Custom Search API key for image lookup |
