@@ -6,6 +6,7 @@ import { MobileHeader } from "@/components/layout/MobileHeader";
 import { ThemeProvider } from "@/components/layout/ThemeProvider";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { ToastProvider } from "@/components/shared/ToastProvider";
+import { IntroModal } from "@/components/shared/IntroModal";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
@@ -42,6 +43,7 @@ export default function RootLayout({
           </div>
           <ThemeToggle />
           <ToastProvider />
+          <IntroModal />
         </ThemeProvider>
       </body>
     </html>
