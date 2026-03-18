@@ -80,47 +80,48 @@ export async function PUT(
       normalizedImageUrl = imageValidation.normalized;
     }
 
-    // If activating this build, deactivate others for same firearm
-    if (isActive === true && !existing.isActive) {
-      await prisma.build.updateMany({
-        where: {
-          firearmId: existing.firearmId,
-          isActive: true,
-          id: { not: id },
+    // Atomically deactivate siblings and update this build
+    const updated = await prisma.$transaction(async (tx) => {
+      if (isActive === true && !existing.isActive) {
+        await tx.build.updateMany({
+          where: {
+            firearmId: existing.firearmId,
+            isActive: true,
+            id: { not: id },
+          },
+          data: { isActive: false },
+        });
+      }
+      return tx.build.update({
+        where: { id },
+        data: {
+          ...(name !== undefined && { name }),
+          ...(description !== undefined && { description }),
+          ...(isActive !== undefined && { isActive }),
+          ...(imageUrl !== undefined && { imageUrl: normalizedImageUrl }),
+          ...(imageSource !== undefined && { imageSource }),
+          ...(status !== undefined && { status }),
+          ...(notes !== undefined && { notes }),
         },
-        data: { isActive: false },
+        include: {
+          firearm: {
+            select: {
+              id: true,
+              name: true,
+              manufacturer: true,
+              model: true,
+              type: true,
+              caliber: true,
+              imageUrl: true,
+            },
+          },
+          slots: {
+            include: {
+              accessory: true,
+            },
+          },
+        },
       });
-    }
-
-    const updated = await prisma.build.update({
-      where: { id },
-      data: {
-        ...(name !== undefined && { name }),
-        ...(description !== undefined && { description }),
-        ...(isActive !== undefined && { isActive }),
-        ...(imageUrl !== undefined && { imageUrl: normalizedImageUrl }),
-        ...(imageSource !== undefined && { imageSource }),
-        ...(status !== undefined && { status }),
-        ...(notes !== undefined && { notes }),
-      },
-      include: {
-        firearm: {
-          select: {
-            id: true,
-            name: true,
-            manufacturer: true,
-            model: true,
-            type: true,
-            caliber: true,
-            imageUrl: true,
-          },
-        },
-        slots: {
-          include: {
-            accessory: true,
-          },
-        },
-      },
     });
 
     return NextResponse.json(updated);

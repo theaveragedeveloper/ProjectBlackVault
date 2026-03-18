@@ -121,42 +121,43 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Firearm not found" }, { status: 404 });
     }
 
-    // If this build should be active, deactivate all other builds for this firearm
-    if (isActive) {
-      await prisma.build.updateMany({
-        where: { firearmId, isActive: true },
-        data: { isActive: false },
+    // Atomically deactivate siblings and create this build
+    const build = await prisma.$transaction(async (tx) => {
+      if (isActive) {
+        await tx.build.updateMany({
+          where: { firearmId, isActive: true },
+          data: { isActive: false },
+        });
+      }
+      return tx.build.create({
+        data: {
+          name,
+          description: description ?? null,
+          firearmId,
+          isActive: isActive ?? false,
+          imageUrl: imageValidation.normalized,
+          imageSource: imageSource ?? null,
+          status: status ?? 'in-progress',
+        },
+        include: {
+          firearm: {
+            select: {
+              id: true,
+              name: true,
+              manufacturer: true,
+              model: true,
+              type: true,
+              caliber: true,
+              imageUrl: true,
+            },
+          },
+          slots: {
+            include: {
+              accessory: true,
+            },
+          },
+        },
       });
-    }
-
-    const build = await prisma.build.create({
-      data: {
-        name,
-        description: description ?? null,
-        firearmId,
-        isActive: isActive ?? false,
-        imageUrl: imageValidation.normalized,
-        imageSource: imageSource ?? null,
-        status: status ?? 'in-progress',
-      },
-      include: {
-        firearm: {
-          select: {
-            id: true,
-            name: true,
-            manufacturer: true,
-            model: true,
-            type: true,
-            caliber: true,
-            imageUrl: true,
-          },
-        },
-        slots: {
-          include: {
-            accessory: true,
-          },
-        },
-      },
     });
 
     return NextResponse.json(build, { status: 201 });
