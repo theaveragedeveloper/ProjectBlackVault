@@ -1,0 +1,322 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg: #0a0a0a;
+  --card: #111111;
+  --border: #222222;
+  --green: #22c55e;
+  --green-dim: #166534;
+  --amber: #f59e0b;
+  --red: #ef4444;
+  --muted: #555555;
+  --text: #e5e5e5;
+  --text-dim: #888888;
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.5;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* ─── Views ──────────────────────────────────────────────────────────────── */
+
+.view {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 32px 24px;
+}
+
+.view.active {
+  display: flex;
+}
+
+/* ─── Header ─────────────────────────────────────────────────────────────── */
+
+.logo {
+  width: 56px;
+  height: 56px;
+  background: var(--green-dim);
+  border: 2px solid var(--green);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  font-size: 24px;
+}
+
+.app-name {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.app-subtitle {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 28px;
+}
+
+/* ─── Card ───────────────────────────────────────────────────────────────── */
+
+.card {
+  width: 100%;
+  max-width: 360px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+}
+
+.card-title {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  margin-bottom: 16px;
+}
+
+/* ─── Buttons ─────────────────────────────────────────────────────────────── */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border: none;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-primary {
+  background: var(--green);
+  color: #000;
+}
+
+.btn-primary:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.btn-secondary {
+  background: var(--border);
+  color: var(--text);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #2a2a2a;
+}
+
+.btn-danger {
+  background: #2a0000;
+  color: var(--red);
+  border: 1px solid #5a1010;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #3a0000;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  color: var(--text);
+  border-color: #444;
+}
+
+/* ─── Status badge ───────────────────────────────────────────────────────── */
+
+.status-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--muted);
+}
+
+.status-dot.running  { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.status-dot.starting { background: var(--amber); box-shadow: 0 0 6px var(--amber); animation: pulse 1.5s infinite; }
+.status-dot.stopped  { background: var(--muted); }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+.status-label {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.status-label.running  { color: var(--green); }
+.status-label.starting { color: var(--amber); }
+.status-label.stopped  { color: var(--muted); }
+
+/* ─── Form fields ─────────────────────────────────────────────────────────── */
+
+.field {
+  margin-bottom: 14px;
+}
+
+.field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+
+.field-row {
+  display: flex;
+  gap: 8px;
+}
+
+.field input {
+  width: 100%;
+  background: #0d0d0d;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 13px;
+  padding: 8px 10px;
+  outline: none;
+  font-family: monospace;
+}
+
+.field input:focus {
+  border-color: #444;
+}
+
+.field-row input {
+  flex: 1;
+}
+
+.field-row .btn-ghost {
+  width: auto;
+  flex-shrink: 0;
+  margin-top: 0;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+/* ─── Warning / info box ─────────────────────────────────────────────────── */
+
+.info-box {
+  background: #111800;
+  border: 1px solid #2a3800;
+  border-radius: 8px;
+  padding: 14px;
+  font-size: 12px;
+  color: #aabb66;
+  line-height: 1.6;
+  margin-top: 16px;
+}
+
+.warn-box {
+  background: #1a0d00;
+  border: 1px solid #3a2000;
+  border-radius: 8px;
+  padding: 14px;
+  font-size: 12px;
+  color: var(--amber);
+  line-height: 1.6;
+  margin-top: 16px;
+}
+
+/* ─── Footer ─────────────────────────────────────────────────────────────── */
+
+.footer {
+  margin-top: 20px;
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.7;
+}
+
+.footer a {
+  color: #555;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.footer a:hover {
+  color: var(--text-dim);
+}
+
+/* ─── Loading spinner ────────────────────────────────────────────────────── */
+
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid transparent;
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ─── Divider ────────────────────────────────────────────────────────────── */
+
+.divider {
+  height: 1px;
+  background: var(--border);
+  margin: 16px 0;
+}
+
+/* ─── Error text ─────────────────────────────────────────────────────────── */
+
+.error-text {
+  color: var(--red);
+  font-size: 12px;
+  margin-top: 8px;
+  display: none;
+}

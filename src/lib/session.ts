@@ -1,32 +1,48 @@
-import { getIronSession } from "iron-session";
-import { cookies } from "next/headers";
+import crypto from "crypto";
 
-export interface SessionData {
-  authenticated: boolean;
+/**
+ * Sign a raw token with HMAC-SHA256. Returns "<token>.<hmacHex>".
+ * Used by Node.js API routes (login, auth/check).
+ */
+export function signToken(token: string, secret: string): string {
+  const hmac = crypto.createHmac("sha256", secret).update(token).digest("hex");
+  return `${token}.${hmac}`;
 }
 
-if (
-  process.env.NODE_ENV === "production" &&
-  (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.length < 32)
-) {
-  console.warn(
-    "[BlackVault] WARNING: SESSION_SECRET is missing or too short. Sessions are insecure."
-  );
+export function createSessionToken(sessionVersion: number): string {
+  return `${sessionVersion}:${crypto.randomBytes(32).toString("hex")}`;
 }
 
-export const sessionOptions = {
-  cookieName: "bv_session",
-  password:
-    process.env.SESSION_SECRET ??
-    "dev-only-secret-change-in-production-at-least-32-chars",
-  cookieOptions: {
-    secure: process.env.NODE_ENV === "production",
-    httpOnly: true,
-    sameSite: "lax" as const,
-    maxAge: 60 * 60 * 24 * 7, // 7 days
-  },
-};
+export function extractSessionVersion(signed: string): number | null {
+  const lastDot = signed.lastIndexOf(".");
+  if (lastDot === -1) return null;
 
-export async function getSession() {
-  return getIronSession<SessionData>(await cookies(), sessionOptions);
+  const token = signed.slice(0, lastDot);
+  const separator = token.indexOf(":");
+  if (separator === -1) return null;
+
+  const version = Number(token.slice(0, separator));
+  if (!Number.isInteger(version) || version < 1) return null;
+  return version;
+}
+
+/**
+ * Verify a signed cookie value produced by signToken.
+ * Uses timing-safe comparison to prevent timing attacks.
+ */
+export function verifyTokenNode(signed: string, secret: string): boolean {
+  const lastDot = signed.lastIndexOf(".");
+  if (lastDot === -1) return false;
+  const token = signed.slice(0, lastDot);
+  const provided = signed.slice(lastDot + 1);
+  const expected = crypto.createHmac("sha256", secret).update(token).digest("hex");
+  try {
+    if (provided.length !== expected.length) return false;
+    return crypto.timingSafeEqual(
+      Buffer.from(provided, "hex"),
+      Buffer.from(expected, "hex")
+    );
+  } catch {
+    return false;
+  }
 }

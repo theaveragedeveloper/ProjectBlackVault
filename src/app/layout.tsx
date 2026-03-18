@@ -1,14 +1,31 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
+import { NavShell } from "@/components/layout/NavShell";
 import { ThemeProvider } from "@/components/layout/ThemeProvider";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
-
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+import { ServiceWorkerRegistrar } from "@/components/pwa/ServiceWorkerRegistrar";
 
 export const metadata: Metadata = {
   title: "Project BlackVault",
   description: "Tactical firearm inventory & build management platform",
+  applicationName: "Project BlackVault",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    shortcut: [{ url: "/icons/icon-32.png", sizes: "32x32", type: "image/png" }],
+    icon: [
+      { url: "/icons/icon-16.png", sizes: "16x16", type: "image/png" },
+      { url: "/icons/icon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    other: [{ rel: "icon", url: "/icons/icon-32.png", type: "image/png" }],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+  appleWebApp: {
+    capable: true,
+    title: "Project BlackVault",
+    statusBarStyle: "black-translucent",
+  },
 };
 
 export default function RootLayout({
@@ -26,9 +43,10 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${inter.variable} antialiased bg-vault-bg text-vault-text`}>
+      <body className="antialiased bg-vault-bg text-vault-text">
+        <ServiceWorkerRegistrar />
         <ThemeProvider>
-          {children}
+          <NavShell>{children}</NavShell>
           <ThemeToggle />
         </ThemeProvider>
       </body>

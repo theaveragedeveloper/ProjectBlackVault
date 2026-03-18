@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { SLOT_TYPES, SLOT_TYPE_LABELS, COMMON_CALIBERS } from "@/lib/types";
-import { ArrowLeft, Save, Loader2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Save, Loader2, AlertCircle, Trash2 } from "lucide-react";
+import ImagePicker from "@/components/shared/ImagePicker";
 
 const INPUT_CLASS =
   "w-full bg-vault-surface border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint transition-colors";
@@ -22,6 +23,7 @@ interface Accessory {
   purchasePrice: number | null;
   notes: string | null;
   imageUrl: string | null;
+  imageSource: string | null;
 }
 
 function toDateInputValue(dateStr: string | null): string {
@@ -43,11 +45,15 @@ export default function EditAccessoryPage() {
   const [dataError, setDataError] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
   const [caliberInput, setCaliberInput] = useState("");
   const [caliberDropdownOpen, setCaliberDropdownOpen] = useState(false);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [imageSource, setImageSource] = useState<string | null>(null);
 
   const filteredCalibers = COMMON_CALIBERS.filter((c) =>
     c.toLowerCase().includes(caliberInput.toLowerCase())
@@ -62,6 +68,8 @@ export default function EditAccessoryPage() {
         } else {
           setAccessory(data);
           setCaliberInput(data.caliber ?? "");
+          setImageUrl(data.imageUrl ?? null);
+          setImageSource(data.imageSource ?? null);
         }
         setDataLoading(false);
       })
@@ -89,8 +97,8 @@ export default function EditAccessoryPage() {
       acquisitionDate: (data.get("acquisitionDate") as string) || null,
       purchasePrice: data.get("purchasePrice") ? Number(data.get("purchasePrice")) : null,
       notes: (data.get("notes") as string) || null,
-      imageUrl: (data.get("imageUrl") as string) || null,
-      imageSource: data.get("imageUrl") ? "url" : null,
+      imageUrl,
+      imageSource,
     };
 
     try {
@@ -118,6 +126,34 @@ export default function EditAccessoryPage() {
     }
   }
 
+  async function handleDelete() {
+    if (!window.confirm("Delete this accessory permanently? This action cannot be undone.")) {
+      return;
+    }
+
+    setDeleteError(null);
+    setError(null);
+    setDeleting(true);
+
+    try {
+      const res = await fetch(`/api/accessories/${accessoryId}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => null);
+        setDeleteError(json?.error ?? "Failed to delete accessory");
+        setDeleting(false);
+        return;
+      }
+
+      router.push("/accessories");
+    } catch {
+      setDeleteError("Network error. Please try again.");
+      setDeleting(false);
+    }
+  }
+
   if (dataLoading) {
     return (
       <div className="flex items-center justify-center min-h-full">
@@ -131,28 +167,20 @@ export default function EditAccessoryPage() {
       <div className="flex flex-col items-center justify-center min-h-full gap-4">
         <AlertCircle className="w-10 h-10 text-[#E53935]" />
         <p className="text-[#E53935]">{dataError ?? "Accessory not found"}</p>
-        <Link href="/accessories" className="text-sm text-[#00C2FF] hover:underline">
-          Back to Accessories
-        </Link>
+        <Link href="/accessories" className="text-sm text-[#00C2FF] hover:underline">Back to Accessories</Link>
       </div>
     );
   }
 
   return (
     <div className="min-h-full">
-      {/* Header */}
       <div className="flex items-center gap-4 px-6 py-4 border-b border-vault-border flex-wrap">
-        <Link
-          href={`/accessories/${accessoryId}`}
-          className="flex items-center gap-1.5 text-vault-text-muted hover:text-vault-text text-sm transition-colors"
-        >
+        <Link href={`/accessories/${accessoryId}`} className="flex items-center gap-1.5 text-vault-text-muted hover:text-vault-text text-sm transition-colors">
           <ArrowLeft className="w-4 h-4" />
           Back to {accessory.name}
         </Link>
         <span className="text-vault-border">/</span>
-        <h1 className="text-sm font-semibold text-vault-text tracking-wide uppercase">
-          Edit Accessory
-        </h1>
+        <h1 className="text-sm font-semibold text-vault-text tracking-wide uppercase">Edit Accessory</h1>
       </div>
 
       <div className="max-w-2xl mx-auto px-6 py-8">
@@ -168,6 +196,13 @@ export default function EditAccessoryPage() {
           </div>
         )}
 
+        {deleteError && (
+          <div className="flex items-center gap-3 bg-[#E53935]/10 border border-[#E53935]/30 rounded-lg px-4 py-3 mb-6">
+            <AlertCircle className="w-4 h-4 text-[#E53935] shrink-0" />
+            <p className="text-sm text-[#E53935]">{deleteError}</p>
+          </div>
+        )}
+
         {success && (
           <div className="flex items-center gap-3 bg-[#00C853]/10 border border-[#00C853]/30 rounded-lg px-4 py-3 mb-6">
             <Save className="w-4 h-4 text-[#00C853] shrink-0" />
@@ -178,85 +213,39 @@ export default function EditAccessoryPage() {
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Identity */}
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
-            <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
-              Identity
-            </legend>
+            <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">Identity</legend>
 
             <div>
-              <label htmlFor="name" className={LABEL_CLASS}>
-                Accessory Name <span className="text-[#E53935]">*</span>
-              </label>
-              <input
-                id="name"
-                name="name"
-                type="text"
-                required
-                defaultValue={accessory.name}
-                className={INPUT_CLASS}
-              />
+              <label htmlFor="name" className={LABEL_CLASS}>Accessory Name <span className="text-[#E53935]">*</span></label>
+              <input id="name" name="name" type="text" required defaultValue={accessory.name} className={INPUT_CLASS} />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="manufacturer" className={LABEL_CLASS}>
-                  Manufacturer <span className="text-[#E53935]">*</span>
-                </label>
-                <input
-                  id="manufacturer"
-                  name="manufacturer"
-                  type="text"
-                  required
-                  defaultValue={accessory.manufacturer}
-                  className={INPUT_CLASS}
-                />
+                <label htmlFor="manufacturer" className={LABEL_CLASS}>Manufacturer <span className="text-[#E53935]">*</span></label>
+                <input id="manufacturer" name="manufacturer" type="text" required defaultValue={accessory.manufacturer} className={INPUT_CLASS} />
               </div>
               <div>
-                <label htmlFor="model" className={LABEL_CLASS}>
-                  Model
-                </label>
-                <input
-                  id="model"
-                  name="model"
-                  type="text"
-                  defaultValue={accessory.model ?? ""}
-                  className={INPUT_CLASS}
-                />
+                <label htmlFor="model" className={LABEL_CLASS}>Model</label>
+                <input id="model" name="model" type="text" defaultValue={accessory.model ?? ""} className={INPUT_CLASS} />
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Type */}
               <div>
-                <label htmlFor="type" className={LABEL_CLASS}>
-                  Type / Slot <span className="text-[#E53935]">*</span>
-                </label>
-                <select
-                  id="type"
-                  name="type"
-                  required
-                  defaultValue={accessory.type}
-                  className={INPUT_CLASS}
-                >
+                <label htmlFor="type" className={LABEL_CLASS}>Type / Slot <span className="text-[#E53935]">*</span></label>
+                <select id="type" name="type" required defaultValue={accessory.type} className={INPUT_CLASS}>
                   <option value="">Select slot type...</option>
-                  {SLOT_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {SLOT_TYPE_LABELS[t]}
-                    </option>
-                  ))}
+                  {SLOT_TYPES.map((t) => <option key={t} value={t}>{SLOT_TYPE_LABELS[t]}</option>)}
                 </select>
               </div>
-
-              {/* Caliber */}
               <div>
                 <label className={LABEL_CLASS}>Caliber</label>
                 <div className="relative">
                   <input
                     type="text"
                     value={caliberInput}
-                    onChange={(e) => {
-                      setCaliberInput(e.target.value);
-                      setCaliberDropdownOpen(true);
-                    }}
+                    onChange={(e) => { setCaliberInput(e.target.value); setCaliberDropdownOpen(true); }}
                     onFocus={() => setCaliberDropdownOpen(true)}
                     onBlur={() => setTimeout(() => setCaliberDropdownOpen(false), 150)}
                     placeholder="e.g. 5.56x45mm"
@@ -265,17 +254,8 @@ export default function EditAccessoryPage() {
                   {caliberDropdownOpen && filteredCalibers.length > 0 && caliberInput && (
                     <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-vault-surface border border-vault-border rounded-md shadow-lg max-h-48 overflow-y-auto">
                       {filteredCalibers.map((c) => (
-                        <button
-                          key={c}
-                          type="button"
-                          onClick={() => {
-                            setCaliberInput(c);
-                            setCaliberDropdownOpen(false);
-                          }}
-                          className="w-full text-left px-3 py-2 text-sm text-vault-text hover:bg-vault-border hover:text-[#00C2FF] transition-colors font-mono"
-                        >
-                          {c}
-                        </button>
+                        <button key={c} type="button" onClick={() => { setCaliberInput(c); setCaliberDropdownOpen(false); }}
+                          className="w-full text-left px-3 py-2 text-sm text-vault-text hover:bg-vault-border hover:text-[#00C2FF] transition-colors font-mono">{c}</button>
                       ))}
                     </div>
                   )}
@@ -286,114 +266,68 @@ export default function EditAccessoryPage() {
 
           {/* Acquisition */}
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
-            <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
-              Acquisition
-            </legend>
-
+            <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">Acquisition</legend>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="acquisitionDate" className={LABEL_CLASS}>
-                  Date Acquired
-                </label>
-                <input
-                  id="acquisitionDate"
-                  name="acquisitionDate"
-                  type="date"
-                  defaultValue={toDateInputValue(accessory.acquisitionDate)}
-                  className={INPUT_CLASS}
-                />
+                <label htmlFor="acquisitionDate" className={LABEL_CLASS}>Date Acquired</label>
+                <input id="acquisitionDate" name="acquisitionDate" type="date" defaultValue={toDateInputValue(accessory.acquisitionDate)} className={INPUT_CLASS} />
               </div>
               <div>
-                <label htmlFor="purchasePrice" className={LABEL_CLASS}>
-                  Purchase Price
-                </label>
+                <label htmlFor="purchasePrice" className={LABEL_CLASS}>Purchase Price</label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-vault-text-faint text-sm">
-                    $
-                  </span>
-                  <input
-                    id="purchasePrice"
-                    name="purchasePrice"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    defaultValue={accessory.purchasePrice ?? ""}
-                    placeholder="0.00"
-                    className={`${INPUT_CLASS} pl-7`}
-                  />
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-vault-text-faint text-sm">$</span>
+                  <input id="purchasePrice" name="purchasePrice" type="number" min="0" step="0.01" defaultValue={accessory.purchasePrice ?? ""} placeholder="0.00" className={`${INPUT_CLASS} pl-7`} />
                 </div>
               </div>
             </div>
           </fieldset>
 
-          {/* Image */}
+          {/* Photo */}
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
-            <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
-              Image
-            </legend>
-            <div>
-              <label htmlFor="imageUrl" className={LABEL_CLASS}>
-                Image URL
-              </label>
-              <input
-                id="imageUrl"
-                name="imageUrl"
-                type="url"
-                defaultValue={accessory.imageUrl ?? ""}
-                placeholder="https://example.com/image.jpg"
-                className={INPUT_CLASS}
-              />
-              {accessory.imageUrl && (
-                <div className="mt-3 w-full h-28 rounded-md overflow-hidden border border-vault-border">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={accessory.imageUrl}
-                    alt={accessory.name}
-                    className="w-full h-full object-contain bg-vault-bg"
-                  />
-                </div>
-              )}
-            </div>
+            <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">Photo</legend>
+            <ImagePicker
+              entityType="accessory"
+              entityId={accessoryId}
+              currentUrl={imageUrl}
+              onChange={(url, source) => { setImageUrl(url); setImageSource(source); }}
+            />
           </fieldset>
 
           {/* Notes */}
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
-            <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
-              Notes
-            </legend>
+            <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">Notes</legend>
             <div>
-              <label htmlFor="notes" className={LABEL_CLASS}>
-                Notes
-              </label>
-              <textarea
-                id="notes"
-                name="notes"
-                rows={3}
-                defaultValue={accessory.notes ?? ""}
-                placeholder="Any additional notes about this accessory..."
-                className={`${INPUT_CLASS} resize-none`}
-              />
+              <label htmlFor="notes" className={LABEL_CLASS}>Notes</label>
+              <textarea id="notes" name="notes" rows={3} defaultValue={accessory.notes ?? ""} placeholder="Any additional notes about this accessory..." className={`${INPUT_CLASS} resize-none`} />
             </div>
           </fieldset>
 
           {/* Actions */}
           <div className="flex items-center justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting || loading || success}
+              className="flex items-center gap-2 bg-[#E53935]/10 border border-[#E53935]/30 text-[#E53935] hover:bg-[#E53935]/20 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 rounded-md text-sm font-medium transition-colors"
+            >
+              {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              {deleting ? "Deleting..." : "Delete"}
+            </button>
             <Link
               href={`/accessories/${accessoryId}`}
-              className="px-4 py-2 text-sm text-vault-text-muted hover:text-vault-text border border-vault-border rounded-md hover:border-vault-text-muted/30 transition-colors"
+              aria-disabled={deleting}
+              tabIndex={deleting ? -1 : undefined}
+              className={`px-4 py-2 text-sm text-vault-text-muted border border-vault-border rounded-md transition-colors ${
+                deleting
+                  ? "pointer-events-none opacity-50"
+                  : "hover:text-vault-text hover:border-vault-text-muted/30"
+              }`}
             >
               Cancel
             </Link>
-            <button
-              type="submit"
-              disabled={loading || success}
-              className="flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-50 disabled:cursor-not-allowed px-5 py-2 rounded-md text-sm font-medium transition-colors"
-            >
-              {loading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Save className="w-4 h-4" />
-              )}
+            <button type="submit" disabled={loading || success || deleting}
+              className="flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-50 disabled:cursor-not-allowed px-5 py-2 rounded-md text-sm font-medium transition-colors">
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               {loading ? "Saving..." : success ? "Saved!" : "Save Changes"}
             </button>
           </div>

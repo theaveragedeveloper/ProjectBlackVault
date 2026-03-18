@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { revalidateDashboardCaches } from "@/lib/server/dashboard";
+import { requireAuth } from "@/lib/server/auth";
 
 // Types that subtract from quantity
 const SUBTRACT_TYPES = new Set(["RANGE_USE", "TRANSFER_OUT", "EXPENDED"]);
@@ -17,6 +19,9 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const { id } = await params;
     const body = await request.json();
@@ -100,6 +105,8 @@ export async function POST(
       }),
     ]);
 
+    revalidateDashboardCaches(["ammo", "range"]);
+
     return NextResponse.json(
       {
         stock: updatedStock,
@@ -109,6 +116,7 @@ export async function POST(
     );
   } catch (error) {
     console.error("POST /api/ammo/[id]/transactions error:", error);
+
     return NextResponse.json(
       { error: "Failed to create ammo transaction" },
       { status: 500 }

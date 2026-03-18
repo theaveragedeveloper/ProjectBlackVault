@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
-import { hashPassword } from "@/lib/auth";
-import { getSession } from "@/lib/session";
+import { hashPassword, verifyPassword } from "@/lib/password";
+import { getSessionCookieOptions } from "@/lib/session-config";
+import { enforceRateLimit } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/server/client-ip";
+import { requireAuth } from "@/lib/server/auth";
 
 // GET /api/settings - Get the singleton AppSettings
 export async function GET() {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     // Try to find the singleton settings record
     let settings = await prisma.appSettings.findUnique({
@@ -20,17 +27,16 @@ export async function GET() {
       });
     }
 
-    // Never expose the password hash or raw key — return only status flags
+    // Never return password hash to the client
     return NextResponse.json({
-      id: settings.id,
-      googleCseApiKey: settings.googleCseApiKey ? "***configured***" : null,
-      _googleCseApiKeyIsSet: !!settings.googleCseApiKey,
-      googleCseSearchEngineId: settings.googleCseSearchEngineId,
-      enableImageSearch: settings.enableImageSearch,
-      defaultCurrency: settings.defaultCurrency,
-      _passwordIsSet: !!settings.appPassword,
-      createdAt: settings.createdAt,
-      updatedAt: settings.updatedAt,
+      ...settings,
+      enableImageSearch: false,
+      googleCseApiKey: null,
+      _googleCseApiKeyIsSet: false,
+      googleCseSearchEngineId: null,
+      appPassword: settings.appPassword ? "***set***" : null,
+      encryptionEnabled: !!process.env.VAULT_ENCRYPTION_KEY,
+      encryptionViaEnv: !!process.env.VAULT_ENCRYPTION_KEY,
     });
   } catch (error) {
     console.error("GET /api/settings error:", error);
@@ -43,50 +49,55 @@ export async function GET() {
 
 // PUT /api/settings - Update the singleton AppSettings
 export async function PUT(request: NextRequest) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
+    // Rate-limit password change attempts to prevent brute-force via currentPassword
+    const ip = getClientIp(request);
+    const rate = await enforceRateLimit({ key: `settings:password:${ip}`, windowMs: 60_000, maxAttempts: 5 });
+    if (!rate.allowed) {
+      return NextResponse.json({ error: "Too many attempts. Please wait a minute." }, { status: 429 });
+    }
+
     const body = await request.json();
 
     const {
-      googleCseApiKey,
-      googleCseSearchEngineId,
-      enableImageSearch,
       defaultCurrency,
       appPassword,
+      currentPassword,
     } = body;
 
     // Build update data, only including fields that were provided
     const updateData: Record<string, unknown> = {};
 
-    if (googleCseApiKey !== undefined) {
-      // Allow clearing the key by passing null or empty string
-      updateData.googleCseApiKey =
-        googleCseApiKey === "" ? null : googleCseApiKey;
-    }
-
-    if (googleCseSearchEngineId !== undefined) {
-      updateData.googleCseSearchEngineId =
-        googleCseSearchEngineId === "" ? null : googleCseSearchEngineId;
-    }
-
-    if (enableImageSearch !== undefined) {
-      updateData.enableImageSearch = Boolean(enableImageSearch);
-    }
+    // Image search is retired; force-disable and clear old Google CSE settings.
+    updateData.enableImageSearch = false;
+    updateData.googleCseApiKey = null;
+    updateData.googleCseSearchEngineId = null;
 
     if (defaultCurrency !== undefined) {
       updateData.defaultCurrency = defaultCurrency;
     }
 
     if (appPassword !== undefined) {
-      if (appPassword === null || appPassword === "") {
+      // If a password is already set, the current password must be verified before changing it
+      const existing = await prisma.appSettings.findUnique({ where: { id: "singleton" } });
+      if (existing?.appPassword) {
+        if (typeof currentPassword !== "string" || currentPassword.length === 0) {
+          return NextResponse.json({ error: "Current password is required to change the password" }, { status: 403 });
+        }
+        if (!verifyPassword(currentPassword, existing.appPassword)) {
+          return NextResponse.json({ error: "Current password is incorrect" }, { status: 403 });
+        }
+      }
+
+      if (appPassword === "" || appPassword === null) {
         updateData.appPassword = null;
-        updateData.passwordIsHashed = false;
-      } else {
-        // Always hash before storing — never store plaintext
-        updateData.appPassword = await hashPassword(appPassword);
-        updateData.passwordIsHashed = true;
-        // Destroy the current session so the user must re-login with new password
-        const session = await getSession();
-        await session.destroy();
+      } else if (typeof appPassword === "string" && appPassword.length >= 8 && appPassword.length <= 1024) {
+        updateData.appPassword = hashPassword(appPassword);
+      } else if (typeof appPassword === "string" && appPassword.length < 8) {
+        return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
       }
     }
 
@@ -100,17 +111,25 @@ export async function PUT(request: NextRequest) {
       update: updateData,
     });
 
-    return NextResponse.json({
-      id: settings.id,
-      googleCseApiKey: settings.googleCseApiKey ? "***configured***" : null,
-      _googleCseApiKeyIsSet: !!settings.googleCseApiKey,
-      googleCseSearchEngineId: settings.googleCseSearchEngineId,
-      enableImageSearch: settings.enableImageSearch,
-      defaultCurrency: settings.defaultCurrency,
-      _passwordIsSet: !!settings.appPassword,
-      createdAt: settings.createdAt,
-      updatedAt: settings.updatedAt,
+    const response = NextResponse.json({
+      ...settings,
+      enableImageSearch: false,
+      googleCseApiKey: null,
+      _googleCseApiKeyIsSet: false,
+      googleCseSearchEngineId: null,
+      appPassword: settings.appPassword ? "***set***" : null,
+      encryptionEnabled: !!process.env.VAULT_ENCRYPTION_KEY,
+      encryptionViaEnv: !!process.env.VAULT_ENCRYPTION_KEY,
     });
+
+    // Invalidate the current session whenever the password is changed so that
+    // any captured/stolen session cookies are immediately rendered useless.
+    if (updateData.appPassword !== undefined) {
+      const cookieStore = await cookies();
+      cookieStore.set("vault_session", "", { ...getSessionCookieOptions(), maxAge: 0 });
+    }
+
+    return response;
   } catch (error) {
     console.error("PUT /api/settings error:", error);
     return NextResponse.json(
