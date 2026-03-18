@@ -4,6 +4,8 @@ import { NavShell } from "@/components/layout/NavShell";
 import { ThemeProvider } from "@/components/layout/ThemeProvider";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { ServiceWorkerRegistrar } from "@/components/pwa/ServiceWorkerRegistrar";
+import { ToastProvider } from "@/components/shared/ToastProvider";
+import { IntroModal } from "@/components/shared/IntroModal";
 
 export const metadata: Metadata = {
   title: "Project BlackVault",
@@ -48,6 +50,8 @@ export default function RootLayout({
         <ThemeProvider>
           <NavShell>{children}</NavShell>
           <ThemeToggle />
+          <ToastProvider />
+          <IntroModal />
         </ThemeProvider>
       </body>
     </html>

@@ -26,9 +26,11 @@ import {
   ClipboardList,
   TrendingUp,
   FileText,
+  HelpCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useMemo } from "react";
+import { useVaultStore } from "@/lib/store";
 
 interface NavItem {
   label: string;
@@ -116,6 +118,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const [rangeExpandedManual, setRangeExpandedManual] = useState(false);
   const [settingsExpandedManual, setSettingsExpandedManual] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const setHasSeenIntro = useVaultStore((s) => s.setHasSeenIntro);
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -305,6 +308,16 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
             <LogOut className={cn("shrink-0", collapsed ? "w-5 h-5" : "w-4 h-4")} />
           )}
           {!collapsed && <span className="tracking-wide">{loggingOut ? "Logging out..." : "Logout"}</span>}
+        </button>
+
+        {/* Help / re-trigger intro */}
+        <button
+          onClick={() => setHasSeenIntro(false)}
+          title={collapsed ? "Help" : undefined}
+          className="w-full flex items-center gap-3 px-2.5 py-2 rounded-md text-sm text-vault-text-faint hover:text-vault-text-muted hover:bg-vault-border transition-colors"
+        >
+          <HelpCircle className={cn("shrink-0", collapsed ? "w-5 h-5" : "w-4 h-4")} />
+          {!collapsed && <span className="tracking-wide">Help</span>}
         </button>
 
         {/* Collapse toggle — desktop only */}
