@@ -106,9 +106,11 @@ export async function POST(request: NextRequest) {
         caliber: caliber || "",
         serialNumber: serialNumber ? await encryptField(serialNumber) : null,
         type: type || "",
-        acquisitionDate: acquisitionDate ? new Date(acquisitionDate) : null,
-        purchasePrice: purchasePrice ?? null,
-        currentValue: currentValue ?? null,
+        acquisitionDate: acquisitionDate
+          ? (() => { const d = new Date(acquisitionDate); return isNaN(d.getTime()) ? null : d; })()
+          : null,
+        purchasePrice: purchasePrice != null && isFinite(purchasePrice) ? purchasePrice : null,
+        currentValue: currentValue != null && isFinite(currentValue) ? currentValue : null,
         notes: notes ? await encryptField(notes) : null,
         imageUrl: imageValidation.normalized,
         imageSource: imageSource ?? null,

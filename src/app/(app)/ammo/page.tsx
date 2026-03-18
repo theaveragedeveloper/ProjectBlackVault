@@ -46,11 +46,11 @@ function stockStatus(quantity: number, lowAlert?: number | null): "ok" | "low" |
   return "ok";
 }
 
-const STATUS_STYLES: Record<string, { dot: string; text: string; bg: string; border: string }> = {
-  ok:       { dot: "bg-[#00C853]", text: "text-[#00C853]", bg: "bg-[#00C853]/10", border: "border-[#00C853]/30" },
-  low:      { dot: "bg-[#F5A623]", text: "text-[#F5A623]", bg: "bg-[#F5A623]/10", border: "border-[#F5A623]/30" },
-  critical: { dot: "bg-[#E53935] animate-pulse", text: "text-[#E53935]", bg: "bg-[#E53935]/10", border: "border-[#E53935]/30" },
-  empty:    { dot: "bg-[#E53935]", text: "text-[#E53935]", bg: "bg-[#E53935]/10", border: "border-[#E53935]/30" },
+const STATUS_STYLES: Record<string, { dot: string; bar: string; text: string; bg: string; border: string }> = {
+  ok:       { dot: "bg-[#00C853]",               bar: "bg-[#00C853]",  text: "text-[#00C853]", bg: "bg-[#00C853]/10", border: "border-[#00C853]/30" },
+  low:      { dot: "bg-[#F5A623]",               bar: "bg-[#F5A623]",  text: "text-[#F5A623]", bg: "bg-[#F5A623]/10", border: "border-[#F5A623]/30" },
+  critical: { dot: "bg-[#E53935] animate-pulse", bar: "bg-[#E53935]",  text: "text-[#E53935]", bg: "bg-[#E53935]/10", border: "border-[#E53935]/30" },
+  empty:    { dot: "bg-[#E53935]",               bar: "bg-[#E53935]",  text: "text-[#E53935]", bg: "bg-[#E53935]/10", border: "border-[#E53935]/30" },
 };
 
 function avgPricePerRound(stocks: AmmoStock[]): number | null {
@@ -679,7 +679,7 @@ export default function AmmoPage() {
                               <div className="mb-2 ml-3.5">
                                 <div className="w-full bg-vault-border rounded-full h-1">
                                   <div
-                                    className={`h-1 rounded-full ${ss.dot.replace("animate-pulse", "").trim()}`}
+                                    className={`h-1 rounded-full ${ss.bar}`}
                                     style={{
                                       width: `${Math.min(
                                         (stock.quantity / (stock.lowStockAlert * 2)) * 100,
