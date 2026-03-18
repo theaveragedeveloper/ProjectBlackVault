@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { hashPassword } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 
 // GET /api/settings - Get the singleton AppSettings
 export async function GET() {
@@ -18,12 +20,17 @@ export async function GET() {
       });
     }
 
-    // Mask the API key in the response — return only whether it's set
+    // Never expose the password hash or raw key — return only status flags
     return NextResponse.json({
-      ...settings,
+      id: settings.id,
       googleCseApiKey: settings.googleCseApiKey ? "***configured***" : null,
       _googleCseApiKeyIsSet: !!settings.googleCseApiKey,
-      encryptionEnabled: !!process.env.VAULT_ENCRYPTION_KEY,
+      googleCseSearchEngineId: settings.googleCseSearchEngineId,
+      enableImageSearch: settings.enableImageSearch,
+      defaultCurrency: settings.defaultCurrency,
+      _passwordIsSet: !!settings.appPassword,
+      createdAt: settings.createdAt,
+      updatedAt: settings.updatedAt,
     });
   } catch (error) {
     console.error("GET /api/settings error:", error);
@@ -70,7 +77,17 @@ export async function PUT(request: NextRequest) {
     }
 
     if (appPassword !== undefined) {
-      updateData.appPassword = appPassword === "" ? null : appPassword;
+      if (appPassword === null || appPassword === "") {
+        updateData.appPassword = null;
+        updateData.passwordIsHashed = false;
+      } else {
+        // Always hash before storing — never store plaintext
+        updateData.appPassword = await hashPassword(appPassword);
+        updateData.passwordIsHashed = true;
+        // Destroy the current session so the user must re-login with new password
+        const session = await getSession();
+        await session.destroy();
+      }
     }
 
     // Upsert: create the singleton if it doesn't exist, update if it does
@@ -84,9 +101,15 @@ export async function PUT(request: NextRequest) {
     });
 
     return NextResponse.json({
-      ...settings,
+      id: settings.id,
       googleCseApiKey: settings.googleCseApiKey ? "***configured***" : null,
       _googleCseApiKeyIsSet: !!settings.googleCseApiKey,
+      googleCseSearchEngineId: settings.googleCseSearchEngineId,
+      enableImageSearch: settings.enableImageSearch,
+      defaultCurrency: settings.defaultCurrency,
+      _passwordIsSet: !!settings.appPassword,
+      createdAt: settings.createdAt,
+      updatedAt: settings.updatedAt,
     });
   } catch (error) {
     console.error("PUT /api/settings error:", error);

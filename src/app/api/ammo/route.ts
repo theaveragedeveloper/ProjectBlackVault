@@ -89,7 +89,12 @@ export async function POST(request: NextRequest) {
         bulletType: bulletType ?? null,
         quantity: quantity ?? 0,
         purchasePrice: purchasePrice ?? null,
-        purchaseDate: purchaseDate ? new Date(purchaseDate) : null,
+        purchaseDate: purchaseDate
+          ? (() => {
+              const d = new Date(purchaseDate);
+              return isNaN(d.getTime()) ? null : d;
+            })()
+          : null,
         storageLocation: storageLocation ?? null,
         lowStockAlert: lowStockAlert ?? null,
         notes: notes ?? null,

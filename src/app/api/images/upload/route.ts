@@ -9,7 +9,7 @@ const ALLOWED_EXTENSIONS = new Set([
   "gif",
   "webp",
   "avif",
-  "svg",
+  // SVG is intentionally excluded — SVG files can contain JavaScript and pose XSS risk
 ]);
 
 const ALLOWED_ENTITY_TYPES = new Set([
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
         "image/gif": "gif",
         "image/webp": "webp",
         "image/avif": "avif",
-        "image/svg+xml": "svg",
+        // SVG excluded intentionally (XSS risk)
       };
       ext = mimeToExt[file.type] ?? "";
     }

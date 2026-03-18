@@ -91,7 +91,10 @@ export async function PUT(
         ...(serialNumber !== undefined && { serialNumber: encryptField(serialNumber) }),
         ...(type !== undefined && { type }),
         ...(acquisitionDate !== undefined && {
-          acquisitionDate: new Date(acquisitionDate),
+          acquisitionDate: (() => {
+            const d = new Date(acquisitionDate);
+            return isNaN(d.getTime()) ? undefined : d;
+          })(),
         }),
         ...(purchasePrice !== undefined && { purchasePrice }),
         ...(currentValue !== undefined && { currentValue }),

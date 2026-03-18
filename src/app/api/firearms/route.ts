@@ -72,6 +72,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const parsedAcquisitionDate = new Date(acquisitionDate);
+    if (isNaN(parsedAcquisitionDate.getTime())) {
+      return NextResponse.json({ error: "Invalid acquisitionDate" }, { status: 400 });
+    }
+
     const firearm = await prisma.firearm.create({
       data: {
         name,
@@ -80,7 +85,7 @@ export async function POST(request: NextRequest) {
         caliber,
         serialNumber: encryptField(serialNumber),
         type,
-        acquisitionDate: new Date(acquisitionDate),
+        acquisitionDate: parsedAcquisitionDate,
         purchasePrice: purchasePrice ?? null,
         currentValue: currentValue ?? null,
         notes: notes ? encryptField(notes) : null,

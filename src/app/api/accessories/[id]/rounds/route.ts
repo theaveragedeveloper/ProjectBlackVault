@@ -20,9 +20,9 @@ export async function POST(
       );
     }
 
-    if (typeof rounds !== "number" || !Number.isInteger(rounds) || rounds <= 0) {
+    if (typeof rounds !== "number" || !Number.isInteger(rounds) || rounds <= 0 || rounds > 1_000_000) {
       return NextResponse.json(
-        { error: "rounds must be a positive integer" },
+        { error: "rounds must be a positive integer no greater than 1,000,000" },
         { status: 400 }
       );
     }
