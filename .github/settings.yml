@@ -1,0 +1,15 @@
+repository:
+  name: ProjectBlackVault
+  description: "Private, offline-first, self-hosted firearms inventory, ammo, maintenance, and training tracker."
+  homepage: "https://github.com/theaveragedeveloper/ProjectBlackVault"
+  has_issues: true
+  has_projects: false
+  has_wiki: false
+  default_branch: main
+  topics:
+    - self-hosted
+    - inventory
+    - home-server
+    - firearms
+    - tracking
+    - offline-first
