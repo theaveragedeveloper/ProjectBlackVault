@@ -16,6 +16,9 @@ services:
       - NODE_ENV=production
       - DATABASE_URL=file:/app/data/vault.db
       - VAULT_ENCRYPTION_KEY=${VAULT_ENCRYPTION_KEY:-}
+      - SESSION_SECRET=${SESSION_SECRET:-}
+      - PASSWORD_RECOVERY_SECRET=${PASSWORD_RECOVERY_SECRET:-}
+      - ALLOW_SESSION_SECRET_PASSWORD_RESET=${ALLOW_SESSION_SECRET_PASSWORD_RESET:-false}
     volumes:
       - ${DATA_DIR:-./data}/db:/app/data
       - ${DATA_DIR:-./data}/uploads:/app/uploads
@@ -24,3 +27,4 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 60s

@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { encryptField, decryptField } from "@/lib/crypto";
+import { revalidateDashboardCaches } from "@/lib/server/dashboard";
+import { validateOptionalImageUrl } from "@/lib/image-url-validation";
+import { FIREARM_TYPES } from "@/lib/types";
+import { requireAuth } from "@/lib/server/auth";
 
 // GET /api/firearms - List all firearms with build count
 export async function GET() {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const firearms = await prisma.firearm.findMany({
       include: {
@@ -25,15 +32,19 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
-    const result = firearms.map((firearm) => ({
-      ...firearm,
-      serialNumber: decryptField(firearm.serialNumber) ?? firearm.serialNumber,
-      notes: decryptField(firearm.notes),
-      buildCount: firearm._count.builds,
-      activeBuild: firearm.builds[0] ?? null,
-      builds: undefined,
-      _count: undefined,
-    }));
+    const result = await Promise.all(
+      firearms.map(async (firearm) => ({
+        ...firearm,
+        serialNumber: firearm.serialNumber
+          ? ((await decryptField(firearm.serialNumber)) ?? firearm.serialNumber)
+          : null,
+        notes: await decryptField(firearm.notes),
+        buildCount: firearm._count.builds,
+        activeBuild: firearm.builds[0] ?? null,
+        builds: undefined,
+        _count: undefined,
+      }))
+    );
 
     return NextResponse.json(result);
   } catch (error) {
@@ -47,6 +58,9 @@ export async function GET() {
 
 // POST /api/firearms - Create a new firearm
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const body = await request.json();
 
@@ -65,9 +79,21 @@ export async function POST(request: NextRequest) {
       imageSource,
     } = body;
 
-    if (!name || !manufacturer || !model || !caliber || !serialNumber || !type || !acquisitionDate) {
+    const imageValidation = validateOptionalImageUrl(imageUrl);
+    if (!imageValidation.valid) {
+      return NextResponse.json({ error: imageValidation.error }, { status: 400 });
+    }
+
+    if (!name) {
       return NextResponse.json(
-        { error: "Missing required fields: name, manufacturer, model, caliber, serialNumber, type, acquisitionDate" },
+        { error: "Missing required field: name" },
+        { status: 400 }
+      );
+    }
+
+    if (!FIREARM_TYPES.includes(type)) {
+      return NextResponse.json(
+        { error: `Invalid firearm type. Must be one of: ${FIREARM_TYPES.join(", ")}` },
         { status: 400 }
       );
     }
@@ -75,16 +101,16 @@ export async function POST(request: NextRequest) {
     const firearm = await prisma.firearm.create({
       data: {
         name,
-        manufacturer,
-        model,
-        caliber,
-        serialNumber: encryptField(serialNumber),
-        type,
-        acquisitionDate: new Date(acquisitionDate),
+        manufacturer: manufacturer || "",
+        model: model || "",
+        caliber: caliber || "",
+        serialNumber: serialNumber ? await encryptField(serialNumber) : null,
+        type: type || "",
+        acquisitionDate: acquisitionDate ? new Date(acquisitionDate) : null,
         purchasePrice: purchasePrice ?? null,
         currentValue: currentValue ?? null,
-        notes: notes ? encryptField(notes) : null,
-        imageUrl: imageUrl ?? null,
+        notes: notes ? await encryptField(notes) : null,
+        imageUrl: imageValidation.normalized,
         imageSource: imageSource ?? null,
       },
       include: {
@@ -93,6 +119,8 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+
+    revalidateDashboardCaches(["firearms"]);
 
     return NextResponse.json(
       { ...firearm, buildCount: firearm._count.builds, _count: undefined },

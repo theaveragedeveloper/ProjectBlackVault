@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { revalidateDashboardCaches } from "@/lib/server/dashboard";
+import { requireAuth } from "@/lib/server/auth";
 
 // GET /api/ammo/[id] - Get a single AmmoStock entry
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const { id } = await params;
 
@@ -28,6 +33,7 @@ export async function GET(
     return NextResponse.json(stock);
   } catch (error) {
     console.error("GET /api/ammo/[id] error:", error);
+
     return NextResponse.json(
       { error: "Failed to fetch ammo stock" },
       { status: 500 }
@@ -40,6 +46,9 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const { id } = await params;
     const body = await request.json();
@@ -63,6 +72,13 @@ export async function PUT(
         { error: "Ammo stock not found" },
         { status: 404 }
       );
+    }
+
+    if (quantity !== undefined && quantity !== null && quantity < 0) {
+      return NextResponse.json({ error: "quantity cannot be negative" }, { status: 400 });
+    }
+    if (purchasePrice !== undefined && purchasePrice !== null && purchasePrice < 0) {
+      return NextResponse.json({ error: "purchasePrice cannot be negative" }, { status: 400 });
     }
 
     const updated = await prisma.ammoStock.update({
@@ -89,9 +105,12 @@ export async function PUT(
       },
     });
 
+    revalidateDashboardCaches(["ammo"]);
+
     return NextResponse.json(updated);
   } catch (error) {
     console.error("PUT /api/ammo/[id] error:", error);
+
     return NextResponse.json(
       { error: "Failed to update ammo stock" },
       { status: 500 }
@@ -104,6 +123,9 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const { id } = await params;
 
@@ -117,9 +139,12 @@ export async function DELETE(
 
     await prisma.ammoStock.delete({ where: { id } });
 
+    revalidateDashboardCaches(["ammo"]);
+
     return NextResponse.json({ success: true, id });
   } catch (error) {
     console.error("DELETE /api/ammo/[id] error:", error);
+
     return NextResponse.json(
       { error: "Failed to delete ammo stock" },
       { status: 500 }

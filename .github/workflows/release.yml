@@ -1,0 +1,282 @@
+name: Build & Release Launcher
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "launcher/**"
+      - ".github/workflows/release.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      release_title: ${{ steps.version.outputs.release_title }}
+      release_notes: ${{ steps.version.outputs.release_notes }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Resolve release metadata
+        id: version
+        run: |
+          VERSION=$(node -p "require('./launcher/package.json').version")
+          TAG="v${VERSION}"
+          TITLE="ProjectBlackVault Launcher ${TAG}"
+          NOTES="Desktop launcher for ProjectBlackVault. Requires Docker Desktop."
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "release_title=${TITLE}" >> "$GITHUB_OUTPUT"
+          echo "release_notes=${NOTES}" >> "$GITHUB_OUTPUT"
+
+      - name: Validate signing and notarization secrets
+        run: |
+          REQUIRED=(
+            "CSC_LINK:${{ secrets.CSC_LINK }}"
+            "CSC_KEY_PASSWORD:${{ secrets.CSC_KEY_PASSWORD }}"
+            "APPLE_ID:${{ secrets.APPLE_ID }}"
+            "APPLE_APP_SPECIFIC_PASSWORD:${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}"
+            "APPLE_TEAM_ID:${{ secrets.APPLE_TEAM_ID }}"
+          )
+
+          MISSING=0
+          for pair in "${REQUIRED[@]}"; do
+            name="${pair%%:*}"
+            value="${pair#*:}"
+            if [ -z "$value" ]; then
+              echo "Missing required secret: $name"
+              MISSING=1
+            fi
+          done
+
+          if [ "$MISSING" -ne 0 ]; then
+            echo "Release signing/notarization secrets are required for verified installers."
+            exit 1
+          fi
+
+      - name: Create or update release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          TITLE="${{ steps.version.outputs.release_title }}"
+          NOTES="${{ steps.version.outputs.release_notes }}"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "$TITLE" --notes "$NOTES" --latest
+          else
+            gh release create "$TAG" --title "$TITLE" --notes "$NOTES" --latest
+          fi
+
+  build:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact_name: launcher-windows
+            expected_file: ProjectBlackVault-Setup.exe
+            metadata_file: latest.yml
+          - os: macos-latest
+            artifact_name: launcher-macos
+            expected_file: ProjectBlackVault.dmg
+            metadata_file: latest-mac.yml
+          - os: ubuntu-latest
+            artifact_name: launcher-linux
+            expected_file: ProjectBlackVault-Setup.AppImage
+            metadata_file: latest-linux.yml
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: launcher/package-lock.json
+
+      - name: Install launcher dependencies
+        run: npm ci
+        working-directory: launcher
+
+      - name: Build installer (no publish)
+        run: npm run build
+        working-directory: launcher
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Validate expected installer
+        shell: bash
+        run: |
+          FILE="launcher/dist/${{ matrix.expected_file }}"
+          if [ ! -f "$FILE" ]; then
+            echo "Expected installer missing: $FILE"
+            echo "Available dist output:"
+            ls -la launcher/dist || true
+            exit 1
+          fi
+
+      - name: Validate updater metadata file
+        shell: bash
+        run: |
+          FILE="launcher/dist/${{ matrix.metadata_file }}"
+          if [ ! -f "$FILE" ]; then
+            echo "Expected updater metadata missing: $FILE"
+            ls -la launcher/dist || true
+            exit 1
+          fi
+
+      - name: Verify Windows Authenticode signature
+        if: matrix.os == 'windows-latest'
+        shell: powershell
+        run: |
+          $signature = Get-AuthenticodeSignature "launcher/dist/${{ matrix.expected_file }}"
+          if ($signature.Status -ne "Valid") {
+            Write-Host "Signature status: $($signature.Status)"
+            throw "Windows installer signature is not valid."
+          }
+
+      - name: Verify macOS code signature
+        if: matrix.os == 'macos-latest'
+        shell: bash
+        run: |
+          APP_PATH="launcher/dist/mac/ProjectBlackVault.app"
+          if [ ! -d "$APP_PATH" ]; then
+            echo "Signed macOS app not found at $APP_PATH"
+            ls -la launcher/dist || true
+            exit 1
+          fi
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+          DMG_PATH="launcher/dist/${{ matrix.expected_file }}"
+          if [ -f "$DMG_PATH" ]; then
+            xcrun stapler validate "$DMG_PATH"
+          fi
+
+      - name: Upload dist artifact bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: launcher/dist/**
+          if-no-files-found: error
+
+  publish:
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Download built installers
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+
+      - name: Show downloaded artifacts
+        run: |
+          find release-assets -type f | sort
+
+      - name: Upload artifacts to release
+        run: |
+          TAG="${{ needs.prepare.outputs.tag }}"
+          mapfile -t CANDIDATES < <(find release-assets -type f | sort)
+
+          UPLOAD=()
+          for file in "${CANDIDATES[@]}"; do
+            base="$(basename "$file")"
+            case "$base" in
+              ProjectBlackVault-Setup.exe|ProjectBlackVault.dmg|ProjectBlackVault-Setup.AppImage|latest.yml|latest-mac.yml|latest-linux.yml|*.blockmap|*.zip)
+                UPLOAD+=("$file")
+                ;;
+            esac
+          done
+
+          if [ "${#UPLOAD[@]}" -eq 0 ]; then
+            echo "No release assets found to upload."
+            exit 1
+          fi
+
+          printf 'Uploading %s assets:\n' "${#UPLOAD[@]}"
+          printf ' - %s\n' "${UPLOAD[@]}"
+          gh release upload "$TAG" "${UPLOAD[@]}" --clobber
+
+      - name: Validate release assets
+        run: |
+          TAG="${{ needs.prepare.outputs.tag }}"
+          ASSETS_FILE="$(mktemp)"
+          for i in 1 2 3 4 5; do
+            gh release view "$TAG" --json assets --jq '.assets[].name' > "$ASSETS_FILE"
+            if [ -s "$ASSETS_FILE" ]; then
+              break
+            fi
+            echo "Release assets not visible yet (attempt $i/5), retrying..."
+            sleep 2
+          done
+
+          REQUIRED=(
+            "ProjectBlackVault-Setup.exe"
+            "ProjectBlackVault.dmg"
+            "ProjectBlackVault-Setup.AppImage"
+            "latest.yml"
+            "latest-mac.yml"
+            "latest-linux.yml"
+          )
+
+          for asset in "${REQUIRED[@]}"; do
+            if ! grep -Fxq "$asset" "$ASSETS_FILE"; then
+              echo "Missing required release asset: $asset"
+              echo "Current assets:"
+              cat "$ASSETS_FILE" || true
+              exit 1
+            fi
+          done
+
+      - name: Validate latest direct download endpoints
+        run: |
+          REQUIRED_URLS=(
+            "https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest/download/ProjectBlackVault-Setup.exe"
+            "https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest/download/ProjectBlackVault.dmg"
+            "https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest/download/ProjectBlackVault-Setup.AppImage"
+          )
+
+          for url in "${REQUIRED_URLS[@]}"; do
+            code="$(curl -L -s -o /dev/null -w '%{http_code}' "$url")"
+            if [ "$code" != "200" ]; then
+              echo "Download URL failed: $url (HTTP $code)"
+              exit 1
+            fi
+          done
+
+      - name: Validate release metadata consistency
+        run: |
+          VERSION="${{ needs.prepare.outputs.version }}"
+          TAG="${{ needs.prepare.outputs.tag }}"
+          if [ "$TAG" != "v$VERSION" ]; then
+            echo "Tag/version mismatch: tag=$TAG version=$VERSION"
+            exit 1
+          fi
+
+          gh release view "$TAG" --json assets --jq '.assets[].name' > assets.txt
+          if ! grep -Eq '\.blockmap$' assets.txt; then
+            echo "Expected updater blockmap files are missing."
+            cat assets.txt
+            exit 1
+          fi
+
+          echo "Release assets validated successfully."

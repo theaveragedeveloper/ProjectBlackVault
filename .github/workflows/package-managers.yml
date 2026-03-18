@@ -1,0 +1,175 @@
+name: Generate Package Manager Manifests
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to package (for example v1.2.3). Defaults to launcher package version."
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  manifests:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      version: ${{ steps.meta.outputs.version }}
+      bundle: ${{ steps.bundle.outputs.bundle }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Resolve release metadata
+        id: meta
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            TAG="${{ github.event.release.tag_name }}"
+          elif [ -n "${{ inputs.tag }}" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            VERSION="$(node -p "require('./launcher/package.json').version")"
+            TAG="v${VERSION}"
+          fi
+
+          VERSION="${TAG#v}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Download release installers
+        run: |
+          TAG="${{ steps.meta.outputs.tag }}"
+          BASE_URL="https://github.com/theaveragedeveloper/ProjectBlackVault/releases/download/${TAG}"
+          mkdir -p .tmp/pkg
+
+          curl -fL "${BASE_URL}/ProjectBlackVault-Setup.exe" -o .tmp/pkg/ProjectBlackVault-Setup.exe
+          curl -fL "${BASE_URL}/ProjectBlackVault.dmg" -o .tmp/pkg/ProjectBlackVault.dmg
+
+      - name: Compute installer checksums
+        id: sums
+        run: |
+          WIN_SHA="$(sha256sum .tmp/pkg/ProjectBlackVault-Setup.exe | awk '{print $1}')"
+          MAC_SHA="$(sha256sum .tmp/pkg/ProjectBlackVault.dmg | awk '{print $1}')"
+          echo "windows_sha=${WIN_SHA}" >> "$GITHUB_OUTPUT"
+          echo "mac_sha=${MAC_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate package manager manifests
+        run: |
+          VERSION="${{ steps.meta.outputs.version }}"
+          TAG="${{ steps.meta.outputs.tag }}"
+          WIN_SHA="${{ steps.sums.outputs.windows_sha }}"
+          MAC_SHA="${{ steps.sums.outputs.mac_sha }}"
+
+          WINGET_ROOT="packaging/winget/manifests/t/TheAverageDeveloper/ProjectBlackVault/${VERSION}"
+          mkdir -p "${WINGET_ROOT}"
+
+          cat > "${WINGET_ROOT}/TheAverageDeveloper.ProjectBlackVault.yaml" <<EOF
+          PackageIdentifier: TheAverageDeveloper.ProjectBlackVault
+          PackageVersion: ${VERSION}
+          DefaultLocale: en-US
+          ManifestType: version
+          ManifestVersion: 1.6.0
+          EOF
+
+          cat > "${WINGET_ROOT}/TheAverageDeveloper.ProjectBlackVault.installer.yaml" <<EOF
+          PackageIdentifier: TheAverageDeveloper.ProjectBlackVault
+          PackageVersion: ${VERSION}
+          InstallerType: exe
+          Installers:
+            - Architecture: x64
+              InstallerUrl: https://github.com/theaveragedeveloper/ProjectBlackVault/releases/download/${TAG}/ProjectBlackVault-Setup.exe
+              InstallerSha256: ${WIN_SHA}
+              InstallerSwitches:
+                Silent: /S
+                SilentWithProgress: /S
+          ManifestType: installer
+          ManifestVersion: 1.6.0
+          EOF
+
+          cat > "${WINGET_ROOT}/TheAverageDeveloper.ProjectBlackVault.locale.en-US.yaml" <<EOF
+          PackageIdentifier: TheAverageDeveloper.ProjectBlackVault
+          PackageVersion: ${VERSION}
+          PackageLocale: en-US
+          Publisher: TheAverageDeveloper
+          PackageName: ProjectBlackVault
+          ShortDescription: Desktop launcher for ProjectBlackVault.
+          License: MIT
+          LicenseUrl: https://github.com/theaveragedeveloper/ProjectBlackVault/blob/main/LICENSE
+          Copyright: Copyright (c) TheAverageDeveloper
+          Moniker: projectblackvault
+          Tags:
+            - self-hosted
+            - launcher
+            - docker
+          ReleaseNotesUrl: https://github.com/theaveragedeveloper/ProjectBlackVault/releases/tag/${TAG}
+          ManifestType: defaultLocale
+          ManifestVersion: 1.6.0
+          EOF
+
+          mkdir -p packaging/homebrew/Casks
+          cat > packaging/homebrew/Casks/projectblackvault.rb <<EOF
+          cask "projectblackvault" do
+            version "${VERSION}"
+            sha256 "${MAC_SHA}"
+
+            url "https://github.com/theaveragedeveloper/ProjectBlackVault/releases/download/v#{version}/ProjectBlackVault.dmg"
+            name "ProjectBlackVault"
+            desc "Desktop launcher for ProjectBlackVault"
+            homepage "https://github.com/theaveragedeveloper/ProjectBlackVault"
+
+            auto_updates true
+            depends_on macos: ">= :monterey"
+
+            app "ProjectBlackVault.app"
+          end
+          EOF
+
+          cat > packaging/README.md <<EOF
+          # Package Manager Manifests
+
+          Generated for release tag ${TAG}.
+
+          - Winget manifests: \`packaging/winget/manifests/t/TheAverageDeveloper/ProjectBlackVault/${VERSION}\`
+          - Homebrew cask: \`packaging/homebrew/Casks/projectblackvault.rb\`
+
+          Submit winget manifests to [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs).
+          Commit cask file to your homebrew tap repository under \`Casks/\`.
+          EOF
+
+      - name: Bundle manifests
+        id: bundle
+        run: |
+          VERSION="${{ steps.meta.outputs.version }}"
+          BUNDLE="projectblackvault-package-managers-${VERSION}.tar.gz"
+          tar -czf "${BUNDLE}" packaging
+          echo "bundle=${BUNDLE}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload manifest bundle as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-manager-manifests-${{ steps.meta.outputs.version }}
+          path: |
+            packaging/**
+            ${{ steps.bundle.outputs.bundle }}
+          if-no-files-found: error
+
+      - name: Attach manifest bundle to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.meta.outputs.tag }}"
+          BUNDLE="${{ steps.bundle.outputs.bundle }}"
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            gh release upload "${TAG}" "${BUNDLE}" --clobber
+          else
+            echo "Release ${TAG} not found. Skipping release asset upload."
+          fi

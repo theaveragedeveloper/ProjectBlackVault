@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
 }
 
 datasource db {
@@ -12,13 +13,13 @@ datasource db {
 model Firearm {
   id              String   @id @default(cuid())
   name            String
-  manufacturer    String
-  model           String
-  caliber         String
-  serialNumber    String   @unique
+  manufacturer    String   @default("")
+  model           String   @default("")
+  caliber         String   @default("")
+  serialNumber    String?  @unique
   // FirearmType: PISTOL | RIFLE | SHOTGUN | SMG | PCC | REVOLVER | BOLT_ACTION | LEVER_ACTION
-  type            String
-  acquisitionDate DateTime
+  type            String   @default("")
+  acquisitionDate DateTime?
   purchasePrice   Float?
   currentValue    Float?
   notes           String?
@@ -27,12 +28,18 @@ model Firearm {
   imageSource     String?
 
   builds          Build[]
+  sessionFirearms SessionFirearm[]
+  maintenanceNotes MaintenanceNote[]
+  maintenanceSchedules MaintenanceSchedule[]
+  documents       Document[]
+  dopeCards       DopeCard[]
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   @@index([caliber])
   @@index([type])
+  @@index([createdAt])
 }
 
 // ─── BUILDS ───────────────────────────────────────────────────
@@ -41,6 +48,8 @@ model Build {
   id          String      @id @default(cuid())
   name        String
   description String?
+  imageUrl    String?
+  imageSource String?
   isActive    Boolean     @default(false)
   sortOrder   Int         @default(0)
   status      String      @default("in-progress")
@@ -49,6 +58,8 @@ model Build {
   firearm     Firearm     @relation(fields: [firearmId], references: [id], onDelete: Cascade)
 
   slots       BuildSlot[]
+  sessionFirearms SessionFirearm[]
+  dopeCards     DopeCard[]
 
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
@@ -56,6 +67,8 @@ model Build {
   @@index([firearmId])
   @@index([isActive])
   @@index([status])
+  @@index([isActive, updatedAt])
+  @@index([firearmId, isActive, updatedAt])
 }
 
 model BuildSlot {
@@ -64,7 +77,8 @@ model BuildSlot {
   build       Build      @relation(fields: [buildId], references: [id], onDelete: Cascade)
   // SlotType: MUZZLE | BARREL | HANDGUARD | STOCK | BUFFER_TUBE | GRIP | OPTIC | OPTIC_MOUNT |
   //           UNDERBARREL | MAGAZINE | LIGHT | LASER | CHARGING_HANDLE | TRIGGER |
-  //           LOWER_RECEIVER | UPPER_RECEIVER | SLIDE | FRAME | SUPPRESSOR | BIPOD | SLING | COMPENSATOR
+  //           LOWER_RECEIVER | UPPER_RECEIVER | SLIDE | FRAME | SUPPRESSOR | BIPOD | SLING |
+  //           COMPENSATOR | MAGWELL
   slotType    String
   accessoryId String?
   accessory   Accessory? @relation(fields: [accessoryId], references: [id], onDelete: SetNull)
@@ -86,7 +100,7 @@ model BuildSlot {
 model Accessory {
   id                     String          @id @default(cuid())
   name                   String
-  manufacturer           String
+  manufacturer           String          @default("")
   model                  String?
   // type matches SlotType values above
   type                   String
@@ -102,6 +116,13 @@ model Accessory {
   roundCountLogs         RoundCountLog[]
 
   buildSlots             BuildSlot[]
+  documents              Document[]
+
+  // Battery tracking
+  hasBattery             Boolean         @default(false)
+  batteryType            String?         // e.g. "CR2032", "AA"
+  batteryChangedAt       DateTime?
+  batteryIntervalDays    Int?            // how often to replace in days
 
   // Comma-separated compatible values, e.g. "RIFLE,SMG"
   compatibleFirearmTypes String?
@@ -112,6 +133,8 @@ model Accessory {
 
   @@index([type])
   @@index([roundCount])
+  @@index([createdAt])
+  @@index([type, createdAt])
 }
 
 model RoundCountLog {
@@ -126,6 +149,163 @@ model RoundCountLog {
 
   @@index([accessoryId])
   @@index([loggedAt])
+}
+
+// ─── RANGE SESSIONS ───────────────────────────────────────────
+
+model RangeSession {
+  id            String   @id @default(cuid())
+  date          DateTime @default(now())
+  rangeName     String?
+  rangeLocation String?
+  notes         String?
+
+  // ── Environment / Weather ─────────────────────────────
+  environment    String?   // "INDOOR" | "OUTDOOR"
+  temperatureF   Float?    // degrees Fahrenheit
+  windSpeedMph   Float?    // mph
+  windDirection  String?   // e.g. "NW", "Headwind", "Crosswind"
+  humidity       Float?    // 0-100 percentage
+  lightCondition String?   // "BRIGHT" | "OVERCAST" | "LOW_LIGHT" | "NIGHT"
+  weatherNotes   String?
+
+  // ── Shot Group Data ───────────────────────────────────
+  targetDistanceYd Float?  // yards
+  groupSizeIn      Float?  // best group in inches
+  groupSizeMoa     Float?  // MOA (best group)
+  numberOfGroups   Int?
+  groupNotes       String?
+
+  // ── Relations ─────────────────────────────────────────
+  sessionFirearms SessionFirearm[]
+  sessionDrills  SessionDrill[]
+  ammoLinks      SessionAmmoLink[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([date])
+}
+
+model SessionFirearm {
+  id          String       @id @default(cuid())
+  sessionId   String
+  session     RangeSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  firearmId   String
+  firearm     Firearm      @relation(fields: [firearmId], references: [id], onDelete: Cascade)
+  buildId     String?
+  build       Build?       @relation(fields: [buildId], references: [id], onDelete: SetNull)
+  roundsFired Int
+
+  @@index([sessionId])
+  @@index([firearmId])
+  @@unique([sessionId, firearmId, buildId])
+}
+
+model DrillTemplate {
+  id          String         @id @default(cuid())
+  name        String
+  description String?
+  // category: "ACCURACY" | "SPEED" | "TACTICAL" | "FUNDAMENTALS" | "CUSTOM"
+  category    String         @default("CUSTOM")
+  // scoringType: "TIME" | "SCORE" | "TIME_AND_SCORE" | "PASS_FAIL" | "NOTES_ONLY"
+  scoringType String         @default("NOTES_ONLY")
+  parTime     Float?         // par time in seconds
+  maxScore    Int?
+  isBuiltIn   Boolean        @default(false)
+
+  sessionDrills SessionDrill[]
+  drillLogs     DrillLog[]
+
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([category])
+}
+
+model SessionDrill {
+  id          String         @id @default(cuid())
+  sessionId   String
+  session     RangeSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  templateId  String?
+  template    DrillTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  drillName   String         // denormalized; preserved if template is deleted
+  timeSeconds Float?
+  hits        Int?
+  totalShots  Int?
+  accuracy    Float?         // 0-100 percentage
+  score       Float?
+  notes       String?
+  sortOrder   Int            @default(0)
+  createdAt   DateTime       @default(now())
+
+  @@index([sessionId])
+  @@index([templateId])
+}
+
+model SessionAmmoLink {
+  id            String          @id @default(cuid())
+  sessionId     String
+  session       RangeSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  transactionId String
+  transaction   AmmoTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, transactionId])
+  @@index([sessionId])
+  @@index([transactionId])
+}
+
+// ─── MAINTENANCE NOTES ────────────────────────────────────────
+
+model MaintenanceNote {
+  id          String   @id @default(cuid())
+  firearmId   String
+  firearm     Firearm  @relation(fields: [firearmId], references: [id], onDelete: Cascade)
+  date        DateTime @default(now())
+  // type: "cleaning" | "repair" | "inspection" | "upgrade" | "other"
+  type        String   @default("other")
+  description String
+  mileage     Int?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([firearmId])
+  @@index([date])
+}
+
+// ─── MAINTENANCE SCHEDULES ────────────────────────────────────
+
+model MaintenanceSchedule {
+  id              String                  @id @default(cuid())
+  firearmId       String
+  firearm         Firearm                 @relation(fields: [firearmId], references: [id], onDelete: Cascade)
+  taskName        String
+  // intervalType: "ROUNDS" | "DAYS"
+  intervalType    String
+  intervalValue   Int
+  lastCompletedAt DateTime?
+  lastRoundCount  Int?                    // firearm round count at last completion (for ROUNDS type)
+  notes           String?
+  completions     MaintenanceCompletion[]
+
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  @@index([firearmId])
+}
+
+model MaintenanceCompletion {
+  id                     String              @id @default(cuid())
+  scheduleId             String
+  schedule               MaintenanceSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  completedAt            DateTime            @default(now())
+  roundCountAtCompletion Int?
+  notes                  String?
+
+  createdAt              DateTime            @default(now())
+
+  @@index([scheduleId])
 }
 
 // ─── AMMO ─────────────────────────────────────────────────────
@@ -145,6 +325,7 @@ model AmmoStock {
   notes           String?
 
   transactions    AmmoTransaction[]
+  dopeCards       DopeCard[]
 
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
@@ -164,8 +345,59 @@ model AmmoTransaction {
   note         String?
   transactedAt DateTime @default(now())
 
+  sessionLinks SessionAmmoLink[]
+
   @@index([stockId])
   @@index([transactedAt])
+}
+
+// ─── DOPE CARDS ──────────────────────────────────────────────
+
+model DopeCard {
+  id                  String     @id @default(cuid())
+  firearmId           String
+  firearm             Firearm    @relation(fields: [firearmId], references: [id], onDelete: Cascade)
+  buildId             String?
+  build               Build?     @relation(fields: [buildId], references: [id], onDelete: SetNull)
+  ammoStockId         String?
+  ammoStock           AmmoStock? @relation(fields: [ammoStockId], references: [id], onDelete: SetNull)
+
+  name                String
+  zeroDistanceYd      Float
+  sightHeightIn       Float?
+  // unit: "MIL" | "MOA"
+  unit                String
+
+  temperatureF        Float?
+  pressureInHg        Float?
+  densityAltitudeFt   Float?
+  notes               String?
+
+  // JSON-encoded rows payload for SQLite compatibility
+  // Example row: {"distanceYd":100,"elevation":0.0,"wind10mph":0.4,"velocity":2700,"energy":2500}
+  rows                String
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([firearmId])
+  @@index([updatedAt])
+}
+
+// ─── PHOTOS ───────────────────────────────────────────────────
+
+model Photo {
+  id         String   @id @default(cuid())
+  // entityType: "firearm" | "accessory" | "build" | "ammo"
+  entityType String
+  entityId   String
+  url        String
+  // source: "uploaded"
+  source     String
+  isPrimary  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
 }
 
 // ─── IMAGE CACHE ──────────────────────────────────────────────
@@ -186,6 +418,53 @@ model ImageCache {
   @@index([entityType, entityId])
 }
 
+// ─── DRILL LOGS ───────────────────────────────────────────────
+
+model DrillLog {
+  id          String         @id @default(cuid())
+  templateId  String?
+  template    DrillTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  drillName   String         // denormalized; preserved if template is deleted
+  performedAt DateTime       @default(now())
+  timeSeconds Float?
+  hits        Int?
+  totalShots  Int?
+  accuracy    Float?         // 0-100 percentage
+  score       Float?
+  notes       String?
+
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([templateId])
+  @@index([performedAt])
+}
+
+// ─── DOCUMENTS ────────────────────────────────────────────────
+
+model Document {
+  id          String   @id @default(cuid())
+  name        String
+  // type: "RECEIPT" | "NFA_TAX_STAMP" | "OTHER"
+  type        String   @default("RECEIPT")
+  fileUrl     String
+  fileSize    Int?
+  mimeType    String?
+  notes       String?
+
+  firearmId   String?
+  firearm     Firearm?    @relation(fields: [firearmId], references: [id], onDelete: SetNull)
+  accessoryId String?
+  accessory   Accessory?  @relation(fields: [accessoryId], references: [id], onDelete: SetNull)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([firearmId])
+  @@index([accessoryId])
+  @@index([type])
+}
+
 // ─── SETTINGS ─────────────────────────────────────────────────
 
 model AppSettings {
@@ -195,6 +474,20 @@ model AppSettings {
   enableImageSearch       Boolean  @default(false)
   defaultCurrency         String   @default("USD")
   appPassword             String?
+  sessionVersion          Int      @default(1)
+  encryptionKey           String?
+  dataStoragePath         String?
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
+}
+
+// ─── API RATE LIMITS ──────────────────────────────────────────
+
+model ApiRateLimit {
+  bucketId    String   @id
+  key         String
+  windowStart DateTime
+  count       Int      @default(0)
+
+  @@index([key, windowStart])
 }

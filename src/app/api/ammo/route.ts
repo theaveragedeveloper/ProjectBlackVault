@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { revalidateDashboardCaches } from "@/lib/server/dashboard";
+import { requireAuth } from "@/lib/server/auth";
 
 // GET /api/ammo - List all AmmoStock grouped by caliber
 export async function GET() {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const stocks = await prisma.ammoStock.findMany({
       include: {
@@ -49,6 +54,7 @@ export async function GET() {
     return NextResponse.json(result);
   } catch (error) {
     console.error("GET /api/ammo error:", error);
+
     return NextResponse.json(
       { error: "Failed to fetch ammo stock" },
       { status: 500 }
@@ -58,6 +64,9 @@ export async function GET() {
 
 // POST /api/ammo - Create a new AmmoStock entry
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const body = await request.json();
 
@@ -68,6 +77,7 @@ export async function POST(request: NextRequest) {
       bulletType,
       quantity,
       purchasePrice,
+      purchasePriceTotal,
       purchaseDate,
       storageLocation,
       lowStockAlert,
@@ -81,14 +91,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (purchasePrice !== undefined && purchasePrice !== null && Number(purchasePrice) < 0) {
+      return NextResponse.json({ error: "purchasePrice cannot be negative" }, { status: 400 });
+    }
+    if (
+      purchasePriceTotal !== undefined &&
+      purchasePriceTotal !== null &&
+      Number(purchasePriceTotal) < 0
+    ) {
+      return NextResponse.json({ error: "purchasePriceTotal cannot be negative" }, { status: 400 });
+    }
+
+    const quantityValue = Number(quantity ?? 0);
+    const normalizedPerRoundPrice =
+      purchasePrice !== undefined && purchasePrice !== null
+        ? Number(purchasePrice)
+        : purchasePriceTotal !== undefined &&
+            purchasePriceTotal !== null &&
+            quantityValue > 0
+          ? Number(purchasePriceTotal) / quantityValue
+          : null;
+
     const stock = await prisma.ammoStock.create({
       data: {
         caliber,
         brand,
         grainWeight: grainWeight ?? null,
         bulletType: bulletType ?? null,
-        quantity: quantity ?? 0,
-        purchasePrice: purchasePrice ?? null,
+        quantity: quantityValue,
+        purchasePrice:
+          normalizedPerRoundPrice !== null && Number.isFinite(normalizedPerRoundPrice)
+            ? normalizedPerRoundPrice
+            : null,
         purchaseDate: purchaseDate ? new Date(purchaseDate) : null,
         storageLocation: storageLocation ?? null,
         lowStockAlert: lowStockAlert ?? null,
@@ -101,9 +135,12 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    revalidateDashboardCaches(["ammo"]);
+
     return NextResponse.json(stock, { status: 201 });
   } catch (error) {
     console.error("POST /api/ammo error:", error);
+
     return NextResponse.json(
       { error: "Failed to create ammo stock" },
       { status: 500 }
