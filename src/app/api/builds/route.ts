@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, description, firearmId, isActive } = body;
+    const { name, description, firearmId, isActive, status } = body;
 
     if (!name || !firearmId) {
       return NextResponse.json(
@@ -73,6 +73,7 @@ export async function POST(request: NextRequest) {
         description: description ?? null,
         firearmId,
         isActive: isActive ?? false,
+        status: status ?? 'in-progress',
       },
       include: {
         firearm: {
