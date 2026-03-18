@@ -40,6 +40,19 @@ ProjectBlackVault is a **personal inventory and tracking app** for firearms owne
 
 Everything is stored **on your own computer or home server** — your data never goes to any outside company or cloud service. It's yours, private, and always accessible without an internet connection.
 
+## What ProjectBlackVault Does
+
+ProjectBlackVault is a practical self-hosted system for managing your armory records in one place.
+
+- Register firearms with serials, photos, acquisition details, and build configurations.
+- Manage build components and accessories (optics, suppressors, lights, and more).
+- Track ammo inventory by caliber with stock levels, transactions, and spend trends.
+- Log range sessions and drills with round counts and historical performance data.
+- Schedule and record maintenance using round-count or time-based intervals.
+- Store manuals and documents, then export and restore encrypted backups.
+
+Self-hosted by default means your data stays on infrastructure you control, with no required cloud account.
+
 ---
 
 ## Why ProjectBlackVault?
@@ -112,23 +125,72 @@ The app includes its own built-in server — nothing else to install.
 
 If you want BlackVault always available on your network or run it on a NAS/home server:
 
-macOS / Linux:
+#### 1) Install prerequisites
+
+- Windows/macOS: Docker Desktop
+- Linux: Docker Engine + Docker Compose plugin
+
+#### 2) Clone this repo
 
 ```bash
+git clone <repo-url>
+cd ProjectBlackVault
+```
+
+#### 3) Run first-time installer
+
+macOS/Linux:
+
+```bash
+chmod +x install.sh
 ./install.sh
 ```
 
 Windows (Command Prompt or PowerShell):
 
-```
+```bat
 install.bat
 ```
 
 The installer creates `.blackvault.env`, generates secret keys, creates data folders, and starts the container. It can also generate a dedicated `PASSWORD_RECOVERY_SECRET` if you opt in during setup.
 
-#### Open the app
+#### 4) Open the app and verify first launch
 
-Navigate to [http://localhost:3000](http://localhost:3000) (or whichever port you chose during install).
+1. Open [http://localhost:3000](http://localhost:3000) (or the port you chose during setup).
+2. Verify health endpoint: [http://localhost:3000/api/health](http://localhost:3000/api/health) (should return `{"ok":true}`).
+3. Back up your secrets:
+   - Docker installs: back up `.blackvault.env` and your `DATA_DIR`.
+   - Do not lose `VAULT_ENCRYPTION_KEY` if you store encrypted data.
+
+#### 5) Day-2 Docker operations
+
+Start:
+
+```bash
+docker compose --env-file .blackvault.env up -d
+```
+
+Stop:
+
+```bash
+docker compose --env-file .blackvault.env down
+```
+
+Logs:
+
+```bash
+docker compose --env-file .blackvault.env logs -f
+```
+
+Update:
+
+```bash
+# Linux/macOS
+./update.sh
+
+# Windows
+update.bat
+```
 
 ---
 
@@ -259,6 +321,58 @@ BlackVault Docker installs auto-bootstrap `SESSION_SECRET` on first start:
 
 ---
 
+## Common Issues
+
+### The app won't open (Mac)
+
+Right-click the `.dmg` or app file and choose **Open**. If it still doesn't work, go to System Settings → Privacy & Security and click **Open Anyway**.
+
+### The app won't open (Windows)
+
+Click **More info** on the SmartScreen warning, then **Run anyway**. Windows shows this warning for apps not distributed through the Microsoft Store.
+
+### Docker Desktop isn't installed or isn't running
+
+The Docker launcher requires Docker Desktop to be installed and running. [Download it here](https://www.docker.com/products/docker-desktop/) for free. Open Docker Desktop and wait for the green "running" status before launching ProjectBlackVault.
+
+### Docker is installed but app will not start
+
+- Make sure Docker Desktop is running (or Linux Docker daemon is active).
+- Wait until Docker reports healthy, then start again.
+
+### Port 3000 is already in use
+
+- Pick a different port during setup (for example `3001`).
+- Docker users can also set `PORT=<new-port>` in `.blackvault.env`.
+
+### Docker Compose missing
+
+- Install Docker Compose plugin and retry.
+- Docs: [https://docs.docker.com/compose/install/](https://docs.docker.com/compose/install/)
+
+### Lost encryption key warning
+
+- If `VAULT_ENCRYPTION_KEY` is lost after data is encrypted, that encrypted data cannot be recovered.
+- Back up `.blackvault.env` in a secure location.
+
+### The app is taking a long time to open
+
+The first launch can take 1–2 minutes while the app sets up. Subsequent launches are faster. If it's been more than 5 minutes, close the app and try again.
+
+### The page won't load at localhost:3000
+
+Make sure the app is still running in your terminal. If you closed the terminal, run `npm run dev` again.
+
+### My data disappeared after a Docker update
+
+Avoid using `docker-compose down -v` — the `-v` flag removes your data volumes. Use `docker-compose down` (without `-v`) to stop safely. If you've lost data, restore from your last backup (see [Backup & Data Safety](#backup--data-safety)).
+
+### Something else is wrong
+
+[Open an issue on GitHub](https://github.com/theaveragedeveloper/ProjectBlackVault/issues) and describe what happened — we're happy to help.
+
+---
+
 ## Having Trouble?
 
 **The app won't open (Mac):**
@@ -281,6 +395,87 @@ Avoid using `docker-compose down -v` — the `-v` flag removes your data volumes
 
 **Something else is wrong:**
 [Open an issue on GitHub](https://github.com/theaveragedeveloper/ProjectBlackVault/issues) and describe what happened — we're happy to help.
+
+---
+
+## Advanced / Optional
+
+### Home Server Deployment (Reverse Proxy + HTTPS)
+
+Use a reverse proxy (Caddy/Nginx/Traefik) and a single HTTPS hostname (example: `https://vault.yourdomain.com`) instead of sharing raw IP addresses.
+
+1. Route your HTTPS domain to this container host port (`3000` by default).
+2. Set `APP_BASE_URL` in `.blackvault.env` to that HTTPS URL.
+3. Have users open that URL once, then install a desktop icon:
+   - Chrome/Edge: **Install App**
+   - Safari (macOS): **File -> Add to Dock**
+
+Keep localhost/IP access as fallback troubleshooting paths only.
+
+### Internet Lockdown (Security-First Defaults)
+
+For a strict self-hosted posture, keep outbound internet features disabled by default:
+
+```bash
+ALLOW_RELEASE_LOOKUP=false
+ALLOW_IMAGE_SEARCH_EGRESS=false
+ALLOW_EXTERNAL_IMAGE_URLS=false
+SYSTEM_UPDATE_REQUIRE_PRIVATE_NETWORK=true
+```
+
+- This blocks background release lookups and external image/search traffic.
+- Enable only when you intentionally need the feature.
+
+### Docker: Build From Local Source
+
+Use this if you want to run your current working tree instead of the published image.
+
+```bash
+docker compose -f docker-compose.dev.yml up --build -d
+docker compose -f docker-compose.dev.yml logs -f
+```
+
+Stop:
+
+```bash
+docker compose -f docker-compose.dev.yml down
+```
+
+### Environment Variables
+
+#### Local (`.env`)
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `DATABASE_URL` | Yes | `file:./prisma/dev.db` | SQLite connection string for local Node.js run |
+| `SESSION_SECRET` | Recommended | — | Signs session cookies |
+| `GOOGLE_CSE_API_KEY` | No | — | Google Custom Search API key for image lookup |
+| `GOOGLE_CSE_SEARCH_ENGINE_ID` | No | — | Google CSE search engine ID |
+
+#### Docker (`.blackvault.env`)
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `DATA_DIR` | Recommended | `./data` | Host path for database/uploads |
+| `PORT` | No | `3000` | Host port mapped to container port 3000 |
+| `APP_BASE_URL` | Recommended | — | Canonical HTTPS URL shown in-app |
+| `ALLOW_RELEASE_LOOKUP` | Recommended | `false` | Allows GitHub release metadata lookups |
+| `ALLOW_IMAGE_SEARCH_EGRESS` | Recommended | `false` | Allows outbound Google CSE image search calls |
+| `ALLOW_EXTERNAL_IMAGE_URLS` | Recommended | `false` | Allows storing/loading images from trusted third-party hosts |
+| `SYSTEM_UPDATE_REQUIRE_PRIVATE_NETWORK` | Recommended | `true` | Restricts in-app update actions to private LAN/VPN client IPs |
+| `VAULT_ENCRYPTION_KEY` | Yes | — | Encryption key for sensitive values |
+| `SESSION_SECRET` | Recommended | — | Signs session cookies |
+
+### Optional Launcher And Package Channels
+
+- Launcher downloads are available on GitHub Releases.
+- Advanced package channels (like winget/homebrew tap) may not always be published for every release; if unavailable, use the direct installer download from releases.
+
+---
+
+## Data Responsibility Notice
+
+You are solely responsible for all data you create, upload, store, or share through this app, including keeping your own backups. To the maximum extent permitted by law, we are not liable for any data loss, corruption, unauthorized access, or damages related to your data or use of the app.
 
 ---
 
@@ -317,11 +512,13 @@ ProjectBlackVault/
 ├── src/
 │   ├── app/                # Next.js App Router pages & API routes
 │   │   ├── api/            # REST API endpoints
-│   │   ├── vault/          # Firearm management pages
-│   │   ├── accessories/    # Accessory management pages
-│   │   ├── builds/         # All loadouts overview
-│   │   ├── ammo/           # Ammo inventory pages
-│   │   ├── range/          # Range session logging
+│   │   ├── (app)/          # Route group for app pages
+│   │   │   ├── vault/      # Firearm management pages
+│   │   │   ├── accessories/# Accessory management pages
+│   │   │   ├── builds/     # All loadouts overview
+│   │   │   ├── ammo/       # Ammo inventory pages
+│   │   │   └── range/      # Range session logging
+│   │   ├── login/          # Authentication
 │   │   └── settings/       # App settings
 │   ├── components/         # Shared UI components
 │   └── lib/                # Utility functions, Prisma client, types
