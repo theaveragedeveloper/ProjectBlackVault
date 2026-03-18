@@ -65,9 +65,10 @@ const NAV_ITEMS = [
 interface SidebarProps {
   mobileOpen?: boolean;
   onMobileClose?: () => void;
+  mobileOnly?: boolean;
 }
 
-export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
+export function Sidebar({ mobileOpen = false, onMobileClose, mobileOnly = false }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
 
@@ -165,15 +166,17 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
 
   return (
     <>
-      {/* Desktop sidebar */}
-      <aside
-        className={cn(
-          "hidden md:flex flex-col h-screen border-r border-vault-border bg-vault-surface transition-all duration-300 ease-in-out shrink-0",
-          collapsed ? "w-16" : "w-56"
-        )}
-      >
-        {navContent}
-      </aside>
+      {/* Desktop sidebar — skipped when used as mobile-only instance */}
+      {!mobileOnly && (
+        <aside
+          className={cn(
+            "hidden md:flex flex-col h-screen border-r border-vault-border bg-vault-surface transition-all duration-300 ease-in-out shrink-0",
+            collapsed ? "w-16" : "w-56"
+          )}
+        >
+          {navContent}
+        </aside>
+      )}
 
       {/* Mobile overlay */}
       {mobileOpen && (
