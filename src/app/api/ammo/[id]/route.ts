@@ -75,7 +75,9 @@ export async function PUT(
         ...(quantity !== undefined && { quantity }),
         ...(purchasePrice !== undefined && { purchasePrice }),
         ...(purchaseDate !== undefined && {
-          purchaseDate: purchaseDate ? new Date(purchaseDate) : null,
+          purchaseDate: purchaseDate
+            ? (() => { const d = new Date(purchaseDate); return isNaN(d.getTime()) ? null : d; })()
+            : null,
         }),
         ...(storageLocation !== undefined && { storageLocation }),
         ...(lowStockAlert !== undefined && { lowStockAlert }),

@@ -193,8 +193,8 @@ export default function RangeSessionPage() {
     setError(null);
     setSubmitting(true);
 
-    const rounds = parseInt(roundsFired);
-    if (!rounds || rounds <= 0) {
+    const rounds = parseInt(roundsFired, 10);
+    if (isNaN(rounds) || rounds <= 0) {
       setError("Please enter a valid number of rounds fired.");
       setSubmitting(false);
       return;

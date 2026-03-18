@@ -12,7 +12,6 @@ import {
   EyeOff,
   Image,
   Settings,
-  ShieldCheck,
 } from "lucide-react";
 
 const INPUT_CLASS =
@@ -26,9 +25,8 @@ interface AppSettings {
   googleCseApiKey: string | null;
   _googleCseApiKeyIsSet?: boolean;
   googleCseSearchEngineId: string | null;
-  appPassword: string | null;
+  _passwordIsSet?: boolean;
   defaultCurrency: string;
-  encryptionEnabled?: boolean;
 }
 
 export default function SettingsPage() {
@@ -83,8 +81,11 @@ export default function SettingsPage() {
       payload.googleCseApiKey = apiKey;
     }
 
-    // App password: if blank send null (disable), if typed send the value
-    payload.appPassword = appPassword || null;
+    // App password: only send if the user typed something
+    // Blank = keep existing; to clear, we don't support that from settings (use logout)
+    if (appPassword) {
+      payload.appPassword = appPassword;
+    }
 
     try {
       const res = await fetch("/api/settings", {
@@ -281,12 +282,12 @@ export default function SettingsPage() {
               </legend>
               <span
                 className={`text-[10px] font-mono px-2 py-0.5 rounded border uppercase ${
-                  settings?.appPassword
+                  settings?._passwordIsSet
                     ? "text-[#F5A623] border-[#F5A623]/40"
                     : "text-vault-text-faint border-vault-border"
                 }`}
               >
-                {settings?.appPassword ? "Password Set" : "No Password"}
+                {settings?._passwordIsSet ? "Password Set" : "No Password"}
               </span>
             </div>
 
@@ -305,7 +306,11 @@ export default function SettingsPage() {
                   type={showPassword ? "text" : "password"}
                   value={appPassword}
                   onChange={(e) => setAppPassword(e.target.value)}
-                  placeholder="Leave blank to disable password protection"
+                  placeholder={
+                    settings?._passwordIsSet
+                      ? "Enter new password to change"
+                      : "Set a password to restrict access"
+                  }
                   className={`${INPUT_CLASS} pr-10`}
                   autoComplete="new-password"
                 />
@@ -321,58 +326,6 @@ export default function SettingsPage() {
                 Note: This is a simple access restriction, not end-to-end encryption.
               </p>
             </div>
-          </fieldset>
-
-          {/* ── Encryption at Rest ──────────────────────────── */}
-          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                Encryption at Rest
-              </legend>
-              <span
-                className={`text-[10px] font-mono px-2 py-0.5 rounded border uppercase ${
-                  settings?.encryptionEnabled
-                    ? "text-[#00C853] border-[#00C853]/40"
-                    : "text-vault-text-faint border-vault-border"
-                }`}
-              >
-                {settings?.encryptionEnabled ? "Active" : "Not Configured"}
-              </span>
-            </div>
-
-            <p className="text-xs text-vault-text-muted leading-relaxed">
-              When a <code className="text-vault-text-faint font-mono">VAULT_ENCRYPTION_KEY</code> is
-              set, sensitive fields are encrypted in the database using AES-256-GCM. The key is
-              set via the installer or manually in your <code className="text-vault-text-faint font-mono">.blackvault.env</code> file.
-            </p>
-
-            {settings?.encryptionEnabled ? (
-              <div className="space-y-2">
-                <p className="text-[10px] uppercase tracking-widest text-vault-text-faint font-mono mb-2">
-                  Encrypted Fields
-                </p>
-                {["Serial Number", "Notes"].map((field) => (
-                  <div key={field} className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#00C853]" />
-                    <span className="text-xs text-vault-text-muted">{field}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="bg-[#F5A623]/5 border border-[#F5A623]/20 rounded-md px-4 py-3">
-                <p className="text-xs text-[#F5A623] font-mono">
-                  To enable encryption, generate a key and add it to your environment:
-                </p>
-                <p className="text-[11px] font-mono text-vault-text-faint mt-1 break-all">
-                  openssl rand -hex 32
-                </p>
-                <p className="text-[11px] text-vault-text-faint mt-1">
-                  Then set <code className="font-mono">VAULT_ENCRYPTION_KEY=&lt;key&gt;</code> in{" "}
-                  <code className="font-mono">.blackvault.env</code> and restart.
-                </p>
-              </div>
-            )}
           </fieldset>
 
           {/* ── Status Summary ──────────────────────────────── */}
@@ -398,14 +351,9 @@ export default function SettingsPage() {
               />
               <StatusRow
                 label="App Password"
-                value={settings?.appPassword ? "Enabled" : "Disabled"}
-                ok={!!settings?.appPassword}
+                value={settings?._passwordIsSet ? "Enabled" : "Disabled"}
+                ok={!!settings?._passwordIsSet}
                 neutralIfFalse
-              />
-              <StatusRow
-                label="Encryption at Rest"
-                value={settings?.encryptionEnabled ? "Active" : "Not configured"}
-                ok={!!settings?.encryptionEnabled}
               />
             </div>
           </div>

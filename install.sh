@@ -40,15 +40,17 @@ echo ""
 read -rp "Port to run BlackVault on [3000]: " PORT_INPUT
 PORT="${PORT_INPUT:-3000}"
 
-# ── Generate encryption key ───────────────────────────────────
+# ── Generate encryption key and session secret ────────────────
 echo ""
-echo "Generating AES-256-GCM encryption key..."
+echo "Generating AES-256-GCM encryption key and session secret..."
 if command -v openssl &>/dev/null; then
   VAULT_ENCRYPTION_KEY=$(openssl rand -hex 32)
+  SESSION_SECRET=$(openssl rand -base64 32 | tr -d '\n')
 elif command -v python3 &>/dev/null; then
   VAULT_ENCRYPTION_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+  SESSION_SECRET=$(python3 -c "import secrets, base64; print(base64.b64encode(secrets.token_bytes(32)).decode())")
 else
-  echo "ERROR: Neither 'openssl' nor 'python3' is available to generate a key."
+  echo "ERROR: Neither 'openssl' nor 'python3' is available to generate keys."
   echo "       Install one of them and re-run."
   exit 1
 fi
@@ -66,8 +68,10 @@ cat > .blackvault.env <<EOF
 DATA_DIR=$DATA_DIR
 PORT=$PORT
 VAULT_ENCRYPTION_KEY=$VAULT_ENCRYPTION_KEY
+SESSION_SECRET=$SESSION_SECRET
 EOF
 
+chmod 600 .blackvault.env
 echo "Configuration written to .blackvault.env"
 
 # ── Pull and start ────────────────────────────────────────────

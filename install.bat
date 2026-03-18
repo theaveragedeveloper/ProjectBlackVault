@@ -37,15 +37,23 @@ set /p PORT_INPUT="Port to run BlackVault on [3000]: "
 if "%PORT_INPUT%"=="" set PORT=3000
 if not "%PORT_INPUT%"=="" set PORT=%PORT_INPUT%
 
-:: ── Generate encryption key ───────────────────────────────────
+:: ── Generate encryption key and session secret ────────────────
 echo.
-echo Generating AES-256-GCM encryption key...
+echo Generating AES-256-GCM encryption key and session secret...
 for /f "delims=" %%k in ('powershell -NoProfile -Command "([System.BitConverter]::ToString([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32)) -replace '-','').ToLower()"') do (
   set VAULT_ENCRYPTION_KEY=%%k
+)
+for /f "delims=" %%s in ('powershell -NoProfile -Command "[Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32))"') do (
+  set SESSION_SECRET=%%s
 )
 
 if "!VAULT_ENCRYPTION_KEY!"=="" (
   echo ERROR: Failed to generate encryption key. Ensure PowerShell is available.
+  pause
+  exit /b 1
+)
+if "!SESSION_SECRET!"=="" (
+  echo ERROR: Failed to generate session secret. Ensure PowerShell is available.
   pause
   exit /b 1
 )
@@ -64,6 +72,7 @@ if not exist "!DATA_DIR!\uploads" mkdir "!DATA_DIR!\uploads"
   echo DATA_DIR=!DATA_DIR!
   echo PORT=!PORT!
   echo VAULT_ENCRYPTION_KEY=!VAULT_ENCRYPTION_KEY!
+  echo SESSION_SECRET=!SESSION_SECRET!
 ) > .blackvault.env
 
 echo Configuration written to .blackvault.env

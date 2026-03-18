@@ -13,9 +13,10 @@ import {
   ChevronRight,
   Zap,
   X,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 const NAV_ITEMS = [
   {
@@ -70,6 +71,11 @@ interface SidebarProps {
 export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+
+  const handleLogout = useCallback(async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    window.location.href = "/login";
+  }, []);
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -144,8 +150,19 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
         })}
       </nav>
 
-      {/* Collapse toggle — desktop only */}
-      <div className="hidden md:block px-2 pb-3 shrink-0 border-t border-vault-border pt-2">
+      {/* Logout + Collapse — desktop only */}
+      <div className="hidden md:block px-2 pb-3 shrink-0 border-t border-vault-border pt-2 space-y-0.5">
+        <button
+          onClick={handleLogout}
+          title={collapsed ? "Log Out" : undefined}
+          className="w-full flex items-center gap-3 px-2.5 py-2 rounded-md text-sm transition-colors hover:bg-vault-border"
+          style={{ color: "#E53935" }}
+        >
+          <LogOut className={cn("shrink-0", collapsed ? "w-5 h-5" : "w-4 h-4")} />
+          {!collapsed && (
+            <span className="font-medium tracking-wide text-xs uppercase">Log Out</span>
+          )}
+        </button>
         <button
           onClick={() => setCollapsed(!collapsed)}
           className="w-full flex items-center justify-center gap-2 px-2.5 py-2 rounded-md text-vault-text-faint hover:text-vault-text-muted hover:bg-vault-border transition-colors"

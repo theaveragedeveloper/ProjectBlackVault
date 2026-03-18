@@ -122,7 +122,8 @@ export default function AccessoryDetailPage() {
 
   async function submitLogRounds(e: React.FormEvent) {
     e.preventDefault();
-    if (!logRounds || parseInt(logRounds) <= 0) return;
+    const parsedRounds = parseInt(logRounds, 10);
+    if (isNaN(parsedRounds) || parsedRounds <= 0) return;
     setLogSubmitting(true);
     setLogError(null);
 
@@ -130,7 +131,7 @@ export default function AccessoryDetailPage() {
       const res = await fetch(`/api/accessories/${id}/rounds`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rounds: parseInt(logRounds), note: logNote || undefined }),
+        body: JSON.stringify({ rounds: parsedRounds, note: logNote || undefined }),
       });
       const json = await res.json();
       if (!res.ok) {
