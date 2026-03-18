@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { encryptField, decryptField } from "@/lib/crypto";
 import { revalidateDashboardCaches } from "@/lib/server/dashboard";
 import { validateOptionalImageUrl } from "@/lib/image-url-validation";
 import { requireAuth } from "@/lib/server/auth";
@@ -57,6 +58,7 @@ export async function GET(
 
     return NextResponse.json({
       ...accessory,
+      notes: await decryptField(accessory.notes),
       currentBuild: activeSlot
         ? {
             id: activeSlot.build.id,
@@ -139,7 +141,7 @@ export async function PUT(
             ? (() => { const d = new Date(acquisitionDate); return isNaN(d.getTime()) ? null : d; })()
             : null,
         }),
-        ...(notes !== undefined && { notes }),
+        ...(notes !== undefined && { notes: notes ? await encryptField(notes) : null }),
         ...(imageUrl !== undefined && { imageUrl: imageUrl?.trim() || null }),
         ...(imageSource !== undefined && { imageSource }),
         ...(compatibleFirearmTypes !== undefined && { compatibleFirearmTypes }),

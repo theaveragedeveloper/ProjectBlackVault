@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { encryptField, decryptField } from "@/lib/crypto";
 import { revalidateDashboardCaches } from "@/lib/server/dashboard";
 import { validateOptionalImageUrl } from "@/lib/image-url-validation";
 import { requireAuth } from "@/lib/server/auth";
@@ -39,22 +40,25 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    const result = accessories.map((accessory) => {
-      const activeSlot = accessory.buildSlots.find(
-        (slot) => slot.build.isActive
-      );
-      return {
-        ...accessory,
-        currentBuild: activeSlot
-          ? {
-              id: activeSlot.build.id,
-              name: activeSlot.build.name,
-              slotType: activeSlot.slotType,
-              firearm: activeSlot.build.firearm,
-            }
-          : null,
-      };
-    });
+    const result = await Promise.all(
+      accessories.map(async (accessory) => {
+        const activeSlot = accessory.buildSlots.find(
+          (slot) => slot.build.isActive
+        );
+        return {
+          ...accessory,
+          notes: await decryptField(accessory.notes),
+          currentBuild: activeSlot
+            ? {
+                id: activeSlot.build.id,
+                name: activeSlot.build.name,
+                slotType: activeSlot.slotType,
+                firearm: activeSlot.build.firearm,
+              }
+            : null,
+        };
+      })
+    );
 
     return NextResponse.json(result);
   } catch (error) {
@@ -123,7 +127,7 @@ export async function POST(request: NextRequest) {
               return isNaN(d.getTime()) ? null : d;
             })()
           : null,
-        notes: notes ?? null,
+        notes: notes ? await encryptField(notes) : null,
         imageUrl: imageValidation.normalized,
         imageSource: imageSource ?? null,
         compatibleFirearmTypes: compatibleFirearmTypes ?? null,
