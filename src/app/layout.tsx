@@ -5,6 +5,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { MobileHeader } from "@/components/layout/MobileHeader";
 import { ThemeProvider } from "@/components/layout/ThemeProvider";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { ToastProvider } from "@/components/shared/ToastProvider";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
@@ -40,6 +41,7 @@ export default function RootLayout({
             </div>
           </div>
           <ThemeToggle />
+          <ToastProvider />
         </ThemeProvider>
       </body>
     </html>
