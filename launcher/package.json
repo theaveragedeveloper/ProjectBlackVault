@@ -1,0 +1,67 @@
+{
+  "name": "projectblackvault-launcher",
+  "version": "1.0.0",
+  "description": "Desktop launcher for ProjectBlackVault — no terminal required",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --publish never",
+    "dist": "electron-builder --publish always"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.0"
+  },
+  "devDependencies": {
+    "@electron/notarize": "^2.5.0",
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "io.github.theaveragedeveloper.projectblackvault",
+    "productName": "ProjectBlackVault",
+    "icon": "assets/icon.png",
+    "extraResources": [
+      { "from": "docker-compose.yml", "to": "docker-compose.yml" }
+    ],
+    "files": [
+      "main.js",
+      "preload.js",
+      "scripts/**",
+      "renderer/**",
+      "assets/**"
+    ],
+    "afterSign": "scripts/notarize.js",
+    "artifactName": "${productName}-Setup.${ext}",
+    "win": {
+      "signAndEditExecutable": true,
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "mac": {
+      "target": "dmg",
+      "artifactName": "${productName}.${ext}",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "assets/entitlements.mac.plist",
+      "entitlementsInherit": "assets/entitlements.mac.inherit.plist",
+      "notarize": true,
+      "extendInfo": {
+        "NSUIElement": 1
+      }
+    },
+    "linux": {
+      "target": "AppImage",
+      "category": "Utility"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "theaveragedeveloper",
+      "repo": "ProjectBlackVault"
+    }
+  }
+}

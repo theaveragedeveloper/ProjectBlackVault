@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/session";
+import { cookies } from "next/headers";
+import { getSessionCookieOptions } from "@/lib/session-config";
 
 export async function POST() {
-  try {
-    const session = await getSession();
-    await session.destroy();
-    return NextResponse.json({ ok: true });
-  } catch (error) {
-    console.error("POST /api/auth/logout error:", error);
-    return NextResponse.json({ error: "Logout failed" }, { status: 500 });
-  }
+  const cookieStore = await cookies();
+  cookieStore.set("vault_session", "", {
+    ...getSessionCookieOptions(),
+    maxAge: 0,
+  });
+  return NextResponse.json({ success: true });
 }

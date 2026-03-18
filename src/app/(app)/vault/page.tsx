@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { formatCurrency } from "@/lib/utils";
+import { SafeImage } from "@/components/shared/SafeImage";
+import { formatCurrency, formatNumber } from "@/lib/utils";
+import { FIREARM_TYPE_LABELS as IMPORTED_TYPE_LABELS, TYPE_BADGE_COLORS as IMPORTED_BADGE_COLORS } from "@/lib/types";
 import {
   Shield,
   Plus,
@@ -15,38 +18,24 @@ import {
   Pencil,
   Trash2,
   CheckCircle2,
+  Search,
 } from "lucide-react";
 
 const FIREARM_TYPES = ["ALL", "PISTOL", "RIFLE", "SHOTGUN", "SMG", "PCC", "REVOLVER", "BOLT_ACTION", "LEVER_ACTION"] as const;
 
 const FIREARM_TYPE_LABELS: Record<string, string> = {
   ALL: "All",
-  PISTOL: "Pistol",
-  RIFLE: "Rifle",
-  SHOTGUN: "Shotgun",
-  SMG: "SMG",
-  PCC: "PCC",
-  REVOLVER: "Revolver",
-  BOLT_ACTION: "Bolt Action",
-  LEVER_ACTION: "Lever Action",
+  ...IMPORTED_TYPE_LABELS,
 };
 
-const TYPE_BADGE_COLORS: Record<string, string> = {
-  PISTOL: "border-[#00C2FF]/40 text-[#00C2FF]",
-  RIFLE: "border-[#00C853]/40 text-[#00C853]",
-  SHOTGUN: "border-[#F5A623]/40 text-[#F5A623]",
-  SMG: "border-[#9C27B0]/40 text-[#CE93D8]",
-  PCC: "border-[#00BCD4]/40 text-[#00BCD4]",
-  REVOLVER: "border-[#E53935]/40 text-[#EF9A9A]",
-  BOLT_ACTION: "border-[#8B9DB0]/40 text-vault-text-muted",
-  LEVER_ACTION: "border-[#FF7043]/40 text-[#FF7043]",
-};
+const TYPE_BADGE_COLORS = IMPORTED_BADGE_COLORS;
 
 interface ActiveBuild {
   id: string;
   name: string;
   isActive: boolean;
-  slots: { id: string; slotType: string; accessoryId: string | null }[];
+  imageUrl: string | null;
+  slots: { id: string; slotType: string; accessoryId: string | null; accessory: { roundCount: number } | null }[];
 }
 
 interface Firearm {
@@ -71,6 +60,10 @@ interface Build {
   isActive: boolean;
   sortOrder: number;
   slots: { id: string; slotType: string; accessory: { id: string; name: string } | null }[];
+}
+
+interface BatchedBuild extends Build {
+  firearmId: string;
 }
 
 function FirearmTypeIcon({ type }: { type: string }) {
@@ -103,28 +96,32 @@ function FirearmCard({ firearm, editMode, editBuilds, onDeleteBuild }: FirearmCa
   const typeLabel = FIREARM_TYPE_LABELS[firearm.type] ?? firearm.type;
   const activeBuild = firearm.activeBuild;
   const accessoryCount = activeBuild?.slots?.filter((s) => s.accessoryId).length ?? 0;
+  const totalRounds = activeBuild?.slots?.reduce((sum, s) => sum + (s.accessory?.roundCount ?? 0), 0) ?? 0;
+  // Use firearm photo if available; fall back to active build's photo
+  const displayImageUrl = firearm.imageUrl ?? activeBuild?.imageUrl ?? null;
 
   return (
     <div className="bg-vault-surface border border-vault-border rounded-lg overflow-hidden hover:border-[#00C2FF]/30 transition-colors group flex flex-col">
       {/* Image / Placeholder */}
       <div className="h-40 bg-vault-bg relative overflow-hidden border-b border-vault-border">
-        {firearm.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={firearm.imageUrl}
-            alt={firearm.name}
-            className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center tactical-grid">
-            <div className="flex flex-col items-center gap-2 opacity-40">
-              <FirearmTypeIcon type={firearm.type} />
-              <span className="text-xs font-mono uppercase text-vault-text-faint tracking-widest">
-                {typeLabel}
-              </span>
+        <SafeImage
+          src={displayImageUrl}
+          alt={firearm.name}
+          fill
+          sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
+          loading="lazy"
+          className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
+          fallback={
+            <div className="w-full h-full flex items-center justify-center tactical-grid">
+              <div className="flex flex-col items-center gap-2 opacity-40">
+                <FirearmTypeIcon type={firearm.type} />
+                <span className="text-xs font-mono uppercase text-vault-text-faint tracking-widest">
+                  {typeLabel}
+                </span>
+              </div>
             </div>
-          </div>
-        )}
+          }
+        />
         {/* Type badge overlay */}
         <div className="absolute top-2 right-2">
           <span className={`text-[10px] px-2 py-0.5 rounded border font-mono uppercase bg-vault-bg/80 backdrop-blur-sm ${typeBadge}`}>
@@ -172,7 +169,7 @@ function FirearmCard({ firearm, editMode, editBuilds, onDeleteBuild }: FirearmCa
               <span className="text-xs text-[#00C853] font-medium truncate">{activeBuild.name}</span>
             </div>
             <p className="text-[10px] text-vault-text-faint mt-0.5 ml-4.5">
-              {accessoryCount} accessor{accessoryCount !== 1 ? "ies" : "y"}
+              {accessoryCount} accessor{accessoryCount !== 1 ? "ies" : "y"} · {formatNumber(totalRounds)} rds
             </p>
           </div>
         )}
@@ -249,9 +246,11 @@ function FirearmCard({ firearm, editMode, editBuilds, onDeleteBuild }: FirearmCa
 }
 
 export default function VaultPage() {
+  const router = useRouter();
   const [firearms, setFirearms] = useState<Firearm[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<string>("ALL");
+  const [searchQuery, setSearchQuery] = useState("");
   const [editMode, setEditMode] = useState(false);
   const [buildsByFirearm, setBuildsByFirearm] = useState<Record<string, Build[]>>({});
   const [deleteTarget, setDeleteTarget] = useState<{
@@ -259,6 +258,38 @@ export default function VaultPage() {
     accessories: { id: string; name: string }[];
   } | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  async function fetchBuildsForFirearms(firearmIds: string[]) {
+    if (firearmIds.length === 0) {
+      setBuildsByFirearm({});
+      return;
+    }
+
+    const data = await fetch(`/api/builds?firearmIds=${firearmIds.join(",")}`)
+      .then((r) => r.json())
+      .catch(() => []);
+
+    const map = firearmIds.reduce((acc, id) => {
+      acc[id] = [];
+      return acc;
+    }, {} as Record<string, Build[]>);
+
+    if (Array.isArray(data)) {
+      data.forEach((build) => {
+        const typedBuild = build as BatchedBuild;
+        if (!typedBuild.firearmId || !map[typedBuild.firearmId]) return;
+        map[typedBuild.firearmId].push({
+          id: typedBuild.id,
+          name: typedBuild.name,
+          isActive: typedBuild.isActive,
+          sortOrder: typedBuild.sortOrder,
+          slots: typedBuild.slots,
+        });
+      });
+    }
+
+    setBuildsByFirearm(map);
+  }
 
   useEffect(() => {
     fetch("/api/firearms")
@@ -272,17 +303,7 @@ export default function VaultPage() {
 
   useEffect(() => {
     if (!editMode) return;
-    Promise.all(
-      firearms.map(f =>
-        fetch(`/api/builds?firearmId=${f.id}`)
-          .then(r => r.json())
-          .then(data => ({ firearmId: f.id, builds: Array.isArray(data) ? data : [] }))
-      )
-    ).then(results => {
-      const map: Record<string, Build[]> = {};
-      results.forEach(r => { map[r.firearmId] = r.builds; });
-      setBuildsByFirearm(map);
-    });
+    fetchBuildsForFirearms(firearms.map((f) => f.id));
   }, [editMode, firearms]);
 
   function openDeleteModal(build: Build & { firearmId: string }, accessories: { id: string; name: string }[]) {
@@ -305,16 +326,19 @@ export default function VaultPage() {
         );
       }
 
-      // Refresh firearms list
-      const res = await fetch("/api/firearms");
-      const data = await res.json();
-      if (Array.isArray(data)) setFirearms(data);
+      // Refresh only the affected firearm card data
+      const firearmRes = await fetch(`/api/firearms/${deleteTarget.build.firearmId}`);
+      const firearmData = await firearmRes.json();
+      if (firearmRes.ok && firearmData?.id) {
+        setFirearms((prev) =>
+          prev.map((firearm) =>
+            firearm.id === firearmData.id ? ({ ...firearm, ...firearmData } as Firearm) : firearm
+          )
+        );
+      }
 
-      // Update buildsByFirearm state
-      const newBuilds = await fetch(`/api/builds?firearmId=${deleteTarget.build.firearmId}`)
-        .then(r => r.json())
-        .then(d => Array.isArray(d) ? d : []);
-      setBuildsByFirearm(prev => ({ ...prev, [deleteTarget.build.firearmId]: newBuilds }));
+      // Refresh only affected firearm builds in edit mode map
+      await fetchBuildsForFirearms([deleteTarget.build.firearmId]);
 
       setDeleteTarget(null);
     } catch (err) {
@@ -324,9 +348,20 @@ export default function VaultPage() {
     }
   }
 
-  const filtered = activeFilter === "ALL"
-    ? firearms
-    : firearms.filter((f) => f.type === activeFilter);
+  const filtered = firearms.filter((f) => {
+    if (activeFilter !== "ALL" && f.type !== activeFilter) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      return (
+        f.name.toLowerCase().includes(q) ||
+        f.manufacturer.toLowerCase().includes(q) ||
+        f.model.toLowerCase().includes(q) ||
+        f.caliber.toLowerCase().includes(q) ||
+        f.serialNumber.toLowerCase().includes(q)
+      );
+    }
+    return true;
+  });
 
   const counts = FIREARM_TYPES.reduce((acc, t) => {
     acc[t] = t === "ALL" ? firearms.length : firearms.filter((f) => f.type === t).length;
@@ -336,7 +371,7 @@ export default function VaultPage() {
   return (
     <div className="min-h-full">
       <PageHeader
-        title="VAULT"
+        title="Vault"
         subtitle={`${firearms.length} firearm${firearms.length !== 1 ? "s" : ""} in inventory`}
         actions={
           <div className="flex items-center gap-2">
@@ -363,6 +398,18 @@ export default function VaultPage() {
       />
 
       <div className="p-6">
+        {/* Search */}
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-vault-text-faint pointer-events-none" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by name, manufacturer, model, caliber, or serial..."
+            className="w-full bg-vault-surface border border-vault-border text-vault-text rounded-md pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint transition-colors"
+          />
+        </div>
+
         {/* Type Filters */}
         <div className="flex items-center gap-2 mb-6 flex-wrap">
           {FIREARM_TYPES.map((type) => {
@@ -436,9 +483,17 @@ export default function VaultPage() {
                   onDeleteBuild={openDeleteModal}
                 />
               ) : (
-                <Link key={firearm.id} href={`/vault/${firearm.id}`} className="block">
+                <div
+                  key={firearm.id}
+                  onClick={(e) => {
+                    // Only navigate to detail if the click wasn't on an inner link
+                    if ((e.target as HTMLElement).closest("a")) return;
+                    router.push(`/vault/${firearm.id}`);
+                  }}
+                  className="block cursor-pointer"
+                >
                   <FirearmCard firearm={firearm} />
-                </Link>
+                </div>
               )
             )}
           </div>
@@ -447,8 +502,15 @@ export default function VaultPage() {
 
       {/* Delete confirmation modal */}
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{backgroundColor: "rgba(5,7,9,0.9)"}}>
-          <div className="bg-vault-surface border border-vault-border rounded-xl w-full max-w-md animate-slide-up shadow-2xl">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{backgroundColor: "rgba(5,7,9,0.9)"}}
+          onClick={() => !deleting && setDeleteTarget(null)}
+        >
+          <div
+            className="bg-vault-surface border border-vault-border rounded-xl w-full max-w-md animate-slide-up shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 rounded-full bg-[#E53935]/10 border border-[#E53935]/20 flex items-center justify-center">

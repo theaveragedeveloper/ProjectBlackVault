@@ -332,6 +332,84 @@ async function main() {
   const ammoCount = await prisma.ammoStock.count();
   console.log(`  Ammo stocks: ${ammoCount} records in table`);
 
+  // ─── DRILL TEMPLATES ──────────────────────────────────────────
+  const drillTemplates = [
+    {
+      name: "Bill Drill",
+      description: "Draw and fire 6 rounds at 7 yards as fast as possible while maintaining accuracy (A-zone hits).",
+      category: "SPEED",
+      scoringType: "TIME",
+      parTime: 2.0,
+      isBuiltIn: true,
+    },
+    {
+      name: "FAST Test",
+      description: "Draw, fire 2 rounds to body, slide lock reload, fire 1 round to body, 1 round to head at 7 yards.",
+      category: "SPEED",
+      scoringType: "TIME_AND_SCORE",
+      parTime: 5.0,
+      isBuiltIn: true,
+    },
+    {
+      name: "El Presidente",
+      description: "3 targets at 10 yards, start facing uprange. Turn, draw, fire 2 rounds each, reload, fire 2 rounds each.",
+      category: "TACTICAL",
+      scoringType: "TIME",
+      parTime: 10.0,
+      isBuiltIn: true,
+    },
+    {
+      name: "Failure to Stop",
+      description: "Fire 2 rounds to body, 1 round to head (Mozambique Drill). Tests controlled pair + precision shot.",
+      category: "TACTICAL",
+      scoringType: "PASS_FAIL",
+      isBuiltIn: true,
+    },
+    {
+      name: "25yd Zero Check",
+      description: "5 rounds slow-fire at 25 yards from a supported position. Verify zero and group consistency.",
+      category: "ACCURACY",
+      scoringType: "SCORE",
+      maxScore: 50,
+      isBuiltIn: true,
+    },
+    {
+      name: "1-Reload-1",
+      description: "Fire 1 round, perform an emergency reload, fire 1 round. Measures reload speed and consistency.",
+      category: "FUNDAMENTALS",
+      scoringType: "TIME",
+      parTime: 4.0,
+      isBuiltIn: true,
+    },
+    {
+      name: "Dot Torture",
+      description: "50-round accuracy drill on 10 small dots at 3-5 yards. Tests trigger control and accuracy fundamentals.",
+      category: "ACCURACY",
+      scoringType: "SCORE",
+      maxScore: 50,
+      isBuiltIn: true,
+    },
+    {
+      name: "Cold Bore Shot",
+      description: "First round of the session from position. Records where the cold bore shot impacts vs. zero.",
+      category: "FUNDAMENTALS",
+      scoringType: "NOTES_ONLY",
+      isBuiltIn: true,
+    },
+  ];
+
+  for (const tpl of drillTemplates) {
+    const existing = await prisma.drillTemplate.findFirst({
+      where: { name: tpl.name, isBuiltIn: true },
+    });
+    if (!existing) {
+      await prisma.drillTemplate.create({ data: tpl });
+    }
+  }
+
+  const drillCount = await prisma.drillTemplate.count();
+  console.log(`  Drill templates: ${drillCount} records in table`);
+
   console.log("Seed complete.");
 }
 

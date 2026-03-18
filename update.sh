@@ -20,14 +20,21 @@ echo "Restarting with updated image..."
 docker compose $ENV_ARGS up -d
 
 echo ""
-echo "Waiting for health check..."
-sleep 5
-
-if docker compose $ENV_ARGS ps | grep -q "healthy\|running"; then
-  echo "BlackVault is running and healthy."
-else
-  echo "Container started — check logs with: docker compose $ENV_ARGS logs -f"
-fi
+PORT=$(grep '^PORT=' .blackvault.env 2>/dev/null | cut -d= -f2)
+PORT="${PORT:-3000}"
+echo "Waiting for BlackVault to be ready..."
+MAX_RETRIES=15
+for i in $(seq 1 $MAX_RETRIES); do
+  if wget -qO- "http://localhost:${PORT}/api/health" 2>/dev/null | grep -q '"ok"'; then
+    echo "BlackVault is running and healthy."
+    break
+  fi
+  if [ "$i" -eq "$MAX_RETRIES" ]; then
+    echo "Still starting — check logs with: docker compose $ENV_ARGS logs -f"
+  else
+    sleep 2
+  fi
+done
 
 echo ""
 echo "Update complete."
