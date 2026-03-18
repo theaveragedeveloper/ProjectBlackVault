@@ -135,7 +135,9 @@ export async function PUT(
         ...(caliber !== undefined && { caliber }),
         ...(purchasePrice !== undefined && { purchasePrice }),
         ...(acquisitionDate !== undefined && {
-          acquisitionDate: acquisitionDate ? new Date(acquisitionDate) : null,
+          acquisitionDate: acquisitionDate
+            ? (() => { const d = new Date(acquisitionDate); return isNaN(d.getTime()) ? null : d; })()
+            : null,
         }),
         ...(notes !== undefined && { notes }),
         ...(imageUrl !== undefined && { imageUrl: imageUrl?.trim() || null }),
