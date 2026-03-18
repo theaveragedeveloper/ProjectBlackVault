@@ -1,0 +1,3 @@
+# Ensure binary assets are always treated as binary in diffs/patch tooling
+*.png binary
+*.ico binary

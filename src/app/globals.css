@@ -55,6 +55,14 @@
   --color-vault-text:        var(--vault-text);
   --color-vault-text-muted:  var(--vault-text-muted);
   --color-vault-text-faint:  var(--vault-text-faint);
+  --color-vault-accent:      var(--vault-accent);
+  --color-vault-accent-dim:  var(--vault-accent-dim);
+  --color-vault-danger:      var(--vault-danger);
+  --color-vault-danger-dim:  var(--vault-danger-dim);
+  --color-vault-success:     var(--vault-success);
+  --color-vault-success-dim: var(--vault-success-dim);
+  --color-vault-warn:        var(--vault-warn);
+  --color-vault-warn-dim:    var(--vault-warn-dim);
 }
 
 /* ── Base ─────────────────────────────────────────────────── */
@@ -65,6 +73,22 @@
 html {
   scrollbar-color: var(--vault-muted) var(--vault-surface);
   scrollbar-width: thin;
+}
+
+html, body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  -webkit-tap-highlight-color: transparent;
+}
+
+@supports (padding: env(safe-area-inset-top)) {
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
 }
 
 body {
@@ -154,9 +178,133 @@ textarea::placeholder {
 .animate-pulse-ring { animation: pulse-ring 2s ease-in-out infinite; }
 .animate-blink      { animation: blink 1.5s ease-in-out infinite; }
 .animate-slide-up   { animation: slide-up 0.2s ease-out; }
+.animate-slot-enter { animation: slot-enter 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+
+@keyframes slot-enter {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes label-enter {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes marker-pulse {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50%       { opacity: 0.9; transform: scale(1.25); }
+}
+
+.animate-marker-pulse { animation: marker-pulse 2.4s ease-in-out infinite; }
 
 /* ── Selection color ──────────────────────────────────────── */
 ::selection {
   background: rgba(0, 194, 255, 0.25);
   color: var(--vault-text);
+}
+
+/* ── DOPE Card Print Styles ─────────────────────────────── */
+@media print {
+  @page {
+    size: letter portrait;
+    margin: 0.35in;
+  }
+
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  .print\:hidden {
+    display: none !important;
+  }
+
+  .dope-print-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    border: 1px solid #000 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: #fff !important;
+  }
+
+  .dope-print-index {
+    width: 5in;
+    min-height: 3in;
+  }
+
+  .dope-print-half {
+    width: 8.5in;
+    min-height: 5.5in;
+  }
+
+  .dope-print-compact {
+    width: 3in;
+    min-height: 7in;
+  }
+
+  .dope-print-bold-mode table td:first-child,
+  .dope-print-bold-mode table td:nth-child(2) {
+    font-weight: 700 !important;
+    font-size: 0.9rem !important;
+  }
+
+  .dope-print-bold-mode table th:nth-child(3),
+  .dope-print-bold-mode table th:nth-child(5),
+  .dope-print-bold-mode table td:nth-child(3),
+  .dope-print-bold-mode table td:nth-child(5),
+  .dope-print-bold-mode table th:nth-child(6),
+  .dope-print-bold-mode table td:nth-child(6) {
+    display: none !important;
+  }
+
+  .dope-print-monochrome,
+  .dope-print-monochrome * {
+    color: #000 !important;
+    background: #fff !important;
+    border-color: #000 !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+  }
+
+  .dope-print-card input,
+  .dope-print-card select,
+  .dope-print-card textarea {
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0.1rem 0.2rem !important;
+    background: transparent !important;
+    color: #000 !important;
+    appearance: none;
+  }
+
+  .armory-preview-print {
+    color: #000 !important;
+    background: #fff !important;
+  }
+
+  .armory-preview-print section {
+    background: #fff !important;
+    border-color: #d1d5db !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .armory-preview-print table {
+    width: 100% !important;
+  }
+
+  .armory-preview-print thead {
+    display: table-header-group;
+  }
+
+  .armory-preview-print td,
+  .armory-preview-print th {
+    color: #111 !important;
+  }
+
+  .armory-page-break {
+    break-before: page;
+    page-break-before: always;
+  }
 }

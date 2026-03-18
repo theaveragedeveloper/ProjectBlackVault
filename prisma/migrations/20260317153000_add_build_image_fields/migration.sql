@@ -1,0 +1,2 @@
+ALTER TABLE "Build" ADD COLUMN "imageUrl" TEXT;
+ALTER TABLE "Build" ADD COLUMN "imageSource" TEXT;

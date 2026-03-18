@@ -1,0 +1,68 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { requireAuth } from "@/lib/server/auth";
+
+export async function GET(request: NextRequest) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
+  try {
+    const { searchParams } = new URL(request.url);
+    const firearmId = searchParams.get("firearmId");
+    const limitRaw = parseInt(searchParams.get("limit") ?? "", 10);
+    const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : undefined;
+
+    const notes = await prisma.maintenanceNote.findMany({
+      where: firearmId ? { firearmId } : undefined,
+      include: { firearm: { select: { id: true, name: true } } },
+      orderBy: { date: "desc" },
+      take: limit,
+    });
+
+    return NextResponse.json(notes);
+  } catch (error) {
+    console.error("GET /api/maintenance-notes error:", error);
+    return NextResponse.json({ error: "Failed to fetch maintenance notes" }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
+  try {
+    const body = await request.json();
+    const { firearmId, description, type, date, mileage } = body;
+
+    if (!firearmId || !description) {
+      return NextResponse.json(
+        { error: "Missing required fields: firearmId, description" },
+        { status: 400 }
+      );
+    }
+
+    const mileageInt = mileage !== undefined && mileage !== null
+      ? parseInt(String(mileage), 10)
+      : null;
+
+    if (mileageInt !== null && Number.isNaN(mileageInt)) {
+      return NextResponse.json({ error: "mileage must be a valid integer" }, { status: 400 });
+    }
+
+    const note = await prisma.maintenanceNote.create({
+      data: {
+        firearmId,
+        description: typeof description === "string" ? description.slice(0, 5000) : String(description),
+        type: typeof type === "string" ? type.slice(0, 100) : "Other",
+        date: date ? new Date(date) : new Date(),
+        mileage: mileageInt,
+      },
+      include: { firearm: { select: { id: true, name: true } } },
+    });
+
+    return NextResponse.json(note, { status: 201 });
+  } catch (error) {
+    console.error("POST /api/maintenance-notes error:", error);
+    return NextResponse.json({ error: "Failed to create maintenance note" }, { status: 500 });
+  }
+}
