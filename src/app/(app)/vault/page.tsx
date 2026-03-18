@@ -259,15 +259,15 @@ export default function VaultPage() {
   } | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  async function fetchBuildsForFirearms(firearmIds: string[]) {
+  async function fetchBuildsForFirearms(firearmIds: string[], signal?: AbortSignal) {
     if (firearmIds.length === 0) {
       setBuildsByFirearm({});
       return;
     }
 
-    const data = await fetch(`/api/builds?firearmIds=${firearmIds.join(",")}`)
+    const data = await fetch(`/api/builds?firearmIds=${firearmIds.join(",")}`, signal ? { signal } : undefined)
       .then((r) => r.json())
-      .catch(() => []);
+      .catch((err) => { if (err.name !== "AbortError") console.error(err); return []; });
 
     const map = firearmIds.reduce((acc, id) => {
       acc[id] = [];
@@ -303,7 +303,9 @@ export default function VaultPage() {
 
   useEffect(() => {
     if (!editMode) return;
-    fetchBuildsForFirearms(firearms.map((f) => f.id));
+    const controller = new AbortController();
+    fetchBuildsForFirearms(firearms.map((f) => f.id), controller.signal);
+    return () => controller.abort();
   }, [editMode, firearms]);
 
   function openDeleteModal(build: Build & { firearmId: string }, accessories: { id: string; name: string }[]) {
