@@ -117,7 +117,12 @@ export async function POST(request: NextRequest) {
         type,
         caliber: caliber ?? null,
         purchasePrice: purchasePrice ?? null,
-        acquisitionDate: acquisitionDate ? new Date(acquisitionDate) : null,
+        acquisitionDate: acquisitionDate
+          ? (() => {
+              const d = new Date(acquisitionDate);
+              return isNaN(d.getTime()) ? null : d;
+            })()
+          : null,
         notes: notes ?? null,
         imageUrl: imageValidation.normalized,
         imageSource: imageSource ?? null,
