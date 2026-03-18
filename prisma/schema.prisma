@@ -43,6 +43,8 @@ model Build {
   description String?
   isActive    Boolean     @default(false)
   sortOrder   Int         @default(0)
+  status      String      @default("in-progress")
+  notes       String?
   firearmId   String
   firearm     Firearm     @relation(fields: [firearmId], references: [id], onDelete: Cascade)
 
@@ -53,6 +55,7 @@ model Build {
 
   @@index([firearmId])
   @@index([isActive])
+  @@index([status])
 }
 
 model BuildSlot {
