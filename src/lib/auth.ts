@@ -1,17 +1,18 @@
-import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-
-const BCRYPT_ROUNDS = 10;
+import {
+  hashPassword as hashPasswordSync,
+  verifyPassword as verifyPasswordSync,
+} from "@/lib/password";
 
 export async function hashPassword(plain: string): Promise<string> {
-  return bcrypt.hash(plain, BCRYPT_ROUNDS);
+  return hashPasswordSync(plain);
 }
 
 export async function verifyPassword(
   plain: string,
   hash: string
 ): Promise<boolean> {
-  return bcrypt.compare(plain, hash);
+  return verifyPasswordSync(plain, hash);
 }
 
 export async function isPasswordSet(): Promise<boolean> {

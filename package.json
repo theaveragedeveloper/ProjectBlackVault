@@ -1,5 +1,5 @@
 {
-  "name": "blackvault-temp",
+  "name": "project-black-vault",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -70,5 +70,23 @@
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
-  }
+  },
+  "description": "Private, offline-first, self-hosted firearms inventory, ammo, maintenance, and training tracker.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/theaveragedeveloper/ProjectBlackVault.git"
+  },
+  "homepage": "https://github.com/theaveragedeveloper/ProjectBlackVault",
+  "bugs": {
+    "url": "https://github.com/theaveragedeveloper/ProjectBlackVault/issues"
+  },
+  "keywords": [
+    "self-hosted",
+    "inventory",
+    "home-server",
+    "firearms",
+    "tracking",
+    "offline-first"
+  ]
 }

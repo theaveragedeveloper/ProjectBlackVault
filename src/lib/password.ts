@@ -5,7 +5,12 @@ const PREFIX = "scrypt:";
 const SALT_BYTES = 16;
 const KEY_LEN = 64;
 // Use explicit, stronger-than-default scrypt parameters (OWASP recommends N≥65536)
-const SCRYPT_PARAMS = { N: 65536, r: 8, p: 1 } as const;
+const SCRYPT_PARAMS = {
+  N: 65536,
+  r: 8,
+  p: 1,
+  maxmem: 128 * 1024 * 1024,
+} as const;
 
 /**
  * Hash a plaintext password using scrypt. Returns a storable string.
