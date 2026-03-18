@@ -6,6 +6,7 @@ import Link from "next/link";
 import { FIREARM_TYPES, FIREARM_TYPE_LABELS, COMMON_CALIBERS } from "@/lib/types";
 import { ArrowLeft, Save, Loader2, AlertCircle, Trash2 } from "lucide-react";
 import ImagePicker from "@/components/shared/ImagePicker";
+import { InfoTooltip } from "@/components/shared/InfoTooltip";
 
 const INPUT_CLASS =
   "w-full bg-vault-surface border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint transition-colors";
@@ -241,7 +242,7 @@ export default function EditFirearmPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className={LABEL_CLASS}>Caliber <span className="text-[#E53935]">*</span></label>
+                <label className={LABEL_CLASS}>Caliber <span className="text-[#E53935]">*</span><InfoTooltip content="The internal diameter of the barrel and the cartridge the firearm is chambered for" /></label>
                 <div className="relative" ref={caliberRef}>
                   <input
                     type="text"

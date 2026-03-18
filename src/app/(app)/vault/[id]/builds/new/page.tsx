@@ -10,6 +10,8 @@ import {
   AlertCircle,
   CheckCircle2,
 } from "lucide-react";
+import { BUILD_STATUSES } from "@/lib/types";
+import { useToast } from "@/lib/store";
 
 const INPUT_CLASS =
   "w-full bg-vault-surface border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint transition-colors";
@@ -37,6 +39,8 @@ export default function NewBuildPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isActive, setIsActive] = useState(false);
+  const [buildStatus, setBuildStatus] = useState<string>("in-progress");
+  const toast = useToast();
 
   useEffect(() => {
     fetch(`/api/firearms/${firearmId}`)
@@ -68,6 +72,7 @@ export default function NewBuildPage() {
       description: (data.get("description") as string) || null,
       firearmId,
       isActive,
+      status: buildStatus,
     };
 
     try {
@@ -85,6 +90,7 @@ export default function NewBuildPage() {
         return;
       }
 
+      toast.success("Build created");
       router.push(`/vault/${firearmId}/builds/${json.id}`);
     } catch {
       setError("Network error. Please try again.");
@@ -190,10 +196,40 @@ export default function NewBuildPage() {
             </div>
           </fieldset>
 
+          {/* Build status */}
+          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5">
+            <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
+              Build Status
+            </legend>
+            <div className="mt-3 flex gap-2 flex-wrap">
+              {BUILD_STATUSES.map((s) => (
+                <button
+                  key={s.value}
+                  type="button"
+                  onClick={() => setBuildStatus(s.value)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded border text-xs font-medium transition-all ${
+                    buildStatus === s.value
+                      ? s.value === "in-progress"
+                        ? "border-[#00C2FF]/60 bg-[#00C2FF]/10 text-[#00C2FF]"
+                        : s.value === "complete"
+                          ? "border-[#00C853]/60 bg-[#00C853]/10 text-[#00C853]"
+                          : "border-[#F5A623]/60 bg-[#F5A623]/10 text-[#F5A623]"
+                      : "border-vault-border text-vault-text-muted hover:border-vault-text-muted/40"
+                  }`}
+                >
+                  {buildStatus === s.value && (
+                    <CheckCircle2 className="w-3 h-3" />
+                  )}
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+
           {/* Active toggle */}
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5">
             <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
-              Status
+              Activation
             </legend>
             <button
               type="button"

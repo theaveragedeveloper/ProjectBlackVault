@@ -61,7 +61,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, description, isActive, imageUrl, imageSource } = body;
+    const { name, description, isActive, imageUrl, imageSource, status, notes } = body;
 
     const existing = await prisma.build.findUnique({ where: { id } });
     if (!existing) {
@@ -100,6 +100,8 @@ export async function PUT(
         ...(isActive !== undefined && { isActive }),
         ...(imageUrl !== undefined && { imageUrl: normalizedImageUrl }),
         ...(imageSource !== undefined && { imageSource }),
+        ...(status !== undefined && { status }),
+        ...(notes !== undefined && { notes }),
       },
       include: {
         firearm: {

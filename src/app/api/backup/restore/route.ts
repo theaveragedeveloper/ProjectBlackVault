@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
     const ammoTransactions = (data.ammoTransactions as Record<string, unknown>[]) ?? [];
     const documents      = (data.documents      as Record<string, unknown>[]) ?? [];
     const sessionAmmoLinks = (data.sessionAmmoLinks as unknown as Record<string, unknown>[]) ?? [];
-    const settings       = data.settings as Record<string, unknown> | null | undefined;
+    const settings       = data.settings as unknown as Record<string, unknown> | null | undefined;
 
     // 3. Run everything in a single transaction
     await prisma.$transaction(
@@ -149,17 +149,13 @@ export async function POST(request: NextRequest) {
             update: {
               appPassword:      settings.appPassword != null ? str(settings.appPassword) : undefined,
               defaultCurrency:  settings.defaultCurrency ? str(settings.defaultCurrency) : undefined,
-              encryptionEnabled: boolOr(settings.encryptionEnabled, false),
               encryptionKey:    settings.encryptionKey ? str(settings.encryptionKey) : undefined,
-              backupEnabled:    boolOr(settings.backupEnabled, false),
             },
             create: {
               id: "singleton",
               appPassword:      settings.appPassword ? str(settings.appPassword) : null,
               defaultCurrency:  settings.defaultCurrency ? str(settings.defaultCurrency) : "USD",
-              encryptionEnabled: boolOr(settings.encryptionEnabled, false),
               encryptionKey:    settings.encryptionKey ? str(settings.encryptionKey) : null,
-              backupEnabled:    boolOr(settings.backupEnabled, false),
             },
           });
         }
@@ -221,7 +217,7 @@ export async function POST(request: NextRequest) {
             data: documents.map((d) => ({
               id:          str(d.id),
               name:        str(d.name),
-              type:        d.type ? str(d.type) : null,
+              type:        d.type ? str(d.type) : undefined,
               fileUrl:     str(d.fileUrl),
               fileSize:    intOrNull(d.fileSize),
               mimeType:    d.mimeType ? str(d.mimeType) : null,

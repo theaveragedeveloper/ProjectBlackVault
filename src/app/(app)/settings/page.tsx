@@ -711,7 +711,7 @@ export default function SettingsPage() {
 
       let decrypted: ArrayBuffer;
       try {
-        decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, aesKey, decryptInput);
+        decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, aesKey, decryptInput as BufferSource);
       } catch {
         throw new Error("Decryption failed. Check that your passphrase is correct.");
       }

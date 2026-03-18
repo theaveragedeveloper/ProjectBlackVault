@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { name, description, firearmId, isActive, imageUrl, imageSource } =
+    const { name, description, firearmId, isActive, imageUrl, imageSource, status } =
       body;
 
     const imageValidation = validateOptionalImageUrl(imageUrl);
@@ -137,6 +137,7 @@ export async function POST(request: NextRequest) {
         isActive: isActive ?? false,
         imageUrl: imageValidation.normalized,
         imageSource: imageSource ?? null,
+        status: status ?? 'in-progress',
       },
       include: {
         firearm: {
