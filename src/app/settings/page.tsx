@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Breadcrumb } from "@/components/shared/Breadcrumb";
+import { useToast } from "@/lib/store";
 import {
   Save,
   Loader2,
@@ -14,6 +15,9 @@ import {
   Image,
   Settings,
   ShieldCheck,
+  HardDrive,
+  Copy,
+  Check,
 } from "lucide-react";
 
 const INPUT_CLASS =
@@ -45,8 +49,16 @@ export default function SettingsPage() {
   const [showPassword, setShowPassword] = useState(false);
 
   const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [dataPath, setDataPath] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const toast = useToast();
+
+  useEffect(() => {
+    fetch("/api/health")
+      .then((r) => r.json())
+      .then((data) => { if (data.dataPath) setDataPath(data.dataPath); })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetch("/api/settings")
@@ -70,8 +82,6 @@ export default function SettingsPage() {
 
   async function handleSave(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setSaveError(null);
-    setSaveSuccess(false);
     setSaving(true);
 
     const payload: Record<string, unknown> = {
@@ -97,15 +107,14 @@ export default function SettingsPage() {
       const json = await res.json();
 
       if (!res.ok) {
-        setSaveError(json.error ?? "Failed to save settings");
+        toast.error(json.error ?? "Failed to save settings");
       } else {
         setSettings(json);
         setApiKey(""); // clear after save
-        setSaveSuccess(true);
-        setTimeout(() => setSaveSuccess(false), 3000);
+        toast.success("Settings saved");
       }
     } catch {
-      setSaveError("Network error. Please try again.");
+      toast.error("Network error. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -148,20 +157,6 @@ export default function SettingsPage() {
       </div>
 
       <div className="max-w-2xl mx-auto px-6 py-8">
-        {saveError && (
-          <div className="flex items-center gap-3 bg-[#E53935]/10 border border-[#E53935]/30 rounded-lg px-4 py-3 mb-6">
-            <AlertCircle className="w-4 h-4 text-[#E53935] shrink-0" />
-            <p className="text-sm text-[#E53935]">{saveError}</p>
-          </div>
-        )}
-
-        {saveSuccess && (
-          <div className="flex items-center gap-3 bg-[#00C853]/10 border border-[#00C853]/30 rounded-lg px-4 py-3 mb-6 animate-slide-up">
-            <CheckCircle2 className="w-4 h-4 text-[#00C853] shrink-0" />
-            <p className="text-sm text-[#00C853]">Settings saved successfully.</p>
-          </div>
-        )}
-
         <form onSubmit={handleSave} className="space-y-6">
           {/* ── Image Search ────────────────────────────────── */}
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-5">
@@ -374,6 +369,44 @@ export default function SettingsPage() {
                   <code className="font-mono">.blackvault.env</code> and restart.
                 </p>
               </div>
+            )}
+          </fieldset>
+
+          {/* ── Storage ─────────────────────────────────────── */}
+          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
+            <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
+              <HardDrive className="w-3.5 h-3.5" />
+              Storage
+            </legend>
+
+            <p className="text-xs text-vault-text-muted leading-relaxed">
+              Location of the SQLite database file on the host system.
+            </p>
+
+            {dataPath ? (
+              <div className="flex items-center gap-2">
+                <code className="flex-1 text-xs bg-vault-muted px-2 py-1.5 rounded text-vault-text-muted font-mono break-all">
+                  {dataPath}
+                </code>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(dataPath);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  }}
+                  title="Copy path"
+                  className="shrink-0 p-1.5 rounded text-vault-text-faint hover:text-vault-text-muted hover:bg-vault-border transition-colors"
+                >
+                  {copied ? (
+                    <Check className="w-4 h-4 text-[#00C853]" />
+                  ) : (
+                    <Copy className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+            ) : (
+              <p className="text-xs text-vault-text-faint font-mono">Resolving path…</p>
             )}
           </fieldset>
 
