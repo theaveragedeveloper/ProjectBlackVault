@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Image from "next/image";
 import { isAllowedImageUrlForStorage, IMAGE_URL_ALLOWLIST_ERROR } from "@/lib/image-url-validation";
 import { allowExternalImageUrls } from "@/lib/network-policy";
 import { Camera, Link, Loader2, X, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
@@ -151,14 +152,16 @@ export default function ImagePicker({
       {/* Preview */}
       {preview ? (
         <div className="relative rounded-md overflow-hidden border border-vault-border bg-vault-bg">
-          <img
+          <Image
             src={preview}
             alt="Preview"
-            loading="lazy"
+            width={1200}
+            height={800}
             className="w-full max-h-48 h-auto object-contain"
             onError={() => {
               setError("Could not load this image URL. Please check the link.");
             }}
+            unoptimized
           />
           <button
             type="button"

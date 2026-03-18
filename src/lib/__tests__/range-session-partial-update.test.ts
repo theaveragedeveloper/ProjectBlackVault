@@ -105,7 +105,8 @@ describe("PUT /api/range-sessions/[id] – partial update semantics", () => {
     const response = await PUT(request, params);
     expect(response.status).toBe(200);
 
-    const [{ data }] = mockUpdate.mock.calls[0] as [{ where: unknown; data: Record<string, unknown> }][];
+    const [updateCall] = mockUpdate.mock.calls as [{ where: unknown; data: Record<string, unknown> }][];
+    const { data } = updateCall[0];
 
     // Fields absent from the request body must be undefined so Prisma skips them
     expect(data.rangeName).toBeUndefined();
@@ -137,7 +138,8 @@ describe("PUT /api/range-sessions/[id] – partial update semantics", () => {
     const response = await PUT(request, params);
     expect(response.status).toBe(200);
 
-    const [{ data }] = mockUpdate.mock.calls[0] as [{ where: unknown; data: Record<string, unknown> }][];
+    const [updateCall] = mockUpdate.mock.calls as [{ where: unknown; data: Record<string, unknown> }][];
+    const { data } = updateCall[0];
 
     expect(data.rangeName).toBeNull();
     expect(data.notes).toBeNull();
@@ -155,7 +157,8 @@ describe("PUT /api/range-sessions/[id] – partial update semantics", () => {
     const response = await PUT(request, params);
     expect(response.status).toBe(200);
 
-    const [{ data }] = mockUpdate.mock.calls[0] as [{ where: unknown; data: Record<string, unknown> }][];
+    const [updateCall] = mockUpdate.mock.calls as [{ where: unknown; data: Record<string, unknown> }][];
+    const { data } = updateCall[0];
 
     expect(data.rangeName).toBeNull();
     expect(data.environment).toBeNull();
@@ -173,7 +176,8 @@ describe("PUT /api/range-sessions/[id] – partial update semantics", () => {
     const response = await PUT(request, params);
     expect(response.status).toBe(200);
 
-    const [{ data }] = mockUpdate.mock.calls[0] as [{ where: unknown; data: Record<string, unknown> }][];
+    const [updateCall] = mockUpdate.mock.calls as [{ where: unknown; data: Record<string, unknown> }][];
+    const { data } = updateCall[0];
 
     // Provided values are set correctly
     expect(data.rangeName).toBe("Outdoor Range");
