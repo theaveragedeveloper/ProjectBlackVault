@@ -45,6 +45,11 @@ next-env.d.ts
 # Prisma local database
 prisma/dev.db
 prisma/dev.db-journal
+prisma/prisma/
 
 # User uploads
 /uploads/
+
+# Electron launcher build artifacts
+/launcher/node_modules/
+/launcher/dist/

@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Project BlackVault — Tactical Armory Platform</title>
+  <meta name="description" content="BlackVault is a self-hosted tactical firearm inventory and build management platform. Track your arsenal, log range sessions, manage ammo, and maintain your gear — all in one secure vault." />
+  <meta property="og:title" content="Project BlackVault" />
+  <meta property="og:description" content="Tactical firearm inventory & build management. Self-hosted. Fully yours." />
+  <meta property="og:url" content="https://theaveragedeveloper.github.io/ProjectBlackVault" />
+  <style>
+    /* ── App-Aligned Vault Tokens ─────────────────────────── */
+    :root {
+      --vault-bg:           #080B0F;
+      --vault-surface:      #0D1117;
+      --vault-surface-2:    #161B22;
+      --vault-border:       #21262D;
+      --vault-muted:        #1C2128;
+      --vault-canvas:       #050709;
+      --vault-overlay:      rgba(5, 7, 9, 0.85);
+      --vault-accent:       #00C2FF;
+      --vault-accent-dim:   rgba(0, 194, 255, 0.12);
+      --vault-accent-glow:  rgba(0, 194, 255, 0.24);
+      --vault-warn:         #F5A623;
+      --vault-success:      #00C853;
+      --vault-danger:       #E53935;
+      --vault-text:         #F7F9FC;
+      --vault-text-muted:   #9AA5B4;
+      --vault-text-faint:   #5C6E82;
+
+      --bg: var(--vault-bg);
+      --surface: var(--vault-surface);
+      --surface-2: var(--vault-surface-2);
+      --border: var(--vault-border);
+      --muted: var(--vault-muted);
+      --accent: var(--vault-accent);
+      --accent-dim: var(--vault-accent-dim);
+      --accent-glow: var(--vault-accent-glow);
+      --warn: var(--vault-warn);
+      --success: var(--vault-success);
+      --danger: var(--vault-danger);
+      --text: var(--vault-text);
+      --text-muted: var(--vault-text-muted);
+      --text-faint: var(--vault-text-faint);
+    }
+
+    /* ── Reset ─────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background:
+        radial-gradient(circle at 12% -8%, rgba(0, 194, 255, 0.16), transparent 36%),
+        radial-gradient(circle at 88% 5%, rgba(0, 194, 255, 0.09), transparent 30%),
+        linear-gradient(180deg, var(--vault-canvas) 0%, var(--bg) 42%, #06090d 100%);
+      color: var(--text);
+      line-height: 1.6;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+    a { color: inherit; text-decoration: none; }
+
+    /* ── Background texture ────────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,194,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,194,255,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 3px,
+        rgba(0, 0, 0, 0.05) 3px,
+        rgba(0, 0, 0, 0.05) 4px
+      );
+      opacity: 0.14;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Nav ───────────────────────────────────────────────── */
+    nav {
+      position: fixed;
+      top: 0.85rem;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(1180px, calc(100% - 2rem));
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.2rem;
+      height: 62px;
+      background: rgba(5, 7, 9, 0.88);
+      border: 1px solid rgba(0, 194, 255, 0.16);
+      border-radius: 14px;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+      backdrop-filter: blur(14px);
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      min-width: 0;
+    }
+
+    .logo-badge {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      background: rgba(0, 194, 255, 0.1);
+      border: 1px solid rgba(0, 194, 255, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03), 0 0 20px rgba(0, 194, 255, 0.08);
+    }
+
+    .logo-badge img {
+      width: 19px;
+      height: 19px;
+      display: block;
+    }
+
+    .nav-brand {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      line-height: 1.1;
+    }
+
+    .nav-brand-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text);
+    }
+
+    .nav-brand-sub {
+      font-size: 0.58rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-faint);
+      margin-top: 0.2rem;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 1.4rem;
+      list-style: none;
+    }
+
+    .nav-links a {
+      font-size: 0.75rem;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      transition: color 0.2s ease;
+    }
+    .nav-links a:hover { color: var(--accent); }
+
+    .nav-cta {
+      padding: 0.44rem 0.92rem;
+      background: var(--accent-dim);
+      border: 1px solid rgba(0,194,255,0.34);
+      color: var(--accent) !important;
+      font-weight: 700;
+      font-size: 0.72rem;
+      letter-spacing: 0.1em;
+      border-radius: 8px;
+      transition: box-shadow 0.2s ease, background 0.2s ease, transform 0.2s ease;
+    }
+    .nav-cta:hover {
+      background: rgba(0, 194, 255, 0.2);
+      box-shadow: 0 0 20px rgba(0, 194, 255, 0.24);
+      transform: translateY(-1px);
+    }
+
+    /* ── Hero ──────────────────────────────────────────────── */
+    .hero {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 8.5rem 1.5rem 5.2rem;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: 6.6rem;
+      width: min(840px, 92vw);
+      height: 580px;
+      border-radius: 24px;
+      background:
+        linear-gradient(180deg, rgba(0, 194, 255, 0.07), rgba(0, 194, 255, 0.02)),
+        var(--surface);
+      border: 1px solid rgba(0, 194, 255, 0.2);
+      box-shadow: 0 28px 50px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(255, 255, 255, 0.015);
+      z-index: -1;
+    }
+
+    .hero-logo {
+      width: 86px;
+      height: 86px;
+      border-radius: 18px;
+      border: 1px solid rgba(0,194,255,0.3);
+      background: linear-gradient(180deg, rgba(0,194,255,0.16), rgba(0,194,255,0.06));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1.2rem;
+      box-shadow: 0 0 28px rgba(0,194,255,0.16);
+    }
+
+    .hero-logo img {
+      width: 54px;
+      height: 54px;
+      display: block;
+    }
+
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.68rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--accent);
+      border: 1px solid rgba(0,194,255,0.3);
+      padding: 0.34rem 0.86rem;
+      border-radius: 999px;
+      margin-bottom: 1.8rem;
+      background: rgba(0,194,255,0.08);
+      box-shadow: inset 0 0 0 1px rgba(0,194,255,0.08);
+    }
+    .hero-eyebrow::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background: var(--accent);
+      border-radius: 50%;
+      box-shadow: 0 0 10px var(--accent);
+    }
+
+    h1 {
+      font-size: clamp(2.6rem, 7vw, 5rem);
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      line-height: 1.04;
+      margin-bottom: 1.35rem;
+      text-wrap: balance;
+    }
+    h1 .accent {
+      color: var(--accent);
+      text-shadow: 0 0 22px rgba(0, 194, 255, 0.32);
+    }
+
+    .hero-sub {
+      font-size: clamp(1rem, 2.5vw, 1.18rem);
+      color: var(--text-muted);
+      max-width: 640px;
+      margin: 0 auto 2.6rem;
+      text-wrap: pretty;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.9rem;
+      justify-content: center;
+    }
+
+    .btn-primary,
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.52rem;
+      padding: 0.78rem 1.35rem;
+      font-weight: 700;
+      font-size: 0.77rem;
+      letter-spacing: 0.11em;
+      text-transform: uppercase;
+      border-radius: 10px;
+      transition: box-shadow 0.2s ease, background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+    }
+
+    .btn-primary {
+      background: linear-gradient(180deg, rgba(0, 194, 255, 0.2), rgba(0, 194, 255, 0.1));
+      border: 1px solid rgba(0,194,255,0.34);
+      color: var(--accent);
+    }
+    .btn-primary:hover {
+      background: linear-gradient(180deg, rgba(0, 194, 255, 0.28), rgba(0, 194, 255, 0.13));
+      box-shadow: 0 0 24px rgba(0, 194, 255, 0.22);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: rgba(13, 17, 23, 0.85);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover {
+      border-color: rgba(0, 194, 255, 0.36);
+      color: var(--accent);
+      transform: translateY(-1px);
+    }
+
+    .hero-stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(130px, 1fr));
+      gap: 0.8rem;
+      margin-top: 2.9rem;
+      width: min(760px, 100%);
+    }
+
+    .stat {
+      text-align: center;
+      background: rgba(13, 17, 23, 0.76);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 0.95rem 0.8rem 0.9rem;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.01);
+    }
+    .stat-value {
+      font-size: 1.45rem;
+      font-weight: 800;
+      color: var(--accent);
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+    }
+    .stat-label {
+      font-size: 0.68rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-faint);
+      margin-top: 0.3rem;
+    }
+
+    /* ── Sections ──────────────────────────────────────────── */
+    section {
+      position: relative;
+      z-index: 1;
+      padding: 5.4rem 1.5rem;
+    }
+
+    .container {
+      max-width: 1120px;
+      margin: 0 auto;
+    }
+
+    .section-label {
+      font-size: 0.68rem;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 0.7rem;
+    }
+
+    .section-title {
+      font-size: clamp(1.84rem, 4vw, 2.76rem);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.9rem;
+      text-wrap: balance;
+    }
+
+    .section-sub {
+      font-size: 0.98rem;
+      color: var(--text-muted);
+      max-width: 620px;
+      margin-bottom: 2.4rem;
+      text-wrap: pretty;
+    }
+
+    /* ── Feature grid ──────────────────────────────────────── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 0.9rem;
+    }
+
+    .feature-card {
+      background: linear-gradient(180deg, rgba(22, 27, 34, 0.9), rgba(13, 17, 23, 0.95));
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.55rem;
+      transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .feature-card:hover {
+      border-color: rgba(0, 194, 255, 0.28);
+      transform: translateY(-2px);
+      box-shadow: 0 18px 30px rgba(0, 0, 0, 0.26);
+    }
+
+    .feature-icon {
+      width: 42px;
+      height: 42px;
+      background: rgba(0,194,255,0.1);
+      border: 1px solid rgba(0,194,255,0.25);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+    }
+
+    .feature-title {
+      font-size: 0.94rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      margin-bottom: 0.42rem;
+    }
+
+    .feature-desc {
+      font-size: 0.84rem;
+      color: var(--text-muted);
+      line-height: 1.58;
+    }
+
+    /* ── Modules ───────────────────────────────────────────── */
+    .screens-section {
+      background: linear-gradient(180deg, rgba(13, 17, 23, 0.84), rgba(13, 17, 23, 0.58));
+      border-top: 1px solid rgba(0, 194, 255, 0.16);
+      border-bottom: 1px solid rgba(0, 194, 255, 0.16);
+    }
+
+    .screen-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+      gap: 1rem;
+    }
+
+    .screen-card {
+      background: linear-gradient(180deg, rgba(13, 17, 23, 0.95), rgba(7, 10, 14, 0.95));
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    }
+    .screen-card:hover {
+      border-color: rgba(0,194,255,0.38);
+      box-shadow: 0 20px 28px rgba(0, 0, 0, 0.28);
+      transform: translateY(-2px);
+    }
+
+    .screen-header {
+      display: flex;
+      align-items: center;
+      gap: 0.42rem;
+      padding: 0.64rem 0.9rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(28, 33, 40, 0.92);
+    }
+
+    .screen-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .screen-body { padding: 1.35rem; }
+
+    .screen-route {
+      font-size: 0.68rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--text-faint);
+      margin-bottom: 0.34rem;
+    }
+
+    .screen-name {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 0.46rem;
+    }
+
+    .screen-desc {
+      font-size: 0.81rem;
+      color: var(--text-muted);
+      line-height: 1.48;
+    }
+
+    .tag {
+      display: inline-block;
+      margin-top: 0.8rem;
+      padding: 0.18rem 0.58rem;
+      font-size: 0.66rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      border-radius: 999px;
+      font-weight: 700;
+    }
+    .tag-accent  { background: var(--accent-dim);     color: var(--accent);  border: 1px solid rgba(0,194,255,0.2); }
+    .tag-warn    { background: rgba(245,166,35,0.12); color: var(--warn);    border: 1px solid rgba(245,166,35,0.25); }
+    .tag-success { background: rgba(0,200,83,0.12);   color: var(--success); border: 1px solid rgba(0,200,83,0.25); }
+    .tag-danger  { background: rgba(229,57,53,0.12);  color: var(--danger);  border: 1px solid rgba(229,57,53,0.25); }
+
+    /* ── Self-host ─────────────────────────────────────────── */
+    .install-block {
+      background: linear-gradient(180deg, rgba(22, 27, 34, 0.92), rgba(13, 17, 23, 0.95));
+      border: 1px solid rgba(0, 194, 255, 0.2);
+      border-radius: 14px;
+      overflow: hidden;
+      max-width: 760px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .install-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.62rem 1rem;
+      background: var(--muted);
+      border-bottom: 1px solid var(--border);
+      font-size: 0.7rem;
+      letter-spacing: 0.09em;
+      color: var(--text-faint);
+      text-transform: uppercase;
+    }
+    .install-bar .bar-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(154, 165, 180, 0.4);
+    }
+
+    .install-steps {
+      padding: 1.3rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.9rem;
+    }
+
+    .install-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.85rem;
+      padding: 0.5rem;
+      border-radius: 10px;
+      transition: background 0.2s ease;
+    }
+    .install-step:hover { background: rgba(255, 255, 255, 0.015); }
+
+    .step-num {
+      flex-shrink: 0;
+      width: 28px;
+      height: 28px;
+      background: var(--accent-dim);
+      border: 1px solid rgba(0,194,255,0.3);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin-top: 0.1rem;
+    }
+
+    .step-body { flex: 1; min-width: 0; }
+    .step-title { font-size: 0.88rem; font-weight: 600; margin-bottom: 0.3rem; }
+
+    code {
+      font-family: 'SF Mono', 'Fira Mono', 'Consolas', monospace;
+      font-size: 0.78rem;
+      color: var(--accent);
+      background: rgba(28, 33, 40, 0.7);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.14rem 0.38rem;
+      letter-spacing: 0.01em;
+    }
+    .install-step code {
+      display: block;
+      padding: 0.58rem 0.74rem;
+      font-size: 0.77rem;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      margin-top: 0.35rem;
+    }
+
+    .deploy-note {
+      margin-top: 1.3rem;
+      font-size: 0.82rem;
+      color: var(--text-faint);
+    }
+    #launcher-download-link {
+      color: var(--accent);
+      border-bottom: 1px dashed rgba(0, 194, 255, 0.4);
+      transition: color 0.2s ease, border-color 0.2s ease;
+    }
+    #launcher-download-link:hover {
+      color: #5ad8ff;
+      border-color: rgba(90, 216, 255, 0.8);
+    }
+    .channel-note {
+      margin-top: 0.52rem;
+      font-size: 0.78rem;
+      color: var(--text-faint);
+      line-height: 1.75;
+    }
+
+    /* ── CTA ───────────────────────────────────────────────── */
+    .cta-section { text-align: center; }
+    .cta-section .container {
+      border-radius: 18px;
+      border: 1px solid rgba(0, 194, 255, 0.22);
+      background: linear-gradient(180deg, rgba(0, 194, 255, 0.08), rgba(13, 17, 23, 0.95) 62%);
+      padding: 3.1rem 1.4rem;
+      box-shadow: 0 24px 44px rgba(0, 0, 0, 0.34);
+    }
+    .cta-section h2 {
+      font-size: clamp(1.8rem, 4vw, 2.5rem);
+      font-weight: 800;
+      margin-bottom: 0.95rem;
+      text-wrap: balance;
+    }
+    .cta-section p {
+      color: var(--text-muted);
+      max-width: 540px;
+      margin: 0 auto 2rem;
+      text-wrap: pretty;
+    }
+
+    /* ── Footer ────────────────────────────────────────────── */
+    footer {
+      position: relative;
+      z-index: 1;
+      border-top: 1px solid var(--border);
+      padding: 2.5rem 1.5rem;
+      background: rgba(5, 7, 9, 0.64);
+    }
+
+    .footer-inner {
+      max-width: 1120px;
+      margin: 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .footer-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 0.76rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-faint);
+    }
+
+    .footer-logo .logo-badge {
+      width: 22px;
+      height: 22px;
+      border-radius: 7px;
+      background: rgba(0, 194, 255, 0.08);
+      border: 1px solid rgba(0, 194, 255, 0.22);
+    }
+
+    .footer-logo .logo-badge img {
+      width: 14px;
+      height: 14px;
+    }
+
+    .footer-links { display: flex; gap: 1.3rem; list-style: none; }
+    .footer-links a {
+      font-size: 0.76rem;
+      color: var(--text-faint);
+      letter-spacing: 0.05em;
+      transition: color 0.2s;
+    }
+    .footer-links a:hover { color: var(--accent); }
+
+    .footer-copy { font-size: 0.72rem; color: var(--text-faint); }
+
+    /* ── Scroll reveal ─────────────────────────────────────── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.55s ease, transform 0.55s ease;
+    }
+    .reveal.visible { opacity: 1; transform: none; }
+
+    /* ── Responsive ────────────────────────────────────────── */
+    @media (max-width: 960px) {
+      .hero::before { height: 610px; }
+      .hero-stats { grid-template-columns: repeat(2, minmax(140px, 1fr)); max-width: 520px; }
+      .screen-list { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
+    }
+
+    @media (max-width: 760px) {
+      nav {
+        top: 0.5rem;
+        width: calc(100% - 1rem);
+        height: 56px;
+        padding: 0 0.8rem;
+      }
+      .nav-brand-sub { display: none; }
+      .nav-links { gap: 0.5rem; }
+      .nav-links li:not(:last-child) { display: none; }
+      .nav-cta {
+        padding: 0.37rem 0.72rem;
+        font-size: 0.66rem;
+        border-radius: 7px;
+      }
+      .hero {
+        padding: 6.8rem 1rem 4rem;
+      }
+      .hero::before {
+        top: 5.4rem;
+        width: calc(100% - 1rem);
+        border-radius: 16px;
+      }
+      section { padding: 4.4rem 1rem; }
+      .install-steps { padding: 0.95rem; }
+      .footer-inner { justify-content: center; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Nav ──────────────────────────────────────────────── -->
+  <nav>
+    <div class="nav-logo">
+      <div class="logo-badge">
+        <img src="./assets/blackvault-logo.svg" alt="BlackVault logo" />
+      </div>
+      <div class="nav-brand">
+        <span class="nav-brand-title">BlackVault</span>
+        <span class="nav-brand-sub">Armory Platform</span>
+      </div>
+    </div>
+    <ul class="nav-links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#modules">Modules</a></li>
+      <li><a href="#self-host">Self-Host</a></li>
+      <li><a href="https://github.com/theaveragedeveloper/ProjectBlackVault" target="_blank" rel="noopener">GitHub</a></li>
+      <li><a href="https://github.com/theaveragedeveloper/ProjectBlackVault" target="_blank" rel="noopener" class="nav-cta">Deploy</a></li>
+    </ul>
+  </nav>
+
+  <!-- ── Hero ─────────────────────────────────────────────── -->
+  <section class="hero">
+    <div class="hero-logo">
+      <img src="./assets/blackvault-logo.svg" alt="BlackVault emblem" />
+    </div>
+    <div class="hero-eyebrow">Self-Hosted &middot; Open Source &middot; Encrypted</div>
+
+    <h1>Your Arsenal.<br>Your <span class="accent">Vault</span>.</h1>
+
+    <p class="hero-sub">
+      Project BlackVault is a self-hosted tactical firearm inventory and build management platform.
+      Track your arsenal, log range sessions, manage ammo, and maintain your gear &mdash; all in one secure vault.
+    </p>
+
+    <div class="hero-actions">
+      <a href="https://github.com/theaveragedeveloper/ProjectBlackVault" target="_blank" rel="noopener" class="btn-primary">
+        &#9654;&nbsp; Deploy Your Vault
+      </a>
+      <a href="#features" class="btn-secondary">
+        Explore Features
+      </a>
+    </div>
+
+    <div class="hero-stats">
+      <div class="stat">
+        <div class="stat-value">10+</div>
+        <div class="stat-label">Modules</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">100%</div>
+        <div class="stat-label">Self-Hosted</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">AES</div>
+        <div class="stat-label">Encryption</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">Next.js</div>
+        <div class="stat-label">Platform</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Features ──────────────────────────────────────────── -->
+  <section id="features">
+    <div class="container">
+      <div class="reveal">
+        <div class="section-label">Platform</div>
+        <h2 class="section-title">Everything in One Vault</h2>
+        <p class="section-sub">
+          Built on Next.js 16 with a hardened SQLite backend. No cloud dependency, no subscriptions &mdash; your data stays yours.
+        </p>
+      </div>
+
+      <div class="features-grid reveal">
+        <div class="feature-card">
+          <div class="feature-icon">&#128295;</div>
+          <div class="feature-title">Firearm Registry</div>
+          <div class="feature-desc">Full catalogue with acquisition date, serial tracking, images, and linked build configurations.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#127919;</div>
+          <div class="feature-title">Build Management</div>
+          <div class="feature-desc">Drag-and-drop component reordering, active build switching, and per-build accessory linking.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#128203;</div>
+          <div class="feature-title">Ammo Inventory</div>
+          <div class="feature-desc">Track stock by caliber, log transactions, set low-stock thresholds, and analyze spend over time.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#128200;</div>
+          <div class="feature-title">Range Sessions</div>
+          <div class="feature-desc">Log drills, track performance metrics, generate DOPE cards, and build a full training history.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#128295;</div>
+          <div class="feature-title">Maintenance Scheduler</div>
+          <div class="feature-desc">Round-count or interval-based schedules with automated due-date tracking and notes.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#128196;</div>
+          <div class="feature-title">Document Storage</div>
+          <div class="feature-desc">Attach manuals, warranty cards, and compliance documents &mdash; indexed per firearm.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#128274;</div>
+          <div class="feature-title">Encrypted Backups</div>
+          <div class="feature-desc">Full armory export in a portable format. AES-encrypted with your own key &mdash; import anywhere.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#128202;</div>
+          <div class="feature-title">Analytics Dashboard</div>
+          <div class="feature-desc">Investment totals, ammo cost trends, training calendar, and performance charts in real time.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#9881;</div>
+          <div class="feature-title">Accessory Tracking</div>
+          <div class="feature-desc">Optics, suppressors, lights &mdash; with battery life monitoring and round counts per accessory.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Modules ────────────────────────────────────────────── -->
+  <section id="modules" class="screens-section">
+    <div class="container">
+      <div class="reveal">
+        <div class="section-label">Modules</div>
+        <h2 class="section-title">Built Modular. Built Tactical.</h2>
+        <p class="section-sub">
+          Every part of your armory has its own dedicated module &mdash; cohesive, but loosely coupled.
+        </p>
+      </div>
+
+      <div class="screen-list reveal">
+        <div class="screen-card">
+          <div class="screen-header">
+            <div class="screen-dot" style="background:#E53935"></div>
+            <div class="screen-dot" style="background:#F5A623"></div>
+            <div class="screen-dot" style="background:#00C853"></div>
+          </div>
+          <div class="screen-body">
+            <div class="screen-route">/</div>
+            <div class="screen-name">Command Center</div>
+            <div class="screen-desc">Live dashboard aggregating firearm count, ammo stock, investment totals, upcoming maintenance, and recent range stats.</div>
+            <span class="tag tag-accent">Dashboard</span>
+          </div>
+        </div>
+
+        <div class="screen-card">
+          <div class="screen-header">
+            <div class="screen-dot" style="background:#E53935"></div>
+            <div class="screen-dot" style="background:#F5A623"></div>
+            <div class="screen-dot" style="background:#00C853"></div>
+          </div>
+          <div class="screen-body">
+            <div class="screen-route">/vault</div>
+            <div class="screen-name">The Vault</div>
+            <div class="screen-desc">Complete firearm registry with search, filter, and detailed profiles including images and acquisition history.</div>
+            <span class="tag tag-accent">Inventory</span>
+          </div>
+        </div>
+
+        <div class="screen-card">
+          <div class="screen-header">
+            <div class="screen-dot" style="background:#E53935"></div>
+            <div class="screen-dot" style="background:#F5A623"></div>
+            <div class="screen-dot" style="background:#00C853"></div>
+          </div>
+          <div class="screen-body">
+            <div class="screen-route">/builds</div>
+            <div class="screen-name">Build Manager</div>
+            <div class="screen-desc">Define and switch between build configurations per firearm with drag-and-drop component ordering.</div>
+            <span class="tag tag-success">Builds</span>
+          </div>
+        </div>
+
+        <div class="screen-card">
+          <div class="screen-header">
+            <div class="screen-dot" style="background:#E53935"></div>
+            <div class="screen-dot" style="background:#F5A623"></div>
+            <div class="screen-dot" style="background:#00C853"></div>
+          </div>
+          <div class="screen-body">
+            <div class="screen-route">/ammo</div>
+            <div class="screen-name">Ammo Locker</div>
+            <div class="screen-desc">Per-caliber inventory with transaction ledger, cost-per-round analytics, and configurable low-stock alerts.</div>
+            <span class="tag tag-warn">Ammo</span>
+          </div>
+        </div>
+
+        <div class="screen-card">
+          <div class="screen-header">
+            <div class="screen-dot" style="background:#E53935"></div>
+            <div class="screen-dot" style="background:#F5A623"></div>
+            <div class="screen-dot" style="background:#00C853"></div>
+          </div>
+          <div class="screen-body">
+            <div class="screen-route">/range</div>
+            <div class="screen-name">Range Ops</div>
+            <div class="screen-desc">Log sessions, run structured drills, generate printable DOPE cards, and chart your performance over time.</div>
+            <span class="tag tag-success">Training</span>
+          </div>
+        </div>
+
+        <div class="screen-card">
+          <div class="screen-header">
+            <div class="screen-dot" style="background:#E53935"></div>
+            <div class="screen-dot" style="background:#F5A623"></div>
+            <div class="screen-dot" style="background:#00C853"></div>
+          </div>
+          <div class="screen-body">
+            <div class="screen-route">/accessories</div>
+            <div class="screen-name">Accessories</div>
+            <div class="screen-desc">Manage optics, lights, suppressors, and more &mdash; with battery tracking and round counts per accessory.</div>
+            <span class="tag tag-accent">Gear</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Self-Host ──────────────────────────────────────────── -->
+  <section id="self-host">
+    <div class="container">
+      <div class="reveal">
+        <div class="section-label">Deployment</div>
+        <h2 class="section-title">Production Deployment Walkthrough</h2>
+        <p class="section-sub">
+          Deploy with Docker Compose using built-in install scripts. This path is production-oriented and avoids dev-mode terminal setup.
+        </p>
+      </div>
+
+      <div class="install-block reveal">
+        <div class="install-bar">
+          <div class="bar-dot"></div>
+          <div class="bar-dot"></div>
+          <div class="bar-dot"></div>
+          <span style="margin-left:0.5rem">Terminal</span>
+        </div>
+        <div class="install-steps">
+          <div class="install-step">
+            <div class="step-num">1</div>
+            <div class="step-body">
+              <div class="step-title">Install prerequisites</div>
+              <code>Docker Desktop (Windows/macOS)
+Docker Engine + Compose plugin (Linux)</code>
+            </div>
+          </div>
+          <div class="install-step">
+            <div class="step-num">2</div>
+            <div class="step-body">
+              <div class="step-title">Clone and run first-time installer</div>
+              <code>git clone https://github.com/theaveragedeveloper/ProjectBlackVault.git
+cd ProjectBlackVault
+# Linux/macOS
+chmod +x install.sh &amp;&amp; ./install.sh
+# Windows
+install.bat</code>
+            </div>
+          </div>
+          <div class="install-step">
+            <div class="step-num">3</div>
+            <div class="step-body">
+              <div class="step-title">Verify deployment health</div>
+              <code>docker compose --env-file .blackvault.env ps
+docker compose --env-file .blackvault.env logs -f
+http://localhost:3000/api/health</code>
+            </div>
+          </div>
+          <div class="install-step">
+            <div class="step-num">4</div>
+            <div class="step-body">
+              <div class="step-title">Set canonical HTTPS hostname (recommended)</div>
+              <code># In .blackvault.env
+APP_BASE_URL=https://vault.yourdomain.com
+# Route reverse proxy HTTPS traffic to this host on port 3000
+# (Caddy / Nginx / Traefik)</code>
+            </div>
+          </div>
+          <div class="install-step">
+            <div class="step-num">5</div>
+            <div class="step-body">
+              <div class="step-title">Install desktop icon from browser</div>
+              <code>Open https://vault.yourdomain.com
+Chrome/Edge: Install App
+Safari (macOS): File &gt; Add to Dock
+Fallback if needed: http://localhost:3000 or http://YOUR-HOST-IP:3000</code>
+            </div>
+          </div>
+          <div class="install-step">
+            <div class="step-num">6</div>
+            <div class="step-body">
+              <div class="step-title">Day-2 operations</div>
+              <code># Start / stop / logs
+docker compose --env-file .blackvault.env up -d
+docker compose --env-file .blackvault.env down
+docker compose --env-file .blackvault.env logs -f
+# Update
+./update.sh   (Linux/macOS)
+update.bat    (Windows)</code>
+            </div>
+          </div>
+          <div class="install-step">
+            <div class="step-num">7</div>
+            <div class="step-body">
+              <div class="step-title">Backup and recovery essentials</div>
+              <code>Back up .blackvault.env and your DATA_DIR.
+Do NOT lose VAULT_ENCRYPTION_KEY.
+Use Settings &rarr; Secure Backup for encrypted exports.</code>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p class="deploy-note">
+        Optional host-admin desktop launcher: <a id="launcher-download-link" href="https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest" target="_blank" rel="noopener">Download Installer</a>
+        <span id="launcher-download-hint"> (falls back to all releases if platform build is unavailable)</span>
+      </p>
+      <p class="channel-note">
+        Advanced channels: <code>winget install --id TheAverageDeveloper.ProjectBlackVault</code> ·
+        <code>brew install --cask theaveragedeveloper/tap/projectblackvault</code>
+      </p>
+    </div>
+  </section>
+
+  <!-- ── CTA ───────────────────────────────────────────────── -->
+  <section class="cta-section">
+    <div class="container reveal">
+      <h2>Ready to Secure Your Arsenal?</h2>
+      <p>Fork it, self-host it, own it. Your data never leaves your infrastructure.</p>
+      <div class="hero-actions">
+        <a href="https://github.com/theaveragedeveloper/ProjectBlackVault" target="_blank" rel="noopener" class="btn-primary">
+          &#9654;&nbsp; Get BlackVault on GitHub
+        </a>
+        <a href="https://github.com/theaveragedeveloper/ProjectBlackVault/issues" target="_blank" rel="noopener" class="btn-secondary">
+          Open an Issue
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Footer ────────────────────────────────────────────── -->
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-logo">
+        <div class="logo-badge">
+          <img src="./assets/blackvault-logo.svg" alt="BlackVault logo" />
+        </div>
+        Project BlackVault
+      </div>
+      <ul class="footer-links">
+        <li><a href="https://github.com/theaveragedeveloper/ProjectBlackVault" target="_blank" rel="noopener">GitHub</a></li>
+        <li><a href="https://github.com/theaveragedeveloper/ProjectBlackVault/issues" target="_blank" rel="noopener">Issues</a></li>
+        <li><a href="https://github.com/theaveragedeveloper/ProjectBlackVault/blob/main/LICENSE" target="_blank" rel="noopener">License</a></li>
+      </ul>
+      <div class="footer-copy">Built for responsible enthusiasts.</div>
+    </div>
+  </footer>
+
+  <script>
+    const launcherDownloadLink = document.getElementById('launcher-download-link');
+    const launcherDownloadHint = document.getElementById('launcher-download-hint');
+
+    const RELEASES_URL = 'https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest';
+    const RELEASE_API_URL = 'https://api.github.com/repos/theaveragedeveloper/ProjectBlackVault/releases/latest';
+    const EXPECTED = {
+      windows: 'ProjectBlackVault-Setup.exe',
+      mac: 'ProjectBlackVault.dmg',
+      linux: 'ProjectBlackVault-Setup.AppImage',
+    };
+
+    function detectPlatform() {
+      const ua = navigator.userAgent.toLowerCase();
+      if (ua.includes('windows')) return 'windows';
+      if (ua.includes('mac os') || ua.includes('macintosh')) return 'mac';
+      if (ua.includes('linux')) return 'linux';
+      return 'unknown';
+    }
+
+    function runHintFor(platform) {
+      if (platform === 'windows') return 'After download, run the .exe installer.';
+      if (platform === 'mac') return 'After download, open the .dmg and drag ProjectBlackVault to Applications.';
+      if (platform === 'linux') return 'After download, mark the AppImage executable and run it.';
+      return 'Open the latest release and download the correct installer for your OS.';
+    }
+
+    async function resolveInstallerUrl(platform) {
+      if (platform === 'unknown') {
+        return {
+          url: RELEASES_URL,
+          hint: runHintFor(platform),
+        };
+      }
+
+      try {
+        const response = await fetch(RELEASE_API_URL, {
+          headers: { Accept: 'application/vnd.github+json' },
+        });
+        if (!response.ok) throw new Error(`release lookup failed (${response.status})`);
+
+        const release = await response.json();
+        const releaseUrl = release?.html_url || RELEASES_URL;
+        const assets = Array.isArray(release?.assets) ? release.assets : [];
+        const filename = EXPECTED[platform];
+        const match = assets.find(asset => asset?.name === filename && asset?.browser_download_url);
+
+        if (match) {
+          return {
+            url: match.browser_download_url,
+            hint: runHintFor(platform),
+          };
+        }
+
+        return {
+          url: releaseUrl,
+          hint: `${runHintFor(platform)} Asset not published yet, so this opens the latest releases page.`,
+        };
+      } catch (_error) {
+        return {
+          url: RELEASES_URL,
+          hint: `${runHintFor(platform)} If direct download is unavailable, this opens latest releases.`,
+        };
+      }
+    }
+
+    (async () => {
+      if (!launcherDownloadLink) return;
+      const platform = detectPlatform();
+      const resolved = await resolveInstallerUrl(platform);
+      launcherDownloadLink.href = resolved.url;
+      if (launcherDownloadHint) launcherDownloadHint.textContent = ` (${resolved.hint})`;
+    })();
+
+    const observer = new IntersectionObserver(
+      entries => entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); }),
+      { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
+    );
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+  </script>
+</body>
+</html>
