@@ -57,25 +57,28 @@ export async function POST(request: NextRequest) {
       return noStoreJson({ error: "Authentication service is unavailable." }, 503);
     }
 
-    const existing = await prisma.appSettings.findUnique({
-      where: { id: "singleton" },
-      select: { appPassword: true },
-    });
-
-    if (existing?.appPassword) {
-      return noStoreJson({ error: "Vault has already been initialized." }, 409);
-    }
-
     await prisma.appSettings.upsert({
       where: { id: "singleton" },
       create: {
         id: "singleton",
-        appPassword: hashPassword(normalizedPassword),
       },
-      update: {
-        appPassword: hashPassword(normalizedPassword),
+      update: {},
+    });
+
+    const passwordHash = hashPassword(normalizedPassword);
+    const updateResult = await prisma.appSettings.updateMany({
+      where: {
+        id: "singleton",
+        appPassword: null,
+      },
+      data: {
+        appPassword: passwordHash,
       },
     });
+
+    if (updateResult.count === 0) {
+      return noStoreJson({ error: "Vault has already been initialized." }, 409);
+    }
 
     const token = crypto.randomBytes(32).toString("hex");
     const cookieValue = signToken(token, sessionSecret);
@@ -89,8 +92,8 @@ export async function POST(request: NextRequest) {
     });
 
     return noStoreJson({ success: true });
-  } catch {
-    console.error("POST /api/auth/setup failed");
+  } catch (error) {
+    console.error("POST /api/auth/setup failed", error);
     return noStoreJson({ error: "Setup failed" }, 500);
   }
 }

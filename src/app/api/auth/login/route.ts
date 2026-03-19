@@ -82,13 +82,11 @@ export async function POST(request: NextRequest) {
       return noStoreJson({ error: "Invalid password" }, 401);
     }
 
-    let settings = await prisma.appSettings.findUnique({
+    const settings = await prisma.appSettings.upsert({
       where: { id: "singleton" },
+      create: { id: "singleton" },
+      update: {},
     });
-
-    if (!settings) {
-      settings = await prisma.appSettings.create({ data: { id: "singleton" } });
-    }
 
     // If no password is set, first-run setup must complete before login.
     if (!settings.appPassword) {
@@ -115,8 +113,8 @@ export async function POST(request: NextRequest) {
     });
 
     return noStoreJson({ success: true });
-  } catch {
-    console.error("POST /api/auth/login failed");
+  } catch (error) {
+    console.error("POST /api/auth/login failed", error);
     return noStoreJson({ error: "Authentication failed" }, 500);
   }
 }
