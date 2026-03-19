@@ -1,0 +1,23 @@
+.git
+.github
+.next
+.next.bak*
+node_modules
+coverage
+build
+
+# Local runtime state (must come from mounted persistence paths instead)
+data
+data-dev
+uploads
+prisma/dev.db
+prisma/dev.db-journal
+
+# Local env/secrets
+.env
+.env.local
+.env.production
+
+# Misc
+*.log
+.DS_Store

@@ -58,6 +58,13 @@ Compose bind mounts:
 - `${DATA_DIR}/db` -> `/app/data` (SQLite database)
 - `${DATA_DIR}/uploads` -> `/app/uploads` (uploaded images/documents)
 
+Auth/bootstrap state is persisted only in `${DATA_DIR}/db`:
+
+- Vault password/setup state: `${DATA_DIR}/db/vault.db` (`AppSettings.appPassword`)
+- Session signing secret: `${DATA_DIR}/db/session-secret`
+
+If those files remain, setup is considered complete after restart (expected behavior).
+
 ## Security Defaults
 
 - App routes and APIs require a signed session cookie after login.
@@ -90,6 +97,12 @@ docker compose logs -f blackvault
 ```
 - Rebuild after dependency or Dockerfile changes:
 ```bash
+docker compose up -d --build
+```
+- Run a truly fresh first-run test (clears persisted auth/setup state):
+```bash
+docker compose down
+rm -rf "${DATA_DIR:-./data}/db" "${DATA_DIR:-./data}/uploads"
 docker compose up -d --build
 ```
 - Verify health endpoint:
