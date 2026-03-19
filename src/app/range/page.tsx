@@ -58,6 +58,22 @@ interface AmmoStock {
   quantity: number;
 }
 
+interface DrillTemplate {
+  id: string;
+  name: string;
+  category: string;
+}
+
+interface DrillDraft {
+  templateId: string;
+  drillName: string;
+  timeSeconds: string;
+  hits: string;
+  totalShots: string;
+  score: string;
+  notes: string;
+}
+
 const SLOT_TYPE_LABELS: Record<string, string> = SLOT_TYPE_LABELS_IMPORT as Record<string, string>;
 
 // Slots that typically accumulate rounds (wear parts)
@@ -75,6 +91,7 @@ export default function RangeSessionPage() {
   const [firearms, setFirearms] = useState<Firearm[]>([]);
   const [builds, setBuilds] = useState<Build[]>([]);
   const [ammoStocks, setAmmoStocks] = useState<AmmoStock[]>([]);
+  const [drillTemplates, setDrillTemplates] = useState<DrillTemplate[]>([]);
 
   const [selectedFirearm, setSelectedFirearm] = useState<string>("");
   const [selectedBuild, setSelectedBuild] = useState<string>("");
@@ -101,18 +118,21 @@ export default function RangeSessionPage() {
   const [groupSizeIn, setGroupSizeIn] = useState<string>("");
   const [numberOfGroups, setNumberOfGroups] = useState<string>("");
   const [groupNotes, setGroupNotes] = useState<string>("");
+  const [sessionDrills, setSessionDrills] = useState<DrillDraft[]>([]);
 
   const [loadingFirearms, setLoadingFirearms] = useState(true);
   const [loadingBuilds, setLoadingBuilds] = useState(false);
   const [loadingAmmo, setLoadingAmmo] = useState(true);
+  const [loadingDrillTemplates, setLoadingDrillTemplates] = useState(true);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [createdSessionId, setCreatedSessionId] = useState<string | null>(null);
-  const [successDetails, setSuccessDetails] = useState<{ accessories: string[]; ammoLeft: number | null }>({
+  const [successDetails, setSuccessDetails] = useState<{ accessories: string[]; ammoLeft: number | null; drillCount: number }>({
     accessories: [],
     ammoLeft: null,
+    drillCount: 0,
   });
 
   // MOA auto-computed
@@ -135,6 +155,17 @@ export default function RangeSessionPage() {
       .then((r) => r.json())
       .then((data) => { setAmmoStocks(data.all ?? []); setLoadingAmmo(false); })
       .catch(() => setLoadingAmmo(false));
+  }, []);
+
+  // Load drill templates
+  useEffect(() => {
+    fetch("/api/drill-templates")
+      .then((r) => r.json())
+      .then((data) => {
+        setDrillTemplates(Array.isArray(data) ? data : []);
+        setLoadingDrillTemplates(false);
+      })
+      .catch(() => setLoadingDrillTemplates(false));
   }, []);
 
   // Load builds when firearm changes
@@ -202,6 +233,46 @@ export default function RangeSessionPage() {
     });
   }
 
+  function addSessionDrill() {
+    setSessionDrills((prev) => [
+      ...prev,
+      {
+        templateId: "",
+        drillName: "",
+        timeSeconds: "",
+        hits: "",
+        totalShots: "",
+        score: "",
+        notes: "",
+      },
+    ]);
+  }
+
+  function removeSessionDrill(index: number) {
+    setSessionDrills((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function updateSessionDrill(index: number, field: keyof DrillDraft, value: string) {
+    setSessionDrills((prev) =>
+      prev.map((drill, i) => (i === index ? { ...drill, [field]: value } : drill))
+    );
+  }
+
+  function handleTemplateSelect(index: number, templateId: string) {
+    const template = drillTemplates.find((t) => t.id === templateId);
+    setSessionDrills((prev) =>
+      prev.map((drill, i) =>
+        i === index
+          ? {
+              ...drill,
+              templateId,
+              drillName: drill.drillName || template?.name || "",
+            }
+          : drill
+      )
+    );
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -218,6 +289,29 @@ export default function RangeSessionPage() {
       const results: string[] = [];
       let ammoLeft: number | null = null;
       let ammoTransactionId: string | null = null;
+      const drillsPayload = sessionDrills
+        .map((drill) => {
+          const trimmedName = drill.drillName.trim();
+          if (!trimmedName) return null;
+          const hits = drill.hits ? parseInt(drill.hits, 10) : null;
+          const totalShots = drill.totalShots ? parseInt(drill.totalShots, 10) : null;
+          const computedAccuracy =
+            hits != null && totalShots != null && totalShots > 0
+              ? (hits / totalShots) * 100
+              : null;
+
+          return {
+            templateId: drill.templateId || null,
+            drillName: trimmedName,
+            timeSeconds: drill.timeSeconds ? parseFloat(drill.timeSeconds) : null,
+            hits,
+            totalShots,
+            accuracy: computedAccuracy,
+            score: drill.score ? parseFloat(drill.score) : null,
+            notes: drill.notes.trim() || null,
+          };
+        })
+        .filter((drill): drill is NonNullable<typeof drill> => drill !== null);
 
       // Log rounds to each selected accessory
       for (const accessoryId of selectedAccessories) {
@@ -282,13 +376,14 @@ export default function RangeSessionPage() {
           groupNotes: groupNotes || null,
           // ammo link
           ammoTransactionIds: ammoTransactionId ? [ammoTransactionId] : [],
+          drills: drillsPayload,
         }),
       });
       const sessionJson = await sessionRes.json();
       if (!sessionRes.ok) throw new Error(sessionJson.error ?? "Failed to save session");
       setCreatedSessionId(sessionJson.id ?? null);
 
-      setSuccessDetails({ accessories: results, ammoLeft });
+      setSuccessDetails({ accessories: results, ammoLeft, drillCount: drillsPayload.length });
       setSuccess(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Session log failed");
@@ -317,6 +412,7 @@ export default function RangeSessionPage() {
     setGroupSizeIn("");
     setNumberOfGroups("");
     setGroupNotes("");
+    setSessionDrills([]);
     setCreatedSessionId(null);
     setSuccess(false);
     setError(null);
@@ -362,13 +458,19 @@ export default function RangeSessionPage() {
                   <span className="text-sm font-mono text-[#F5A623]">{formatNumber(successDetails.ammoLeft)} rds</span>
                 </div>
               )}
+              {successDetails.drillCount > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-sm text-vault-text-muted">Drills logged</span>
+                  <span className="text-sm font-mono text-[#00C853]">{successDetails.drillCount}</span>
+                </div>
+              )}
             </div>
           </div>
           <div className="flex flex-col sm:flex-row items-center gap-3">
             {createdSessionId && (
               <Link href={`/range/${createdSessionId}`}
                 className="flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 px-5 py-2 rounded-md text-sm font-medium transition-colors">
-                View Session & Add Drills <ChevronRight className="w-4 h-4" />
+                View Session <ChevronRight className="w-4 h-4" />
               </Link>
             )}
             <button onClick={resetForm}
@@ -713,6 +815,141 @@ export default function RangeSessionPage() {
               </div>
             )}
           </div>
+
+          {/* Drill Results (optional) */}
+          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
+            <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
+              Drill Results (optional)
+            </legend>
+
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-vault-text-muted">
+                Add drill performance details as part of this session entry.
+              </p>
+              <button
+                type="button"
+                onClick={addSessionDrill}
+                className="text-xs text-[#00C2FF] border border-[#00C2FF]/30 px-2.5 py-1 rounded-md hover:bg-[#00C2FF]/10 transition-colors"
+              >
+                + Add Drill
+              </button>
+            </div>
+
+            {loadingDrillTemplates && (
+              <p className="text-xs text-vault-text-faint">Loading drill templates...</p>
+            )}
+
+            {sessionDrills.length === 0 ? (
+              <p className="text-xs text-vault-text-faint border border-vault-border rounded-md px-3 py-2">
+                No drill entries added for this session.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {sessionDrills.map((drill, index) => (
+                  <div key={index} className="bg-vault-bg border border-vault-border rounded-md p-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] uppercase tracking-widest text-vault-text-faint font-mono">
+                        Drill {index + 1}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeSessionDrill(index)}
+                        className="text-[10px] text-[#E53935] border border-[#E53935]/30 px-2 py-0.5 rounded hover:bg-[#E53935]/10 transition-colors"
+                      >
+                        Remove
+                      </button>
+                    </div>
+
+                    <div>
+                      <label className={LABEL_CLASS}>Template</label>
+                      <div className="relative">
+                        <select
+                          value={drill.templateId}
+                          onChange={(e) => handleTemplateSelect(index, e.target.value)}
+                          className={INPUT_CLASS}
+                        >
+                          <option value="">Custom / No Template</option>
+                          {drillTemplates.map((template) => (
+                            <option key={template.id} value={template.id}>
+                              {template.name} ({template.category})
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-vault-text-faint pointer-events-none" />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className={LABEL_CLASS}>Drill Name</label>
+                      <input
+                        type="text"
+                        value={drill.drillName}
+                        onChange={(e) => updateSessionDrill(index, "drillName", e.target.value)}
+                        placeholder="e.g. Bill Drill"
+                        className={INPUT_CLASS}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div>
+                        <label className={LABEL_CLASS}>Time (sec)</label>
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.01}
+                          value={drill.timeSeconds}
+                          onChange={(e) => updateSessionDrill(index, "timeSeconds", e.target.value)}
+                          className={INPUT_CLASS}
+                        />
+                      </div>
+                      <div>
+                        <label className={LABEL_CLASS}>Hits</label>
+                        <input
+                          type="number"
+                          min={0}
+                          value={drill.hits}
+                          onChange={(e) => updateSessionDrill(index, "hits", e.target.value)}
+                          className={INPUT_CLASS}
+                        />
+                      </div>
+                      <div>
+                        <label className={LABEL_CLASS}>Shots</label>
+                        <input
+                          type="number"
+                          min={0}
+                          value={drill.totalShots}
+                          onChange={(e) => updateSessionDrill(index, "totalShots", e.target.value)}
+                          className={INPUT_CLASS}
+                        />
+                      </div>
+                      <div>
+                        <label className={LABEL_CLASS}>Score</label>
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.1}
+                          value={drill.score}
+                          onChange={(e) => updateSessionDrill(index, "score", e.target.value)}
+                          className={INPUT_CLASS}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className={LABEL_CLASS}>Drill Notes</label>
+                      <textarea
+                        rows={2}
+                        value={drill.notes}
+                        onChange={(e) => updateSessionDrill(index, "notes", e.target.value)}
+                        className={`${INPUT_CLASS} resize-none`}
+                        placeholder="Optional notes for this drill"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </fieldset>
 
           {/* Session Note */}
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">

@@ -2,6 +2,9 @@ import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { DashboardClient } from "@/components/dashboard/DashboardClient";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 async function getDashboardData() {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 

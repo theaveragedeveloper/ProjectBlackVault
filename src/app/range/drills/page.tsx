@@ -176,6 +176,7 @@ export default function DrillLibraryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>("ALL");
+  const [expandedTemplateId, setExpandedTemplateId] = useState<string | null>(null);
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<DrillTemplate | null>(null);
@@ -185,7 +186,14 @@ export default function DrillLibraryPage() {
   async function fetchTemplates() {
     try {
       const res = await fetch("/api/drill-templates");
-      setTemplates(await res.json());
+      const data = await res.json();
+      setTemplates(data);
+      if (Array.isArray(data)) {
+        setExpandedTemplateId((prev) => {
+          if (prev && data.some((t: DrillTemplate) => t.id === prev)) return prev;
+          return data[0]?.id ?? null;
+        });
+      }
     } catch {
       setError("Failed to load drill templates.");
     } finally {
@@ -320,6 +328,10 @@ export default function DrillLibraryPage() {
                         onEdit={() => { setEditingTemplate(t); setShowCreateForm(false); }}
                         onDelete={() => handleDelete(t.id)}
                         deleting={deletingId === t.id}
+                        showProgress={expandedTemplateId === t.id}
+                        onToggleProgress={() =>
+                          setExpandedTemplateId((prev) => (prev === t.id ? null : t.id))
+                        }
                       />
                     )
                   )}
@@ -335,7 +347,15 @@ export default function DrillLibraryPage() {
                 </p>
                 <div className="space-y-3">
                   {builtIn.map((t) => (
-                    <TemplateCard key={t.id} template={t} readOnly />
+                    <TemplateCard
+                      key={t.id}
+                      template={t}
+                      readOnly
+                      showProgress={expandedTemplateId === t.id}
+                      onToggleProgress={() =>
+                        setExpandedTemplateId((prev) => (prev === t.id ? null : t.id))
+                      }
+                    />
                   ))}
                 </div>
               </div>
@@ -431,7 +451,15 @@ function DrillProgressPanel({ template }: { template: DrillTemplate }) {
   }
 
   function renderDot(color: string) {
-    return ({ cx, cy, payload }: { cx?: number; cy?: number; payload?: { sessionId?: string } }) => {
+    function DrillChartDot({
+      cx,
+      cy,
+      payload,
+    }: {
+      cx?: number;
+      cy?: number;
+      payload?: { sessionId?: string };
+    }) {
       if (typeof cx !== "number" || typeof cy !== "number") return null;
       return (
         <circle
@@ -448,7 +476,9 @@ function DrillProgressPanel({ template }: { template: DrillTemplate }) {
           }}
         />
       );
-    };
+    }
+    DrillChartDot.displayName = "DrillChartDot";
+    return DrillChartDot;
   }
 
   return (
@@ -572,15 +602,15 @@ function DrillProgressPanel({ template }: { template: DrillTemplate }) {
   );
 }
 
-function TemplateCard({ template, onEdit, onDelete, deleting, readOnly }: {
+function TemplateCard({ template, onEdit, onDelete, deleting, readOnly, showProgress, onToggleProgress }: {
   template: DrillTemplate;
   onEdit?: () => void;
   onDelete?: () => void;
   deleting?: boolean;
   readOnly?: boolean;
+  showProgress: boolean;
+  onToggleProgress: () => void;
 }) {
-  const [showProgress, setShowProgress] = useState(false);
-
   return (
     <div className="bg-vault-surface border border-vault-border rounded-lg p-4">
       <div className="flex items-start justify-between gap-3">
@@ -617,7 +647,7 @@ function TemplateCard({ template, onEdit, onDelete, deleting, readOnly }: {
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <button onClick={() => setShowProgress((v) => !v)}
+          <button onClick={onToggleProgress}
             title="Progress charts"
             className={`flex items-center gap-1 px-2 py-1.5 rounded text-xs transition-colors ${
               showProgress

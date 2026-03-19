@@ -1,6 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+function parseBatteryIntervalDays(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = parseInt(String(value), 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return parsed;
+}
+
+function parseBatteryDate(value: unknown): Date | null {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = new Date(String(value));
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 // GET /api/accessories - List all accessories with current build name
 export async function GET(request: NextRequest) {
   try {
@@ -76,6 +89,11 @@ export async function POST(request: NextRequest) {
       imageSource,
       compatibleFirearmTypes,
       compatibleCalibers,
+      hasBattery,
+      batteryType,
+      batteryReplacementIntervalDays,
+      lastBatteryChangeDate,
+      batteryNotes,
     } = body;
 
     if (!name || !type) {
@@ -84,6 +102,8 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const hasBatteryFlag = Boolean(hasBattery);
 
     const accessory = await prisma.accessory.create({
       data: {
@@ -99,6 +119,11 @@ export async function POST(request: NextRequest) {
         imageSource: imageSource ?? null,
         compatibleFirearmTypes: compatibleFirearmTypes ?? null,
         compatibleCalibers: compatibleCalibers ?? null,
+        hasBattery: hasBatteryFlag,
+        batteryType: hasBatteryFlag ? (typeof batteryType === "string" && batteryType.trim() ? batteryType.trim() : null) : null,
+        batteryReplacementIntervalDays: hasBatteryFlag ? parseBatteryIntervalDays(batteryReplacementIntervalDays) : null,
+        lastBatteryChangeDate: hasBatteryFlag ? parseBatteryDate(lastBatteryChangeDate) : null,
+        batteryNotes: hasBatteryFlag ? (typeof batteryNotes === "string" && batteryNotes.trim() ? batteryNotes.trim().slice(0, 1000) : null) : null,
       },
     });
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { encryptField, decryptField } from "@/lib/crypto";
+import { revalidatePath } from "next/cache";
 
 // GET /api/firearms - List all firearms with build count
 export async function GET() {
@@ -97,6 +98,8 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+
+    revalidatePath("/");
 
     return NextResponse.json(
       { ...firearm, buildCount: firearm._count.builds, _count: undefined },
