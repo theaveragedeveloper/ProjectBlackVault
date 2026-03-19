@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getSessionSecret, verifyTokenNode, SESSION_COOKIE_NAME } from "@/lib/session";
-import { getVaultSetupState } from "@/lib/auth-state";
+import { deriveVaultSetupState, getVaultSetupState } from "@/lib/auth-state";
 
 type AuthCheckResponse = {
   authenticated: boolean;
@@ -18,29 +18,31 @@ function noStoreJson(payload: AuthCheckResponse) {
 }
 
 export async function GET() {
-  let passwordRequired = false;
-  let requiresSetup = false;
+  // Fail closed to first-run setup if setup-state lookup fails.
+  let { passwordRequired } = deriveVaultSetupState(null);
   let authenticated = false;
 
   try {
     const setupState = await getVaultSetupState();
     passwordRequired = setupState.passwordRequired;
-    requiresSetup = setupState.requiresSetup;
   } catch (error) {
     console.error("GET /api/auth/check setup-state failed", error);
   }
+  const requiresSetup = !passwordRequired;
 
-  try {
-    const cookieStore = await cookies();
-    const session = cookieStore.get(SESSION_COOKIE_NAME);
-    const secret = getSessionSecret();
-    authenticated = Boolean(
-      session?.value
-      && secret
-      && verifyTokenNode(session.value, secret)
-    );
-  } catch (error) {
-    console.error("GET /api/auth/check session verification failed", error);
+  if (passwordRequired) {
+    try {
+      const cookieStore = await cookies();
+      const session = cookieStore.get(SESSION_COOKIE_NAME);
+      const secret = getSessionSecret();
+      authenticated = Boolean(
+        session?.value
+        && secret
+        && verifyTokenNode(session.value, secret)
+      );
+    } catch (error) {
+      console.error("GET /api/auth/check session verification failed", error);
+    }
   }
 
   if (requiresSetup) {
