@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import crypto from "crypto";
 import { verifyPassword } from "@/lib/password";
 import { getSessionSecret, signToken, SESSION_COOKIE_NAME } from "@/lib/session";
+import { hasVaultPassword } from "@/lib/auth-state";
 
 // Simple in-memory rate limiter: max 10 attempts per IP per minute
 const attempts = new Map<string, { count: number; resetAt: number }>();
@@ -82,14 +83,15 @@ export async function POST(request: NextRequest) {
       return noStoreJson({ error: "Invalid password" }, 401);
     }
 
-    const settings = await prisma.appSettings.upsert({
+    const settings = await prisma.appSettings.findUnique({
       where: { id: "singleton" },
-      create: { id: "singleton" },
-      update: {},
+      select: { appPassword: true },
     });
 
+    const storedPassword = settings?.appPassword ?? null;
+
     // If no password is set, first-run setup must complete before login.
-    if (!settings.appPassword) {
+    if (!hasVaultPassword(storedPassword)) {
       return noStoreJson(
         { error: "First-run setup is required before login." },
         409
@@ -97,7 +99,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify password (supports both hashed and legacy plaintext)
-    if (!verifyPassword(normalizedPassword, settings.appPassword)) {
+    if (!verifyPassword(normalizedPassword, storedPassword)) {
       return noStoreJson({ error: "Invalid password" }, 401);
     }
 
