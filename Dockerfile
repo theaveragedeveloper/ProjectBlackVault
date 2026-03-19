@@ -69,6 +69,7 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 ENV DATABASE_URL="file:/app/data/vault.db"
 ENV IMAGE_UPLOAD_DIR="/app/uploads"
+ENV SESSION_COOKIE_SECURE="auto"
 
 # Run migrations then start the server
-CMD ["sh", "-c", "node ./node_modules/prisma/build/index.js migrate deploy && node server.js"]
+CMD ["sh", "-c", "if [ -z \"$SESSION_SECRET\" ] || [ ${#SESSION_SECRET} -lt 32 ]; then echo \"ERROR: SESSION_SECRET must be set to at least 32 characters.\" >&2; exit 1; fi; if [ -n \"$VAULT_ENCRYPTION_KEY\" ] && ! echo \"$VAULT_ENCRYPTION_KEY\" | grep -Eq '^[0-9a-fA-F]{64}$'; then echo \"ERROR: VAULT_ENCRYPTION_KEY must be 64 hex characters.\" >&2; exit 1; fi; node ./node_modules/prisma/build/index.js migrate deploy && node server.js"]

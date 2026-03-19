@@ -327,7 +327,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const flags = parseFlags(searchParams);
     const format = parseFormat(searchParams);
-    const includeSerialNumbers = parseBool(searchParams.get("includeSerialNumbers"), true);
+    const includeSerialNumbers = parseBool(searchParams.get("includeSerialNumbers"), false);
 
     const payload: Record<string, unknown> = {
       meta: {
@@ -455,6 +455,7 @@ export async function GET(request: NextRequest) {
         headers: {
           "Content-Type": "application/pdf",
           "Content-Disposition": `attachment; filename="blackvault-export-${timestamp}.pdf"`,
+          "Cache-Control": "no-store",
         },
       });
     }
@@ -485,11 +486,16 @@ export async function GET(request: NextRequest) {
         status: 200,
         headers: {
           "Content-Type": "text/csv; charset=utf-8",
+          "Cache-Control": "no-store",
         },
       });
     }
 
-    return NextResponse.json(payload);
+    return NextResponse.json(payload, {
+      headers: {
+        "Cache-Control": "no-store",
+      },
+    });
   } catch (error) {
     if (error instanceof Error && error.message === "INVALID_FORMAT") {
       return NextResponse.json(

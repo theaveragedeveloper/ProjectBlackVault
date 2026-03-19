@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/password";
 
+const CURRENCY_RE = /^[A-Z]{3}$/;
+const KEY_EXPORT_ENABLED = (process.env.ALLOW_ENCRYPTION_KEY_EXPORT ?? "").trim().toLowerCase() === "true";
+
 // GET /api/settings - Get the singleton AppSettings
 export async function GET() {
   try {
@@ -27,10 +30,11 @@ export async function GET() {
       appPassword: settings.appPassword ? "***set***" : null,
       encryptionEnabled: !!(process.env.VAULT_ENCRYPTION_KEY || settings.encryptionKey),
       encryptionViaEnv: !!process.env.VAULT_ENCRYPTION_KEY,
+      encryptionKeyExportEnabled: KEY_EXPORT_ENABLED,
       encryptionKey: undefined, // never expose the raw key
     });
-  } catch (error) {
-    console.error("GET /api/settings error:", error);
+  } catch {
+    console.error("GET /api/settings failed");
     return NextResponse.json(
       { error: "Failed to fetch settings" },
       { status: 500 }
@@ -41,7 +45,16 @@ export async function GET() {
 // PUT /api/settings - Update the singleton AppSettings
 export async function PUT(request: NextRequest) {
   try {
-    const body = await request.json();
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
+
+    const parsedBody = typeof body === "object" && body !== null
+      ? body as Record<string, unknown>
+      : {};
 
     const {
       googleCseApiKey,
@@ -49,18 +62,38 @@ export async function PUT(request: NextRequest) {
       enableImageSearch,
       defaultCurrency,
       appPassword,
-    } = body;
+    } = parsedBody;
 
     // Build update data, only including fields that were provided
     const updateData: Record<string, unknown> = {};
 
     if (googleCseApiKey !== undefined) {
       // Allow clearing the key by passing null or empty string
+      if (
+        googleCseApiKey !== null &&
+        googleCseApiKey !== "" &&
+        (typeof googleCseApiKey !== "string" || googleCseApiKey.length > 256)
+      ) {
+        return NextResponse.json(
+          { error: "googleCseApiKey must be a string up to 256 characters" },
+          { status: 400 }
+        );
+      }
       updateData.googleCseApiKey =
         googleCseApiKey === "" ? null : googleCseApiKey;
     }
 
     if (googleCseSearchEngineId !== undefined) {
+      if (
+        googleCseSearchEngineId !== null &&
+        googleCseSearchEngineId !== "" &&
+        (typeof googleCseSearchEngineId !== "string" || googleCseSearchEngineId.length > 128)
+      ) {
+        return NextResponse.json(
+          { error: "googleCseSearchEngineId must be a string up to 128 characters" },
+          { status: 400 }
+        );
+      }
       updateData.googleCseSearchEngineId =
         googleCseSearchEngineId === "" ? null : googleCseSearchEngineId;
     }
@@ -70,7 +103,13 @@ export async function PUT(request: NextRequest) {
     }
 
     if (defaultCurrency !== undefined) {
-      updateData.defaultCurrency = defaultCurrency;
+      if (typeof defaultCurrency !== "string" || !CURRENCY_RE.test(defaultCurrency.trim().toUpperCase())) {
+        return NextResponse.json(
+          { error: "defaultCurrency must be a 3-letter currency code (e.g. USD)" },
+          { status: 400 }
+        );
+      }
+      updateData.defaultCurrency = defaultCurrency.trim().toUpperCase();
     }
 
     if (appPassword !== undefined) {
@@ -78,6 +117,11 @@ export async function PUT(request: NextRequest) {
         updateData.appPassword = null;
       } else if (typeof appPassword === "string" && appPassword.length <= 1024) {
         updateData.appPassword = hashPassword(appPassword);
+      } else {
+        return NextResponse.json(
+          { error: "appPassword must be a string up to 1024 characters" },
+          { status: 400 }
+        );
       }
     }
 
@@ -98,10 +142,11 @@ export async function PUT(request: NextRequest) {
       appPassword: settings.appPassword ? "***set***" : null,
       encryptionEnabled: !!(process.env.VAULT_ENCRYPTION_KEY || settings.encryptionKey),
       encryptionViaEnv: !!process.env.VAULT_ENCRYPTION_KEY,
+      encryptionKeyExportEnabled: KEY_EXPORT_ENABLED,
       encryptionKey: undefined,
     });
-  } catch (error) {
-    console.error("PUT /api/settings error:", error);
+  } catch {
+    console.error("PUT /api/settings failed");
     return NextResponse.json(
       { error: "Failed to update settings" },
       { status: 500 }

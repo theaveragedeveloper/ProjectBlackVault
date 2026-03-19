@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
-import { verifyTokenNode } from "@/lib/session";
+import { getSessionSecret, verifyTokenNode, SESSION_COOKIE_NAME } from "@/lib/session";
 
 export async function GET() {
   try {
@@ -14,16 +14,31 @@ export async function GET() {
     }
 
     const cookieStore = await cookies();
-    const session = cookieStore.get("vault_session");
+    const session = cookieStore.get(SESSION_COOKIE_NAME);
     const passwordRequired = !!settings.appPassword;
-    const secret = process.env.SESSION_SECRET;
-    const authenticated = session?.value
-      ? (secret ? verifyTokenNode(session.value, secret) : true)
+    const secret = getSessionSecret();
+    const sessionConfigured = !!secret;
+    const authenticated = session?.value && secret
+      ? verifyTokenNode(session.value, secret)
       : false;
 
-    return NextResponse.json({ passwordRequired, authenticated });
-  } catch (error) {
-    console.error("GET /api/auth/check error:", error);
-    return NextResponse.json({ passwordRequired: false, authenticated: true });
+    return NextResponse.json(
+      { passwordRequired, authenticated, sessionConfigured },
+      {
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
+    );
+  } catch {
+    console.error("GET /api/auth/check failed");
+    return NextResponse.json(
+      { passwordRequired: false, authenticated: false, sessionConfigured: false },
+      {
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
+    );
   }
 }

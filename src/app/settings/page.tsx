@@ -33,6 +33,7 @@ interface AppSettings {
   defaultCurrency: string;
   encryptionEnabled?: boolean;
   encryptionViaEnv?: boolean;
+  encryptionKeyExportEnabled?: boolean;
 }
 
 interface SystemInfo {
@@ -80,7 +81,7 @@ export default function SettingsPage() {
   const [exportDocuments, setExportDocuments] = useState(true);
   const [exportSettings, setExportSettings] = useState(false);
   const [exportFormat, setExportFormat] = useState<"json" | "csv" | "pdf">("json");
-  const [exportIncludeSerialNumbers, setExportIncludeSerialNumbers] = useState(true);
+  const [exportIncludeSerialNumbers, setExportIncludeSerialNumbers] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -408,7 +409,7 @@ export default function SettingsPage() {
                   <div>
                     <p className="text-sm font-semibold text-vault-text">Protect Your Sensitive Data</p>
                     <p className="text-xs text-vault-text-muted mt-1 leading-relaxed">
-                      When encryption is on, your serial numbers and notes are scrambled in the database. Even if someone gets your data file, they can&apos;t read those details without your key.
+                      Encryption protects serial numbers and notes at rest. For stronger protection against database theft, store your key in <code className="font-mono text-vault-text-faint">VAULT_ENCRYPTION_KEY</code> instead of only in the app database.
                     </p>
                   </div>
                 </div>
@@ -510,41 +511,54 @@ export default function SettingsPage() {
                 {settings.encryptionViaEnv ? (
                   <div className="bg-vault-bg border border-vault-border rounded-md px-4 py-3">
                     <p className="text-xs text-vault-text-muted leading-relaxed">
-                      Your encryption key is managed via the <code className="font-mono text-vault-text-faint">VAULT_ENCRYPTION_KEY</code> environment variable. To change or disable it, update your <code className="font-mono text-vault-text-faint">.blackvault.env</code> file and restart the app.
+                      Your encryption key is managed via the <code className="font-mono text-vault-text-faint">VAULT_ENCRYPTION_KEY</code> environment variable. To change or disable it, update your <code className="font-mono text-vault-text-faint">.env</code> file and restart the app.
                     </p>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {/* Export key panel */}
-                    {exportedKey ? (
-                      <div className="space-y-3 bg-vault-bg border border-vault-border rounded-md p-4">
-                        <p className="text-xs font-semibold text-vault-text">Your Encryption Key</p>
-                        <div className="flex items-center gap-2 bg-vault-surface border border-vault-border rounded-md px-3 py-2">
-                          <code className="text-xs font-mono text-vault-text flex-1 break-all select-all">{exportedKey}</code>
-                        </div>
-                        <div className="flex gap-2 flex-wrap">
-                          <button type="button" onClick={() => copyKey(exportedKey)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-vault-surface border border-vault-border text-vault-text-muted hover:text-vault-text rounded-md text-xs transition-colors">
-                            {keyCopied ? <CheckCircle2 className="w-3.5 h-3.5 text-[#00C853]" /> : <Copy className="w-3.5 h-3.5" />}
-                            {keyCopied ? "Copied!" : "Copy Key"}
-                          </button>
-                          <button type="button" onClick={() => downloadKey(exportedKey)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-vault-surface border border-vault-border text-vault-text-muted hover:text-vault-text rounded-md text-xs transition-colors">
+                    <div className="bg-[#F5A623]/10 border border-[#F5A623]/30 rounded-md px-3 py-2">
+                      <p className="text-xs text-[#F5A623]">
+                        This key is currently stored in the database. Prefer setting <code className="font-mono">VAULT_ENCRYPTION_KEY</code> in your environment for stronger separation.
+                      </p>
+                    </div>
+                    {settings.encryptionKeyExportEnabled ? (
+                      <>
+                        {/* Export key panel */}
+                        {exportedKey ? (
+                          <div className="space-y-3 bg-vault-bg border border-vault-border rounded-md p-4">
+                            <p className="text-xs font-semibold text-vault-text">Your Encryption Key</p>
+                            <div className="flex items-center gap-2 bg-vault-surface border border-vault-border rounded-md px-3 py-2">
+                              <code className="text-xs font-mono text-vault-text flex-1 break-all select-all">{exportedKey}</code>
+                            </div>
+                            <div className="flex gap-2 flex-wrap">
+                              <button type="button" onClick={() => copyKey(exportedKey)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-vault-surface border border-vault-border text-vault-text-muted hover:text-vault-text rounded-md text-xs transition-colors">
+                                {keyCopied ? <CheckCircle2 className="w-3.5 h-3.5 text-[#00C853]" /> : <Copy className="w-3.5 h-3.5" />}
+                                {keyCopied ? "Copied!" : "Copy Key"}
+                              </button>
+                              <button type="button" onClick={() => downloadKey(exportedKey)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-vault-surface border border-vault-border text-vault-text-muted hover:text-vault-text rounded-md text-xs transition-colors">
+                                <Download className="w-3.5 h-3.5" />
+                                Download Key File
+                              </button>
+                              <button type="button" onClick={() => setExportedKey(null)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-vault-surface border border-vault-border text-vault-text-faint hover:text-vault-text rounded-md text-xs transition-colors">
+                                Hide
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button type="button" onClick={handleExportKey}
+                            className="flex items-center gap-1.5 text-xs text-vault-text-muted hover:text-[#00C2FF] transition-colors">
                             <Download className="w-3.5 h-3.5" />
-                            Download Key File
+                            Back Up Your Key
                           </button>
-                          <button type="button" onClick={() => setExportedKey(null)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-vault-surface border border-vault-border text-vault-text-faint hover:text-vault-text rounded-md text-xs transition-colors">
-                            Hide
-                          </button>
-                        </div>
-                      </div>
+                        )}
+                      </>
                     ) : (
-                      <button type="button" onClick={handleExportKey}
-                        className="flex items-center gap-1.5 text-xs text-vault-text-muted hover:text-[#00C2FF] transition-colors">
-                        <Download className="w-3.5 h-3.5" />
-                        Back Up Your Key
-                      </button>
+                      <p className="text-xs text-vault-text-faint">
+                        Key export from the UI is disabled. Set <code className="font-mono">ALLOW_ENCRYPTION_KEY_EXPORT=true</code> only for temporary recovery workflows.
+                      </p>
                     )}
 
                     {/* Disable encryption */}
@@ -658,6 +672,9 @@ export default function SettingsPage() {
                 Include serial numbers
               </label>
             </div>
+            <p className="text-xs text-vault-text-faint">
+              Serial numbers are excluded by default and only included when explicitly selected.
+            </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <label className="flex items-center gap-2 text-xs text-vault-text-muted"><input type="checkbox" checked={exportFirearms} onChange={(e) => setExportFirearms(e.target.checked)} className="accent-[#00C2FF]" />Firearms</label>
