@@ -87,6 +87,11 @@ const LIGHT_CONDITION_LABELS: Record<string, string> = {
   NIGHT: "Night",
 };
 
+function toDateTimeLocalValue(date: Date): string {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+}
+
 export default function RangeSessionPage() {
   const [firearms, setFirearms] = useState<Firearm[]>([]);
   const [builds, setBuilds] = useState<Build[]>([]);
@@ -98,6 +103,7 @@ export default function RangeSessionPage() {
   const [roundsFired, setRoundsFired] = useState<string>("");
   const [selectedAmmoStock, setSelectedAmmoStock] = useState<string>("");
   const [sessionNote, setSessionNote] = useState<string>("");
+  const [sessionDate, setSessionDate] = useState<string>(() => toDateTimeLocalValue(new Date()));
   const [rangeName, setRangeName] = useState<string>("");
   const [rangeLocation, setRangeLocation] = useState<string>("");
   const [selectedAccessories, setSelectedAccessories] = useState<Set<string>>(new Set());
@@ -357,6 +363,7 @@ export default function RangeSessionPage() {
           firearmId: selectedFirearm,
           buildId: selectedBuild || null,
           roundsFired: rounds,
+          date: sessionDate ? new Date(sessionDate).toISOString() : undefined,
           rangeName: rangeName || null,
           rangeLocation: rangeLocation || null,
           notes: sessionNote || null,
@@ -398,6 +405,7 @@ export default function RangeSessionPage() {
     setRoundsFired("");
     setSelectedAmmoStock("");
     setSessionNote("");
+    setSessionDate(toDateTimeLocalValue(new Date()));
     setRangeName("");
     setRangeLocation("");
     setSelectedAccessories(new Set());
@@ -496,6 +504,23 @@ export default function RangeSessionPage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Session Date */}
+          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
+            <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
+              Session Date
+            </legend>
+            <div>
+              <label className={LABEL_CLASS}>Date &amp; Time</label>
+              <input
+                type="datetime-local"
+                value={sessionDate}
+                onChange={(e) => setSessionDate(e.target.value)}
+                className={INPUT_CLASS}
+              />
+              <p className="text-xs text-vault-text-faint mt-1">Defaults to now. Change this to log past sessions.</p>
+            </div>
+          </fieldset>
+
           {/* Firearm & Build */}
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
             <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">

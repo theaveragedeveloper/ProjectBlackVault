@@ -121,6 +121,13 @@ function formatDate(dateStr: string) {
   });
 }
 
+function toDateTimeLocalValue(dateStr: string): string {
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return "";
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+}
+
 function DrillCard({ drill, onEdit, onDelete }: {
   drill: SessionDrill;
   onEdit: () => void;
@@ -384,12 +391,16 @@ export default function RangeSessionDetailPage() {
   const [drillSubmitting, setDrillSubmitting] = useState(false);
   const [deletingDrillId, setDeletingDrillId] = useState<string | null>(null);
   const [deleteSessionConfirm, setDeleteSessionConfirm] = useState(false);
+  const [sessionDateInput, setSessionDateInput] = useState("");
+  const [savingSessionDate, setSavingSessionDate] = useState(false);
 
   const fetchSession = useCallback(async () => {
     try {
       const res = await fetch(`/api/range-sessions/${id}`);
       if (!res.ok) throw new Error("Session not found");
-      setSession(await res.json());
+      const json = await res.json();
+      setSession(json);
+      setSessionDateInput(toDateTimeLocalValue(json.date));
     } catch {
       setError("Failed to load session.");
     } finally {
@@ -457,6 +468,53 @@ export default function RangeSessionDetailPage() {
       router.push("/range/history");
     } catch {
       setError("Failed to delete session.");
+    }
+  }
+
+  async function handleSaveSessionDate() {
+    if (!session || !sessionDateInput) return;
+
+    setSavingSessionDate(true);
+    setError(null);
+
+    try {
+      const res = await fetch(`/api/range-sessions/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          buildId: session.build?.id ?? null,
+          roundsFired: session.roundsFired,
+          rangeName: session.rangeName,
+          rangeLocation: session.rangeLocation,
+          notes: session.notes,
+          date: new Date(sessionDateInput).toISOString(),
+          environment: session.environment,
+          temperatureF: session.temperatureF,
+          windSpeedMph: session.windSpeedMph,
+          windDirection: session.windDirection,
+          humidity: session.humidity,
+          lightCondition: session.lightCondition,
+          weatherNotes: session.weatherNotes,
+          targetDistanceYd: session.targetDistanceYd,
+          groupSizeIn: session.groupSizeIn,
+          groupSizeMoa: session.groupSizeMoa,
+          numberOfGroups: session.numberOfGroups,
+          groupNotes: session.groupNotes,
+          ammoTransactionIds: session.ammoLinks.map((link) => link.transaction.id),
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error ?? "Failed to update session date");
+      }
+
+      setSession(json);
+      setSessionDateInput(toDateTimeLocalValue(json.date));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update session date");
+    } finally {
+      setSavingSessionDate(false);
     }
   }
 
@@ -535,6 +593,29 @@ export default function RangeSessionDetailPage() {
         </div>
 
         {/* Session summary strip */}
+        <div className="bg-vault-surface border border-vault-border rounded-lg p-4">
+          <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+            <div className="flex-1">
+              <label className={LABEL_CLASS}>Session Date &amp; Time</label>
+              <input
+                type="datetime-local"
+                value={sessionDateInput}
+                onChange={(e) => setSessionDateInput(e.target.value)}
+                className={INPUT_CLASS}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={handleSaveSessionDate}
+              disabled={savingSessionDate || !sessionDateInput}
+              className="h-10 px-4 rounded-md text-sm bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+            >
+              {savingSessionDate ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              {savingSessionDate ? "Saving..." : "Save Date"}
+            </button>
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
             { label: "Rounds Fired", value: formatNumber(session.roundsFired), unit: "rds", color: "text-[#00C2FF]" },
