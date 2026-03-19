@@ -1,0 +1,16 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/ammo/layout,_N_T_/ammo/new/layout,_N_T_/ammo/new/page,_N_T_/ammo/new"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/ammo/new/__PAGE__",
+    "/ammo/new",
+    "/ammo",
+    "/_index",
+    "/_head"
+  ]
+}

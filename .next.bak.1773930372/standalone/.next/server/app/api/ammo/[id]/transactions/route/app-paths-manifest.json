@@ -1,0 +1,3 @@
+{
+  "/api/ammo/[id]/transactions/route": "app/api/ammo/[id]/transactions/route.js"
+}

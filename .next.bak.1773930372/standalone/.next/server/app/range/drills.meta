@@ -1,0 +1,16 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/range/layout,_N_T_/range/drills/layout,_N_T_/range/drills/page,_N_T_/range/drills"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/range/drills/__PAGE__",
+    "/range/drills",
+    "/range",
+    "/_index",
+    "/_head"
+  ]
+}

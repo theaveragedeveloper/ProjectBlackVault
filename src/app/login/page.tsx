@@ -155,20 +155,30 @@ export default function LoginPage() {
       if (!res.ok) {
         if (isSetupMode && res.status === 409) {
           const statusRes = await fetch("/api/auth/check", { cache: "no-store" });
-          const statusJson = await statusRes.json();
-          if (statusJson.authenticated) {
-            router.replace("/");
-            return;
-          }
-          if (!statusJson.requiresSetup) {
-            setMode("login");
-            setPassword("");
-            setConfirmPassword("");
-            setPasswordTouched(false);
-            setConfirmTouched(false);
-            setRequestError(null);
-            setSubmitting(false);
-            return;
+          if (statusRes.ok) {
+            const statusJson = await statusRes.json() as {
+              authenticated?: unknown;
+              requiresSetup?: unknown;
+            };
+            if (
+              typeof statusJson.authenticated === "boolean"
+              && typeof statusJson.requiresSetup === "boolean"
+            ) {
+              if (statusJson.authenticated) {
+                router.replace("/");
+                return;
+              }
+              if (!statusJson.requiresSetup) {
+                setMode("login");
+                setPassword("");
+                setConfirmPassword("");
+                setPasswordTouched(false);
+                setConfirmTouched(false);
+                setRequestError(null);
+                setSubmitting(false);
+                return;
+              }
+            }
           }
         }
 
