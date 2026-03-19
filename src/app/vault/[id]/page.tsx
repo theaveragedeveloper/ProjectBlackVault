@@ -112,6 +112,7 @@ interface RangeSession {
 interface MaintenanceNote {
   id: string;
   date: string;
+  dueDate: string | null;
   type: string;
   description: string;
   mileage: number | null;
@@ -120,6 +121,15 @@ interface MaintenanceNote {
 function formatSessionDate(dateStr: string): string {
   const d = new Date(dateStr);
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function isOverdueDate(dateStr: string | null | undefined): boolean {
+  if (!dateStr) return false;
+  const due = new Date(dateStr);
+  if (Number.isNaN(due.getTime())) return false;
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return due.getTime() < todayStart.getTime();
 }
 
 export default function FirearmDetailPage() {
@@ -143,6 +153,7 @@ export default function FirearmDetailPage() {
   const [noteType, setNoteType] = useState("Cleaning");
   const [noteDescription, setNoteDescription] = useState("");
   const [noteDate, setNoteDate] = useState(new Date().toISOString().split("T")[0]);
+  const [noteDueDate, setNoteDueDate] = useState("");
   const [savingNote, setSavingNote] = useState(false);
   const [deletingNote, setDeletingNote] = useState<string | null>(null);
 
@@ -172,7 +183,13 @@ export default function FirearmDetailPage() {
       const res = await fetch("/api/maintenance-notes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ firearmId: id, type: noteType, description: noteDescription, date: noteDate }),
+        body: JSON.stringify({
+          firearmId: id,
+          type: noteType,
+          description: noteDescription,
+          date: noteDate,
+          dueDate: noteDueDate || null,
+        }),
       });
       if (res.ok) {
         const created = await res.json();
@@ -180,6 +197,7 @@ export default function FirearmDetailPage() {
         setNoteDescription("");
         setNoteType("Cleaning");
         setNoteDate(new Date().toISOString().split("T")[0]);
+        setNoteDueDate("");
         setAddingNote(false);
       }
     } catch { /* ignore */ }
@@ -605,6 +623,15 @@ export default function FirearmDetailPage() {
                       required
                     />
                   </div>
+                  <div>
+                    <label className="text-[10px] uppercase text-vault-text-faint block mb-1">Due Date (Optional)</label>
+                    <input
+                      type="date"
+                      value={noteDueDate}
+                      onChange={(e) => setNoteDueDate(e.target.value)}
+                      className="w-full bg-vault-surface border border-vault-border rounded px-2 py-1 text-xs text-vault-text"
+                    />
+                  </div>
                   <button
                     type="submit"
                     disabled={savingNote || !noteDescription.trim()}
@@ -637,6 +664,18 @@ export default function FirearmDetailPage() {
                             </span>
                             <span className="text-[10px] text-vault-text-faint">{formatSessionDate(note.date)}</span>
                           </div>
+                          {note.dueDate && (
+                            <div className="mb-1 flex items-center gap-1.5">
+                              <span className="text-[10px] text-vault-text-faint">
+                                Due {formatSessionDate(note.dueDate)}
+                              </span>
+                              {isOverdueDate(note.dueDate) && (
+                                <span className="text-[9px] font-mono text-[#E53935] border border-[#E53935]/30 px-1 py-0.5 rounded uppercase">
+                                  Overdue
+                                </span>
+                              )}
+                            </div>
+                          )}
                           <p className="text-xs text-vault-text-muted line-clamp-2">{note.description}</p>
                         </div>
                         <button

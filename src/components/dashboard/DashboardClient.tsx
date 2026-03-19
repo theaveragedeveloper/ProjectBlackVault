@@ -31,6 +31,9 @@ import {
   Settings2,
   X,
   Package,
+  Wrench,
+  Battery,
+  CheckCircle2,
 } from "lucide-react";
 
 const FIREARM_TYPE_LABELS: Record<string, string> = {
@@ -55,7 +58,7 @@ const TYPE_BADGE_COLORS: Record<string, string> = {
   LEVER_ACTION: "border-[#FF7043]/40 text-[#FF7043]",
 };
 
-const DEFAULT_ORDER = ["stats", "range-sessions", "low-ammo", "recent", "ammo-summary"];
+const DEFAULT_ORDER = ["stats", "maintenance", "range-sessions", "low-ammo", "recent", "ammo-summary"];
 const STORAGE_KEY = "vault-dashboard-layout";
 
 interface AmmoStockItem {
@@ -102,8 +105,21 @@ interface DashboardData {
   lowStockItems: AmmoStockItem[];
   recentFirearms: RecentFirearm[];
   ammoStocks: AmmoStockItem[];
+  maintenanceItems: MaintenanceItem[];
   rangeStats: RangeStats;
 }
+
+type MaintenanceItem = {
+  id: string;
+  kind: "maintenance" | "battery";
+  title: string;
+  description: string;
+  dueDate: string;
+  overdue: boolean;
+  firearmId?: string | null;
+  firearmName?: string | null;
+  accessoryId?: string | null;
+};
 
 // ── Sortable wrapper ──────────────────────────────────────────
 function SortableWidget({
@@ -437,6 +453,91 @@ function RangeSessionsWidget({ stats }: { stats: RangeStats }) {
   );
 }
 
+function MaintenanceWidget({ items }: { items: MaintenanceItem[] }) {
+  const overdueCount = items.filter((item) => item.overdue).length;
+
+  return (
+    <section>
+      <div className="flex items-center gap-2 mb-3">
+        <Wrench className="w-4 h-4 text-[#F5A623]" />
+        <h2 className="text-sm font-semibold tracking-widest uppercase text-[#F5A623]">
+          Maintenance Due
+        </h2>
+        {items.length > 0 && (
+          <span className="ml-auto text-xs font-mono bg-[#F5A623]/10 border border-[#F5A623]/30 text-[#F5A623] px-2 py-0.5 rounded">
+            {items.length} due
+          </span>
+        )}
+      </div>
+      <div className="bg-vault-surface border border-vault-border rounded-lg overflow-hidden">
+        {items.length === 0 ? (
+          <div className="p-8 text-center">
+            <div className="w-10 h-10 rounded-full bg-[#00C853]/10 border border-[#00C853]/20 flex items-center justify-center mx-auto mb-3">
+              <CheckCircle2 className="w-5 h-5 text-[#00C853]" />
+            </div>
+            <p className="text-sm text-vault-text-muted">No due maintenance tasks</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-vault-border">
+            {items.map((item) => {
+              const href =
+                item.kind === "battery" && item.accessoryId
+                  ? `/accessories/${item.accessoryId}`
+                  : item.firearmId
+                    ? `/vault/${item.firearmId}`
+                    : "/vault";
+              return (
+                <Link
+                  key={item.id}
+                  href={href}
+                  className="flex items-start gap-3 px-4 py-3 hover:bg-vault-surface-2 transition-colors group"
+                >
+                  <div className="w-8 h-8 rounded border border-vault-border bg-vault-bg flex items-center justify-center shrink-0">
+                    {item.kind === "battery" ? (
+                      <Battery className="w-4 h-4 text-[#00C2FF]" />
+                    ) : (
+                      <Wrench className="w-4 h-4 text-[#F5A623]" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <p className="text-sm font-medium text-vault-text truncate group-hover:text-[#00C2FF] transition-colors">
+                        {item.title}
+                      </p>
+                      <span
+                        className={`text-[10px] px-1.5 py-0.5 rounded border font-mono uppercase shrink-0 ${
+                          item.overdue
+                            ? "border-[#E53935]/30 text-[#E53935]"
+                            : "border-[#F5A623]/30 text-[#F5A623]"
+                        }`}
+                      >
+                        {item.overdue ? "Overdue" : "Due"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-vault-text-muted truncate">{item.description}</p>
+                    <p className="text-[10px] text-vault-text-faint mt-1">
+                      {item.firearmName ? `${item.firearmName} · ` : ""}
+                      Due {formatDate(item.dueDate)}
+                    </p>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-vault-text-faint group-hover:text-[#00C2FF] transition-colors shrink-0 mt-1" />
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </div>
+      {items.length > 0 && (
+        <div className="mt-2 text-right">
+          <span className="text-xs text-vault-text-faint">
+            {overdueCount > 0 ? `${overdueCount} overdue` : "No overdue items"}
+          </span>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function AmmoSummaryWidget({ ammoStocks }: { ammoStocks: AmmoStockItem[] }) {
   // Group by caliber
   const byCaliber = ammoStocks.reduce<Record<string, number>>((acc, stock) => {
@@ -560,6 +661,8 @@ export function DashboardClient({ data }: { data: DashboardData }) {
         return <StatsWidget data={data} />;
       case "range-sessions":
         return <RangeSessionsWidget stats={data.rangeStats} />;
+      case "maintenance":
+        return <MaintenanceWidget items={data.maintenanceItems} />;
       case "low-ammo":
         return <LowAmmoWidget items={data.lowStockItems} />;
       case "recent":
