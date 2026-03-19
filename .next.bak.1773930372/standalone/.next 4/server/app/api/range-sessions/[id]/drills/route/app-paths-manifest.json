@@ -1,0 +1,3 @@
+{
+  "/api/range-sessions/[id]/drills/route": "app/api/range-sessions/[id]/drills/route.js"
+}
