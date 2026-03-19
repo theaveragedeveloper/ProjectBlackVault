@@ -10,7 +10,7 @@ services:
     cap_drop:
       - ALL
     ports:
-      - "${BIND_ADDRESS:-127.0.0.1}:${PORT:-3000}:3000"
+      - "${BIND_ADDRESS:-0.0.0.0}:${PORT:-3000}:3000"
     environment:
       - NODE_ENV=production
       - DATABASE_URL=file:/app/data/vault.db
