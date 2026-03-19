@@ -1,6 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+function parseBatteryIntervalDays(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = parseInt(String(value), 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return parsed;
+}
+
+function parseBatteryDate(value: unknown): Date | null {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = new Date(String(value));
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 // GET /api/accessories/[id] - Get a single accessory with roundCountLogs and current buildSlots
 export async function GET(
   _request: NextRequest,
@@ -91,6 +104,11 @@ export async function PUT(
       imageSource,
       compatibleFirearmTypes,
       compatibleCalibers,
+      hasBattery,
+      batteryType,
+      batteryReplacementIntervalDays,
+      lastBatteryChangeDate,
+      batteryNotes,
     } = body;
 
     const existing = await prisma.accessory.findUnique({ where: { id } });
@@ -100,6 +118,56 @@ export async function PUT(
         { status: 404 }
       );
     }
+
+    const hasBatteryProvided = hasBattery !== undefined;
+    const hasBatteryFlag = Boolean(hasBattery);
+
+    const batteryData = hasBatteryProvided
+      ? hasBatteryFlag
+        ? {
+            hasBattery: true,
+            batteryType:
+              typeof batteryType === "string" && batteryType.trim()
+                ? batteryType.trim()
+                : null,
+            batteryReplacementIntervalDays: parseBatteryIntervalDays(
+              batteryReplacementIntervalDays
+            ),
+            lastBatteryChangeDate: parseBatteryDate(lastBatteryChangeDate),
+            batteryNotes:
+              typeof batteryNotes === "string" && batteryNotes.trim()
+                ? batteryNotes.trim().slice(0, 1000)
+                : null,
+          }
+        : {
+            hasBattery: false,
+            batteryType: null,
+            batteryReplacementIntervalDays: null,
+            lastBatteryChangeDate: null,
+            batteryNotes: null,
+          }
+      : {
+          ...(batteryType !== undefined && {
+            batteryType:
+              typeof batteryType === "string" && batteryType.trim()
+                ? batteryType.trim()
+                : null,
+          }),
+          ...(batteryReplacementIntervalDays !== undefined && {
+            batteryReplacementIntervalDays: parseBatteryIntervalDays(
+              batteryReplacementIntervalDays
+            ),
+          }),
+          ...(lastBatteryChangeDate !== undefined && {
+            lastBatteryChangeDate: parseBatteryDate(lastBatteryChangeDate),
+          }),
+          ...(batteryNotes !== undefined && {
+            batteryNotes:
+              typeof batteryNotes === "string" && batteryNotes.trim()
+                ? batteryNotes.trim().slice(0, 1000)
+                : null,
+          }),
+        };
 
     const updated = await prisma.accessory.update({
       where: { id },
@@ -118,6 +186,7 @@ export async function PUT(
         ...(imageSource !== undefined && { imageSource }),
         ...(compatibleFirearmTypes !== undefined && { compatibleFirearmTypes }),
         ...(compatibleCalibers !== undefined && { compatibleCalibers }),
+        ...batteryData,
       },
       include: {
         roundCountLogs: {

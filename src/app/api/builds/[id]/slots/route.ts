@@ -12,6 +12,25 @@ function isCustomSlotType(slotType: string): boolean {
   return rest.trim().length > 0;
 }
 
+function parseCustomSlotType(slotType: string): { category: string | null; name: string } | null {
+  if (!isCustomSlotType(slotType)) return null;
+  const rest = slotType.slice("CUSTOM:".length);
+  const pipe = rest.indexOf("|");
+  if (pipe === -1) {
+    return { category: null, name: rest.trim() };
+  }
+
+  const category = rest.slice(0, pipe).trim() || null;
+  const name = rest.slice(pipe + 1).trim();
+  if (!name) return null;
+
+  return { category, name };
+}
+
+function buildCustomSlotType(category: string | null, name: string): string {
+  return category ? `CUSTOM:${category}|${name}` : `CUSTOM:${name}`;
+}
+
 // PUT /api/builds/[id]/slots - Assign or remove an accessory from a slot
 // Body: { slotType: string, accessoryId: string | null }
 export async function PUT(
@@ -111,6 +130,81 @@ export async function PUT(
       { error: "Failed to update slot" },
       { status: 500 }
     );
+  }
+}
+
+// PATCH /api/builds/[id]/slots - Rename a custom slot
+// Body: { slotType: string, newName: string, category?: string | null }
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id: buildId } = await params;
+    const body = await request.json();
+    const slotType = typeof body.slotType === "string" ? body.slotType : "";
+    const newName = typeof body.newName === "string" ? body.newName.trim() : "";
+
+    if (!slotType || !newName) {
+      return NextResponse.json(
+        { error: "Missing required fields: slotType, newName" },
+        { status: 400 }
+      );
+    }
+
+    if (!isCustomSlotType(slotType)) {
+      return NextResponse.json(
+        { error: "Only custom slots can be renamed" },
+        { status: 400 }
+      );
+    }
+
+    const parsed = parseCustomSlotType(slotType);
+    if (!parsed) {
+      return NextResponse.json({ error: "Invalid custom slot type" }, { status: 400 });
+    }
+
+    const categoryOverride =
+      body.category === undefined
+        ? parsed.category
+        : typeof body.category === "string" && body.category.trim()
+          ? body.category.trim()
+          : null;
+    const newSlotType = buildCustomSlotType(categoryOverride, newName);
+
+    const existingSlot = await prisma.buildSlot.findUnique({
+      where: { buildId_slotType: { buildId, slotType } },
+    });
+    if (!existingSlot) {
+      return NextResponse.json({ error: "Slot not found" }, { status: 404 });
+    }
+
+    if (newSlotType === slotType) {
+      return NextResponse.json(existingSlot);
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const conflict = await tx.buildSlot.findUnique({
+        where: { buildId_slotType: { buildId, slotType: newSlotType } },
+      });
+      if (conflict) {
+        throw new Error("A slot with that name already exists in this build");
+      }
+
+      return tx.buildSlot.update({
+        where: { id: existingSlot.id },
+        data: { slotType: newSlotType },
+        include: { accessory: true },
+      });
+    });
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    console.error("PATCH /api/builds/[id]/slots error:", error);
+    if (error instanceof Error && error.message.includes("already exists")) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    return NextResponse.json({ error: "Failed to rename slot" }, { status: 500 });
   }
 }
 

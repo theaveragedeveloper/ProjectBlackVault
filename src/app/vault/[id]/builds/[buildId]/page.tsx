@@ -34,6 +34,11 @@ interface Accessory {
   imageUrl: string | null;
   purchasePrice: number | null;
   notes: string | null;
+  hasBattery: boolean;
+  batteryType: string | null;
+  batteryReplacementIntervalDays: number | null;
+  lastBatteryChangeDate: string | null;
+  batteryNotes: string | null;
 }
 
 interface BuildSlot {
@@ -161,6 +166,16 @@ function AccessoryEditModal({ accessory, onClose, onSaved }: AccessoryEditModalP
     purchasePrice: accessory.purchasePrice != null ? String(accessory.purchasePrice) : "",
     imageUrl: accessory.imageUrl ?? "",
     notes: accessory.notes ?? "",
+    hasBattery: accessory.hasBattery ?? false,
+    batteryType: accessory.batteryType ?? "",
+    batteryReplacementIntervalDays:
+      accessory.batteryReplacementIntervalDays != null
+        ? String(accessory.batteryReplacementIntervalDays)
+        : "",
+    lastBatteryChangeDate: accessory.lastBatteryChangeDate
+      ? new Date(accessory.lastBatteryChangeDate).toISOString().split("T")[0]
+      : "",
+    batteryNotes: accessory.batteryNotes ?? "",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -184,6 +199,17 @@ function AccessoryEditModal({ accessory, onClose, onSaved }: AccessoryEditModalP
           purchasePrice: form.purchasePrice ? parseFloat(form.purchasePrice) : null,
           imageUrl: form.imageUrl.trim() || null,
           notes: form.notes.trim() || null,
+          hasBattery: form.hasBattery,
+          batteryType: form.hasBattery ? form.batteryType.trim() || null : null,
+          batteryReplacementIntervalDays:
+            form.hasBattery && form.batteryReplacementIntervalDays
+              ? parseInt(form.batteryReplacementIntervalDays, 10)
+              : null,
+          lastBatteryChangeDate:
+            form.hasBattery && form.lastBatteryChangeDate
+              ? form.lastBatteryChangeDate
+              : null,
+          batteryNotes: form.hasBattery ? form.batteryNotes.trim() || null : null,
         }),
       });
       if (!res.ok) {
@@ -316,6 +342,85 @@ function AccessoryEditModal({ accessory, onClose, onSaved }: AccessoryEditModalP
               placeholder="Optional notes..."
             />
           </div>
+
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-xs text-vault-text cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.hasBattery}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, hasBattery: e.target.checked }))
+                }
+                className="rounded border-vault-border bg-vault-bg text-[#00C2FF] focus:ring-[#00C2FF]"
+              />
+              Battery-powered accessory
+            </label>
+            {form.hasBattery && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">
+                    Battery Type
+                  </label>
+                  <input
+                    value={form.batteryType}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, batteryType: e.target.value }))
+                    }
+                    className={FIELD_CLASS}
+                    placeholder="e.g. CR2032"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">
+                    Replace Every (days)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={form.batteryReplacementIntervalDays}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        batteryReplacementIntervalDays: e.target.value,
+                      }))
+                    }
+                    className={FIELD_CLASS}
+                    placeholder="e.g. 180"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">
+                    Last Change
+                  </label>
+                  <input
+                    type="date"
+                    value={form.lastBatteryChangeDate}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        lastBatteryChangeDate: e.target.value,
+                      }))
+                    }
+                    className={FIELD_CLASS}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">
+                    Battery Notes
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={form.batteryNotes}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, batteryNotes: e.target.value }))
+                    }
+                    className={`${FIELD_CLASS} resize-none`}
+                    placeholder="Optional battery notes"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Footer */}
@@ -364,7 +469,19 @@ function AccessoryBrowserModal({
   const [assignError, setAssignError] = useState<string | null>(null);
 
   const [view, setView] = useState<"browse" | "create">("browse");
-  const [form, setForm] = useState({ name: "", manufacturer: "", model: "", caliber: "", purchasePrice: "", imageUrl: "" });
+  const [form, setForm] = useState({
+    name: "",
+    manufacturer: "",
+    model: "",
+    caliber: "",
+    purchasePrice: "",
+    imageUrl: "",
+    hasBattery: false,
+    batteryType: "",
+    batteryReplacementIntervalDays: "",
+    lastBatteryChangeDate: "",
+    batteryNotes: "",
+  });
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -436,6 +553,17 @@ function AccessoryBrowserModal({
           caliber: form.caliber.trim() || undefined,
           purchasePrice: form.purchasePrice ? parseFloat(form.purchasePrice) : undefined,
           imageUrl: form.imageUrl.trim() || undefined,
+          hasBattery: form.hasBattery,
+          batteryType: form.hasBattery ? form.batteryType.trim() || undefined : null,
+          batteryReplacementIntervalDays:
+            form.hasBattery && form.batteryReplacementIntervalDays
+              ? parseInt(form.batteryReplacementIntervalDays, 10)
+              : null,
+          lastBatteryChangeDate:
+            form.hasBattery && form.lastBatteryChangeDate
+              ? form.lastBatteryChangeDate
+              : null,
+          batteryNotes: form.hasBattery ? form.batteryNotes.trim() || undefined : null,
         }),
       });
       const created = await createRes.json();
@@ -673,6 +801,60 @@ function AccessoryBrowserModal({
                     className={FIELD_CLASS} placeholder="https://..." />
                 </div>
               </div>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-xs text-vault-text cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.hasBattery}
+                    onChange={(e) => setForm((f) => ({ ...f, hasBattery: e.target.checked }))}
+                    className="rounded border-vault-border bg-vault-bg text-[#00C2FF] focus:ring-[#00C2FF]"
+                  />
+                  Battery-powered accessory
+                </label>
+                {form.hasBattery && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Battery Type</label>
+                      <input
+                        value={form.batteryType}
+                        onChange={(e) => setForm((f) => ({ ...f, batteryType: e.target.value }))}
+                        className={FIELD_CLASS}
+                        placeholder="e.g. CR2032"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Replace Every (days)</label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={form.batteryReplacementIntervalDays}
+                        onChange={(e) => setForm((f) => ({ ...f, batteryReplacementIntervalDays: e.target.value }))}
+                        className={FIELD_CLASS}
+                        placeholder="e.g. 180"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Last Change</label>
+                      <input
+                        type="date"
+                        value={form.lastBatteryChangeDate}
+                        onChange={(e) => setForm((f) => ({ ...f, lastBatteryChangeDate: e.target.value }))}
+                        className={FIELD_CLASS}
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Battery Notes</label>
+                      <textarea
+                        rows={2}
+                        value={form.batteryNotes}
+                        onChange={(e) => setForm((f) => ({ ...f, batteryNotes: e.target.value }))}
+                        className={`${FIELD_CLASS} resize-none`}
+                        placeholder="Optional battery notes"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -820,6 +1002,7 @@ interface SlotPanelProps {
   onSlotClick: (slotType: string) => void;
   onRemoveSlot: (slotType: string) => void;
   onAddCustomSlot: (category: string | null, name: string) => void;
+  onRenameCustomSlot: (slotType: string, name: string) => void;
   onDeleteCustomSlot: (slotType: string) => void;
   onSwitchBuild: (buildId: string) => void;
   onEditAccessory: (accessory: Accessory) => void;
@@ -831,6 +1014,7 @@ function SlotPanel({
   onSlotClick,
   onRemoveSlot,
   onAddCustomSlot,
+  onRenameCustomSlot,
   onDeleteCustomSlot,
   onSwitchBuild,
   onEditAccessory,
@@ -838,6 +1022,8 @@ function SlotPanel({
   const [switchOpen, setSwitchOpen] = useState(false);
   const [addingCustomGroup, setAddingCustomGroup] = useState<string | null>(null);
   const [customSlotName, setCustomSlotName] = useState("");
+  const [renamingSlotType, setRenamingSlotType] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
   const firearmType = build.firearm.type as FirearmType;
   const availableSlots = SLOTS_BY_FIREARM_TYPE[firearmType] ?? [];
 
@@ -849,6 +1035,7 @@ function SlotPanel({
   const otherBuilds = allBuilds.filter((b) => b.id !== build.id);
   const filledCount = build.slots.filter((s) => s.accessoryId).length;
   const customSlots = build.slots.filter((slot) => isCustomSlotType(slot.slotType));
+  const totalSlotCount = availableSlots.length + customSlots.length;
 
   const customSlotsByCategory = customSlots.reduce<Record<string, BuildSlot[]>>((acc, slot) => {
     const parsed = parseCustomSlot(slot.slotType);
@@ -876,6 +1063,19 @@ function SlotPanel({
     setAddingCustomGroup(null);
   }
 
+  function startRenameCustomSlot(slotType: string) {
+    setRenamingSlotType(slotType);
+    setRenameValue(getCustomSlotLabel(slotType));
+  }
+
+  function submitRenameCustomSlot(slotType: string) {
+    const trimmed = renameValue.trim();
+    if (!trimmed) return;
+    onRenameCustomSlot(slotType, trimmed);
+    setRenamingSlotType(null);
+    setRenameValue("");
+  }
+
   function slotCard(slotType: string) {
     const slot = slotMap[slotType];
     const hasAccessory = !!slot?.accessory;
@@ -897,7 +1097,34 @@ function SlotPanel({
           </p>
         </div>
 
-        {hasAccessory && slot?.accessory ? (
+        {custom && renamingSlotType === slotType ? (
+          <div className="mt-2 space-y-1.5">
+            <input
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") submitRenameCustomSlot(slotType);
+                if (e.key === "Escape") setRenamingSlotType(null);
+              }}
+              className={`${FIELD_CLASS} text-xs py-1.5`}
+              autoFocus
+            />
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => submitRenameCustomSlot(slotType)}
+                className="text-[9px] text-[#00C2FF] border border-[#00C2FF]/40 px-1.5 py-0.5 rounded hover:bg-[#00C2FF]/10 transition-colors"
+              >
+                Save
+              </button>
+              <button
+                onClick={() => setRenamingSlotType(null)}
+                className="text-[9px] text-vault-text-muted border border-vault-border px-1.5 py-0.5 rounded hover:text-vault-text transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : hasAccessory && slot?.accessory ? (
           <div className="mt-2 space-y-1.5">
             <p className="text-xs font-medium text-vault-text truncate">{slot.accessory.name}</p>
             <div className="flex items-center gap-1.5">
@@ -926,6 +1153,15 @@ function SlotPanel({
               </button>
               {custom && (
                 <button
+                  onClick={() => startRenameCustomSlot(slotType)}
+                  className="w-5 h-5 flex items-center justify-center text-vault-text-muted hover:text-[#00C2FF] hover:bg-[#00C2FF]/10 rounded transition-colors"
+                  title="Edit custom slot"
+                >
+                  <Pencil className="w-2.5 h-2.5" />
+                </button>
+              )}
+              {custom && (
+                <button
                   onClick={() => onDeleteCustomSlot(slotType)}
                   className="w-5 h-5 flex items-center justify-center text-vault-text-muted hover:text-[#E53935] hover:bg-[#E53935]/10 rounded transition-colors"
                   title="Delete custom slot"
@@ -944,6 +1180,15 @@ function SlotPanel({
               <Plus className="w-2.5 h-2.5" />
               Attach
             </button>
+            {custom && (
+              <button
+                onClick={() => startRenameCustomSlot(slotType)}
+                className="w-5 h-5 flex items-center justify-center text-vault-text-muted hover:text-[#00C2FF] hover:bg-[#00C2FF]/10 rounded transition-colors"
+                title="Edit custom slot"
+              >
+                <Pencil className="w-2.5 h-2.5" />
+              </button>
+            )}
             {custom && (
               <button
                 onClick={() => onDeleteCustomSlot(slotType)}
@@ -976,12 +1221,12 @@ function SlotPanel({
 
         <div className="mt-2">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] text-vault-text-faint">{filledCount}/{availableSlots.length} slots configured</span>
-            <span className="text-[10px] text-vault-text-faint font-mono">{Math.round((filledCount / (availableSlots.length || 1)) * 100)}%</span>
+            <span className="text-[10px] text-vault-text-faint">{filledCount}/{totalSlotCount} slots configured</span>
+            <span className="text-[10px] text-vault-text-faint font-mono">{Math.round((filledCount / (totalSlotCount || 1)) * 100)}%</span>
           </div>
           <div className="h-0.5 bg-vault-border rounded-full overflow-hidden">
             <div className="h-full bg-[#00C2FF] rounded-full transition-all duration-500"
-              style={{ width: `${(filledCount / (availableSlots.length || 1)) * 100}%` }} />
+              style={{ width: `${(filledCount / (totalSlotCount || 1)) * 100}%` }} />
           </div>
         </div>
 
@@ -1167,6 +1412,20 @@ export default function BuildConfiguratorPage() {
     } catch { /* silently fail */ }
   }
 
+  async function handleRenameCustomSlot(slotType: string, name: string) {
+    const trimmedName = name.trim();
+    if (!trimmedName) return;
+
+    try {
+      await fetch(`/api/builds/${buildId}/slots`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slotType, newName: trimmedName }),
+      });
+      fetchBuild();
+    } catch { /* silently fail */ }
+  }
+
   async function handleDeleteCustomSlot(slotType: string) {
     try {
       await fetch(`/api/builds/${buildId}/slots?slotType=${encodeURIComponent(slotType)}`, {
@@ -1261,6 +1520,7 @@ export default function BuildConfiguratorPage() {
             onSlotClick={(slotType) => setBrowserSlot(slotType)}
             onRemoveSlot={handleRemoveSlot}
             onAddCustomSlot={handleAddCustomSlot}
+            onRenameCustomSlot={handleRenameCustomSlot}
             onDeleteCustomSlot={handleDeleteCustomSlot}
             onSwitchBuild={handleSwitchBuild}
             onEditAccessory={(acc) => setEditingAccessory(acc)}

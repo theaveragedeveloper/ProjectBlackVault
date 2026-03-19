@@ -99,6 +99,11 @@ model Accessory {
   notes                  String?
   imageUrl               String?
   imageSource            String?
+  hasBattery             Boolean         @default(false)
+  batteryType            String?
+  batteryReplacementIntervalDays Int?
+  lastBatteryChangeDate  DateTime?
+  batteryNotes           String?
 
   // Round count persists with the accessory across all builds
   roundCount             Int             @default(0)
