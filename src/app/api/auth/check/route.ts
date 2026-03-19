@@ -31,8 +31,9 @@ export async function GET() {
   } catch (error) {
     console.error("GET /api/auth/check failed", error);
     return NextResponse.json(
-      { passwordRequired: false, requiresSetup: false, authenticated: false },
+      { error: "Unable to verify authentication state." },
       {
+        status: 503,
         headers: {
           "Cache-Control": "no-store",
         },

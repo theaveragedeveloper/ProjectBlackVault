@@ -1,0 +1,3 @@
+{
+  "/api/drill-templates/[id]/route": "app/api/drill-templates/[id]/route.js"
+}
