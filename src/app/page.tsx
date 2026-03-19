@@ -7,6 +7,8 @@ export const revalidate = 0;
 
 async function getDashboardData() {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
   const [
     firearmCount,
@@ -18,6 +20,8 @@ async function getDashboardData() {
     rangeSessionAggregate,
     rangeSessionsLast30,
     lastRangeSession,
+    dueMaintenanceNotes,
+    batteryCandidates,
   ] = await Promise.all([
     prisma.firearm.count(),
     prisma.accessory.count(),
@@ -71,6 +75,41 @@ async function getDashboardData() {
         firearm: { select: { name: true } },
       },
     }),
+    prisma.maintenanceNote.findMany({
+      where: { dueDate: { not: null, lte: now } },
+      orderBy: { dueDate: "asc" },
+      select: {
+        id: true,
+        type: true,
+        description: true,
+        dueDate: true,
+        firearm: { select: { id: true, name: true } },
+      },
+      take: 20,
+    }),
+    prisma.accessory.findMany({
+      where: {
+        hasBattery: true,
+        batteryReplacementIntervalDays: { not: null },
+        lastBatteryChangeDate: { not: null },
+      },
+      select: {
+        id: true,
+        name: true,
+        batteryType: true,
+        batteryReplacementIntervalDays: true,
+        lastBatteryChangeDate: true,
+        buildSlots: {
+          select: {
+            build: {
+              select: {
+                firearm: { select: { id: true, name: true } },
+              },
+            },
+          },
+        },
+      },
+    }),
   ]);
 
   const totalAmmoRounds = ammoStocks.reduce((sum, s) => sum + s.quantity, 0);
@@ -82,6 +121,52 @@ async function getDashboardData() {
     (s) => s.lowStockAlert != null && s.quantity <= s.lowStockAlert
   );
 
+  const maintenanceDueItems = dueMaintenanceNotes.map((note) => ({
+    id: `maint:${note.id}`,
+    kind: "maintenance" as const,
+    title: note.type,
+    description: note.description,
+    dueDate: note.dueDate!.toISOString(),
+    overdue: note.dueDate!.getTime() < todayStart.getTime(),
+    firearmId: note.firearm.id,
+    firearmName: note.firearm.name,
+  }));
+
+  const batteryDueItems = batteryCandidates
+    .flatMap((accessory) => {
+      const intervalDays = accessory.batteryReplacementIntervalDays;
+      const lastChange = accessory.lastBatteryChangeDate;
+      if (!intervalDays || !lastChange) return [];
+
+      const dueDate = new Date(
+        lastChange.getTime() + intervalDays * 24 * 60 * 60 * 1000
+      );
+      if (dueDate.getTime() > now.getTime()) return [];
+
+      const linkedFirearm = accessory.buildSlots[0]?.build.firearm ?? null;
+
+      return [
+        {
+          id: `battery:${accessory.id}`,
+          kind: "battery" as const,
+          title: accessory.name,
+          description: accessory.batteryType
+            ? `${accessory.batteryType} battery replacement`
+            : "Battery replacement",
+          dueDate: dueDate.toISOString(),
+          overdue: dueDate.getTime() < todayStart.getTime(),
+          accessoryId: accessory.id,
+          firearmId: linkedFirearm?.id ?? null,
+          firearmName: linkedFirearm?.name ?? null,
+        },
+      ];
+    })
+    .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+
+  const maintenanceItems = [...maintenanceDueItems, ...batteryDueItems]
+    .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+    .slice(0, 20);
+
   return {
     firearmCount,
     accessoryCount,
@@ -90,6 +175,7 @@ async function getDashboardData() {
     lowStockItems,
     recentFirearms,
     ammoStocks,
+    maintenanceItems,
     rangeStats: {
       count: rangeSessionAggregate._count.id,
       totalRounds: rangeSessionAggregate._sum.roundsFired ?? 0,

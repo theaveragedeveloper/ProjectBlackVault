@@ -18,7 +18,6 @@ import {
   Save,
 } from "lucide-react";
 import { SLOTS_BY_FIREARM_TYPE, SLOT_TYPE_LABELS, FirearmType, SlotType } from "@/lib/types";
-import { SLOT_POSITIONS } from "@/lib/configurator/slot-positions";
 import { SLOT_ICONS } from "@/lib/configurator/slot-icons";
 
 // ─── Types ────────────────────────────────────────────────────
@@ -891,109 +890,6 @@ function AccessoryBrowserModal({
   );
 }
 
-// ─── Weapon Canvas ─────────────────────────────────────────────
-
-interface WeaponCanvasProps {
-  build: Build;
-  onSlotClick: (slotType: SlotType) => void;
-  onRemoveSlot: (slotType: SlotType) => void;
-}
-
-function WeaponCanvas({ build, onSlotClick, onRemoveSlot }: WeaponCanvasProps) {
-  const firearmType = build.firearm.type as FirearmType;
-  const positions = SLOT_POSITIONS[firearmType] ?? {};
-  const availableSlots = SLOTS_BY_FIREARM_TYPE[firearmType] ?? [];
-
-  const slotMap: Partial<Record<SlotType, BuildSlot>> = {};
-  for (const slot of build.slots) {
-    slotMap[slot.slotType as SlotType] = slot;
-  }
-
-  return (
-    <div className="relative w-full h-full bg-vault-canvas overflow-hidden">
-      <div className="absolute inset-0 tactical-grid opacity-60" />
-      <div className="absolute top-4 left-4 w-8 h-8 border-t-2 border-l-2 border-[#00C2FF]/20" />
-      <div className="absolute top-4 right-4 w-8 h-8 border-t-2 border-r-2 border-[#00C2FF]/20" />
-      <div className="absolute bottom-4 left-4 w-8 h-8 border-b-2 border-l-2 border-[#00C2FF]/20" />
-      <div className="absolute bottom-4 right-4 w-8 h-8 border-b-2 border-r-2 border-[#00C2FF]/20" />
-
-      <div className="absolute inset-0 flex items-center justify-center p-16">
-        {build.firearm.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={build.firearm.imageUrl}
-            alt={build.firearm.name}
-            className="w-full h-full object-contain"
-            style={{ filter: "drop-shadow(0 0 24px rgba(0,194,255,0.12))" }}
-          />
-        ) : (
-          <div className="flex flex-col items-center gap-4 text-center select-none">
-            <Shield className="w-20 h-20 text-vault-border" />
-            <div>
-              <p className="text-lg font-bold text-vault-border">{build.firearm.name}</p>
-              <p className="text-xs text-vault-surface-2 font-mono mt-1 uppercase tracking-widest">
-                {build.firearm.type}
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {availableSlots.map((slotType) => {
-        const pos = positions[slotType];
-        if (!pos) return null;
-
-        const slot = slotMap[slotType];
-        const hasAccessory = !!slot?.accessory;
-        const slotIconConfig = SLOT_ICONS[slotType];
-        const SlotIcon = slotIconConfig?.icon ?? Shield;
-
-        if (hasAccessory && slot?.accessory) {
-          const acc = slot.accessory;
-          return (
-            <div key={slotType} className="absolute z-10 group" style={{ left: `${pos.x}%`, top: `${pos.y}%`, transform: "translate(-50%, -50%)" }}>
-              <div className="relative">
-                <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border text-[10px] font-medium cursor-default whitespace-nowrap max-w-[140px]"
-                  style={{ backgroundColor: "var(--vault-canvas)", borderColor: `${slotIconConfig?.color ?? "#00C2FF"}40`, color: slotIconConfig?.color ?? "#00C2FF", boxShadow: `0 0 10px ${slotIconConfig?.color ?? "#00C2FF"}20` }}>
-                  <SlotIcon className="w-2.5 h-2.5 shrink-0" />
-                  <span className="truncate">{acc.name}</span>
-                </div>
-                <div className="absolute -bottom-3.5 left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded text-[9px] font-mono whitespace-nowrap"
-                  style={{ backgroundColor: "var(--vault-canvas)", color: "#F5A623", border: "1px solid rgba(245,166,35,0.3)" }}>
-                  {acc.roundCount.toLocaleString()}r
-                </div>
-                <button onClick={(e) => { e.stopPropagation(); onRemoveSlot(slotType); }}
-                  className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-[#E53935] text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center" title="Remove">
-                  <X className="w-2.5 h-2.5" />
-                </button>
-              </div>
-            </div>
-          );
-        }
-
-        return (
-          <button key={slotType} onClick={() => onSlotClick(slotType)} className="absolute z-10 group"
-            style={{ left: `${pos.x}%`, top: `${pos.y}%`, transform: "translate(-50%, -50%)" }}
-            title={`Add ${SLOT_TYPE_LABELS[slotType]}`}>
-            <div className="relative flex items-center justify-center w-5 h-5">
-              <div className="absolute w-5 h-5 rounded-full animate-pulse-ring"
-                style={{ backgroundColor: `${slotIconConfig?.color ?? "#8B9DB0"}18`, border: `1px solid ${slotIconConfig?.color ?? "#8B9DB0"}50` }} />
-              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: `${slotIconConfig?.color ?? "#8B9DB0"}80` }} />
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-vault-canvas border border-vault-border rounded text-[10px] text-vault-text-muted whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                {SLOT_TYPE_LABELS[slotType]}
-              </div>
-            </div>
-          </button>
-        );
-      })}
-
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-center pointer-events-none">
-        <p className="text-[10px] font-mono text-vault-border uppercase tracking-[0.3em]">{build.name}</p>
-      </div>
-    </div>
-  );
-}
-
 // ─── Slot Panel ────────────────────────────────────────────────
 
 interface SlotPanelProps {
@@ -1218,7 +1114,7 @@ function SlotPanel({
   }
 
   return (
-    <div className="h-full flex flex-col bg-vault-surface border-t md:border-t-0 border-l-0 md:border-l border-vault-border">
+    <div className="h-full flex flex-col bg-vault-surface border border-vault-border rounded-xl overflow-hidden">
       <div className="px-4 py-4 border-b border-vault-border shrink-0">
         <p className="text-[10px] text-vault-text-faint uppercase tracking-widest font-mono mb-1">
           {build.firearm.name} &middot; {build.firearm.caliber}
@@ -1620,12 +1516,9 @@ export default function BuildConfiguratorPage() {
         </div>
       </div>
 
-      {/* Main split layout */}
-      <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
-        <div className="relative h-64 md:h-auto shrink-0 md:shrink md:[flex:0_0_65%]">
-          <WeaponCanvas build={build} onSlotClick={(slotType) => setBrowserSlot(slotType)} onRemoveSlot={handleRemoveSlot} />
-        </div>
-        <div className="flex-1 md:[flex:0_0_35%] overflow-hidden">
+      {/* Main tile-only configurator */}
+      <div className="flex-1 overflow-y-auto bg-vault-canvas p-3 sm:p-4 md:p-6">
+        <div className="mx-auto max-w-5xl h-full">
           <SlotPanel
             build={build}
             allBuilds={allBuilds}

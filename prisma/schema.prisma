@@ -237,6 +237,7 @@ model MaintenanceNote {
   firearmId   String
   firearm     Firearm  @relation(fields: [firearmId], references: [id], onDelete: Cascade)
   date        DateTime @default(now())
+  dueDate     DateTime?
   // type: "cleaning" | "repair" | "inspection" | "upgrade" | "other"
   type        String   @default("other")
   description String
@@ -247,6 +248,7 @@ model MaintenanceNote {
 
   @@index([firearmId])
   @@index([date])
+  @@index([dueDate])
 }
 
 // ─── AMMO ─────────────────────────────────────────────────────
