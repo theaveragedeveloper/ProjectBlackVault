@@ -1006,6 +1006,8 @@ interface SlotPanelProps {
   onDeleteCustomSlot: (slotType: string) => void;
   onSwitchBuild: (buildId: string) => void;
   onEditAccessory: (accessory: Accessory) => void;
+  actionError: string | null;
+  actionSuccess: string | null;
 }
 
 function SlotPanel({
@@ -1018,10 +1020,14 @@ function SlotPanel({
   onDeleteCustomSlot,
   onSwitchBuild,
   onEditAccessory,
+  actionError,
+  actionSuccess,
 }: SlotPanelProps) {
   const [switchOpen, setSwitchOpen] = useState(false);
   const [addingCustomGroup, setAddingCustomGroup] = useState<string | null>(null);
   const [customSlotName, setCustomSlotName] = useState("");
+  const [quickAddName, setQuickAddName] = useState("");
+  const [quickAddCategory, setQuickAddCategory] = useState("__OTHER__");
   const [renamingSlotType, setRenamingSlotType] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const firearmType = build.firearm.type as FirearmType;
@@ -1074,6 +1080,13 @@ function SlotPanel({
     onRenameCustomSlot(slotType, trimmed);
     setRenamingSlotType(null);
     setRenameValue("");
+  }
+
+  function submitQuickCustomSlot() {
+    const trimmed = quickAddName.trim();
+    if (!trimmed) return;
+    onAddCustomSlot(quickAddCategory === "__OTHER__" ? null : quickAddCategory, trimmed);
+    setQuickAddName("");
   }
 
   function slotCard(slotType: string) {
@@ -1178,7 +1191,7 @@ function SlotPanel({
               className="flex items-center gap-1 text-[9px] text-vault-text-faint hover:text-[#00C2FF] border border-vault-border hover:border-[#00C2FF]/40 px-1.5 py-0.5 rounded transition-colors"
             >
               <Plus className="w-2.5 h-2.5" />
-              Attach
+              Assign
             </button>
             {custom && (
               <button
@@ -1253,6 +1266,52 @@ function SlotPanel({
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+        {(actionError || actionSuccess) && (
+          <div className={`rounded-md border px-3 py-2 ${actionError ? "bg-[#E53935]/10 border-[#E53935]/30" : "bg-[#00C853]/10 border-[#00C853]/30"}`}>
+            <p className={`text-xs ${actionError ? "text-[#E53935]" : "text-[#00C853]"}`}>
+              {actionError ?? actionSuccess}
+            </p>
+          </div>
+        )}
+
+        <div className="rounded-lg border border-vault-border bg-vault-bg p-3 space-y-2">
+          <p className="text-[10px] uppercase tracking-widest font-mono text-vault-text-faint">Quick Actions</p>
+          <p className="text-xs text-vault-text-muted">
+            Add a custom slot here, then use <span className="text-vault-text">Assign</span> on any slot card to select or create an accessory.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <select
+              value={quickAddCategory}
+              onChange={(e) => setQuickAddCategory(e.target.value)}
+              className={`${FIELD_CLASS} text-xs py-1.5 sm:col-span-1`}
+            >
+              <option value="__OTHER__">Other</option>
+              {SLOT_GROUPS.map((group) => (
+                <option key={group.key} value={group.key}>
+                  {group.label}
+                </option>
+              ))}
+            </select>
+            <input
+              value={quickAddName}
+              onChange={(e) => setQuickAddName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") submitQuickCustomSlot();
+              }}
+              placeholder="Custom slot name"
+              className={`${FIELD_CLASS} text-xs py-1.5 sm:col-span-2`}
+            />
+          </div>
+          <div className="flex justify-end">
+            <button
+              onClick={submitQuickCustomSlot}
+              className="text-xs text-[#00C2FF] border border-[#00C2FF]/40 px-2 py-1.5 rounded hover:bg-[#00C2FF]/10 transition-colors"
+            >
+              + Add Custom Slot
+            </button>
+          </div>
+        </div>
+
         {visibleGroups.map((group) => (
           <div key={group.key} className="space-y-2">
             <div className="flex items-center justify-between">
@@ -1353,9 +1412,22 @@ export default function BuildConfiguratorPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activatingBuild, setActivatingBuild] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
   const [browserSlot, setBrowserSlot] = useState<string | null>(null);
   const [editingAccessory, setEditingAccessory] = useState<Accessory | null>(null);
+
+  function showSuccess(message: string) {
+    setActionError(null);
+    setActionSuccess(message);
+    setTimeout(() => setActionSuccess((current) => (current === message ? null : current)), 2500);
+  }
+
+  function showError(message: string) {
+    setActionSuccess(null);
+    setActionError(message);
+  }
 
   const fetchBuild = useCallback(async () => {
     try {
@@ -1388,13 +1460,21 @@ export default function BuildConfiguratorPage() {
   async function handleRemoveSlot(slotType: string) {
     if (!build) return;
     try {
-      await fetch(`/api/builds/${buildId}/slots`, {
+      const res = await fetch(`/api/builds/${buildId}/slots`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ slotType, accessoryId: null }),
       });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showError((json as { error?: string }).error ?? "Failed to remove accessory from slot");
+        return;
+      }
+      showSuccess("Accessory removed from slot.");
       fetchBuild();
-    } catch { /* silently fail */ }
+    } catch {
+      showError("Network error while updating slot.");
+    }
   }
 
   async function handleAddCustomSlot(category: string | null, name: string) {
@@ -1403,13 +1483,21 @@ export default function BuildConfiguratorPage() {
     const slotType = category ? `CUSTOM:${category}|${trimmedName}` : `CUSTOM:${trimmedName}`;
 
     try {
-      await fetch(`/api/builds/${buildId}/slots`, {
+      const res = await fetch(`/api/builds/${buildId}/slots`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ slotType, accessoryId: null }),
       });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showError((json as { error?: string }).error ?? "Failed to add custom slot");
+        return;
+      }
+      showSuccess("Custom slot added.");
       fetchBuild();
-    } catch { /* silently fail */ }
+    } catch {
+      showError("Network error while adding custom slot.");
+    }
   }
 
   async function handleRenameCustomSlot(slotType: string, name: string) {
@@ -1417,35 +1505,59 @@ export default function BuildConfiguratorPage() {
     if (!trimmedName) return;
 
     try {
-      await fetch(`/api/builds/${buildId}/slots`, {
+      const res = await fetch(`/api/builds/${buildId}/slots`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ slotType, newName: trimmedName }),
       });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showError((json as { error?: string }).error ?? "Failed to rename custom slot");
+        return;
+      }
+      showSuccess("Custom slot renamed.");
       fetchBuild();
-    } catch { /* silently fail */ }
+    } catch {
+      showError("Network error while renaming custom slot.");
+    }
   }
 
   async function handleDeleteCustomSlot(slotType: string) {
     try {
-      await fetch(`/api/builds/${buildId}/slots?slotType=${encodeURIComponent(slotType)}`, {
+      const res = await fetch(`/api/builds/${buildId}/slots?slotType=${encodeURIComponent(slotType)}`, {
         method: "DELETE",
       });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showError((json as { error?: string }).error ?? "Failed to delete custom slot");
+        return;
+      }
+      showSuccess("Custom slot deleted.");
       fetchBuild();
-    } catch { /* silently fail */ }
+    } catch {
+      showError("Network error while deleting custom slot.");
+    }
   }
 
   async function handleActivate() {
     if (!build || build.isActive) return;
     setActivatingBuild(true);
     try {
-      await fetch(`/api/builds/${buildId}`, {
+      const res = await fetch(`/api/builds/${buildId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive: true }),
       });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showError((json as { error?: string }).error ?? "Failed to activate build");
+        return;
+      }
+      showSuccess("Build activated.");
       fetchBuild();
-    } catch { /* silently fail */ }
+    } catch {
+      showError("Network error while activating build.");
+    }
     finally { setActivatingBuild(false); }
   }
 
@@ -1524,6 +1636,8 @@ export default function BuildConfiguratorPage() {
             onDeleteCustomSlot={handleDeleteCustomSlot}
             onSwitchBuild={handleSwitchBuild}
             onEditAccessory={(acc) => setEditingAccessory(acc)}
+            actionError={actionError}
+            actionSuccess={actionSuccess}
           />
         </div>
       </div>
@@ -1534,7 +1648,11 @@ export default function BuildConfiguratorPage() {
           slotType={browserSlot}
           buildId={buildId}
           onClose={() => setBrowserSlot(null)}
-          onAssigned={() => { setBrowserSlot(null); fetchBuild(); }}
+          onAssigned={() => {
+            setBrowserSlot(null);
+            showSuccess("Accessory assigned to slot.");
+            fetchBuild();
+          }}
         />
       )}
 
@@ -1543,7 +1661,11 @@ export default function BuildConfiguratorPage() {
         <AccessoryEditModal
           accessory={editingAccessory}
           onClose={() => setEditingAccessory(null)}
-          onSaved={() => { setEditingAccessory(null); fetchBuild(); }}
+          onSaved={() => {
+            setEditingAccessory(null);
+            showSuccess("Accessory updated.");
+            fetchBuild();
+          }}
         />
       )}
     </div>

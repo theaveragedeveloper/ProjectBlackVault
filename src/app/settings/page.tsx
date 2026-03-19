@@ -79,6 +79,8 @@ export default function SettingsPage() {
   const [exportRangeSessions, setExportRangeSessions] = useState(true);
   const [exportDocuments, setExportDocuments] = useState(true);
   const [exportSettings, setExportSettings] = useState(false);
+  const [exportFormat, setExportFormat] = useState<"json" | "csv">("json");
+  const [exportIncludeSerialNumbers, setExportIncludeSerialNumbers] = useState(true);
 
   useEffect(() => {
     Promise.all([
@@ -262,24 +264,35 @@ export default function SettingsPage() {
         rangeSessions: String(exportRangeSessions),
         documents: String(exportDocuments),
         settings: String(exportSettings),
+        includeSerialNumbers: String(exportIncludeSerialNumbers),
+        format: exportFormat,
       });
 
       const res = await fetch(`/api/exports/data?${params.toString()}`);
-      const json = await res.json();
       if (!res.ok) {
-        setExportDataError(json.error ?? "Failed to export data.");
+        const contentType = res.headers.get("content-type") ?? "";
+        if (contentType.includes("application/json")) {
+          const json = await res.json();
+          setExportDataError(json.error ?? "Failed to export data.");
+        } else {
+          const text = await res.text();
+          setExportDataError(text || "Failed to export data.");
+        }
         return;
       }
 
-      const blob = new Blob([JSON.stringify(json, null, 2)], { type: "application/json" });
+      const blob =
+        exportFormat === "csv"
+          ? new Blob([await res.text()], { type: "text/csv;charset=utf-8" })
+          : new Blob([JSON.stringify(await res.json(), null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
       const a = document.createElement("a");
       a.href = url;
-      a.download = `blackvault-export-${timestamp}.json`;
+      a.download = `blackvault-export-${timestamp}.${exportFormat}`;
       a.click();
       URL.revokeObjectURL(url);
-      setExportDataSuccess("Export downloaded.");
+      setExportDataSuccess(`Export downloaded (${exportFormat.toUpperCase()}).`);
     } catch {
       setExportDataError("Network error. Please try again.");
     } finally {
@@ -601,7 +614,7 @@ export default function SettingsPage() {
             </legend>
 
             <p className="text-xs text-vault-text-muted leading-relaxed">
-              Choose the sections to include, then download a JSON export for backups or reporting.
+              Choose a format and sections, then download an export for backup or analysis.
             </p>
 
             {exportDataError && (
@@ -617,6 +630,29 @@ export default function SettingsPage() {
                 <p className="text-xs text-[#00C853]">{exportDataSuccess}</p>
               </div>
             )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label className="text-xs text-vault-text-muted">
+                <span className="block mb-1">Format</span>
+                <select
+                  value={exportFormat}
+                  onChange={(e) => setExportFormat(e.target.value as "json" | "csv")}
+                  className={`${INPUT_CLASS} text-xs py-2`}
+                >
+                  <option value="json">JSON</option>
+                  <option value="csv">CSV</option>
+                </select>
+              </label>
+              <label className="flex items-center gap-2 text-xs text-vault-text-muted mt-6 sm:mt-0 sm:self-end">
+                <input
+                  type="checkbox"
+                  checked={exportIncludeSerialNumbers}
+                  onChange={(e) => setExportIncludeSerialNumbers(e.target.checked)}
+                  className="accent-[#00C2FF]"
+                />
+                Include serial numbers
+              </label>
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <label className="flex items-center gap-2 text-xs text-vault-text-muted"><input type="checkbox" checked={exportFirearms} onChange={(e) => setExportFirearms(e.target.checked)} className="accent-[#00C2FF]" />Firearms</label>
@@ -636,7 +672,7 @@ export default function SettingsPage() {
                 className="flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 rounded-md text-sm font-medium transition-colors"
               >
                 {exportingData ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                {exportingData ? "Exporting..." : "Download JSON Export"}
+                {exportingData ? "Exporting..." : `Download ${exportFormat.toUpperCase()} Export`}
               </button>
             </div>
           </fieldset>
