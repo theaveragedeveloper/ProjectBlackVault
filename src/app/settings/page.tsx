@@ -79,7 +79,7 @@ export default function SettingsPage() {
   const [exportRangeSessions, setExportRangeSessions] = useState(true);
   const [exportDocuments, setExportDocuments] = useState(true);
   const [exportSettings, setExportSettings] = useState(false);
-  const [exportFormat, setExportFormat] = useState<"json" | "csv">("json");
+  const [exportFormat, setExportFormat] = useState<"json" | "csv" | "pdf">("json");
   const [exportIncludeSerialNumbers, setExportIncludeSerialNumbers] = useState(true);
 
   useEffect(() => {
@@ -281,10 +281,14 @@ export default function SettingsPage() {
         return;
       }
 
-      const blob =
-        exportFormat === "csv"
-          ? new Blob([await res.text()], { type: "text/csv;charset=utf-8" })
-          : new Blob([JSON.stringify(await res.json(), null, 2)], { type: "application/json" });
+      let blob: Blob;
+      if (exportFormat === "csv") {
+        blob = new Blob([await res.text()], { type: "text/csv;charset=utf-8" });
+      } else if (exportFormat === "pdf") {
+        blob = await res.blob();
+      } else {
+        blob = new Blob([JSON.stringify(await res.json(), null, 2)], { type: "application/json" });
+      }
       const url = URL.createObjectURL(blob);
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
       const a = document.createElement("a");
@@ -636,11 +640,12 @@ export default function SettingsPage() {
                 <span className="block mb-1">Format</span>
                 <select
                   value={exportFormat}
-                  onChange={(e) => setExportFormat(e.target.value as "json" | "csv")}
+                  onChange={(e) => setExportFormat(e.target.value as "json" | "csv" | "pdf")}
                   className={`${INPUT_CLASS} text-xs py-2`}
                 >
                   <option value="json">JSON</option>
                   <option value="csv">CSV</option>
+                  <option value="pdf">PDF</option>
                 </select>
               </label>
               <label className="flex items-center gap-2 text-xs text-vault-text-muted mt-6 sm:mt-0 sm:self-end">

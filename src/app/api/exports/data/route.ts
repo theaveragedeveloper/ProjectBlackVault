@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-type ExportFormat = "json" | "csv";
+type ExportFormat = "json" | "csv" | "pdf";
 
 type SectionFlags = {
   firearms: boolean;
@@ -38,7 +38,7 @@ function parseFlags(searchParams: URLSearchParams): SectionFlags {
 
 function parseFormat(searchParams: URLSearchParams): ExportFormat {
   const format = (searchParams.get("format") ?? "json").trim().toLowerCase();
-  if (format === "json" || format === "csv") return format;
+  if (format === "json" || format === "csv" || format === "pdf") return format;
   throw new Error("INVALID_FORMAT");
 }
 
@@ -110,6 +110,216 @@ function buildCsv(sections: { section: string; rows: unknown }[]): string {
   ];
 
   return lines.join("\n");
+}
+
+function sanitizePdfText(value: string): string {
+  return value.replace(/[^\x20-\x7E]/g, "?");
+}
+
+function escapePdfText(value: string): string {
+  return sanitizePdfText(value).replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+}
+
+function wrapLine(line: string, maxChars: number): string[] {
+  if (!line) return [""];
+  if (line.length <= maxChars) return [line];
+
+  const words = line.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return [line.slice(0, maxChars)];
+
+  const wrapped: string[] = [];
+  let current = "";
+
+  for (const word of words) {
+    if (word.length > maxChars) {
+      if (current) {
+        wrapped.push(current);
+        current = "";
+      }
+      for (let i = 0; i < word.length; i += maxChars) {
+        wrapped.push(word.slice(i, i + maxChars));
+      }
+      continue;
+    }
+
+    const next = current ? `${current} ${word}` : word;
+    if (next.length <= maxChars) {
+      current = next;
+    } else {
+      wrapped.push(current);
+      current = word;
+    }
+  }
+
+  if (current) wrapped.push(current);
+  return wrapped.length > 0 ? wrapped : [line];
+}
+
+function summarizeValue(value: unknown): string {
+  if (value == null) return "-";
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === "string") return value.replace(/\s+/g, " ").trim() || "-";
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) return `${value.length} item${value.length === 1 ? "" : "s"}`;
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const name = typeof record.name === "string" ? record.name : null;
+    const id = typeof record.id === "string" ? record.id : null;
+    if (name && id) return `${name} (${id})`;
+    if (name) return name;
+    if (id) return id;
+    return "object";
+  }
+  return String(value);
+}
+
+function summarizeRow(row: unknown): string {
+  if (!isFlatObject(row)) return summarizeValue(row);
+
+  const entries = Object.entries(row);
+  const maxFields = 10;
+  const parts: string[] = [];
+
+  for (let i = 0; i < entries.length && i < maxFields; i += 1) {
+    const [key, value] = entries[i];
+    parts.push(`${key}: ${summarizeValue(value)}`);
+  }
+
+  if (entries.length > maxFields) {
+    parts.push(`... +${entries.length - maxFields} fields`);
+  }
+
+  return parts.join(" | ");
+}
+
+function asRows(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  if (value == null) return [];
+  return [value];
+}
+
+function buildPdfLines(
+  payload: Record<string, unknown>,
+  flags: SectionFlags,
+  includeSerialNumbers: boolean
+): string[] {
+  const meta = payload.meta as { exportedAt: string };
+  const lines: string[] = [
+    "BlackVault Data Export",
+    `Generated: ${meta.exportedAt}`,
+    "Format: PDF",
+    `Include serial numbers: ${includeSerialNumbers ? "Yes" : "No"}`,
+    "",
+  ];
+
+  const sections: { title: string; enabled: boolean; rows: unknown[] }[] = [
+    { title: "Firearms", enabled: flags.firearms, rows: asRows(payload.firearms) },
+    { title: "Accessories", enabled: flags.accessories, rows: asRows(payload.accessories) },
+    { title: "Builds", enabled: flags.builds, rows: asRows(payload.builds) },
+    { title: "Ammo Stocks", enabled: flags.ammo, rows: asRows(payload.ammoStocks) },
+    { title: "Range Sessions", enabled: flags.rangeSessions, rows: asRows(payload.rangeSessions) },
+    { title: "Documents", enabled: flags.documents, rows: asRows(payload.documents) },
+    { title: "Settings", enabled: flags.settings, rows: asRows(payload.settings) },
+  ];
+
+  for (const section of sections) {
+    if (!section.enabled) continue;
+
+    lines.push(`${section.title} (${section.rows.length})`);
+
+    if (section.rows.length === 0) {
+      lines.push("  No records");
+      lines.push("");
+      continue;
+    }
+
+    section.rows.forEach((row, index) => {
+      const summary = summarizeRow(row);
+      const wrapped = wrapLine(`${index + 1}. ${summary}`, 96);
+      wrapped.forEach((line, wrappedIndex) => {
+        lines.push(wrappedIndex === 0 ? `  ${line}` : `     ${line}`);
+      });
+    });
+
+    lines.push("");
+  }
+
+  return lines;
+}
+
+function buildSimplePdf(lines: string[]): string {
+  const maxLinesPerPage = 46;
+  const pages: string[][] = [];
+
+  for (let i = 0; i < lines.length; i += maxLinesPerPage) {
+    pages.push(lines.slice(i, i + maxLinesPerPage));
+  }
+
+  if (pages.length === 0) pages.push([""]);
+
+  const objects: string[] = [];
+  objects.push("<< /Type /Catalog /Pages 2 0 R >>");
+  objects.push("");
+
+  const pageObjectNumbers: number[] = [];
+  const contentObjectNumbers: number[] = [];
+
+  for (let i = 0; i < pages.length; i += 1) {
+    const pageObjNum = objects.length + 1;
+    const contentObjNum = pageObjNum + 1;
+    pageObjectNumbers.push(pageObjNum);
+    contentObjectNumbers.push(contentObjNum);
+    objects.push("");
+    objects.push("");
+  }
+
+  const fontObjNum = objects.length + 1;
+  objects.push("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+
+  objects[1] = `<< /Type /Pages /Kids [${pageObjectNumbers.map((num) => `${num} 0 R`).join(" ")}] /Count ${pageObjectNumbers.length} >>`;
+
+  for (let i = 0; i < pages.length; i += 1) {
+    const pageObjNum = pageObjectNumbers[i];
+    const contentObjNum = contentObjectNumbers[i];
+    const pageLines = pages[i];
+
+    const streamLines = [
+      "BT",
+      "/F1 10 Tf",
+      "14 TL",
+      "50 742 Td",
+    ];
+
+    pageLines.forEach((line, lineIndex) => {
+      if (lineIndex > 0) streamLines.push("T*");
+      streamLines.push(`(${escapePdfText(line)}) Tj`);
+    });
+    streamLines.push("ET");
+
+    const stream = streamLines.join("\n");
+    const streamLength = Buffer.byteLength(stream, "utf8");
+
+    objects[pageObjNum - 1] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${fontObjNum} 0 R >> >> /Contents ${contentObjNum} 0 R >>`;
+    objects[contentObjNum - 1] = `<< /Length ${streamLength} >>\nstream\n${stream}\nendstream`;
+  }
+
+  let pdf = "%PDF-1.4\n%BLACKVAULT\n";
+  const offsets: number[] = [0];
+
+  for (let i = 0; i < objects.length; i += 1) {
+    offsets[i + 1] = Buffer.byteLength(pdf, "utf8");
+    pdf += `${i + 1} 0 obj\n${objects[i]}\nendobj\n`;
+  }
+
+  const xrefOffset = Buffer.byteLength(pdf, "utf8");
+  pdf += `xref\n0 ${objects.length + 1}\n`;
+  pdf += "0000000000 65535 f \n";
+  for (let i = 1; i <= objects.length; i += 1) {
+    pdf += `${String(offsets[i]).padStart(10, "0")} 00000 n \n`;
+  }
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+
+  return pdf;
 }
 
 export async function GET(request: NextRequest) {
@@ -236,6 +446,19 @@ export async function GET(request: NextRequest) {
 
     await Promise.all(queries);
 
+    if (format === "pdf") {
+      const pdfLines = buildPdfLines(payload, flags, includeSerialNumbers);
+      const pdf = buildSimplePdf(pdfLines);
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      return new NextResponse(pdf, {
+        status: 200,
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": `attachment; filename="blackvault-export-${timestamp}.pdf"`,
+        },
+      });
+    }
+
     if (format === "csv") {
       const csvSections: { section: string; rows: unknown }[] = [
         {
@@ -270,7 +493,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     if (error instanceof Error && error.message === "INVALID_FORMAT") {
       return NextResponse.json(
-        { error: "Invalid format. Supported values: json, csv" },
+        { error: "Invalid format. Supported values: json, csv, pdf" },
         { status: 400 }
       );
     }
