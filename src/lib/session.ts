@@ -32,11 +32,13 @@ function resolveSessionSecretFilePath(): string {
 
 function readSecretFromFile(filePath: string): string | null {
   try {
-    const secret = fs.readFileSync(filePath, "utf8").trim();
-    if (secret.length >= MIN_SESSION_SECRET_LENGTH) {
+    const secret: string = fs.readFileSync(filePath, "utf8").trim();
+
+    if (secret && secret.length >= MIN_SESSION_SECRET_LENGTH) {
       return secret;
     }
-    if (secret.length > 0) {
+
+    if (secret && secret.length > 0) {
       console.error(
         `Session secret file exists but is shorter than ${MIN_SESSION_SECRET_LENGTH} characters: ${filePath}`
       );
