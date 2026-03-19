@@ -5,13 +5,11 @@ import { getSessionSecret, verifyTokenNode, SESSION_COOKIE_NAME } from "@/lib/se
 
 export async function GET() {
   try {
-    let settings = await prisma.appSettings.findUnique({
+    const settings = await prisma.appSettings.upsert({
       where: { id: "singleton" },
+      create: { id: "singleton" },
+      update: {},
     });
-
-    if (!settings) {
-      settings = await prisma.appSettings.create({ data: { id: "singleton" } });
-    }
 
     const cookieStore = await cookies();
     const session = cookieStore.get(SESSION_COOKIE_NAME);
@@ -30,8 +28,8 @@ export async function GET() {
         },
       }
     );
-  } catch {
-    console.error("GET /api/auth/check failed");
+  } catch (error) {
+    console.error("GET /api/auth/check failed", error);
     return NextResponse.json(
       { passwordRequired: false, requiresSetup: false, authenticated: false },
       {
