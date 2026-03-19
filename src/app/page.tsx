@@ -141,7 +141,12 @@ async function getDashboardData() {
       const dueDate = new Date(
         lastChange.getTime() + intervalDays * 24 * 60 * 60 * 1000
       );
-      if (dueDate.getTime() > now.getTime()) return [];
+      const dueDateStart = new Date(
+        dueDate.getFullYear(),
+        dueDate.getMonth(),
+        dueDate.getDate()
+      );
+      if (dueDateStart.getTime() > todayStart.getTime()) return [];
 
       const linkedFirearm = accessory.buildSlots[0]?.build.firearm ?? null;
 
@@ -151,10 +156,10 @@ async function getDashboardData() {
           kind: "battery" as const,
           title: accessory.name,
           description: accessory.batteryType
-            ? `${accessory.batteryType} battery replacement`
-            : "Battery replacement",
+            ? `Battery change (${accessory.batteryType})`
+            : "Battery change",
           dueDate: dueDate.toISOString(),
-          overdue: dueDate.getTime() < todayStart.getTime(),
+          overdue: dueDateStart.getTime() < todayStart.getTime(),
           accessoryId: accessory.id,
           firearmId: linkedFirearm?.id ?? null,
           firearmName: linkedFirearm?.name ?? null,
@@ -163,7 +168,13 @@ async function getDashboardData() {
     })
     .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
 
+  const seenTaskIds = new Set<string>();
   const maintenanceItems = [...maintenanceDueItems, ...batteryDueItems]
+    .filter((item) => {
+      if (seenTaskIds.has(item.id)) return false;
+      seenTaskIds.add(item.id);
+      return true;
+    })
     .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
     .slice(0, 20);
 
