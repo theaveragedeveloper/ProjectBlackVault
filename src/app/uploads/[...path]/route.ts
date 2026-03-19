@@ -10,7 +10,6 @@ const MIME_BY_EXT: Record<string, string> = {
   ".gif": "image/gif",
   ".webp": "image/webp",
   ".avif": "image/avif",
-  ".svg": "image/svg+xml",
 };
 
 const SAFE_SEGMENT = /^[a-zA-Z0-9._-]+$/;
@@ -32,20 +31,38 @@ export async function GET(
       : path.join(process.cwd(), "uploads");
     const absoluteRoot = path.resolve(uploadRoot);
     const filePath = path.resolve(absoluteRoot, ...segments);
+    const extension = path.extname(filePath).toLowerCase();
+    const contentType = MIME_BY_EXT[extension];
+
+    if (!contentType) {
+      return NextResponse.json({ error: "Unsupported file type" }, { status: 400 });
+    }
 
     if (!filePath.startsWith(`${absoluteRoot}${path.sep}`)) {
       return NextResponse.json({ error: "Invalid file path" }, { status: 400 });
     }
 
+    const stat = await fs.lstat(filePath);
+    if (!stat.isFile() || stat.isSymbolicLink()) {
+      return NextResponse.json({ error: "File not found" }, { status: 404 });
+    }
+
+    const realRoot = await fs.realpath(absoluteRoot);
+    const realFilePath = await fs.realpath(filePath);
+    if (!realFilePath.startsWith(`${realRoot}${path.sep}`)) {
+      return NextResponse.json({ error: "Invalid file path" }, { status: 400 });
+    }
+
     const file = await fs.readFile(filePath);
-    const ext = path.extname(filePath).toLowerCase();
-    const contentType = MIME_BY_EXT[ext] ?? "application/octet-stream";
 
     return new NextResponse(file, {
       status: 200,
       headers: {
         "Content-Type": contentType,
         "Cache-Control": "private, max-age=86400",
+        "Content-Disposition": "inline",
+        "X-Content-Type-Options": "nosniff",
+        "Cross-Origin-Resource-Policy": "same-origin",
       },
     });
   } catch {

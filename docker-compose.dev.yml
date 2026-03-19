@@ -4,12 +4,18 @@ services:
     image: projectblackvault:dev
     container_name: projectblackvault-dev
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     ports:
-      - "${PORT:-3000}:3000"
+      - "${BIND_ADDRESS:-127.0.0.1}:${PORT:-3000}:3000"
     environment:
       - NODE_ENV=production
       - DATABASE_URL=file:/app/data/vault.db
       - IMAGE_UPLOAD_DIR=/app/uploads
+      - SESSION_COOKIE_SECURE=${SESSION_COOKIE_SECURE:-auto}
+      - SESSION_SECRET=${SESSION_SECRET}
     volumes:
       - ${DATA_DIR:-./data-dev}/db:/app/data
       - ${DATA_DIR:-./data-dev}/uploads:/app/uploads

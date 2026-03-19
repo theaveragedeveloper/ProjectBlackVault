@@ -6,18 +6,26 @@ import { Lock, Eye, EyeOff, Loader2, AlertCircle, Shield } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
+  const sessionConfigMessage = "Server session configuration is incomplete. Set SESSION_SECRET and restart the app.";
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [passwordRequired, setPasswordRequired] = useState(false);
+  const [sessionConfigured, setSessionConfigured] = useState(true);
 
   useEffect(() => {
     // Check if password is required
     fetch("/api/auth/check")
       .then((r) => r.json())
       .then(async (data) => {
+        if (!data.sessionConfigured) {
+          setSessionConfigured(false);
+          setLoading(false);
+          setError((prev) => prev ?? sessionConfigMessage);
+          return;
+        }
+
         if (!data.passwordRequired) {
           // No password set — auto-login and redirect
           await fetch("/api/auth/login", {
@@ -29,15 +37,14 @@ export default function LoginPage() {
         } else if (data.authenticated) {
           router.replace("/");
         } else {
-          setPasswordRequired(true);
           setLoading(false);
         }
       })
       .catch(() => {
-        setPasswordRequired(false);
+        setError("Unable to verify authentication status.");
         setLoading(false);
       });
-  }, [router]);
+  }, [router, sessionConfigMessage]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -74,6 +81,8 @@ export default function LoginPage() {
     );
   }
 
+  const displayError = error;
+
   return (
     <div className="flex items-center justify-center min-h-screen bg-vault-bg tactical-grid">
       <div className="w-full max-w-sm mx-auto px-6">
@@ -99,10 +108,10 @@ export default function LoginPage() {
             </h2>
           </div>
 
-          {error && (
+          {displayError && (
             <div className="flex items-center gap-2 bg-[#E53935]/10 border border-[#E53935]/30 rounded-md px-3 py-2 mb-4">
               <AlertCircle className="w-4 h-4 text-[#E53935] shrink-0" />
-              <p className="text-xs text-[#E53935]">{error}</p>
+              <p className="text-xs text-[#E53935]">{displayError}</p>
             </div>
           )}
 
@@ -133,7 +142,7 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              disabled={submitting || !password}
+              disabled={submitting || !password || !sessionConfigured}
               className="w-full flex items-center justify-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2.5 rounded-md text-sm font-medium transition-colors"
             >
               {submitting ? (
@@ -146,7 +155,9 @@ export default function LoginPage() {
           </form>
 
           <p className="text-[10px] text-vault-text-faint text-center mt-4">
-            Password can be changed in Settings
+            {sessionConfigured
+              ? "Password can be changed in Settings"
+              : "Set SESSION_SECRET in your environment, then restart BlackVault."}
           </p>
         </div>
 

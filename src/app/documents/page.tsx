@@ -22,6 +22,10 @@ function typeLabel(type: UploadedDocument["type"]): string {
   return "Other";
 }
 
+function isSafeDocumentHref(href: string): boolean {
+  return /^\/uploads\/documents\/[a-zA-Z0-9._-]+$/.test(href);
+}
+
 export default function DocumentLibraryPage() {
   const [documents, setDocuments] = useState<UploadedDocument[]>([]);
   const [loading, setLoading] = useState(true);
@@ -200,15 +204,22 @@ export default function DocumentLibraryPage() {
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
-                    <a
-                      href={doc.fileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs border border-vault-border text-vault-text-muted hover:text-[#00C2FF] hover:border-[#00C2FF]/30 transition-colors"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                      Open
-                    </a>
+                    {isSafeDocumentHref(doc.fileUrl) ? (
+                      <a
+                        href={doc.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs border border-vault-border text-vault-text-muted hover:text-[#00C2FF] hover:border-[#00C2FF]/30 transition-colors"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        Open
+                      </a>
+                    ) : (
+                      <span className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs border border-vault-border text-vault-text-faint">
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        Unavailable
+                      </span>
+                    )}
                     <button
                       onClick={() => deleteDocument(doc.id)}
                       disabled={deletingId === doc.id}

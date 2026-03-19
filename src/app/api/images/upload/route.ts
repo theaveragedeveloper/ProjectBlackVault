@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
+import {
+  extensionFromFilename,
+  extensionFromMime,
+  validateUploadBuffer,
+} from "@/lib/upload-security";
 
 const ALLOWED_EXTENSIONS = new Set([
   "jpg",
-  "jpeg",
   "png",
   "gif",
   "webp",
   "avif",
-  "svg",
 ]);
 
 const ALLOWED_ENTITY_TYPES = new Set([
@@ -17,6 +20,8 @@ const ALLOWED_ENTITY_TYPES = new Set([
   "accessory",
   "ammo",
 ]);
+const MAX_SIZE = 10 * 1024 * 1024;
+const SAFE_ENTITY_ID = /^[a-zA-Z0-9_-]{1,64}$/;
 
 // POST /api/images/upload - Upload an image for an entity
 // Accepts multipart form data: file, entityType, entityId
@@ -53,33 +58,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Sanitize entityId to prevent path traversal
-    const sanitizedEntityId = entityId.replace(/[^a-zA-Z0-9_-]/g, "");
-    if (!sanitizedEntityId) {
+    if (!SAFE_ENTITY_ID.test(entityId)) {
       return NextResponse.json(
         { error: "Invalid entityId" },
         { status: 400 }
       );
     }
+    const sanitizedEntityId = entityId;
 
     // Determine the file extension
-    const originalName = file.name ?? "";
-    const dotIndex = originalName.lastIndexOf(".");
-    let ext = dotIndex !== -1 ? originalName.slice(dotIndex + 1).toLowerCase() : "";
-
-    // Also check MIME type as fallback
-    if (!ext || !ALLOWED_EXTENSIONS.has(ext)) {
-      const mimeToExt: Record<string, string> = {
-        "image/jpeg": "jpg",
-        "image/jpg": "jpg",
-        "image/png": "png",
-        "image/gif": "gif",
-        "image/webp": "webp",
-        "image/avif": "avif",
-        "image/svg+xml": "svg",
-      };
-      ext = mimeToExt[file.type] ?? "";
-    }
+    const mimeToExt: Record<string, string> = {
+      "image/jpeg": "jpg",
+      "image/jpg": "jpg",
+      "image/png": "png",
+      "image/gif": "gif",
+      "image/webp": "webp",
+      "image/avif": "avif",
+    };
+    const extFromName = extensionFromFilename(file.name ?? "");
+    const extFromContentType = extensionFromMime(file.type ?? "", mimeToExt);
+    const ext = extFromName ?? extFromContentType;
 
     if (!ext || !ALLOWED_EXTENSIONS.has(ext)) {
       return NextResponse.json(
@@ -91,7 +89,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Check file size (limit to 10MB)
-    const MAX_SIZE = 10 * 1024 * 1024;
     if (file.size > MAX_SIZE) {
       return NextResponse.json(
         { error: "File too large. Maximum size is 10MB." },
@@ -99,10 +96,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const detectedExt = validateUploadBuffer(buffer, ALLOWED_EXTENSIONS);
+    if (!detectedExt) {
+      return NextResponse.json(
+        { error: "The uploaded content is not a supported image format." },
+        { status: 400 }
+      );
+    }
+    if (detectedExt !== ext) {
+      return NextResponse.json(
+        { error: "File extension or MIME type does not match image content." },
+        { status: 400 }
+      );
+    }
+
     // Build paths
     // entityType = "firearm" -> directory = "firearms"
     const entityTypeDir = `${entityType}s`;
-    const fileName = `${sanitizedEntityId}.${ext}`;
+    const fileName = `${sanitizedEntityId}.${detectedExt}`;
     const relativeUrl = `/uploads/${entityTypeDir}/${fileName}`;
 
     // Resolve the absolute path within the upload storage directory.
@@ -116,10 +129,8 @@ export async function POST(request: NextRequest) {
     // Ensure the directory exists
     await fs.mkdir(uploadDir, { recursive: true });
 
-    // Read the file contents and write to disk
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    await fs.writeFile(filePath, buffer);
+    // Write to disk with owner-only permissions
+    await fs.writeFile(filePath, buffer, { mode: 0o600 });
 
     return NextResponse.json(
       {
@@ -132,8 +143,8 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (error) {
-    console.error("POST /api/images/upload error:", error);
+  } catch {
+    console.error("POST /api/images/upload failed");
     return NextResponse.json(
       { error: "Failed to upload image" },
       { status: 500 }

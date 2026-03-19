@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 
+const SESSION_COOKIE_NAME = "vault_session";
+const MIN_SESSION_SECRET_LENGTH = 32;
+
 async function verifyWithWebCrypto(signed: string, secret: string): Promise<boolean> {
   const lastDot = signed.lastIndexOf(".");
   if (lastDot === -1) return false;
   const token = signed.slice(0, lastDot);
   const providedHex = signed.slice(lastDot + 1);
+  if (!/^[0-9a-f]+$/i.test(providedHex)) return false;
 
   const enc = new TextEncoder();
   const key = await crypto.subtle.importKey(
@@ -27,37 +31,58 @@ async function verifyWithWebCrypto(signed: string, secret: string): Promise<bool
   return diff === 0;
 }
 
+function getSessionSecret(): string | null {
+  const secret = process.env.SESSION_SECRET?.trim();
+  if (!secret || secret.length < MIN_SESSION_SECRET_LENGTH) return null;
+  return secret;
+}
+
+function isPublicPath(pathname: string): boolean {
+  if (pathname === "/login" || pathname.startsWith("/login/")) return true;
+  if (pathname === "/api/auth" || pathname.startsWith("/api/auth/")) return true;
+  if (pathname === "/api/health") return true;
+  if (pathname === "/favicon.ico") return true;
+  if (pathname.startsWith("/_next/")) return true;
+  return false;
+}
+
+function redirectToLogin(request: NextRequest, reason: "missing" | "invalid" | "config") {
+  const loginUrl = new URL("/login", request.url);
+  if (reason === "config") {
+    loginUrl.searchParams.set("error", "session_config");
+  }
+
+  const response = NextResponse.redirect(loginUrl);
+  if (reason === "invalid") {
+    response.cookies.set(SESSION_COOKIE_NAME, "", {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      expires: new Date(0),
+    });
+  }
+  return response;
+}
+
 export async function proxy(request: NextRequest) {
-  const session = request.cookies.get("vault_session");
   const { pathname } = request.nextUrl;
-
-  // Always allow these paths without auth
-  const publicPaths = ["/login", "/api/auth", "/_next", "/favicon.ico", "/api/health"];
-  const isPublic = publicPaths.some((p) => pathname.startsWith(p));
-
-  if (isPublic) {
+  if (isPublicPath(pathname)) {
     return NextResponse.next();
   }
 
-  // If no session cookie, redirect to login
+  const session = request.cookies.get(SESSION_COOKIE_NAME);
   if (!session?.value) {
-    const loginUrl = new URL("/login", request.url);
-    return NextResponse.redirect(loginUrl);
+    return redirectToLogin(request, "missing");
   }
 
-  // Validate the session signature if SESSION_SECRET is configured
-  const secret = process.env.SESSION_SECRET;
-  if (secret) {
-    const valid = await verifyWithWebCrypto(session.value, secret);
-    if (!valid) {
-      const loginUrl = new URL("/login", request.url);
-      return NextResponse.redirect(loginUrl);
-    }
-  } else {
-    console.warn(
-      "[blackvault] SESSION_SECRET is not set — session cookies are not cryptographically validated. " +
-      "Set SESSION_SECRET in your environment to prevent cookie forgery."
-    );
+  const secret = getSessionSecret();
+  if (!secret) {
+    return redirectToLogin(request, "config");
+  }
+
+  const valid = await verifyWithWebCrypto(session.value, secret);
+  if (!valid) {
+    return redirectToLogin(request, "invalid");
   }
 
   return NextResponse.next();

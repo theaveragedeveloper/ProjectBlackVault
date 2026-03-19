@@ -3,12 +3,13 @@ import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import crypto from "crypto";
 import { verifyPassword } from "@/lib/password";
-import { signToken } from "@/lib/session";
+import { getSessionSecret, signToken, SESSION_COOKIE_NAME } from "@/lib/session";
 
 // Simple in-memory rate limiter: max 10 attempts per IP per minute
 const attempts = new Map<string, { count: number; resetAt: number }>();
 const MAX_ATTEMPTS = 10;
 const WINDOW_MS = 60 * 1000;
+const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 
 function checkRateLimit(ip: string): boolean {
   const now = Date.now();
@@ -22,23 +23,63 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
+function noStoreJson(data: unknown, status = 200) {
+  return NextResponse.json(data, {
+    status,
+    headers: {
+      "Cache-Control": "no-store",
+    },
+  });
+}
+
+function shouldUseSecureCookie(request: NextRequest): boolean {
+  const override = (process.env.SESSION_COOKIE_SECURE ?? "auto").trim().toLowerCase();
+  if (override === "true" || override === "1" || override === "yes") return true;
+  if (override === "false" || override === "0" || override === "no") return false;
+
+  const forwardedProto = request.headers
+    .get("x-forwarded-proto")
+    ?.split(",")[0]
+    ?.trim()
+    ?.toLowerCase();
+  if (forwardedProto) return forwardedProto === "https";
+  return request.nextUrl.protocol === "https:";
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Rate limiting
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
     if (!checkRateLimit(ip)) {
-      return NextResponse.json(
+      return noStoreJson(
         { error: "Too many login attempts. Please wait a minute." },
-        { status: 429 }
+        429
       );
     }
 
-    const body = await request.json();
-    const { password } = body;
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return noStoreJson({ error: "Invalid request body" }, 400);
+    }
+    const parsedBody = typeof body === "object" && body !== null
+      ? body as Record<string, unknown>
+      : {};
+    const password = parsedBody.password;
+    const normalizedPassword = typeof password === "string" ? password : "";
+
+    const sessionSecret = getSessionSecret();
+    if (!sessionSecret) {
+      return noStoreJson(
+        { error: "Server is missing a valid SESSION_SECRET (minimum 32 characters)." },
+        503
+      );
+    }
 
     // Guard against DoS via enormous password strings sent to scrypt
-    if (typeof password === "string" && password.length > 1024) {
-      return NextResponse.json({ error: "Invalid password" }, { status: 401 });
+    if (normalizedPassword.length > 1024) {
+      return noStoreJson({ error: "Invalid password" }, 401);
     }
 
     let settings = await prisma.appSettings.findUnique({
@@ -52,37 +93,37 @@ export async function POST(request: NextRequest) {
     // If no password is set, always allow access
     if (!settings.appPassword) {
       const token = crypto.randomBytes(32).toString("hex");
-      const secret = process.env.SESSION_SECRET;
-      const cookieValue = secret ? signToken(token, secret) : token;
+      const cookieValue = signToken(token, sessionSecret);
       const cookieStore = await cookies();
-      cookieStore.set("vault_session", cookieValue, {
+      cookieStore.set(SESSION_COOKIE_NAME, cookieValue, {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        maxAge: 60 * 60 * 24 * 30,
+        secure: shouldUseSecureCookie(request),
+        maxAge: SESSION_MAX_AGE_SECONDS,
       });
-      return NextResponse.json({ success: true });
+      return noStoreJson({ success: true });
     }
 
     // Verify password (supports both hashed and legacy plaintext)
-    if (!verifyPassword(password ?? "", settings.appPassword)) {
-      return NextResponse.json({ error: "Invalid password" }, { status: 401 });
+    if (!verifyPassword(normalizedPassword, settings.appPassword)) {
+      return noStoreJson({ error: "Invalid password" }, 401);
     }
 
     const token = crypto.randomBytes(32).toString("hex");
-    const secret = process.env.SESSION_SECRET;
-    const cookieValue = secret ? signToken(token, secret) : token;
+    const cookieValue = signToken(token, sessionSecret);
     const cookieStore = await cookies();
-    cookieStore.set("vault_session", cookieValue, {
+    cookieStore.set(SESSION_COOKIE_NAME, cookieValue, {
       httpOnly: true,
       sameSite: "lax",
       path: "/",
-      maxAge: 60 * 60 * 24 * 30,
+      secure: shouldUseSecureCookie(request),
+      maxAge: SESSION_MAX_AGE_SECONDS,
     });
 
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("POST /api/auth/login error:", error);
-    return NextResponse.json({ error: "Authentication failed" }, { status: 500 });
+    return noStoreJson({ success: true });
+  } catch {
+    console.error("POST /api/auth/login failed");
+    return noStoreJson({ error: "Authentication failed" }, 500);
   }
 }
