@@ -29,7 +29,7 @@ Update `.env` as needed:
 - `PORT` (default `3000`)
 - `BIND_ADDRESS` (default `127.0.0.1` for local-only exposure)
 - `DATA_DIR` (default `./data`)
-- `SESSION_SECRET` (required, minimum 32 characters)
+- `SESSION_SECRET` (optional override; if unset, auto-generated and persisted in `/app/data/session-secret`)
 - `SESSION_COOKIE_SECURE` (`auto` by default; set `true` behind HTTPS)
 - `VAULT_ENCRYPTION_KEY` (optional)
 - `IMAGE_UPLOAD_DIR` (optional, defaults to `/app/uploads` in Docker)
@@ -42,6 +42,8 @@ docker compose up -d --build
 ```
 
 Open: [http://localhost:3000](http://localhost:3000)
+
+On first run, BlackVault shows a setup screen to create your vault password. `SESSION_SECRET` setup is automatic.
 
 ### Stop
 
@@ -59,7 +61,7 @@ Compose bind mounts:
 ## Security Defaults
 
 - App routes and APIs require a signed session cookie after login.
-- Container startup fails if `SESSION_SECRET` is missing or shorter than 32 characters.
+- If `SESSION_SECRET` is unset, startup securely generates one and stores it at `/app/data/session-secret`.
 - Uploaded files are validated by type and signature before storage.
 - Exports exclude firearm serial numbers by default.
 - Docker publish binding defaults to `127.0.0.1` (not public internet).

@@ -16,14 +16,14 @@ export async function GET() {
     const cookieStore = await cookies();
     const session = cookieStore.get(SESSION_COOKIE_NAME);
     const passwordRequired = !!settings.appPassword;
+    const requiresSetup = !settings.appPassword;
     const secret = getSessionSecret();
-    const sessionConfigured = !!secret;
     const authenticated = session?.value && secret
       ? verifyTokenNode(session.value, secret)
       : false;
 
     return NextResponse.json(
-      { passwordRequired, authenticated, sessionConfigured },
+      { passwordRequired, requiresSetup, authenticated },
       {
         headers: {
           "Cache-Control": "no-store",
@@ -33,7 +33,7 @@ export async function GET() {
   } catch {
     console.error("GET /api/auth/check failed");
     return NextResponse.json(
-      { passwordRequired: false, authenticated: false, sessionConfigured: false },
+      { passwordRequired: false, requiresSetup: false, authenticated: false },
       {
         headers: {
           "Cache-Control": "no-store",
