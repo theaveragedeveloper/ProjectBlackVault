@@ -23,6 +23,9 @@ export async function GET() {
       {
         caliber: string;
         totalQuantity: number;
+        avgPricePerRound: number | null;
+        pricedRounds: number;
+        pricedValue: number;
         stocks: typeof stocks;
       }
     > = {};
@@ -32,11 +35,23 @@ export async function GET() {
         grouped[stock.caliber] = {
           caliber: stock.caliber,
           totalQuantity: 0,
+          avgPricePerRound: null,
+          pricedRounds: 0,
+          pricedValue: 0,
           stocks: [],
         };
       }
       grouped[stock.caliber].totalQuantity += stock.quantity;
+      if (typeof stock.purchasePrice === "number" && stock.purchasePrice > 0) {
+        grouped[stock.caliber].pricedRounds += stock.quantity;
+        grouped[stock.caliber].pricedValue += stock.quantity * stock.purchasePrice;
+      }
       grouped[stock.caliber].stocks.push(stock);
+    }
+
+    for (const group of Object.values(grouped)) {
+      group.avgPricePerRound =
+        group.pricedRounds > 0 ? group.pricedValue / group.pricedRounds : null;
     }
 
     const result = {
@@ -68,6 +83,7 @@ export async function POST(request: NextRequest) {
       bulletType,
       quantity,
       purchasePrice,
+      purchasePriceTotal,
       purchaseDate,
       storageLocation,
       lowStockAlert,
@@ -81,14 +97,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (purchasePrice !== undefined && purchasePrice !== null && Number(purchasePrice) < 0) {
+      return NextResponse.json({ error: "purchasePrice cannot be negative" }, { status: 400 });
+    }
+    if (
+      purchasePriceTotal !== undefined &&
+      purchasePriceTotal !== null &&
+      Number(purchasePriceTotal) < 0
+    ) {
+      return NextResponse.json({ error: "purchasePriceTotal cannot be negative" }, { status: 400 });
+    }
+
+    const quantityValue = Number(quantity ?? 0);
+    const normalizedPerRoundPrice =
+      purchasePrice !== undefined && purchasePrice !== null
+        ? Number(purchasePrice)
+        : purchasePriceTotal !== undefined &&
+            purchasePriceTotal !== null &&
+            quantityValue > 0
+          ? Number(purchasePriceTotal) / quantityValue
+          : null;
+
     const stock = await prisma.ammoStock.create({
       data: {
         caliber,
         brand,
         grainWeight: grainWeight ?? null,
         bulletType: bulletType ?? null,
-        quantity: quantity ?? 0,
-        purchasePrice: purchasePrice ?? null,
+        quantity: quantityValue,
+        purchasePrice:
+          normalizedPerRoundPrice !== null && Number.isFinite(normalizedPerRoundPrice)
+            ? normalizedPerRoundPrice
+            : null,
         purchaseDate: purchaseDate ? new Date(purchaseDate) : null,
         storageLocation: storageLocation ?? null,
         lowStockAlert: lowStockAlert ?? null,

@@ -18,6 +18,7 @@ import {
   ChevronDown,
   BookOpen,
   Calculator,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
@@ -72,6 +73,12 @@ const NAV_ITEMS: NavItem[] = [
       { label: "Drill Library", href: "/range/drills", icon: BookOpen },
       { label: "Hit Factor Calc", href: "/range/hit-factor", icon: Calculator },
     ],
+  },
+  {
+    label: "Documents",
+    href: "/documents",
+    icon: FileText,
+    description: "Recipes & tax stamps",
   },
   {
     label: "Settings",

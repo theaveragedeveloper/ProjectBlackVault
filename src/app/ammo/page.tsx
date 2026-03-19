@@ -35,6 +35,21 @@ interface CaliberGroup {
   stocks: AmmoStock[];
 }
 
+function avgPricePerRound(stocks: AmmoStock[]): number | null {
+  let pricedRounds = 0;
+  let pricedValue = 0;
+
+  for (const stock of stocks) {
+    if (stock.purchasePrice !== null && stock.purchasePrice !== undefined && stock.purchasePrice > 0) {
+      pricedRounds += stock.quantity;
+      pricedValue += stock.quantity * stock.purchasePrice;
+    }
+  }
+
+  if (pricedRounds === 0) return null;
+  return pricedValue / pricedRounds;
+}
+
 function stockStatus(quantity: number, lowAlert?: number | null): "ok" | "low" | "critical" | "empty" {
   if (quantity === 0) return "empty";
   if (lowAlert && quantity <= lowAlert / 2) return "critical";
@@ -350,6 +365,7 @@ export default function AmmoPage() {
               const isExpanded = expandedCalibers.has(group.caliber);
               const styles = STATUS_STYLES[worstStatus];
               const totalColor = CALIBER_TEXT_COLORS[worstStatus];
+              const groupAvgPrice = avgPricePerRound(group.stocks);
 
               return (
                 <div
@@ -371,9 +387,16 @@ export default function AmmoPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <p className={`text-2xl font-bold font-mono tabular-nums ${totalColor}`}>
-                        {formatNumber(group.totalQuantity)}
-                      </p>
+                      <div className="text-right">
+                        <p className={`text-2xl font-bold font-mono tabular-nums ${totalColor}`}>
+                          {formatNumber(group.totalQuantity)}
+                        </p>
+                        {groupAvgPrice != null && (
+                          <p className="text-[10px] text-vault-text-faint font-mono">
+                            avg {formatCurrency(groupAvgPrice)}/rd
+                          </p>
+                        )}
+                      </div>
                       {isExpanded ? (
                         <ChevronUp className="w-4 h-4 text-vault-text-faint shrink-0" />
                       ) : (
@@ -465,7 +488,7 @@ export default function AmmoPage() {
                               </button>
                               {stock.purchasePrice && (
                                 <span className="text-[10px] text-vault-text-faint font-mono ml-auto">
-                                  {formatCurrency(stock.purchasePrice)}
+                                  {formatCurrency(stock.purchasePrice)}/rd
                                 </span>
                               )}
                             </div>

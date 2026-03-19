@@ -49,3 +49,5 @@ prisma/prisma/
 
 # User uploads
 /uploads/
+/data/
+/data-dev/
