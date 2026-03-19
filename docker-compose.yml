@@ -18,7 +18,7 @@ services:
       - SESSION_COOKIE_SECURE=${SESSION_COOKIE_SECURE:-auto}
       - VAULT_ENCRYPTION_KEY=${VAULT_ENCRYPTION_KEY:-}
       - ALLOW_ENCRYPTION_KEY_EXPORT=${ALLOW_ENCRYPTION_KEY_EXPORT:-false}
-      - SESSION_SECRET=${SESSION_SECRET}
+      - SESSION_SECRET=${SESSION_SECRET:-}
     volumes:
       - ${DATA_DIR:-./data}/db:/app/data
       - ${DATA_DIR:-./data}/uploads:/app/uploads

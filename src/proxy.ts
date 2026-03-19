@@ -46,11 +46,8 @@ function isPublicPath(pathname: string): boolean {
   return false;
 }
 
-function redirectToLogin(request: NextRequest, reason: "missing" | "invalid" | "config") {
+function redirectToLogin(request: NextRequest, reason: "missing" | "invalid") {
   const loginUrl = new URL("/login", request.url);
-  if (reason === "config") {
-    loginUrl.searchParams.set("error", "session_config");
-  }
 
   const response = NextResponse.redirect(loginUrl);
   if (reason === "invalid") {
@@ -77,7 +74,7 @@ export async function proxy(request: NextRequest) {
 
   const secret = getSessionSecret();
   if (!secret) {
-    return redirectToLogin(request, "config");
+    return redirectToLogin(request, "missing");
   }
 
   const valid = await verifyWithWebCrypto(session.value, secret);

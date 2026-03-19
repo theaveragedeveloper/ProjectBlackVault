@@ -2,26 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import crypto from "crypto";
-import { verifyPassword } from "@/lib/password";
+import { hashPassword } from "@/lib/password";
 import { getSessionSecret, signToken, SESSION_COOKIE_NAME } from "@/lib/session";
 
-// Simple in-memory rate limiter: max 10 attempts per IP per minute
-const attempts = new Map<string, { count: number; resetAt: number }>();
-const MAX_ATTEMPTS = 10;
-const WINDOW_MS = 60 * 1000;
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const rec = attempts.get(ip);
-  if (!rec || now > rec.resetAt) {
-    attempts.set(ip, { count: 1, resetAt: now + WINDOW_MS });
-    return true;
-  }
-  if (rec.count >= MAX_ATTEMPTS) return false;
-  rec.count++;
-  return true;
-}
 
 function noStoreJson(data: unknown, status = 200) {
   return NextResponse.json(data, {
@@ -48,60 +32,50 @@ function shouldUseSecureCookie(request: NextRequest): boolean {
 
 export async function POST(request: NextRequest) {
   try {
-    // Rate limiting
-    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-    if (!checkRateLimit(ip)) {
-      return noStoreJson(
-        { error: "Too many login attempts. Please wait a minute." },
-        429
-      );
-    }
-
     let body: unknown;
     try {
       body = await request.json();
     } catch {
       return noStoreJson({ error: "Invalid request body" }, 400);
     }
+
     const parsedBody = typeof body === "object" && body !== null
       ? body as Record<string, unknown>
       : {};
     const password = parsedBody.password;
     const normalizedPassword = typeof password === "string" ? password : "";
 
+    if (!normalizedPassword) {
+      return noStoreJson({ error: "Vault password is required." }, 400);
+    }
+    if (normalizedPassword.length > 1024) {
+      return noStoreJson({ error: "Vault password is too long." }, 400);
+    }
+
     const sessionSecret = getSessionSecret();
     if (!sessionSecret) {
-      return noStoreJson(
-        { error: "Authentication service is unavailable." },
-        503
-      );
+      return noStoreJson({ error: "Authentication service is unavailable." }, 503);
     }
 
-    // Guard against DoS via enormous password strings sent to scrypt
-    if (normalizedPassword.length > 1024) {
-      return noStoreJson({ error: "Invalid password" }, 401);
-    }
-
-    let settings = await prisma.appSettings.findUnique({
+    const existing = await prisma.appSettings.findUnique({
       where: { id: "singleton" },
+      select: { appPassword: true },
     });
 
-    if (!settings) {
-      settings = await prisma.appSettings.create({ data: { id: "singleton" } });
+    if (existing?.appPassword) {
+      return noStoreJson({ error: "Vault has already been initialized." }, 409);
     }
 
-    // If no password is set, first-run setup must complete before login.
-    if (!settings.appPassword) {
-      return noStoreJson(
-        { error: "First-run setup is required before login." },
-        409
-      );
-    }
-
-    // Verify password (supports both hashed and legacy plaintext)
-    if (!verifyPassword(normalizedPassword, settings.appPassword)) {
-      return noStoreJson({ error: "Invalid password" }, 401);
-    }
+    await prisma.appSettings.upsert({
+      where: { id: "singleton" },
+      create: {
+        id: "singleton",
+        appPassword: hashPassword(normalizedPassword),
+      },
+      update: {
+        appPassword: hashPassword(normalizedPassword),
+      },
+    });
 
     const token = crypto.randomBytes(32).toString("hex");
     const cookieValue = signToken(token, sessionSecret);
@@ -116,7 +90,7 @@ export async function POST(request: NextRequest) {
 
     return noStoreJson({ success: true });
   } catch {
-    console.error("POST /api/auth/login failed");
-    return noStoreJson({ error: "Authentication failed" }, 500);
+    console.error("POST /api/auth/setup failed");
+    return noStoreJson({ error: "Setup failed" }, 500);
   }
 }
