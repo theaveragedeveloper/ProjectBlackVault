@@ -33,7 +33,7 @@ function resolveSessionSecretFilePath(): string {
 function readSecretFromFile(filePath: string): string | null {
   try {
     const secret = fs.readFileSync(filePath, "utf8").trim();
-    if (isValidSessionSecret(secret)) {
+    if (secret.length >= MIN_SESSION_SECRET_LENGTH) {
       return secret;
     }
     if (secret.length > 0) {
