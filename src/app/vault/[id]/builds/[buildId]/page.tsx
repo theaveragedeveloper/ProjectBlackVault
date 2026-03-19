@@ -64,6 +64,86 @@ interface Build {
 const FIELD_CLASS =
   "w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint";
 
+type SlotGroup = {
+  key: string;
+  label: string;
+  slotTypes: SlotType[];
+};
+
+const SLOT_GROUPS: SlotGroup[] = [
+  {
+    key: "CORE",
+    label: "Core Components",
+    slotTypes: [
+      "BARREL",
+      "BARREL_NUT",
+      "HANDGUARD",
+      "GAS_BLOCK",
+      "GAS_TUBE",
+      "BCG",
+      "LOWER_RECEIVER",
+      "UPPER_RECEIVER",
+      "SLIDE",
+      "FRAME",
+      "LOWER_PARTS_KIT",
+    ],
+  },
+  {
+    key: "CONTROLS",
+    label: "Controls & Action",
+    slotTypes: [
+      "TRIGGER",
+      "HAMMER",
+      "DISCONNECTOR",
+      "SAFETY_SELECTOR",
+      "BOLT_CATCH",
+      "MAGAZINE_CATCH",
+      "TRIGGER_GUARD",
+      "CHARGING_HANDLE",
+      "BUFFER",
+      "BUFFER_SPRING",
+      "BUFFER_TUBE",
+    ],
+  },
+  {
+    key: "ERGONOMICS",
+    label: "Ergonomics",
+    slotTypes: ["STOCK", "PISTOL_BRACE", "GRIP", "MAGWELL", "MAGAZINE"],
+  },
+  {
+    key: "AIMING",
+    label: "Sighting & Aim",
+    slotTypes: ["OPTIC", "OPTIC_MOUNT"],
+  },
+  {
+    key: "SUPPORT",
+    label: "Muzzle & Support",
+    slotTypes: ["MUZZLE", "SUPPRESSOR", "COMPENSATOR", "UNDERBARREL", "LIGHT", "LASER", "BIPOD", "SLING"],
+  },
+];
+
+function isCustomSlotType(slotType: string): boolean {
+  return slotType.startsWith("CUSTOM:");
+}
+
+function parseCustomSlot(slotType: string): { category: string | null; name: string } | null {
+  if (!isCustomSlotType(slotType)) return null;
+  const rest = slotType.slice("CUSTOM:".length);
+  const splitIdx = rest.indexOf("|");
+  if (splitIdx === -1) {
+    return { category: null, name: rest.trim() };
+  }
+  return {
+    category: rest.slice(0, splitIdx).trim() || null,
+    name: rest.slice(splitIdx + 1).trim(),
+  };
+}
+
+function getCustomSlotLabel(slotType: string): string {
+  const parsed = parseCustomSlot(slotType);
+  return parsed?.name || "Custom Slot";
+}
+
 // ─── Accessory Edit Modal ──────────────────────────────────────
 
 interface AccessoryEditModalProps {
@@ -264,7 +344,7 @@ function AccessoryEditModal({ accessory, onClose, onSaved }: AccessoryEditModalP
 // ─── Accessory Browser Modal ───────────────────────────────────
 
 interface AccessoryBrowserModalProps {
-  slotType: SlotType;
+  slotType: string;
   buildId: string;
   onClose: () => void;
   onAssigned: () => void;
@@ -384,6 +464,7 @@ function AccessoryBrowserModal({
 
   const slotIconConfig = SLOT_ICONS[slotType as SlotType];
   const SlotIcon = slotIconConfig?.icon ?? Shield;
+  const slotTypeLabel = SLOT_TYPE_LABELS[slotType] ?? getCustomSlotLabel(slotType);
 
   return (
     <div
@@ -408,7 +489,7 @@ function AccessoryBrowserModal({
                 Assign Attachment
               </p>
               <h2 className="text-sm font-semibold text-vault-text">
-                {SLOT_TYPE_LABELS[slotType]}
+                {slotTypeLabel}
               </h2>
             </div>
           </div>
@@ -555,7 +636,7 @@ function AccessoryBrowserModal({
               <div>
                 <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Type</label>
                 <div className="bg-vault-bg border border-vault-border rounded-md px-3 py-2 text-sm text-vault-text-muted font-mono">
-                  {SLOT_TYPE_LABELS[slotType]}
+                  {slotTypeLabel}
                 </div>
               </div>
               <div>
@@ -736,24 +817,147 @@ function WeaponCanvas({ build, onSlotClick, onRemoveSlot }: WeaponCanvasProps) {
 interface SlotPanelProps {
   build: Build;
   allBuilds: Build[];
-  onSlotClick: (slotType: SlotType) => void;
-  onRemoveSlot: (slotType: SlotType) => void;
+  onSlotClick: (slotType: string) => void;
+  onRemoveSlot: (slotType: string) => void;
+  onAddCustomSlot: (category: string | null, name: string) => void;
+  onDeleteCustomSlot: (slotType: string) => void;
   onSwitchBuild: (buildId: string) => void;
   onEditAccessory: (accessory: Accessory) => void;
 }
 
-function SlotPanel({ build, allBuilds, onSlotClick, onRemoveSlot, onSwitchBuild, onEditAccessory }: SlotPanelProps) {
+function SlotPanel({
+  build,
+  allBuilds,
+  onSlotClick,
+  onRemoveSlot,
+  onAddCustomSlot,
+  onDeleteCustomSlot,
+  onSwitchBuild,
+  onEditAccessory,
+}: SlotPanelProps) {
   const [switchOpen, setSwitchOpen] = useState(false);
+  const [addingCustomGroup, setAddingCustomGroup] = useState<string | null>(null);
+  const [customSlotName, setCustomSlotName] = useState("");
   const firearmType = build.firearm.type as FirearmType;
   const availableSlots = SLOTS_BY_FIREARM_TYPE[firearmType] ?? [];
 
-  const slotMap: Partial<Record<SlotType, BuildSlot>> = {};
+  const slotMap: Record<string, BuildSlot> = {};
   for (const slot of build.slots) {
-    slotMap[slot.slotType as SlotType] = slot;
+    slotMap[slot.slotType] = slot;
   }
 
   const otherBuilds = allBuilds.filter((b) => b.id !== build.id);
   const filledCount = build.slots.filter((s) => s.accessoryId).length;
+  const customSlots = build.slots.filter((slot) => isCustomSlotType(slot.slotType));
+
+  const customSlotsByCategory = customSlots.reduce<Record<string, BuildSlot[]>>((acc, slot) => {
+    const parsed = parseCustomSlot(slot.slotType);
+    const key = parsed?.category || "__OTHER__";
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(slot);
+    return acc;
+  }, {});
+
+  const visibleGroups = SLOT_GROUPS
+    .map((group) => ({
+      ...group,
+      standardSlots: group.slotTypes.filter((slotType) => availableSlots.includes(slotType)),
+      customSlots: customSlotsByCategory[group.key] ?? [],
+    }))
+    .filter((group) => group.standardSlots.length > 0 || group.customSlots.length > 0);
+
+  const otherCustomSlots = customSlotsByCategory.__OTHER__ ?? [];
+
+  function submitCustomSlot(category: string | null) {
+    const trimmed = customSlotName.trim();
+    if (!trimmed) return;
+    onAddCustomSlot(category, trimmed);
+    setCustomSlotName("");
+    setAddingCustomGroup(null);
+  }
+
+  function slotCard(slotType: string) {
+    const slot = slotMap[slotType];
+    const hasAccessory = !!slot?.accessory;
+    const custom = isCustomSlotType(slotType);
+    const slotIconConfig = SLOT_ICONS[slotType as SlotType];
+    const SlotIcon = slotIconConfig?.icon ?? Shield;
+    const label = SLOT_TYPE_LABELS[slotType] ?? getCustomSlotLabel(slotType);
+
+    return (
+      <div key={slotType} className="bg-vault-bg border border-vault-border rounded-lg p-2.5">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded flex items-center justify-center"
+            style={{ backgroundColor: hasAccessory ? `${slotIconConfig?.color ?? "#8B9DB0"}15` : "transparent" }}>
+            <SlotIcon className="w-3.5 h-3.5"
+              style={{ color: hasAccessory ? slotIconConfig?.color ?? "#8B9DB0" : "#2A3B4C" }} />
+          </div>
+          <p className={`text-[10px] uppercase tracking-widest font-mono ${hasAccessory ? "text-vault-text-faint" : "text-vault-border"}`}>
+            {label}
+          </p>
+        </div>
+
+        {hasAccessory && slot?.accessory ? (
+          <div className="mt-2 space-y-1.5">
+            <p className="text-xs font-medium text-vault-text truncate">{slot.accessory.name}</p>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[9px] font-mono text-[#F5A623] bg-[#F5A623]/10 border border-[#F5A623]/20 px-1.5 py-0.5 rounded">
+                {slot.accessory.roundCount.toLocaleString()}r
+              </span>
+              <button
+                onClick={() => onEditAccessory(slot.accessory!)}
+                className="w-5 h-5 flex items-center justify-center text-vault-text-muted hover:text-[#00C2FF] hover:bg-[#00C2FF]/10 rounded transition-colors"
+                title="Edit accessory"
+              >
+                <Pencil className="w-2.5 h-2.5" />
+              </button>
+              <button
+                onClick={() => onSlotClick(slotType)}
+                className="text-[9px] text-vault-text-muted hover:text-[#00C2FF] border border-vault-border hover:border-[#00C2FF]/40 px-1.5 py-0.5 rounded transition-colors"
+              >
+                Change
+              </button>
+              <button
+                onClick={() => onRemoveSlot(slotType)}
+                className="w-5 h-5 flex items-center justify-center text-vault-text-muted hover:text-[#E53935] hover:bg-[#E53935]/10 rounded transition-colors"
+                title="Remove accessory"
+              >
+                <X className="w-2.5 h-2.5" />
+              </button>
+              {custom && (
+                <button
+                  onClick={() => onDeleteCustomSlot(slotType)}
+                  className="w-5 h-5 flex items-center justify-center text-vault-text-muted hover:text-[#E53935] hover:bg-[#E53935]/10 rounded transition-colors"
+                  title="Delete custom slot"
+                >
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="mt-2 flex items-center gap-1.5">
+            <button
+              onClick={() => onSlotClick(slotType)}
+              className="flex items-center gap-1 text-[9px] text-vault-text-faint hover:text-[#00C2FF] border border-vault-border hover:border-[#00C2FF]/40 px-1.5 py-0.5 rounded transition-colors"
+            >
+              <Plus className="w-2.5 h-2.5" />
+              Attach
+            </button>
+            {custom && (
+              <button
+                onClick={() => onDeleteCustomSlot(slotType)}
+                className="w-5 h-5 flex items-center justify-center text-vault-text-muted hover:text-[#E53935] hover:bg-[#E53935]/10 rounded transition-colors"
+                title="Delete custom slot"
+              >
+                <X className="w-2.5 h-2.5" />
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="h-full flex flex-col bg-vault-surface border-t md:border-t-0 border-l-0 md:border-l border-vault-border">
@@ -803,68 +1007,89 @@ function SlotPanel({ build, allBuilds, onSlotClick, onRemoveSlot, onSwitchBuild,
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        {availableSlots.map((slotType) => {
-          const slot = slotMap[slotType];
-          const hasAccessory = !!slot?.accessory;
-          const slotIconConfig = SLOT_ICONS[slotType];
-          const SlotIcon = slotIconConfig?.icon ?? Shield;
-
-          return (
-            <div key={slotType}
-              className="flex items-center gap-3 px-4 py-3 border-b border-[#1C2530]/50 transition-colors hover:bg-vault-bg">
-              <div className="w-7 h-7 rounded flex items-center justify-center shrink-0"
-                style={{ backgroundColor: hasAccessory ? `${slotIconConfig?.color ?? "#8B9DB0"}15` : "transparent" }}>
-                <SlotIcon className="w-3.5 h-3.5"
-                  style={{ color: hasAccessory ? slotIconConfig?.color ?? "#8B9DB0" : "#2A3B4C" }} />
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <p className={`text-[10px] uppercase tracking-widest font-mono ${hasAccessory ? "text-vault-text-faint" : "text-vault-border"}`}>
-                  {SLOT_TYPE_LABELS[slotType]}
-                </p>
-                {hasAccessory && slot?.accessory ? (
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <p className="text-xs font-medium text-vault-text truncate">{slot.accessory.name}</p>
-                    <span className="shrink-0 text-[9px] font-mono text-[#F5A623] bg-[#F5A623]/10 border border-[#F5A623]/20 px-1.5 py-0.5 rounded">
-                      {slot.accessory.roundCount.toLocaleString()}r
-                    </span>
-                  </div>
-                ) : (
-                  <p className="text-[10px] text-vault-border mt-0.5">Empty</p>
-                )}
-              </div>
-
-              <div className="shrink-0">
-                {hasAccessory ? (
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => slot?.accessory && onEditAccessory(slot.accessory)}
-                      className="w-6 h-6 flex items-center justify-center text-vault-text-muted hover:text-[#00C2FF] hover:bg-[#00C2FF]/10 rounded transition-colors"
-                      title="Edit accessory"
-                    >
-                      <Pencil className="w-3 h-3" />
-                    </button>
-                    <button onClick={() => onSlotClick(slotType)}
-                      className="text-[10px] text-vault-text-muted hover:text-[#00C2FF] border border-vault-border hover:border-[#00C2FF]/40 px-2 py-1 rounded transition-colors">
-                      Change
-                    </button>
-                    <button onClick={() => onRemoveSlot(slotType)}
-                      className="w-6 h-6 flex items-center justify-center text-vault-text-muted hover:text-[#E53935] hover:bg-[#E53935]/10 rounded transition-colors">
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ) : (
-                  <button onClick={() => onSlotClick(slotType)}
-                    className="flex items-center gap-1 text-[10px] text-vault-text-faint hover:text-[#00C2FF] border border-[#1C2530]/60 hover:border-[#00C2FF]/40 px-2 py-1 rounded transition-colors">
-                    <Plus className="w-2.5 h-2.5" />
-                    Attach
-                  </button>
-                )}
-              </div>
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+        {visibleGroups.map((group) => (
+          <div key={group.key} className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] text-vault-text-faint uppercase tracking-widest font-mono">{group.label}</p>
+              <button
+                onClick={() => {
+                  setAddingCustomGroup(group.key);
+                  setCustomSlotName("");
+                }}
+                className="text-[9px] text-vault-text-muted hover:text-[#00C2FF] border border-vault-border hover:border-[#00C2FF]/40 px-1.5 py-0.5 rounded transition-colors"
+              >
+                + Custom Slot
+              </button>
             </div>
-          );
-        })}
+            {addingCustomGroup === group.key && (
+              <div className="flex items-center gap-2">
+                <input
+                  value={customSlotName}
+                  onChange={(e) => setCustomSlotName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") submitCustomSlot(group.key);
+                    if (e.key === "Escape") setAddingCustomGroup(null);
+                  }}
+                  placeholder={`New ${group.label.toLowerCase()} slot`}
+                  className={`${FIELD_CLASS} text-xs py-1.5`}
+                  autoFocus
+                />
+                <button
+                  onClick={() => submitCustomSlot(group.key)}
+                  className="text-xs text-[#00C2FF] border border-[#00C2FF]/40 px-2 py-1.5 rounded hover:bg-[#00C2FF]/10 transition-colors"
+                >
+                  Add
+                </button>
+              </div>
+            )}
+            <div className="grid grid-cols-1 gap-2">
+              {group.standardSlots.map((slotType) => slotCard(slotType))}
+              {group.customSlots.map((slot) => slotCard(slot.slotType))}
+            </div>
+          </div>
+        ))}
+
+        {(otherCustomSlots.length > 0 || addingCustomGroup === "__OTHER__") && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] text-vault-text-faint uppercase tracking-widest font-mono">Other Custom Slots</p>
+              <button
+                onClick={() => {
+                  setAddingCustomGroup("__OTHER__");
+                  setCustomSlotName("");
+                }}
+                className="text-[9px] text-vault-text-muted hover:text-[#00C2FF] border border-vault-border hover:border-[#00C2FF]/40 px-1.5 py-0.5 rounded transition-colors"
+              >
+                + Custom Slot
+              </button>
+            </div>
+            {addingCustomGroup === "__OTHER__" && (
+              <div className="flex items-center gap-2">
+                <input
+                  value={customSlotName}
+                  onChange={(e) => setCustomSlotName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") submitCustomSlot(null);
+                    if (e.key === "Escape") setAddingCustomGroup(null);
+                  }}
+                  placeholder="New custom slot"
+                  className={`${FIELD_CLASS} text-xs py-1.5`}
+                  autoFocus
+                />
+                <button
+                  onClick={() => submitCustomSlot(null)}
+                  className="text-xs text-[#00C2FF] border border-[#00C2FF]/40 px-2 py-1.5 rounded hover:bg-[#00C2FF]/10 transition-colors"
+                >
+                  Add
+                </button>
+              </div>
+            )}
+            <div className="grid grid-cols-1 gap-2">
+              {otherCustomSlots.map((slot) => slotCard(slot.slotType))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -884,7 +1109,7 @@ export default function BuildConfiguratorPage() {
   const [error, setError] = useState<string | null>(null);
   const [activatingBuild, setActivatingBuild] = useState(false);
 
-  const [browserSlot, setBrowserSlot] = useState<SlotType | null>(null);
+  const [browserSlot, setBrowserSlot] = useState<string | null>(null);
   const [editingAccessory, setEditingAccessory] = useState<Accessory | null>(null);
 
   const fetchBuild = useCallback(async () => {
@@ -915,13 +1140,37 @@ export default function BuildConfiguratorPage() {
     fetchBuild();
   }, [fetchBuild]);
 
-  async function handleRemoveSlot(slotType: SlotType) {
+  async function handleRemoveSlot(slotType: string) {
     if (!build) return;
     try {
       await fetch(`/api/builds/${buildId}/slots`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ slotType, accessoryId: null }),
+      });
+      fetchBuild();
+    } catch { /* silently fail */ }
+  }
+
+  async function handleAddCustomSlot(category: string | null, name: string) {
+    const trimmedName = name.trim();
+    if (!trimmedName) return;
+    const slotType = category ? `CUSTOM:${category}|${trimmedName}` : `CUSTOM:${trimmedName}`;
+
+    try {
+      await fetch(`/api/builds/${buildId}/slots`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slotType, accessoryId: null }),
+      });
+      fetchBuild();
+    } catch { /* silently fail */ }
+  }
+
+  async function handleDeleteCustomSlot(slotType: string) {
+    try {
+      await fetch(`/api/builds/${buildId}/slots?slotType=${encodeURIComponent(slotType)}`, {
+        method: "DELETE",
       });
       fetchBuild();
     } catch { /* silently fail */ }
@@ -1011,6 +1260,8 @@ export default function BuildConfiguratorPage() {
             allBuilds={allBuilds}
             onSlotClick={(slotType) => setBrowserSlot(slotType)}
             onRemoveSlot={handleRemoveSlot}
+            onAddCustomSlot={handleAddCustomSlot}
+            onDeleteCustomSlot={handleDeleteCustomSlot}
             onSwitchBuild={handleSwitchBuild}
             onEditAccessory={(acc) => setEditingAccessory(acc)}
           />

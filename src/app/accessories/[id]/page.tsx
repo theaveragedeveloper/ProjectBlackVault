@@ -162,6 +162,12 @@ export default function AccessoryDetailPage() {
 
   const roundColor = roundCountColor(accessory.roundCount, accessory.type);
   const visibleLogs = historyExpanded ? accessory.roundCountLogs : accessory.roundCountLogs.slice(0, 5);
+  const slotTypeLabel =
+    SLOT_TYPE_LABELS[accessory.type as keyof typeof SLOT_TYPE_LABELS] ?? accessory.type;
+  const currentBuildSlotLabel = accessory.currentBuild
+    ? SLOT_TYPE_LABELS[accessory.currentBuild.slotType as keyof typeof SLOT_TYPE_LABELS] ??
+      accessory.currentBuild.slotType
+    : null;
 
   async function handlePhotoChange(url: string | null, source: string | null) {
     await fetch(`/api/accessories/${id}`, {
@@ -221,7 +227,7 @@ export default function AccessoryDetailPage() {
         <div className="absolute bottom-0 left-0 right-0 px-6 pb-4">
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xs px-2 py-0.5 rounded border border-vault-border text-vault-text-muted font-mono uppercase">
-              {SLOT_TYPE_LABELS[accessory.type] ?? accessory.type}
+              {slotTypeLabel}
             </span>
             {accessory.caliber && (
               <span className="text-xs px-2 py-0.5 rounded border border-vault-border text-vault-text-muted font-mono">
@@ -467,11 +473,11 @@ export default function AccessoryDetailPage() {
                 </p>
                 <p className="text-xs text-vault-text-muted mt-0.5">
                   Build: {accessory.currentBuild.name} ·{" "}
-                  {SLOT_TYPE_LABELS[accessory.currentBuild.slotType] ?? accessory.currentBuild.slotType} slot
+                  {currentBuildSlotLabel} slot
                 </p>
               </div>
               <Link
-                href={`/builds/${accessory.currentBuild.id}`}
+                href={`/vault/${accessory.currentBuild.firearm.id}/builds/${accessory.currentBuild.id}`}
                 className="text-xs bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 px-3 py-1.5 rounded transition-colors"
               >
                 Open Build

@@ -105,9 +105,12 @@ export async function POST(request: NextRequest) {
     const fileName = `${sanitizedEntityId}.${ext}`;
     const relativeUrl = `/uploads/${entityTypeDir}/${fileName}`;
 
-    // Resolve the absolute path within the project's public directory
-    const projectRoot = process.cwd();
-    const uploadDir = path.join(projectRoot, "public", "uploads", entityTypeDir);
+    // Resolve the absolute path within the upload storage directory.
+    // Docker uses /app/uploads (mounted volume). Local dev defaults to <project>/uploads.
+    const uploadRoot = process.env.IMAGE_UPLOAD_DIR
+      ? path.resolve(process.env.IMAGE_UPLOAD_DIR)
+      : path.join(process.cwd(), "uploads");
+    const uploadDir = path.join(uploadRoot, entityTypeDir);
     const filePath = path.join(uploadDir, fileName);
 
     // Ensure the directory exists

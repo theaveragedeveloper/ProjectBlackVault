@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shared/PageHeader";
 import {
   BookOpen,
@@ -377,6 +378,7 @@ interface DrillStats {
 }
 
 function DrillProgressPanel({ template }: { template: DrillTemplate }) {
+  const router = useRouter();
   const [results, setResults] = useState<DrillResult[]>([]);
   const [stats, setStats] = useState<DrillStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -414,11 +416,40 @@ function DrillProgressPanel({ template }: { template: DrillTemplate }) {
   const showAccuracy = stats.bestAccuracy != null;
 
   const chartData = results.map((r) => ({
+    sessionId: r.sessionId,
     date: new Date(r.sessionDate).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+    fullDate: new Date(r.sessionDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
     time: r.timeSeconds,
     score: r.score,
     accuracy: r.accuracy,
   }));
+
+  function navigateToSession(payload: { sessionId?: string } | undefined) {
+    if (payload?.sessionId) {
+      router.push(`/range/${payload.sessionId}`);
+    }
+  }
+
+  function renderDot(color: string) {
+    return ({ cx, cy, payload }: { cx?: number; cy?: number; payload?: { sessionId?: string } }) => {
+      if (typeof cx !== "number" || typeof cy !== "number") return null;
+      return (
+        <circle
+          cx={cx}
+          cy={cy}
+          r={3.5}
+          fill={color}
+          stroke="#0F1720"
+          strokeWidth={1}
+          style={{ cursor: "pointer" }}
+          onClick={(event) => {
+            event.stopPropagation();
+            navigateToSession(payload);
+          }}
+        />
+      );
+    };
+  }
 
   return (
     <div className="border-t border-vault-border pt-4 space-y-4">
@@ -479,9 +510,11 @@ function DrillProgressPanel({ template }: { template: DrillTemplate }) {
                   label={{ value: `par ${template.parTime}s`, fill: "#F5A623", fontSize: 9, position: "insideTopRight" }} />
               )}
               <Line type="monotone" dataKey="time" stroke="#00C2FF" strokeWidth={2}
-                dot={{ fill: "#00C2FF", r: 3 }} activeDot={{ r: 5 }} connectNulls />
+                dot={renderDot("#00C2FF")} activeDot={{ r: 5, cursor: "pointer" }}
+                connectNulls />
             </LineChart>
           </ResponsiveContainer>
+          <p className="text-[10px] text-vault-text-faint mt-1">Click a data point to open that range session.</p>
         </div>
       )}
 
@@ -504,9 +537,11 @@ function DrillProgressPanel({ template }: { template: DrillTemplate }) {
                   label={{ value: `max ${template.maxScore}`, fill: "#00C853", fontSize: 9, position: "insideTopRight" }} />
               )}
               <Line type="monotone" dataKey="score" stroke="#00C853" strokeWidth={2}
-                dot={{ fill: "#00C853", r: 3 }} activeDot={{ r: 5 }} connectNulls />
+                dot={renderDot("#00C853")} activeDot={{ r: 5, cursor: "pointer" }}
+                connectNulls />
             </LineChart>
           </ResponsiveContainer>
+          <p className="text-[10px] text-vault-text-faint mt-1">Click a data point to open that range session.</p>
         </div>
       )}
 
@@ -526,9 +561,11 @@ function DrillProgressPanel({ template }: { template: DrillTemplate }) {
               />
               <ReferenceLine y={100} stroke="rgba(255,255,255,0.1)" />
               <Line type="monotone" dataKey="accuracy" stroke="#F5A623" strokeWidth={2}
-                dot={{ fill: "#F5A623", r: 3 }} activeDot={{ r: 5 }} connectNulls />
+                dot={renderDot("#F5A623")} activeDot={{ r: 5, cursor: "pointer" }}
+                connectNulls />
             </LineChart>
           </ResponsiveContainer>
+          <p className="text-[10px] text-vault-text-faint mt-1">Click a data point to open that range session.</p>
         </div>
       )}
     </div>

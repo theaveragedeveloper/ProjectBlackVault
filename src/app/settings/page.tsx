@@ -6,11 +6,9 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle2,
-  Search,
   Lock,
   Eye,
   EyeOff,
-  Image,
   Settings,
   ShieldCheck,
   HardDrive,
@@ -31,10 +29,6 @@ const LABEL_CLASS =
 
 interface AppSettings {
   id: string;
-  enableImageSearch: boolean;
-  googleCseApiKey: string | null;
-  _googleCseApiKeyIsSet?: boolean;
-  googleCseSearchEngineId: string | null;
   appPassword: string | null;
   defaultCurrency: string;
   encryptionEnabled?: boolean;
@@ -55,11 +49,7 @@ export default function SettingsPage() {
   const [dataLoading, setDataLoading] = useState(true);
   const [dataError, setDataError] = useState<string | null>(null);
 
-  const [enableImageSearch, setEnableImageSearch] = useState(false);
-  const [apiKey, setApiKey] = useState("");
-  const [searchEngineId, setSearchEngineId] = useState("");
   const [appPassword, setAppPassword] = useState("");
-  const [showApiKey, setShowApiKey] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
 
@@ -79,6 +69,16 @@ export default function SettingsPage() {
   const [disableInput, setDisableInput] = useState("");
   const [exportedKey, setExportedKey] = useState<string | null>(null);
   const [keyCopied, setKeyCopied] = useState(false);
+  const [exportingData, setExportingData] = useState(false);
+  const [exportDataError, setExportDataError] = useState<string | null>(null);
+  const [exportDataSuccess, setExportDataSuccess] = useState<string | null>(null);
+  const [exportFirearms, setExportFirearms] = useState(true);
+  const [exportAccessories, setExportAccessories] = useState(true);
+  const [exportBuilds, setExportBuilds] = useState(true);
+  const [exportAmmo, setExportAmmo] = useState(true);
+  const [exportRangeSessions, setExportRangeSessions] = useState(true);
+  const [exportDocuments, setExportDocuments] = useState(true);
+  const [exportSettings, setExportSettings] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -90,8 +90,6 @@ export default function SettingsPage() {
           setDataError(data.error);
         } else {
           setSettings(data);
-          setEnableImageSearch(data.enableImageSearch ?? false);
-          setSearchEngineId(data.googleCseSearchEngineId ?? "");
         }
         if (!info.error) setSysInfo(info);
         setDataLoading(false);
@@ -116,15 +114,8 @@ export default function SettingsPage() {
     setSaving(true);
 
     const payload: Record<string, unknown> = {
-      enableImageSearch,
-      googleCseSearchEngineId: searchEngineId || null,
+      appPassword: appPassword || null,
     };
-
-    if (apiKey) {
-      payload.googleCseApiKey = apiKey;
-    }
-
-    payload.appPassword = appPassword || null;
 
     try {
       const res = await fetch("/api/settings", {
@@ -139,7 +130,6 @@ export default function SettingsPage() {
         setSaveError(json.error ?? "Failed to save settings");
       } else {
         setSettings(json);
-        setApiKey("");
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 3000);
       }
@@ -258,6 +248,45 @@ export default function SettingsPage() {
     URL.revokeObjectURL(url);
   }
 
+  async function handleDownloadDataExport() {
+    setExportDataError(null);
+    setExportDataSuccess(null);
+    setExportingData(true);
+
+    try {
+      const params = new URLSearchParams({
+        firearms: String(exportFirearms),
+        accessories: String(exportAccessories),
+        builds: String(exportBuilds),
+        ammo: String(exportAmmo),
+        rangeSessions: String(exportRangeSessions),
+        documents: String(exportDocuments),
+        settings: String(exportSettings),
+      });
+
+      const res = await fetch(`/api/exports/data?${params.toString()}`);
+      const json = await res.json();
+      if (!res.ok) {
+        setExportDataError(json.error ?? "Failed to export data.");
+        return;
+      }
+
+      const blob = new Blob([JSON.stringify(json, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `blackvault-export-${timestamp}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setExportDataSuccess("Export downloaded.");
+    } catch {
+      setExportDataError("Network error. Please try again.");
+    } finally {
+      setExportingData(false);
+    }
+  }
+
   if (dataLoading) {
     return (
       <div className="flex items-center justify-center min-h-full">
@@ -274,9 +303,6 @@ export default function SettingsPage() {
       </div>
     );
   }
-
-  const imageSearchConfigured =
-    settings?._googleCseApiKeyIsSet && !!settings?.googleCseSearchEngineId;
 
   return (
     <div className="min-h-full">
@@ -307,65 +333,6 @@ export default function SettingsPage() {
         )}
 
         <form onSubmit={handleSave} className="space-y-6">
-          {/* ── Image Search ────────────────────────────────── */}
-          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-5">
-            <div className="flex items-center justify-between">
-              <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
-                <Image className="w-3.5 h-3.5" />
-                Image Search
-              </legend>
-              <span className={`text-[10px] font-mono px-2 py-0.5 rounded border uppercase ${imageSearchConfigured ? "text-[#00C853] border-[#00C853]/40" : "text-vault-text-faint border-vault-border"}`}>
-                {imageSearchConfigured ? "Configured" : "Not Configured"}
-              </span>
-            </div>
-
-            <p className="text-xs text-vault-text-muted leading-relaxed">
-              Enable Google Custom Search to automatically find images for firearms and accessories. Requires a Google Cloud CSE API key and a configured search engine.
-            </p>
-
-            <div>
-              <button type="button" onClick={() => setEnableImageSearch((v) => !v)}
-                className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-md border transition-all ${enableImageSearch ? "border-[#00C2FF]/40 bg-[#00C2FF]/5" : "border-vault-border hover:border-vault-text-muted/20"}`}>
-                <div className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${enableImageSearch ? "bg-[#00C2FF]" : "bg-vault-border"}`}>
-                  <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${enableImageSearch ? "left-4" : "left-0.5"}`} />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-vault-text">Enable Image Search</p>
-                  <p className="text-xs text-vault-text-faint mt-0.5">Adds a &quot;Search Images&quot; button to firearm and accessory forms.</p>
-                </div>
-              </button>
-            </div>
-
-            <div>
-              <label className={LABEL_CLASS}>
-                <Search className="w-3 h-3 inline mr-1" />
-                Google CSE API Key
-                {settings?._googleCseApiKeyIsSet && (
-                  <span className="ml-2 text-[#00C853] text-[10px] normal-case tracking-normal">(currently set)</span>
-                )}
-              </label>
-              <div className="relative">
-                <input type={showApiKey ? "text" : "password"} value={apiKey} onChange={(e) => setApiKey(e.target.value)}
-                  placeholder={settings?._googleCseApiKeyIsSet ? "Leave blank to keep existing key" : "AIza..."}
-                  className={`${INPUT_CLASS} pr-10 font-mono`} />
-                <button type="button" onClick={() => setShowApiKey((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-vault-text-faint hover:text-vault-text-muted">
-                  {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-              <p className="text-xs text-vault-text-faint mt-1">From the Google Cloud Console. Leave blank to keep the existing key.</p>
-            </div>
-
-            <div>
-              <label htmlFor="searchEngineId" className={LABEL_CLASS}>
-                <Search className="w-3 h-3 inline mr-1" />
-                Search Engine ID (cx)
-              </label>
-              <input id="searchEngineId" type="text" value={searchEngineId} onChange={(e) => setSearchEngineId(e.target.value)}
-                placeholder="e.g. 017576662512468239146:omuauf_lfve" className={`${INPUT_CLASS} font-mono`} />
-              <p className="text-xs text-vault-text-faint mt-1">The &quot;cx&quot; parameter from your Programmable Search Engine dashboard.</p>
-            </div>
-          </fieldset>
 
           {/* ── Security ────────────────────────────────────── */}
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-5">
@@ -627,6 +594,53 @@ export default function SettingsPage() {
             </div>
           </fieldset>
 
+          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
+            <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
+              <Download className="w-3.5 h-3.5" />
+              Data Export
+            </legend>
+
+            <p className="text-xs text-vault-text-muted leading-relaxed">
+              Choose the sections to include, then download a JSON export for backups or reporting.
+            </p>
+
+            {exportDataError && (
+              <div className="flex items-center gap-2 bg-[#E53935]/10 border border-[#E53935]/30 rounded-md px-3 py-2">
+                <AlertCircle className="w-3.5 h-3.5 text-[#E53935] shrink-0" />
+                <p className="text-xs text-[#E53935]">{exportDataError}</p>
+              </div>
+            )}
+
+            {exportDataSuccess && (
+              <div className="flex items-center gap-2 bg-[#00C853]/10 border border-[#00C853]/30 rounded-md px-3 py-2">
+                <CheckCircle2 className="w-3.5 h-3.5 text-[#00C853] shrink-0" />
+                <p className="text-xs text-[#00C853]">{exportDataSuccess}</p>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <label className="flex items-center gap-2 text-xs text-vault-text-muted"><input type="checkbox" checked={exportFirearms} onChange={(e) => setExportFirearms(e.target.checked)} className="accent-[#00C2FF]" />Firearms</label>
+              <label className="flex items-center gap-2 text-xs text-vault-text-muted"><input type="checkbox" checked={exportAccessories} onChange={(e) => setExportAccessories(e.target.checked)} className="accent-[#00C2FF]" />Accessories</label>
+              <label className="flex items-center gap-2 text-xs text-vault-text-muted"><input type="checkbox" checked={exportBuilds} onChange={(e) => setExportBuilds(e.target.checked)} className="accent-[#00C2FF]" />Builds & Slots</label>
+              <label className="flex items-center gap-2 text-xs text-vault-text-muted"><input type="checkbox" checked={exportAmmo} onChange={(e) => setExportAmmo(e.target.checked)} className="accent-[#00C2FF]" />Ammo & Transactions</label>
+              <label className="flex items-center gap-2 text-xs text-vault-text-muted"><input type="checkbox" checked={exportRangeSessions} onChange={(e) => setExportRangeSessions(e.target.checked)} className="accent-[#00C2FF]" />Range Sessions</label>
+              <label className="flex items-center gap-2 text-xs text-vault-text-muted"><input type="checkbox" checked={exportDocuments} onChange={(e) => setExportDocuments(e.target.checked)} className="accent-[#00C2FF]" />Documents</label>
+              <label className="flex items-center gap-2 text-xs text-vault-text-muted sm:col-span-2"><input type="checkbox" checked={exportSettings} onChange={(e) => setExportSettings(e.target.checked)} className="accent-[#00C2FF]" />Settings (safe subset)</label>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={handleDownloadDataExport}
+                disabled={exportingData}
+                className="flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 rounded-md text-sm font-medium transition-colors"
+              >
+                {exportingData ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                {exportingData ? "Exporting..." : "Download JSON Export"}
+              </button>
+            </div>
+          </fieldset>
+
           {/* ── Network Access ───────────────────────────────── */}
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
             <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
@@ -681,9 +695,6 @@ export default function SettingsPage() {
           <div className="bg-vault-bg border border-vault-border rounded-lg p-4">
             <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-3 font-mono">Current Configuration Status</p>
             <div className="space-y-2">
-              <StatusRow label="Image Search" value={enableImageSearch ? "Enabled" : "Disabled"} ok={enableImageSearch} />
-              <StatusRow label="CSE API Key" value={settings?._googleCseApiKeyIsSet ? "Configured" : "Not set"} ok={!!settings?._googleCseApiKeyIsSet} />
-              <StatusRow label="Search Engine ID" value={settings?.googleCseSearchEngineId ? "Configured" : "Not set"} ok={!!settings?.googleCseSearchEngineId} />
               <StatusRow label="App Password" value={settings?.appPassword ? "Enabled" : "Disabled"} ok={!!settings?.appPassword} neutralIfFalse />
               <StatusRow label="Encryption at Rest" value={settings?.encryptionEnabled ? "Active" : "Not configured"} ok={!!settings?.encryptionEnabled} />
             </div>

@@ -15,8 +15,25 @@ export async function GET(
       return NextResponse.json({ error: "Template not found" }, { status: 404 });
     }
 
+    const legacyLinkedRows = template.isBuiltIn
+      ? await prisma.$queryRaw<Array<{ id: string }>>`
+          SELECT sd."id"
+          FROM "SessionDrill" sd
+          WHERE sd."templateId" IS NULL
+            AND lower(trim(sd."drillName")) = lower(trim(${template.name}))
+        `
+      : [];
+    const legacyLinkedIds = legacyLinkedRows.map((row) => row.id);
+
     const drills = await prisma.sessionDrill.findMany({
-      where: { templateId: id },
+      where: template.isBuiltIn
+        ? {
+            OR: [
+              { templateId: id },
+              ...(legacyLinkedIds.length > 0 ? [{ id: { in: legacyLinkedIds } }] : []),
+            ],
+          }
+        : { templateId: id },
       include: {
         session: { select: { id: true, date: true, rangeName: true } },
       },

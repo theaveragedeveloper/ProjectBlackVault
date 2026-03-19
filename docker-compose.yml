@@ -1,27 +1,23 @@
-version: '3.8'
-
-# Production compose — pulls pre-built image from GitHub Container Registry.
-# Run `./install.sh` (or install.bat on Windows) for first-time setup.
-# Run `./update.sh` to pull the latest version.
-# For local development, use docker-compose.dev.yml instead.
-
 services:
   blackvault:
-    image: ghcr.io/theaveragedeveloper/projectblackvault:latest
-    container_name: blackvault
+    build:
+      context: .
+    image: projectblackvault:v1
+    container_name: projectblackvault
     restart: unless-stopped
     ports:
       - "${PORT:-3000}:3000"
     environment:
       - NODE_ENV=production
       - DATABASE_URL=file:/app/data/vault.db
+      - IMAGE_UPLOAD_DIR=/app/uploads
       - VAULT_ENCRYPTION_KEY=${VAULT_ENCRYPTION_KEY:-}
       - SESSION_SECRET=${SESSION_SECRET:-}
     volumes:
       - ${DATA_DIR:-./data}/db:/app/data
       - ${DATA_DIR:-./data}/uploads:/app/uploads
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3

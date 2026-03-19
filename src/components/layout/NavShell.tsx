@@ -1,11 +1,18 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { Sidebar } from "./Sidebar";
 import { MobileHeader } from "./MobileHeader";
 
 export function NavShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const hideNavigation = pathname === "/login";
+
+  if (hideNavigation) {
+    return <main className="min-h-screen">{children}</main>;
+  }
 
   return (
     <div className="flex h-screen overflow-hidden">
