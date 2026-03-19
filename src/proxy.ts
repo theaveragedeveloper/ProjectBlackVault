@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 
 const SESSION_COOKIE_NAME = "vault_session";
 
-function isPublicPath(pathname: string): boolean {
-  if (pathname === "/login" || pathname.startsWith("/login/")) return true;
+function isLoginPath(pathname: string): boolean {
+  return pathname === "/login" || pathname.startsWith("/login/");
+}
+
+function isBypassPath(pathname: string): boolean {
   if (pathname === "/api/auth" || pathname.startsWith("/api/auth/")) return true;
   if (pathname === "/api/health") return true;
   if (pathname === "/favicon.ico") return true;
@@ -58,11 +61,18 @@ function redirectToLogin(request: NextRequest, clearCookie: boolean) {
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  if (isPublicPath(pathname)) {
+  if (isBypassPath(pathname)) {
     return NextResponse.next();
   }
 
   const bootstrap = await getAuthBootstrap(request);
+
+  if (isLoginPath(pathname)) {
+    if (!bootstrap || bootstrap.requiresSetup || !bootstrap.authenticated) {
+      return NextResponse.next();
+    }
+    return NextResponse.redirect(new URL("/", request.url));
+  }
 
   // Resolve first-run state before applying auth redirects.
   // If setup is still required, always send users to the setup flow.

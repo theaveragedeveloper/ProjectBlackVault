@@ -69,7 +69,10 @@ export async function POST(request: NextRequest) {
     const updateResult = await prisma.appSettings.updateMany({
       where: {
         id: "singleton",
-        appPassword: null,
+        OR: [
+          { appPassword: null },
+          { appPassword: "" },
+        ],
       },
       data: {
         appPassword: passwordHash,
