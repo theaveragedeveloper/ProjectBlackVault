@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Save,
   Loader2,
@@ -21,6 +21,7 @@ import {
   ChevronUp,
   Shield,
 } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 
 const INPUT_CLASS =
   "w-full bg-vault-surface border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint transition-colors";
@@ -42,6 +43,31 @@ interface SystemInfo {
   hostname: string;
   dbPath: string;
   platform: string;
+}
+
+function isPrivateIPv4(ip: string) {
+  return (
+    ip.startsWith("10.") ||
+    ip.startsWith("192.168.") ||
+    /^172\.(1[6-9]|2\d|3[0-1])\./.test(ip)
+  );
+}
+
+function toFriendlyEncryptionError(error: unknown) {
+  const message = typeof error === "string" ? error : "Encryption action failed.";
+  if (message.includes("already active via environment variable")) {
+    return "Encryption is already active through advanced configuration.";
+  }
+  if (message.includes("managed via environment variable")) {
+    return "Encryption is managed through advanced configuration for this installation.";
+  }
+  if (message.includes("No encryption key configured")) {
+    return "No backup key is available to export.";
+  }
+  if (message.includes("Key export is disabled")) {
+    return "Key export is currently disabled in advanced configuration.";
+  }
+  return message;
 }
 
 export default function SettingsPage() {
@@ -82,6 +108,17 @@ export default function SettingsPage() {
   const [exportSettings, setExportSettings] = useState(false);
   const [exportFormat, setExportFormat] = useState<"json" | "csv" | "pdf">("json");
   const [exportIncludeSerialNumbers, setExportIncludeSerialNumbers] = useState(false);
+  const [showEncryptionAdvanced, setShowEncryptionAdvanced] = useState(false);
+  const [showNetworkAdvanced, setShowNetworkAdvanced] = useState(false);
+
+  const port = sysInfo?.port ?? "3000";
+  const thisDeviceUrl = `http://localhost:${port}`;
+  const localIPs = useMemo(() => Array.from(new Set(sysInfo?.localIPs ?? [])), [sysInfo?.localIPs]);
+  const preferredLocalIP = useMemo(
+    () => localIPs.find((ip) => isPrivateIPv4(ip)) ?? localIPs[0] ?? null,
+    [localIPs]
+  );
+  const localNetworkUrl = preferredLocalIP ? `http://${preferredLocalIP}:${port}` : null;
 
   useEffect(() => {
     Promise.all([
@@ -152,7 +189,7 @@ export default function SettingsPage() {
       const res = await fetch("/api/encryption", { method: "POST" });
       const json = await res.json();
       if (!res.ok) {
-        setEncError(json.error ?? "Failed to generate encryption key.");
+        setEncError(toFriendlyEncryptionError(json.error ?? "Failed to generate encryption key."));
         return;
       }
       setGeneratedKey(json.key);
@@ -181,7 +218,7 @@ export default function SettingsPage() {
       });
       const json = await res.json();
       if (!res.ok) {
-        setOwnKeyError(json.error ?? "Failed to save key.");
+        setOwnKeyError(toFriendlyEncryptionError(json.error ?? "Failed to save key."));
         return;
       }
       setOwnKeyInput("");
@@ -200,7 +237,7 @@ export default function SettingsPage() {
       const res = await fetch("/api/encryption");
       const json = await res.json();
       if (!res.ok) {
-        setEncError(json.error ?? "Could not retrieve key.");
+        setEncError(toFriendlyEncryptionError(json.error ?? "Could not retrieve key."));
         return;
       }
       setExportedKey(json.key);
@@ -216,7 +253,7 @@ export default function SettingsPage() {
       const res = await fetch("/api/encryption", { method: "DELETE" });
       if (!res.ok) {
         const json = await res.json();
-        setEncError(json.error ?? "Failed to disable encryption.");
+        setEncError(toFriendlyEncryptionError(json.error ?? "Failed to disable encryption."));
         return;
       }
       setSettings((s) => s ? { ...s, encryptionEnabled: false } : s);
@@ -401,174 +438,187 @@ export default function SettingsPage() {
               </div>
             )}
 
-            {/* ── NOT ACTIVE ── */}
-            {!settings?.encryptionEnabled && (
-              <div className="space-y-4">
-                <div className="flex items-start gap-3 bg-vault-bg border border-vault-border rounded-md px-4 py-3">
-                  <Shield className="w-5 h-5 text-vault-text-faint shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-semibold text-vault-text">Protect Your Sensitive Data</p>
-                    <p className="text-xs text-vault-text-muted mt-1 leading-relaxed">
-                      Encryption protects serial numbers and notes at rest. For stronger protection against database theft, store your key in <code className="font-mono text-vault-text-faint">VAULT_ENCRYPTION_KEY</code> instead of only in the app database.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Generated key panel */}
-                {generatedKey ? (
-                  <div className="space-y-3 bg-[#00C853]/5 border border-[#00C853]/20 rounded-md p-4">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-[#00C853] shrink-0" />
-                      <p className="text-sm font-semibold text-[#00C853]">Encryption is now active!</p>
-                    </div>
-
-                    <div className="bg-[#F5A623]/10 border border-[#F5A623]/30 rounded-md px-3 py-2">
-                      <p className="text-xs text-[#F5A623] font-semibold mb-1">Save your key before leaving this page</p>
-                      <p className="text-xs text-vault-text-muted">If you lose this key, your serial numbers and notes cannot be recovered. There is no way to reset it.</p>
-                    </div>
-
-                    <div>
-                      <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5 font-mono">Your Encryption Key</p>
-                      <div className="flex items-center gap-2 bg-vault-bg border border-vault-border rounded-md px-3 py-2">
-                        <code className="text-xs font-mono text-vault-text flex-1 break-all select-all">{generatedKey}</code>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2 flex-wrap">
-                      <button type="button" onClick={() => copyKey(generatedKey)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-vault-surface border border-vault-border text-vault-text-muted hover:text-vault-text rounded-md text-xs transition-colors">
-                        {keyCopied ? <CheckCircle2 className="w-3.5 h-3.5 text-[#00C853]" /> : <Copy className="w-3.5 h-3.5" />}
-                        {keyCopied ? "Copied!" : "Copy Key"}
-                      </button>
-                      <button type="button" onClick={() => downloadKey(generatedKey)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-vault-surface border border-vault-border text-vault-text-muted hover:text-vault-text rounded-md text-xs transition-colors">
-                        <Download className="w-3.5 h-3.5" />
-                        Download Key File
-                      </button>
-                    </div>
-
-                    <label className="flex items-start gap-2 cursor-pointer">
-                      <input type="checkbox" checked={keySaved} onChange={(e) => setKeySaved(e.target.checked)}
-                        className="mt-0.5 accent-[#00C853]" />
-                      <span className="text-xs text-vault-text-muted">
-                        I&apos;ve saved my key in a safe place (a password manager, USB drive, or printed copy).
-                      </span>
-                    </label>
-
-                    {keySaved && (
-                      <button type="button" onClick={() => setGeneratedKey(null)}
-                        className="w-full py-2 bg-[#00C853]/10 border border-[#00C853]/30 text-[#00C853] rounded-md text-sm font-medium hover:bg-[#00C853]/20 transition-colors">
-                        Done — close this panel
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  <button type="button" onClick={handleEnableEncryption} disabled={encBusy}
-                    className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-50 disabled:cursor-not-allowed rounded-md text-sm font-medium transition-colors">
-                    {encBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
-                    {encBusy ? "Generating key..." : "Enable Encryption"}
-                  </button>
-                )}
-
-                {/* Already have a key */}
-                {!generatedKey && (
-                  <div>
-                    <button type="button" onClick={() => setShowOwnKey((v) => !v)}
-                      className="flex items-center gap-1 text-xs text-vault-text-faint hover:text-vault-text-muted transition-colors">
-                      <KeyRound className="w-3 h-3" />
-                      Already have a key?
-                      {showOwnKey ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                    </button>
-                    {showOwnKey && (
-                      <div className="mt-2 space-y-2">
-                        <input type="text" value={ownKeyInput} onChange={(e) => setOwnKeyInput(e.target.value)}
-                          placeholder="Paste your 64-character hex key here"
-                          className={`${INPUT_CLASS} font-mono text-xs`} />
-                        {ownKeyError && <p className="text-xs text-[#E53935]">{ownKeyError}</p>}
-                        <button type="button" onClick={handleUseOwnKey} disabled={encBusy || !ownKeyInput}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-vault-surface border border-vault-border text-vault-text-muted hover:text-vault-text disabled:opacity-50 rounded-md text-xs transition-colors">
-                          {encBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : <KeyRound className="w-3 h-3" />}
-                          Use This Key
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ── ACTIVE ── */}
-            {settings?.encryptionEnabled && (
+            {settings?.encryptionEnabled ? (
               <div className="space-y-4">
                 <div className="flex items-center gap-2 bg-[#00C853]/5 border border-[#00C853]/20 rounded-md px-4 py-3">
                   <ShieldCheck className="w-4 h-4 text-[#00C853] shrink-0" />
                   <div>
                     <p className="text-xs text-[#00C853] font-semibold">Encryption is active</p>
-                    <p className="text-xs text-vault-text-muted mt-0.5">Serial numbers and notes are encrypted in your database.</p>
+                    <p className="text-xs text-vault-text-muted mt-0.5">Your sensitive data is securely encrypted.</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-start gap-3 bg-[#F5A623]/10 border border-[#F5A623]/30 rounded-md px-4 py-3">
+                  <Shield className="w-5 h-5 text-[#F5A623] shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-vault-text">Encryption is currently off</p>
+                    <p className="text-xs text-vault-text-muted mt-1 leading-relaxed">
+                      Turn on encryption to protect sensitive data saved in BlackVault.
+                    </p>
+                  </div>
+                </div>
+                <button type="button" onClick={handleEnableEncryption} disabled={encBusy}
+                  className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-50 disabled:cursor-not-allowed rounded-md text-sm font-medium transition-colors">
+                  {encBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
+                  {encBusy ? "Turning on encryption..." : "Turn On Encryption"}
+                </button>
+              </div>
+            )}
+
+            {generatedKey && (
+              <div className="space-y-3 bg-vault-bg border border-vault-border rounded-md p-4">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-[#00C853] shrink-0" />
+                  <p className="text-sm font-semibold text-vault-text">Save your recovery key</p>
+                </div>
+
+                <p className="text-xs text-vault-text-muted leading-relaxed">
+                  Keep this key in a safe place. You will need it to recover encrypted data if you reinstall or move BlackVault.
+                </p>
+
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5 font-mono">Recovery Key</p>
+                  <div className="flex items-center gap-2 bg-vault-surface border border-vault-border rounded-md px-3 py-2">
+                    <code className="text-xs font-mono text-vault-text flex-1 break-all select-all">{generatedKey}</code>
                   </div>
                 </div>
 
-                {settings.encryptionViaEnv ? (
-                  <div className="bg-vault-bg border border-vault-border rounded-md px-4 py-3">
-                    <p className="text-xs text-vault-text-muted leading-relaxed">
-                      Your encryption key is managed via the <code className="font-mono text-vault-text-faint">VAULT_ENCRYPTION_KEY</code> environment variable. To change or disable it, update your <code className="font-mono text-vault-text-faint">.env</code> file and restart the app.
+                <div className="flex gap-2 flex-wrap">
+                  <button type="button" onClick={() => copyKey(generatedKey)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-vault-surface border border-vault-border text-vault-text-muted hover:text-vault-text rounded-md text-xs transition-colors">
+                    {keyCopied ? <CheckCircle2 className="w-3.5 h-3.5 text-[#00C853]" /> : <Copy className="w-3.5 h-3.5" />}
+                    {keyCopied ? "Copied!" : "Copy Key"}
+                  </button>
+                  <button type="button" onClick={() => downloadKey(generatedKey)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-vault-surface border border-vault-border text-vault-text-muted hover:text-vault-text rounded-md text-xs transition-colors">
+                    <Download className="w-3.5 h-3.5" />
+                    Download Key File
+                  </button>
+                </div>
+
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input type="checkbox" checked={keySaved} onChange={(e) => setKeySaved(e.target.checked)}
+                    className="mt-0.5 accent-[#00C853]" />
+                  <span className="text-xs text-vault-text-muted">
+                    I&apos;ve saved this key in a safe place.
+                  </span>
+                </label>
+
+                {keySaved && (
+                  <button type="button" onClick={() => setGeneratedKey(null)}
+                    className="w-full py-2 bg-[#00C853]/10 border border-[#00C853]/30 text-[#00C853] rounded-md text-sm font-medium hover:bg-[#00C853]/20 transition-colors">
+                    Done
+                  </button>
+                )}
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setShowEncryptionAdvanced((v) => !v)}
+              className="flex items-center gap-1 text-xs text-vault-text-faint hover:text-vault-text-muted transition-colors"
+            >
+              <KeyRound className="w-3 h-3" />
+              Advanced
+              {showEncryptionAdvanced ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            </button>
+
+            {showEncryptionAdvanced && (
+              <div className="space-y-3 bg-vault-bg border border-vault-border rounded-md p-4">
+                <p className="text-xs text-vault-text-muted leading-relaxed">
+                  Advanced controls for environment-based key management, key import/export, and encryption recovery.
+                </p>
+
+                {!settings?.encryptionEnabled && (
+                  <>
+                    <p className="text-xs text-vault-text-faint leading-relaxed">
+                      To manage encryption from your runtime environment, set <code className="font-mono">VAULT_ENCRYPTION_KEY</code> and restart BlackVault.
                     </p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <div className="bg-[#F5A623]/10 border border-[#F5A623]/30 rounded-md px-3 py-2">
-                      <p className="text-xs text-[#F5A623]">
-                        This key is currently stored in the database. Prefer setting <code className="font-mono">VAULT_ENCRYPTION_KEY</code> in your environment for stronger separation.
-                      </p>
-                    </div>
-                    {settings.encryptionKeyExportEnabled ? (
-                      <>
-                        {/* Export key panel */}
-                        {exportedKey ? (
-                          <div className="space-y-3 bg-vault-bg border border-vault-border rounded-md p-4">
-                            <p className="text-xs font-semibold text-vault-text">Your Encryption Key</p>
-                            <div className="flex items-center gap-2 bg-vault-surface border border-vault-border rounded-md px-3 py-2">
-                              <code className="text-xs font-mono text-vault-text flex-1 break-all select-all">{exportedKey}</code>
-                            </div>
-                            <div className="flex gap-2 flex-wrap">
-                              <button type="button" onClick={() => copyKey(exportedKey)}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-vault-surface border border-vault-border text-vault-text-muted hover:text-vault-text rounded-md text-xs transition-colors">
-                                {keyCopied ? <CheckCircle2 className="w-3.5 h-3.5 text-[#00C853]" /> : <Copy className="w-3.5 h-3.5" />}
-                                {keyCopied ? "Copied!" : "Copy Key"}
-                              </button>
-                              <button type="button" onClick={() => downloadKey(exportedKey)}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-vault-surface border border-vault-border text-vault-text-muted hover:text-vault-text rounded-md text-xs transition-colors">
-                                <Download className="w-3.5 h-3.5" />
-                                Download Key File
-                              </button>
-                              <button type="button" onClick={() => setExportedKey(null)}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-vault-surface border border-vault-border text-vault-text-faint hover:text-vault-text rounded-md text-xs transition-colors">
-                                Hide
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <button type="button" onClick={handleExportKey}
-                            className="flex items-center gap-1.5 text-xs text-vault-text-muted hover:text-[#00C2FF] transition-colors">
-                            <Download className="w-3.5 h-3.5" />
-                            Back Up Your Key
+                    <div>
+                      <button type="button" onClick={() => setShowOwnKey((v) => !v)}
+                        className="flex items-center gap-1 text-xs text-vault-text-faint hover:text-vault-text-muted transition-colors">
+                        <KeyRound className="w-3 h-3" />
+                        Import existing key
+                        {showOwnKey ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                      </button>
+                      {showOwnKey && (
+                        <div className="mt-2 space-y-2">
+                          <input type="text" value={ownKeyInput} onChange={(e) => setOwnKeyInput(e.target.value)}
+                            placeholder="Paste your 64-character hex key"
+                            className={`${INPUT_CLASS} font-mono text-xs`} />
+                          {ownKeyError && <p className="text-xs text-[#E53935]">{ownKeyError}</p>}
+                          <button type="button" onClick={handleUseOwnKey} disabled={encBusy || !ownKeyInput}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-vault-surface border border-vault-border text-vault-text-muted hover:text-vault-text disabled:opacity-50 rounded-md text-xs transition-colors">
+                            {encBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : <KeyRound className="w-3 h-3" />}
+                            Use This Key
                           </button>
-                        )}
-                      </>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {settings?.encryptionEnabled && (
+                  <>
+                    {settings.encryptionViaEnv ? (
+                      <p className="text-xs text-vault-text-faint leading-relaxed">
+                        Encryption is controlled by <code className="font-mono">VAULT_ENCRYPTION_KEY</code>. Update that environment value to rotate the key, or remove it to return to UI-managed setup.
+                      </p>
                     ) : (
-                      <p className="text-xs text-vault-text-faint">
-                        Key export from the UI is disabled. Set <code className="font-mono">ALLOW_ENCRYPTION_KEY_EXPORT=true</code> only for temporary recovery workflows.
+                      <p className="text-xs text-vault-text-faint leading-relaxed">
+                        This installation currently stores the key in the app database. For stronger key separation, you can move management to <code className="font-mono">VAULT_ENCRYPTION_KEY</code>.
                       </p>
                     )}
 
-                    {/* Disable encryption */}
+                    {!settings.encryptionViaEnv && (
+                      <>
+                        {settings.encryptionKeyExportEnabled ? (
+                          exportedKey ? (
+                            <div className="space-y-3 bg-vault-surface border border-vault-border rounded-md p-4">
+                              <p className="text-xs font-semibold text-vault-text">Exported Key</p>
+                              <div className="flex items-center gap-2 bg-vault-bg border border-vault-border rounded-md px-3 py-2">
+                                <code className="text-xs font-mono text-vault-text flex-1 break-all select-all">{exportedKey}</code>
+                              </div>
+                              <div className="flex gap-2 flex-wrap">
+                                <button type="button" onClick={() => copyKey(exportedKey)}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-vault-surface border border-vault-border text-vault-text-muted hover:text-vault-text rounded-md text-xs transition-colors">
+                                  {keyCopied ? <CheckCircle2 className="w-3.5 h-3.5 text-[#00C853]" /> : <Copy className="w-3.5 h-3.5" />}
+                                  {keyCopied ? "Copied!" : "Copy Key"}
+                                </button>
+                                <button type="button" onClick={() => downloadKey(exportedKey)}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-vault-surface border border-vault-border text-vault-text-muted hover:text-vault-text rounded-md text-xs transition-colors">
+                                  <Download className="w-3.5 h-3.5" />
+                                  Download Key File
+                                </button>
+                                <button type="button" onClick={() => setExportedKey(null)}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-vault-surface border border-vault-border text-vault-text-faint hover:text-vault-text rounded-md text-xs transition-colors">
+                                  Hide
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button type="button" onClick={handleExportKey}
+                              className="flex items-center gap-1.5 text-xs text-vault-text-muted hover:text-[#00C2FF] transition-colors">
+                              <Download className="w-3.5 h-3.5" />
+                              Export Encryption Key
+                            </button>
+                          )
+                        ) : (
+                          <p className="text-xs text-vault-text-faint">
+                            UI export is disabled unless <code className="font-mono">ALLOW_ENCRYPTION_KEY_EXPORT=true</code> is set.
+                          </p>
+                        )}
+                      </>
+                    )}
+
                     {showDisableConfirm ? (
                       <div className="bg-[#E53935]/5 border border-[#E53935]/20 rounded-md p-4 space-y-3">
                         <p className="text-xs font-semibold text-[#E53935]">Disable Encryption</p>
                         <p className="text-xs text-vault-text-muted leading-relaxed">
-                          This removes the encryption key from the app. Existing encrypted data will remain encrypted and unreadable until you re-enable encryption with the same key. New data will be saved as plaintext.
+                          Type <strong className="text-vault-text">DISABLE</strong> to remove the current key from app-managed storage.
                         </p>
-                        <p className="text-xs text-vault-text-muted">Type <strong className="text-vault-text">DISABLE</strong> to confirm:</p>
                         <input type="text" value={disableInput} onChange={(e) => setDisableInput(e.target.value)}
                           placeholder="DISABLE" className={`${INPUT_CLASS} font-mono`} />
                         <div className="flex gap-2">
@@ -590,7 +640,7 @@ export default function SettingsPage() {
                         Disable Encryption
                       </button>
                     )}
-                  </div>
+                  </>
                 )}
               </div>
             )}
@@ -707,45 +757,110 @@ export default function SettingsPage() {
             </legend>
 
             <p className="text-xs text-vault-text-muted leading-relaxed">
-              Access BlackVault from any device on your local network using the addresses below.
-              Make sure BlackVault is bound to <code className="text-vault-text-faint font-mono">0.0.0.0</code> (not just localhost).
+              To access from your phone, make sure you&apos;re on the same WiFi network.
             </p>
 
-            <div className="space-y-2">
-              <div className="bg-vault-bg border border-vault-border rounded-md px-3 py-2 flex items-center justify-between gap-2">
+            {localNetworkUrl ? (
+              <div className="bg-vault-bg border border-vault-border rounded-md p-4 space-y-3">
                 <div>
-                  <p className="text-[10px] text-vault-text-faint font-mono uppercase mb-0.5">This Device</p>
-                  <code className="text-xs font-mono text-vault-text">http://localhost:{sysInfo?.port ?? "3000"}</code>
+                  <p className="text-[10px] text-vault-text-faint font-mono uppercase mb-1">Access from your phone</p>
+                  <a
+                    href={localNetworkUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sm font-mono text-[#00C2FF] hover:underline break-all"
+                  >
+                    {localNetworkUrl}
+                  </a>
                 </div>
-                <button type="button" onClick={() => handleCopyUrl(`http://localhost:${sysInfo?.port ?? "3000"}`)}
-                  className="shrink-0 p-1.5 text-vault-text-faint hover:text-[#00C2FF] transition-colors rounded" title="Copy URL">
-                  {copiedUrl === `http://localhost:${sysInfo?.port ?? "3000"}` ? <CheckCircle2 className="w-3.5 h-3.5 text-[#00C853]" /> : <Copy className="w-3.5 h-3.5" />}
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleCopyUrl(localNetworkUrl)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-vault-surface border border-vault-border text-vault-text-muted hover:text-vault-text rounded-md text-xs transition-colors"
+                  >
+                    {copiedUrl === localNetworkUrl ? <CheckCircle2 className="w-3.5 h-3.5 text-[#00C853]" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copiedUrl === localNetworkUrl ? "Copied!" : "Copy Link"}
+                  </button>
+                </div>
+                <div className="inline-flex items-center justify-center bg-vault-surface border border-vault-border rounded-md p-3">
+                  <QRCodeSVG
+                    value={localNetworkUrl}
+                    size={120}
+                    bgColor="transparent"
+                    fgColor="#E7EEF4"
+                    level="M"
+                  />
+                </div>
+                <p className="text-xs text-vault-text-faint">Open your phone camera and scan the QR code.</p>
               </div>
+            ) : (
+              <div className="bg-[#F5A623]/10 border border-[#F5A623]/30 rounded-md px-4 py-3">
+                <p className="text-xs text-vault-text-muted leading-relaxed">
+                  We couldn&apos;t detect a local network address automatically. You can still use this device link:
+                </p>
+                <a
+                  href={thisDeviceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-1 inline-block text-xs font-mono text-[#00C2FF] hover:underline break-all"
+                >
+                  {thisDeviceUrl}
+                </a>
+              </div>
+            )}
 
-              {sysInfo?.localIPs && sysInfo.localIPs.length > 0 ? (
-                sysInfo.localIPs.map((ip) => (
-                  <div key={ip} className="bg-vault-bg border border-vault-border rounded-md px-3 py-2 flex items-center justify-between gap-2">
-                    <div>
-                      <p className="text-[10px] text-vault-text-faint font-mono uppercase mb-0.5">Local Network</p>
-                      <code className="text-xs font-mono text-vault-text">http://{ip}:{sysInfo.port}</code>
-                    </div>
-                    <button type="button" onClick={() => handleCopyUrl(`http://${ip}:${sysInfo.port}`)}
-                      className="shrink-0 p-1.5 text-vault-text-faint hover:text-[#00C2FF] transition-colors rounded" title="Copy URL">
-                      {copiedUrl === `http://${ip}:${sysInfo.port}` ? <CheckCircle2 className="w-3.5 h-3.5 text-[#00C853]" /> : <Copy className="w-3.5 h-3.5" />}
-                    </button>
+            {localIPs.length > 1 && (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setShowNetworkAdvanced((v) => !v)}
+                  className="flex items-center gap-1 text-xs text-vault-text-faint hover:text-vault-text-muted transition-colors"
+                >
+                  <Network className="w-3 h-3" />
+                  Other local links
+                  {showNetworkAdvanced ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                </button>
+                {showNetworkAdvanced && (
+                  <div className="mt-2 space-y-2">
+                    {localIPs.map((ip) => {
+                      const url = `http://${ip}:${port}`;
+                      return (
+                        <div key={ip} className="bg-vault-bg border border-vault-border rounded-md px-3 py-2 flex items-center justify-between gap-2">
+                          <a href={url} target="_blank" rel="noreferrer" className="text-xs font-mono text-vault-text hover:text-[#00C2FF] break-all">
+                            {url}
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => handleCopyUrl(url)}
+                            className="shrink-0 p-1.5 text-vault-text-faint hover:text-[#00C2FF] transition-colors rounded"
+                            title="Copy link"
+                          >
+                            {copiedUrl === url ? <CheckCircle2 className="w-3.5 h-3.5 text-[#00C853]" /> : <Copy className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
-                ))
-              ) : (
-                <div className="text-xs text-vault-text-faint italic">No local network interfaces detected.</div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
 
-            <div className="bg-[#00C2FF]/5 border border-[#00C2FF]/20 rounded-md px-4 py-3">
-              <p className="text-[11px] text-[#00C2FF] font-mono mb-1">Docker Users</p>
-              <p className="text-xs text-vault-text-faint leading-relaxed">
-                Ensure the container port is mapped with <code className="font-mono">-p 3000:3000</code> or equivalent in docker-compose.yml.
-              </p>
+            <div className="bg-vault-bg border border-vault-border rounded-md px-3 py-2 flex items-center justify-between gap-2">
+              <div>
+                <p className="text-[10px] text-vault-text-faint font-mono uppercase mb-0.5">This Device</p>
+                <a href={thisDeviceUrl} target="_blank" rel="noreferrer" className="text-xs font-mono text-vault-text hover:text-[#00C2FF] break-all">
+                  {thisDeviceUrl}
+                </a>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleCopyUrl(thisDeviceUrl)}
+                className="shrink-0 p-1.5 text-vault-text-faint hover:text-[#00C2FF] transition-colors rounded"
+                title="Copy link"
+              >
+                {copiedUrl === thisDeviceUrl ? <CheckCircle2 className="w-3.5 h-3.5 text-[#00C853]" /> : <Copy className="w-3.5 h-3.5" />}
+              </button>
             </div>
           </fieldset>
 
