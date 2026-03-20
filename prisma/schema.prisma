@@ -123,12 +123,6 @@ model Accessory {
   buildSlots             BuildSlot[]
   documents              Document[]
 
-  // Battery tracking
-  hasBattery             Boolean         @default(false)
-  batteryType            String?         // e.g. "CR2032", "AA"
-  batteryChangedAt       DateTime?
-  batteryIntervalDays    Int?            // how often to replace in days
-
   // Comma-separated compatible values, e.g. "RIFLE,SMG"
   compatibleFirearmTypes String?
   compatibleCalibers     String?
