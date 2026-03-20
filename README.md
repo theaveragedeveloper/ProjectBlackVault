@@ -103,7 +103,7 @@ There are three ways to run ProjectBlackVault. **Choose the one that fits you be
 
 ### Option A: Desktop App — No Docker Required (Recommended)
 
-The app includes its own built-in server — nothing else to install.
+The app includes its own built-in server — nothing else to install. No technical knowledge needed. Just download and run it like any normal application. No Docker, no terminal.
 
 **[Download for your platform](https://theaveragedeveloper.github.io/ProjectBlackVault/)**
 
@@ -118,6 +118,8 @@ The app includes its own built-in server — nothing else to install.
 - **Mac — "App can't be opened" warning:** Right-click the app and choose **Open**. If it still doesn't work, go to System Settings → Privacy & Security and click **Open Anyway**.
 - **Windows — SmartScreen warning:** Click **More info**, then **Run anyway**. The app is safe — Windows doesn't recognize it because it's not from the Microsoft Store.
 - **Linux:** Run `chmod +x ProjectBlackVault-Setup.AppImage` in a terminal to make it executable, then double-click to run.
+
+**Want Docker instead?** A separate Docker-based launcher is also available on the [Releases](https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest) page. It requires [Docker Desktop](https://www.docker.com/products/docker-desktop/) but is useful if you want to share the vault across your network — other devices connect with just a browser URL.
 
 ---
 
@@ -512,6 +514,18 @@ You are solely responsible for all data you create, upload, store, or share thro
 
 ```
 ProjectBlackVault/
+├── electron/               # Standalone desktop app (bundles Next.js, no Docker)
+│   ├── main.js             # Main process (port detection, server spawn, auto-update)
+│   ├── preload.js          # Context bridge
+│   ├── splash.html         # Tactical loading screen
+│   ├── notarize.js         # Optional macOS notarization
+│   └── package.json        # electron-builder config
+├── launcher/               # Docker-based desktop launcher
+│   ├── main.js             # Main process (Docker management, IPC)
+│   ├── preload.js          # Context bridge
+│   └── renderer/           # Launcher UI
+├── docs/
+│   └── index.html          # Download landing page (GitHub Pages)
 ├── prisma/
 │   ├── schema.prisma       # Database schema
 │   ├── migrations/         # Migration history
@@ -529,10 +543,6 @@ ProjectBlackVault/
 │   │   └── settings/       # App settings
 │   ├── components/         # Shared UI components
 │   └── lib/                # Utility functions, Prisma client, types
-├── electron/               # Electron desktop app wrapper
-│   ├── main.js             # Main process (server spawn, window mgmt)
-│   ├── splash.html         # Loading splash screen
-│   └── package.json        # Electron builder config
 ├── scripts/                # Utility scripts
 │   └── bootstrap-session-secret.sh  # Docker session secret auto-gen
 ├── Dockerfile
@@ -556,4 +566,53 @@ npm run electron:build # Build Electron installers without publishing
 npm run release        # Tag version and push to trigger CI release
 ```
 
+Stop:
+
+```bash
+docker compose -f docker-compose.dev.yml down
+```
+
+### Environment Variables
+
+#### Local (`.env`)
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `DATABASE_URL` | Yes | `file:./prisma/dev.db` | SQLite connection string for local Node.js run |
+| `SESSION_SECRET` | Yes (local Node) | — | Signs and verifies session cookies for all protected API routes |
+| `SESSION_MAX_AGE_SECONDS` | No | `28800` | Session cookie lifetime in seconds (min 300, max 86400) |
+| `GOOGLE_CSE_API_KEY` | No | — | Google Custom Search API key for image lookup |
+| `GOOGLE_CSE_SEARCH_ENGINE_ID` | No | — | Google CSE search engine ID |
+| `PASSWORD_RECOVERY_SECRET` | No | — | Emergency password reset secret used by `/api/auth/recover` |
+| `ALLOW_SESSION_SECRET_PASSWORD_RESET` | No | `false` | Allows `SESSION_SECRET` fallback for password reset when recovery secret is unset |
+
+#### Docker (`.blackvault.env`)
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `DATA_DIR` | Recommended | `./data` | Host path for database/uploads |
+| `PORT` | No | `3000` | Host port mapped to container port 3000 |
+| `APP_BASE_URL` | Recommended | — | Canonical HTTPS URL shown in-app |
+| `ALLOW_RELEASE_LOOKUP` | Recommended | `false` | Allows GitHub release metadata lookups |
+| `ALLOW_IMAGE_SEARCH_EGRESS` | Recommended | `false` | Allows outbound Google CSE image search calls |
+| `ALLOW_EXTERNAL_IMAGE_URLS` | Recommended | `false` | Allows storing/loading images from trusted third-party hosts |
+| `SYSTEM_UPDATE_REQUIRE_PRIVATE_NETWORK` | Recommended | `true` | Restricts in-app update actions to private LAN/VPN client IPs |
+| `VAULT_ENCRYPTION_KEY` | Yes | — | Encryption key for sensitive values |
+| `SESSION_SECRET` | No (auto-managed) | — | If unset, generated once at startup and persisted to `DATA_DIR/db/config/session.env` with restrictive permissions |
+| `SESSION_MAX_AGE_SECONDS` | No | `28800` | Session cookie lifetime in seconds (min 300, max 86400) |
+
+BlackVault Docker installs auto-bootstrap `SESSION_SECRET` on first start:
+- If `SESSION_SECRET` is already set in the environment, that value is used and persisted.
+- If missing, the container generates a 32-byte hex secret once and stores it at `DATA_DIR/db/config/session.env` (permissions restricted to owner).
+- Deleting/resetting `session.env` forces a new secret and logs out all active sessions.
+
+### Optional Launcher And Package Channels
+
+- Launcher downloads are available on GitHub Releases.
+- Advanced package channels (like winget/homebrew tap) may not always be published for every release; if unavailable, use the direct installer download from releases.
+
 </details>
+
+## Data Responsibility Notice
+
+You are solely responsible for all data you create, upload, store, or share through this app, including keeping your own backups. To the maximum extent permitted by law, we are not liable for any data loss, corruption, unauthorized access, or damages related to your data or use of the app.
