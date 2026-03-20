@@ -1,23 +1,10 @@
-"use client";
+// Server component wrapper — allows exporting `dynamic` for the (app) route group.
+// This prevents Next.js from trying to statically prerender pages that require
+// a live database (this is a self-hosted Docker app, not a static export).
+export const dynamic = 'force-dynamic';
 
-import { useState } from "react";
-import { Sidebar } from "@/components/layout/Sidebar";
-import { MobileHeader } from "@/components/layout/MobileHeader";
+import AppLayoutClient from './layout-client';
 
-export default function AppLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const [mobileOpen, setMobileOpen] = useState(false);
-
-  return (
-    <div className="flex h-screen overflow-hidden">
-      <Sidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <MobileHeader onMenuOpen={() => setMobileOpen(true)} />
-        <main className="flex-1 overflow-y-auto min-w-0">{children}</main>
-      </div>
-    </div>
-  );
+export default function AppLayout({ children }: { children: React.ReactNode }) {
+  return <AppLayoutClient>{children}</AppLayoutClient>;
 }
