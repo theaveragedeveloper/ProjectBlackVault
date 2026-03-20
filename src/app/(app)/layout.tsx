@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { MobileHeader } from "@/components/layout/MobileHeader";
 
@@ -6,11 +9,13 @@ export default function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+
   return (
     <div className="flex h-screen overflow-hidden">
-      <Sidebar />
+      <Sidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <MobileHeader />
+        <MobileHeader onMenuOpen={() => setMobileOpen(true)} />
         <main className="flex-1 overflow-y-auto min-w-0">{children}</main>
       </div>
     </div>
