@@ -26,6 +26,8 @@ export default function NewAccessoryPage() {
   const [hasBattery, setHasBattery] = useState(false);
   const [batteryType, setBatteryType] = useState("");
   const [batteryIntervalDays, setBatteryIntervalDays] = useState("");
+  const [batteryChangedAtInput, setBatteryChangedAtInput] = useState("");
+  const [batteryNotes, setBatteryNotes] = useState("");
 
   const filteredCalibers = COMMON_CALIBERS.filter((c) =>
     c.toLowerCase().includes(caliberInput.toLowerCase())
@@ -54,6 +56,8 @@ export default function NewAccessoryPage() {
       hasBattery,
       batteryType: hasBattery ? batteryType || null : null,
       batteryIntervalDays: hasBattery ? batteryIntervalDays || null : null,
+      lastBatteryChangeDate: hasBattery ? batteryChangedAtInput || null : null,
+      batteryNotes: hasBattery ? batteryNotes || null : null,
     };
 
     try {
@@ -233,6 +237,66 @@ export default function NewAccessoryPage() {
               onValidationError={setReceiptError}
               error={receiptError}
             />
+          </fieldset>
+
+          {/* Notes */}
+          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
+            <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">Battery</legend>
+
+            <label className="flex items-center gap-2 text-sm text-vault-text cursor-pointer">
+              <input
+                type="checkbox"
+                checked={hasBattery}
+                onChange={(e) => setHasBattery(e.target.checked)}
+                className="rounded border-vault-border bg-vault-bg text-[#00C2FF] focus:ring-[#00C2FF]"
+              />
+              This accessory has a battery
+            </label>
+
+            {hasBattery && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className={LABEL_CLASS}>Battery Type</label>
+                  <input
+                    type="text"
+                    value={batteryType}
+                    onChange={(e) => setBatteryType(e.target.value)}
+                    placeholder="e.g. CR2032"
+                    className={INPUT_CLASS}
+                  />
+                </div>
+                <div>
+                  <label className={LABEL_CLASS}>Replace Every (days)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={batteryIntervalDays}
+                    onChange={(e) => setBatteryIntervalDays(e.target.value)}
+                    placeholder="e.g. 180"
+                    className={INPUT_CLASS}
+                  />
+                </div>
+                <div>
+                  <label className={LABEL_CLASS}>Last Battery Change</label>
+                  <input
+                    type="date"
+                    value={batteryChangedAtInput}
+                    onChange={(e) => setBatteryChangedAtInput(e.target.value)}
+                    className={INPUT_CLASS}
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className={LABEL_CLASS}>Battery Notes</label>
+                  <textarea
+                    rows={2}
+                    value={batteryNotes}
+                    onChange={(e) => setBatteryNotes(e.target.value)}
+                    placeholder="e.g. Keep spare in range bag"
+                    className={`${INPUT_CLASS} resize-none`}
+                  />
+                </div>
+              </div>
+            )}
           </fieldset>
 
           {/* Notes */}

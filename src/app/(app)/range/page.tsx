@@ -109,10 +109,16 @@ const LIGHT_CONDITION_LABELS: Record<string, string> = {
   NIGHT: "Night",
 };
 
+function toDateTimeLocalValue(date: Date): string {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+}
+
 export default function RangeSessionPage() {
   const [firearms, setFirearms] = useState<Firearm[]>([]);
   const [builds, setBuilds] = useState<Build[]>([]);
   const [ammoStocks, setAmmoStocks] = useState<AmmoStock[]>([]);
+  const [drillTemplates, setDrillTemplates] = useState<DrillTemplate[]>([]);
 
   const [selectedFirearms, setSelectedFirearms] = useState<Set<string>>(new Set());
   const [roundsByFirearm, setRoundsByFirearm] = useState<Record<string, string>>({});
@@ -122,6 +128,7 @@ export default function RangeSessionPage() {
     { key: crypto.randomUUID(), stockId: "", quantity: "" },
   ]);
   const [sessionNote, setSessionNote] = useState<string>("");
+  const [sessionDate, setSessionDate] = useState<string>(() => toDateTimeLocalValue(new Date()));
   const [rangeName, setRangeName] = useState<string>("");
   const [rangeLocation, setRangeLocation] = useState<string>("");
   const [selectedAccessories, setSelectedAccessories] = useState<Set<string>>(new Set());
@@ -137,7 +144,6 @@ export default function RangeSessionPage() {
   const [weatherNotes, setWeatherNotes] = useState<string>("");
 
   // Drills
-  const [drillTemplates, setDrillTemplates] = useState<DrillTemplate[]>([]);
   const [showDrillFieldset, setShowDrillFieldset] = useState(false);
   const [inlineDrills, setInlineDrills] = useState<InlineDrill[]>([]);
   const [addingDrill, setAddingDrill] = useState(false);
@@ -158,18 +164,21 @@ export default function RangeSessionPage() {
   const [groupSizeIn, setGroupSizeIn] = useState<string>("");
   const [numberOfGroups, setNumberOfGroups] = useState<string>("");
   const [groupNotes, setGroupNotes] = useState<string>("");
+  const [sessionDrills, setSessionDrills] = useState<InlineDrill[]>([]);
 
   const [loadingFirearms, setLoadingFirearms] = useState(true);
   const [loadingBuilds, setLoadingBuilds] = useState(false);
   const [loadingAmmo, setLoadingAmmo] = useState(true);
+  const [loadingDrillTemplates, setLoadingDrillTemplates] = useState(true);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [createdSessionId, setCreatedSessionId] = useState<string | null>(null);
-  const [successDetails, setSuccessDetails] = useState<{ accessories: string[]; ammoLeft: string[] }>({
+  const [successDetails, setSuccessDetails] = useState<{ accessories: string[]; ammoLeft: string[]; drillCount: number }>({
     accessories: [],
     ammoLeft: [],
+    drillCount: 0,
   });
 
   // MOA auto-computed
@@ -200,6 +209,17 @@ export default function RangeSessionPage() {
       .then((r) => r.json())
       .then((data) => { setAmmoStocks(data.all ?? []); setLoadingAmmo(false); })
       .catch(() => setLoadingAmmo(false));
+  }, []);
+
+  // Load drill templates
+  useEffect(() => {
+    fetch("/api/drill-templates")
+      .then((r) => r.json())
+      .then((data) => {
+        setDrillTemplates(Array.isArray(data) ? data : []);
+        setLoadingDrillTemplates(false);
+      })
+      .catch(() => setLoadingDrillTemplates(false));
   }, []);
 
   // Load builds when firearm changes
@@ -450,7 +470,7 @@ export default function RangeSessionPage() {
         }
       }
 
-      setSuccessDetails({ accessories: results, ammoLeft });
+      setSuccessDetails({ accessories: results, ammoLeft, drillCount: inlineDrills.length });
       setSuccess(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Session log failed");
@@ -466,6 +486,7 @@ export default function RangeSessionPage() {
     setSelectedBuild("");
     setAmmoUsageEntries([{ key: crypto.randomUUID(), stockId: "", quantity: "" }]);
     setSessionNote("");
+    setSessionDate(toDateTimeLocalValue(new Date()));
     setRangeName("");
     setRangeLocation("");
     setSelectedAccessories(new Set());
@@ -480,6 +501,7 @@ export default function RangeSessionPage() {
     setGroupSizeIn("");
     setNumberOfGroups("");
     setGroupNotes("");
+    setSessionDrills([]);
     setCreatedSessionId(null);
     setSuccess(false);
     setError(null);
@@ -532,13 +554,19 @@ export default function RangeSessionPage() {
                   </div>
                 </div>
               )}
+              {successDetails.drillCount > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-sm text-vault-text-muted">Drills logged</span>
+                  <span className="text-sm font-mono text-[#00C853]">{successDetails.drillCount}</span>
+                </div>
+              )}
             </div>
           </div>
           <div className="flex flex-col sm:flex-row items-center gap-3">
             {createdSessionId && (
               <Link href={`/range/${createdSessionId}`}
                 className="flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 px-5 py-2 rounded-md text-sm font-medium transition-colors">
-                View Session & Add Drills <ChevronRight className="w-4 h-4" />
+                View Session <ChevronRight className="w-4 h-4" />
               </Link>
             )}
             <button onClick={resetForm}
@@ -564,6 +592,23 @@ export default function RangeSessionPage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Session Date */}
+          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
+            <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
+              Session Date
+            </legend>
+            <div>
+              <label className={LABEL_CLASS}>Date &amp; Time</label>
+              <input
+                type="datetime-local"
+                value={sessionDate}
+                onChange={(e) => setSessionDate(e.target.value)}
+                className={INPUT_CLASS}
+              />
+              <p className="text-xs text-vault-text-faint mt-1">Defaults to now. Change this to log past sessions.</p>
+            </div>
+          </fieldset>
+
           {/* Firearm & Build */}
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
             <legend className="text-sm font-semibold text-[#00C2FF] px-1 -ml-1">

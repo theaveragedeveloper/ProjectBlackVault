@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { detectFileSignature, isHeicFamilySignature } from "@/lib/server/file-signatures";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/server/client-ip";
+import { requireAuth } from "@/lib/server/auth";
 
 const ALLOWED_EXTENSIONS = new Set(["jpg", "png", "webp", "avif"]);
 
@@ -32,6 +33,9 @@ async function syncEntityPrimaryPhoto(
 
 // GET /api/photos?entityType=X&entityId=Y
 export async function GET(request: NextRequest) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const { searchParams } = request.nextUrl;
     const entityType = searchParams.get("entityType");

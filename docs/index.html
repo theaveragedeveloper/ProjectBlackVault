@@ -4,9 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Project BlackVault — Tactical Armory Platform</title>
-  <meta name="description" content="BlackVault is a self-hosted tactical firearm inventory and build management platform. Track your arsenal, log range sessions, manage ammo, and maintain your gear — all in one secure vault." />
+  <meta name="description" content="Project BlackVault is a self-hosted armory management platform for firearm registry/builds, ammo inventory, range sessions, maintenance tracking, document storage, and encrypted backups." />
   <meta property="og:title" content="Project BlackVault" />
-  <meta property="og:description" content="Tactical firearm inventory & build management. Self-hosted. Fully yours." />
+  <meta property="og:description" content="Self-hosted armory management: firearms, builds, ammo, range logs, maintenance, documents, and encrypted backups." />
   <meta property="og:url" content="https://theaveragedeveloper.github.io/ProjectBlackVault" />
   <style>
     /* ── App-Aligned Vault Tokens ─────────────────────────── */
@@ -774,8 +774,8 @@
     <h1>Your Arsenal.<br>Your <span class="accent">Vault</span>.</h1>
 
     <p class="hero-sub">
-      Project BlackVault is a self-hosted tactical firearm inventory and build management platform.
-      Track your arsenal, log range sessions, manage ammo, and maintain your gear &mdash; all in one secure vault.
+      Project BlackVault keeps your day-to-day armory records in one secure, self-hosted vault.
+      Track firearms and builds, manage ammo, log range sessions, schedule maintenance, store documents, and restore from encrypted backups.
     </p>
 
     <div class="hero-actions">
@@ -814,7 +814,7 @@
         <div class="section-label">Platform</div>
         <h2 class="section-title">Everything in One Vault</h2>
         <p class="section-sub">
-          Built on Next.js 16 with a hardened SQLite backend. No cloud dependency, no subscriptions &mdash; your data stays yours.
+          Firearm registry, build management, ammo tracking, range logs, maintenance schedules, and encrypted backups &mdash; with no required cloud account.
         </p>
       </div>
 
@@ -974,7 +974,7 @@
         <div class="section-label">Deployment</div>
         <h2 class="section-title">Production Deployment Walkthrough</h2>
         <p class="section-sub">
-          Deploy with Docker Compose using built-in install scripts. This path is production-oriented and avoids dev-mode terminal setup.
+          Start with a Docker-first quickstart, verify health on first launch, then manage normal day-2 operations.
         </p>
       </div>
 
@@ -997,7 +997,7 @@ Docker Engine + Compose plugin (Linux)</code>
           <div class="install-step">
             <div class="step-num">2</div>
             <div class="step-body">
-              <div class="step-title">Clone and run first-time installer</div>
+              <div class="step-title">Clone repo and run first-time installer</div>
               <code>git clone https://github.com/theaveragedeveloper/ProjectBlackVault.git
 cd ProjectBlackVault
 # Linux/macOS
@@ -1009,10 +1009,11 @@ install.bat</code>
           <div class="install-step">
             <div class="step-num">3</div>
             <div class="step-body">
-              <div class="step-title">Verify deployment health</div>
-              <code>docker compose --env-file .blackvault.env ps
-docker compose --env-file .blackvault.env logs -f
-http://localhost:3000/api/health</code>
+              <div class="step-title">Open app and verify first launch</div>
+              <code>http://localhost:3000
+http://localhost:3000/api/health
+docker compose --env-file .blackvault.env ps
+docker compose --env-file .blackvault.env logs -f</code>
             </div>
           </div>
           <div class="install-step">
@@ -1028,7 +1029,7 @@ APP_BASE_URL=https://vault.yourdomain.com
           <div class="install-step">
             <div class="step-num">5</div>
             <div class="step-body">
-              <div class="step-title">Install desktop icon from browser</div>
+              <div class="step-title">Install desktop icon from browser (optional)</div>
               <code>Open https://vault.yourdomain.com
 Chrome/Edge: Install App
 Safari (macOS): File &gt; Add to Dock
@@ -1051,7 +1052,7 @@ update.bat    (Windows)</code>
           <div class="install-step">
             <div class="step-num">7</div>
             <div class="step-body">
-              <div class="step-title">Backup and recovery essentials</div>
+              <div class="step-title">Back up secrets and recovery files</div>
               <code>Back up .blackvault.env and your DATA_DIR.
 Do NOT lose VAULT_ENCRYPTION_KEY.
 Use Settings &rarr; Secure Backup for encrypted exports.</code>

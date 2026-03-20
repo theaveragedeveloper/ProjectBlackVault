@@ -28,20 +28,40 @@ function resolveCanonicalUrl(rawUrl: string | undefined): string | null {
   }
 }
 
+function isPrivateIPv4(ip: string) {
+  return (
+    ip.startsWith("10.") ||
+    ip.startsWith("192.168.") ||
+    /^172\.(1[6-9]|2\d|3[0-1])\./.test(ip)
+  );
+}
+
 export async function GET() {
   const auth = await requireAuth();
   if (auth) return auth;
 
   try {
+    const isProduction = process.env.NODE_ENV === "production";
+    const exposeSystemInfo = ["1", "true", "yes", "on"].includes(
+      (process.env.EXPOSE_SYSTEM_INFO ?? "").trim().toLowerCase()
+    );
+
+    if (isProduction && !exposeSystemInfo) {
+      return NextResponse.json(
+        { error: "System info endpoint is disabled in production." },
+        { status: 403 }
+      );
+    }
+
     // Collect local IP addresses (IPv4 only, skip loopback)
     const interfaces = os.networkInterfaces();
-    const localIPs: string[] = [];
+    const localIPs = new Set<string>();
 
     for (const iface of Object.values(interfaces)) {
       if (!iface) continue;
       for (const addr of iface) {
         if (addr.family === "IPv4" && !addr.internal) {
-          localIPs.push(addr.address);
+          localIPs.add(addr.address);
         }
       }
     }
@@ -55,12 +75,19 @@ export async function GET() {
       dbPath = path.basename(relative);
     }
 
+    // Sort: private IPs first, then others
+    const orderedLocalIPs = [...localIPs].sort((a, b) => {
+      const aPrivate = isPrivateIPv4(a) ? 0 : 1;
+      const bPrivate = isPrivateIPv4(b) ? 0 : 1;
+      return aPrivate - bPrivate;
+    });
+
     const port = process.env.PORT ?? "3000";
     const hostname = os.hostname();
     const canonicalUrl = resolveCanonicalUrl(process.env.APP_BASE_URL);
 
     return NextResponse.json({
-      localIPs,
+      localIPs: orderedLocalIPs,
       port,
       hostname,
       dbPath,
