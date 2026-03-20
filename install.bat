@@ -141,20 +141,97 @@ if /i "!GENERATE_RECOVERY_SECRET!"=="Y" (
 
 echo Configuration written to .blackvault.env
 
-:: ── Pull and start ────────────────────────────────────────────
+:: ── Pull image (build locally if no published image is available) ──
 echo.
 echo Pulling latest BlackVault image...
 %COMPOSE% --env-file .blackvault.env pull
+if %errorlevel% neq 0 (
+  echo.
+  echo   No pre-built image found -- building locally.
+  echo   This takes a few minutes on first install; subsequent starts are instant.
+  echo.
+  %COMPOSE% --env-file .blackvault.env build
+  if %errorlevel% neq 0 (
+    echo.
+    echo ERROR: Build failed. Check the output above for details.
+    pause
+    exit /b 1
+  )
+)
 
 echo.
 echo Starting BlackVault...
 %COMPOSE% --env-file .blackvault.env up -d
+if %errorlevel% neq 0 (
+  echo ERROR: Failed to start container.
+  pause
+  exit /b 1
+)
 
+:: ── Wait for healthy status (up to 90 s) ─────────────────────
 echo.
-echo Waiting for startup...
-timeout /t 5 /nobreak >nul
+echo Waiting for BlackVault to start (up to 90 seconds)...
+set ATTEMPTS=0
+set MAX_ATTEMPTS=45
 
-:: ── Summary ───────────────────────────────────────────────────
+:health_loop
+timeout /t 2 /nobreak >nul
+set /a ATTEMPTS+=1
+
+%COMPOSE% --env-file .blackvault.env ps 2>nul | findstr /i "(healthy)" >nul
+if %errorlevel% equ 0 (
+  echo.
+  echo BlackVault is healthy.
+  goto summary
+)
+
+%COMPOSE% --env-file .blackvault.env ps 2>nul | findstr /i "Restarting" >nul
+if %errorlevel% equ 0 goto health_crash
+
+if !ATTEMPTS! geq !MAX_ATTEMPTS! goto health_timeout
+
+goto health_loop
+
+:health_crash
+echo.
+echo ============================================================
+echo   ERROR: BlackVault failed to start (crash loop detected)
+echo ============================================================
+echo.
+echo Container logs:
+echo ------------------------------------------------------------
+%COMPOSE% --env-file .blackvault.env logs --tail=60
+echo ------------------------------------------------------------
+echo.
+echo   Common causes:
+echo     - Database migration failed (search logs above for 'Error')
+echo     - Port !PORT! already in use by another process
+echo     - Insufficient disk space or permissions in !DATA_DIR!
+echo.
+echo   To clean up and retry:
+echo     %COMPOSE% --env-file .blackvault.env down
+echo     install.bat
+pause
+exit /b 1
+
+:health_timeout
+echo.
+echo ============================================================
+echo   ERROR: BlackVault did not become healthy within 90 seconds
+echo ============================================================
+echo.
+echo Container logs:
+echo ------------------------------------------------------------
+%COMPOSE% --env-file .blackvault.env logs --tail=60
+echo ------------------------------------------------------------
+echo.
+echo   To check status manually:
+echo     %COMPOSE% --env-file .blackvault.env ps
+echo     %COMPOSE% --env-file .blackvault.env logs -f
+pause
+exit /b 1
+
+:summary
 echo.
 echo ╔══════════════════════════════════════════════════════════╗
 echo ║  BlackVault is ready!                                    ║
