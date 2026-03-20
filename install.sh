@@ -6,13 +6,14 @@ echo "║      BlackVault — Setup Wizard           ║"
 echo "╚══════════════════════════════════════════╝"
 echo ""
 
-# ── Prerequisites check ─────────────────────────────────────
+# ── Pre-flight: Docker installed ─────────────────────────────
 if ! command -v docker &>/dev/null; then
   echo "ERROR: Docker is not installed or not in your PATH."
   echo "       Install it from https://docs.docker.com/get-docker/ and re-run."
   exit 1
 fi
 
+# ── Pre-flight: Docker Compose available ─────────────────────
 if ! docker compose version &>/dev/null 2>&1 && ! docker-compose version &>/dev/null 2>&1; then
   echo "ERROR: 'docker compose' (v2) or 'docker-compose' is required."
   echo "       Upgrade Docker Desktop or install the Compose plugin."
@@ -36,100 +37,119 @@ generate_hex_secret() {
   fi
 }
 
-# ── Existing installation guard ──────────────────────────────
+# ── Pre-flight: Docker daemon running ────────────────────────
+if ! docker info > /dev/null 2>&1; then
+  echo "ERROR: Docker Desktop is not running."
+  echo "       Please open Docker Desktop and wait for it to start, then re-run this script."
+  exit 1
+fi
+
+# ── Detect existing config ────────────────────────────────────
+KEEP_EXISTING=false
+
 if [ -f ".blackvault.env" ]; then
-  echo "WARNING: .blackvault.env already exists."
-  echo "  Re-running install will generate a NEW encryption key."
-  echo "  Any existing encrypted data will become unrecoverable."
-  echo "  SESSION_SECRET stays in the data directory unless you reset it manually."
+  echo "An existing .blackvault.env configuration was found."
   echo ""
-  read -rp "  Keep existing config and just restart? [Y/n]: " KEEP_EXISTING
-  KEEP_EXISTING="${KEEP_EXISTING:-Y}"
-  if [[ "$KEEP_EXISTING" =~ ^[Yy]$ ]]; then
+  echo "  Press Enter  — keep existing settings and just rebuild/restart"
+  echo "  Type 'new'   — start fresh with new settings"
+  echo ""
+  echo "  ⚠  WARNING: Choosing 'new' generates a new encryption key."
+  echo "     Any existing encrypted data (serial numbers, notes) will be"
+  echo "     unreadable with the new key unless you restore the old one."
+  echo ""
+  read -rp "  Your choice [Enter / new]: " CONFIG_CHOICE
+
+  if [ -z "$CONFIG_CHOICE" ]; then
+    KEEP_EXISTING=true
     echo ""
-    echo "Keeping existing config."
-    # shellcheck disable=SC1091
-    source .blackvault.env 2>/dev/null || true
-    echo "Pulling latest BlackVault image..."
-    $COMPOSE --env-file .blackvault.env pull
+    echo "Keeping existing configuration."
+    # Load values from existing env file for display in the summary
+    DATA_DIR=$(grep '^DATA_DIR=' .blackvault.env | cut -d'=' -f2-)
+    PORT=$(grep '^PORT=' .blackvault.env | cut -d'=' -f2-)
+  else
     echo ""
-    echo "Starting BlackVault..."
-    $COMPOSE --env-file .blackvault.env up -d
-    echo ""
-    echo "Waiting for BlackVault to be ready..."
-    MAX_RETRIES=15
-    for i in $(seq 1 $MAX_RETRIES); do
-      if wget -qO- "http://localhost:${PORT:-3000}/api/health" 2>/dev/null | grep -q '"ok"'; then
-        echo "BlackVault is ready."
-        break
-      fi
-      if [ "$i" -eq "$MAX_RETRIES" ]; then
-        echo "Still starting — check logs with:"
-        echo "  $COMPOSE --env-file .blackvault.env logs -f"
-      else
-        sleep 2
-      fi
-    done
-    echo ""
-    echo "  URL: http://localhost:${PORT:-3000}"
-    echo ""
-    exit 0
+    echo "Starting fresh. A new configuration and encryption key will be generated."
+    KEEP_EXISTING=false
   fi
   echo ""
 fi
 
-# ── Data directory ───────────────────────────────────────────
-DEFAULT_DATA="$HOME/.blackvault"
-echo "Where should BlackVault store its data?"
-echo "  This folder will contain your database and uploaded images."
-echo "  Default: $DEFAULT_DATA"
-read -rp "  Data directory [press Enter for default]: " DATA_DIR_INPUT
-DATA_DIR="${DATA_DIR_INPUT:-$DEFAULT_DATA}"
-DATA_DIR="${DATA_DIR%/}"   # strip trailing slash
+# ── Gather settings (only if not keeping existing) ───────────
+if [ "$KEEP_EXISTING" = false ]; then
 
-# ── Port ─────────────────────────────────────────────────────
-echo ""
-read -rp "Port to run BlackVault on [3000]: " PORT_INPUT
-PORT="${PORT_INPUT:-3000}"
+  # Data directory
+  DEFAULT_DATA="$HOME/.blackvault"
+  echo "Where should BlackVault store its data?"
+  echo "  This folder will contain your database and uploaded images."
+  echo "  Default: $DEFAULT_DATA"
+  read -rp "  Data directory [press Enter for default]: " DATA_DIR_INPUT
+  DATA_DIR="${DATA_DIR_INPUT:-$DEFAULT_DATA}"
+  DATA_DIR="${DATA_DIR%/}"   # strip trailing slash
 
-# ── Password recovery secret option ───────────────────────────
-echo ""
-read -rp "Generate PASSWORD_RECOVERY_SECRET for account recovery workflows? [y/N]: " GENERATE_RECOVERY_SECRET
-GENERATE_RECOVERY_SECRET="${GENERATE_RECOVERY_SECRET:-N}"
+  # Port — loop until a free port is chosen
+  while true; do
+    echo ""
+    read -rp "Port to run BlackVault on [3000]: " PORT_INPUT
+    PORT="${PORT_INPUT:-3000}"
 
-# ── Secrets (minimal by default, optional advanced branch) ───
-echo ""
-read -rp "Advanced setup (provide your own secrets)? [y/N]: " ADVANCED_SETUP
+    # Validate it looks like a number
+    if ! [[ "$PORT" =~ ^[0-9]+$ ]]; then
+      echo "  ERROR: '$PORT' is not a valid port number. Please enter a number."
+      continue
+    fi
 
-if [[ "$ADVANCED_SETUP" =~ ^[Yy]$ ]]; then
+    # Check if port is already in use
+    if lsof -i :"$PORT" -sTCP:LISTEN -t &>/dev/null 2>&1; then
+      echo ""
+      echo "  ERROR: Port $PORT is already in use by another process."
+      echo "         Please choose a different port."
+    else
+      break
+    fi
+  done
+
+  # ── Password recovery secret option ───────────────────────────
   echo ""
-  echo "Advanced setup selected. Leave blank to auto-generate."
-  read -rp "  VAULT_ENCRYPTION_KEY [auto-generate if blank]: " VAULT_ENCRYPTION_KEY
-fi
+  read -rp "Generate PASSWORD_RECOVERY_SECRET for account recovery workflows? [y/N]: " GENERATE_RECOVERY_SECRET
+  GENERATE_RECOVERY_SECRET="${GENERATE_RECOVERY_SECRET:-N}"
 
-if [ -z "${VAULT_ENCRYPTION_KEY:-}" ]; then
+  # Generate encryption key
+  echo ""
+  echo "Generating secrets..."
   VAULT_ENCRYPTION_KEY=$(generate_hex_secret) || {
     echo "ERROR: Unable to generate VAULT_ENCRYPTION_KEY."
     echo "       Install 'openssl' or 'python3', or use advanced setup with manual secrets."
     exit 1
   }
-fi
 
-if [[ "$GENERATE_RECOVERY_SECRET" =~ ^[Yy]$ ]]; then
-  PASSWORD_RECOVERY_SECRET=$(generate_hex_secret) || {
-    echo "ERROR: Unable to generate PASSWORD_RECOVERY_SECRET."
+  SESSION_SECRET=$(generate_hex_secret) || {
+    echo "ERROR: Unable to generate SESSION_SECRET."
     echo "       Install 'openssl' or 'python3'."
     exit 1
   }
-fi
 
-# ── Create directories ────────────────────────────────────────
-echo ""
-echo "Creating data directories..."
-mkdir -p "$DATA_DIR/db" "$DATA_DIR/uploads"
+  if [[ "$GENERATE_RECOVERY_SECRET" =~ ^[Yy]$ ]]; then
+    PASSWORD_RECOVERY_SECRET=$(generate_hex_secret) || {
+      echo "ERROR: Unable to generate PASSWORD_RECOVERY_SECRET."
+      echo "       Install 'openssl' or 'python3'."
+      exit 1
+    }
+  fi
 
-# ── Write .blackvault.env ─────────────────────────────────────
-cat > .blackvault.env <<EOF
+  # Create data directories
+  echo ""
+  echo "Creating data directories..."
+  mkdir -p "$DATA_DIR/db" "$DATA_DIR/uploads"
+
+  # Verify the data directory is writable
+  if [ ! -w "$DATA_DIR" ]; then
+    echo "ERROR: Data directory '$DATA_DIR' is not writable."
+    echo "       Check permissions or choose a different directory."
+    exit 1
+  fi
+
+  # Write config file
+  cat > .blackvault.env <<EOF
 # BlackVault configuration — generated by install.sh
 # CRITICAL: Keep this file safe and backed up.
 #   Losing VAULT_ENCRYPTION_KEY makes all encrypted data permanently unrecoverable.
@@ -142,35 +162,42 @@ VAULT_ENCRYPTION_KEY=$VAULT_ENCRYPTION_KEY
 SESSION_SECRET=$SESSION_SECRET
 EOF
 
-chmod 600 .blackvault.env
+  chmod 600 .blackvault.env
 
-if [[ "$GENERATE_RECOVERY_SECRET" =~ ^[Yy]$ ]]; then
-  echo "PASSWORD_RECOVERY_SECRET=$PASSWORD_RECOVERY_SECRET" >> .blackvault.env
-  echo "Included PASSWORD_RECOVERY_SECRET in .blackvault.env"
+  if [[ "$GENERATE_RECOVERY_SECRET" =~ ^[Yy]$ ]]; then
+    echo "PASSWORD_RECOVERY_SECRET=$PASSWORD_RECOVERY_SECRET" >> .blackvault.env
+    echo "Included PASSWORD_RECOVERY_SECRET in .blackvault.env"
+  else
+    echo "Skipped PASSWORD_RECOVERY_SECRET generation. You can add it later manually."
+  fi
+
+  echo "Configuration written to .blackvault.env"
+
 else
-  echo "Skipped PASSWORD_RECOVERY_SECRET generation. You can add it later manually."
+  # Keeping existing config — still ensure data dirs exist
+  echo "Ensuring data directories exist..."
+  mkdir -p "$DATA_DIR/db" "$DATA_DIR/uploads"
+
+  if [ ! -w "$DATA_DIR" ]; then
+    echo "ERROR: Data directory '$DATA_DIR' is not writable."
+    echo "       Check permissions on that directory."
+    exit 1
+  fi
 fi
 
-echo "Configuration written to .blackvault.env"
-
-# ── Pull image (build locally if no published image is available) ──
+# ── [1/3] Build image ─────────────────────────────────────────
 echo ""
-echo "Pulling latest BlackVault image..."
-if ! $COMPOSE --env-file .blackvault.env pull 2>&1; then
-  echo ""
-  echo "  No pre-built image found — building locally."
-  echo "  This takes a few minutes on first install; subsequent starts are instant."
-  echo ""
-  $COMPOSE --env-file .blackvault.env build
-fi
+echo "[1/3] Building BlackVault image (this takes 3-5 minutes on first run)..."
+$COMPOSE --env-file .blackvault.env build
 
+# ── [2/3] Start container ─────────────────────────────────────
 echo ""
-echo "Starting BlackVault..."
+echo "[2/3] Starting BlackVault..."
 $COMPOSE --env-file .blackvault.env up -d
 
-# ── Wait for healthy status (up to 90 s) ─────────────────────
+# ── [3/3] Wait for healthy status (up to 90 s) ───────────────
 echo ""
-echo "Waiting for BlackVault to start (up to 90 seconds)..."
+echo "[3/3] Waiting for BlackVault to start (up to 90 seconds)..."
 
 _fail_with_logs() {
   local reason="$1"
@@ -228,6 +255,13 @@ echo "║  BlackVault is ready!                                    ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo ""
 echo "  URL:         http://localhost:$PORT"
+echo ""
+echo "  To access from your phone on the same Wi-Fi:"
+echo "    Find your local IP with:"
+echo "      Mac:     ipconfig getifaddr en0"
+echo "      Windows: ipconfig"
+echo "    Then open: http://<your-ip>:$PORT"
+echo ""
 echo "  Data stored: $DATA_DIR"
 echo ""
 echo "  WARNING: Back up your encryption key!"

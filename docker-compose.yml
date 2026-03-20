@@ -1,12 +1,11 @@
-version: '3.8'
-
-# Production compose — pulls pre-built image from GitHub Container Registry.
-# Run `./install.sh` (or install.bat on Windows) for first-time setup.
-# Run `./update.sh` to pull the latest version.
-# For local development, use docker-compose.dev.yml instead.
+# BlackVault — Docker Compose configuration
+# First-time setup: run ./install.sh (or install.bat on Windows)
+# Update: run ./update.sh
+# Local development: use docker-compose.dev.yml
 
 services:
   blackvault:
+    build: .
     image: ghcr.io/theaveragedeveloper/projectblackvault:latest
     container_name: blackvault
     restart: unless-stopped
