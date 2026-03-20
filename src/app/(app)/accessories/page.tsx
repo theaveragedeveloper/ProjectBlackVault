@@ -285,7 +285,7 @@ export default function AccessoriesPage() {
                               <p className="text-[10px] text-vault-text-faint truncate max-w-[140px]">{accessory.currentBuild.name}</p>
                             </div>
                           ) : (
-                            <p className="text-xs text-vault-text-faint">Uninstalled</p>
+                            <p className="text-xs text-vault-text-faint">Not Assigned</p>
                           )}
                         </td>
                         <td className="px-4 py-3 hidden lg:table-cell">
