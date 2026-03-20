@@ -6,6 +6,19 @@ import { validateOptionalImageUrl } from "@/lib/image-url-validation";
 import { requireAuth } from "@/lib/server/auth";
 import { requireEntityWriteAccess } from "@/lib/server/entity-write-access";
 
+function parseBatteryIntervalDays(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = parseInt(String(value), 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return parsed;
+}
+
+function parseBatteryDate(value: unknown): Date | null {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = new Date(String(value));
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 // GET /api/accessories/[id] - Get a single accessory with roundCountLogs and current buildSlots
 export async function GET(
   _request: NextRequest,

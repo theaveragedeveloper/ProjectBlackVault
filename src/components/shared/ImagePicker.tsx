@@ -70,6 +70,10 @@ export default function ImagePicker({
   const [urlInput, setUrlInput] = useState("");
   const externalUrlEntryAllowed = allowExternalImageUrls();
 
+  useEffect(() => {
+    setPreview(currentUrl ?? null);
+  }, [currentUrl]);
+
   async function handleFile(file: File) {
     setError(null);
 
@@ -92,7 +96,7 @@ export default function ImagePicker({
       fd.append("entityId", entityId ?? tempId.current);
 
       const res = await fetch("/api/images/upload", { method: "POST", body: fd });
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
 
       if (!res.ok) {
         setError(json.error ?? "Upload failed. Please try again.");
@@ -123,12 +127,14 @@ export default function ImagePicker({
   }
 
   function handleRemove() {
+    setError(null);
     setPreview(null);
     setUrlInput("");
     onChange(null, null);
   }
 
   function handleUrlApply() {
+    setError(null);
     const url = urlInput.trim();
     if (!url) return;
 

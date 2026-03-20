@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Lock, Eye, EyeOff, Loader2, AlertCircle, KeyRound, ChevronDown, ChevronUp, CheckCircle2 } from "lucide-react";
 
@@ -11,8 +11,11 @@ const LABEL_CLASS =
 
 export default function LoginPage() {
   const router = useRouter();
+  const [mode, setMode] = useState<AuthMode | null>(null);
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,27 +70,83 @@ export default function LoginPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
+    setRequestError(null);
+
+    if (isSetupMode) {
+      setPasswordTouched(true);
+      setConfirmTouched(true);
+      if (password.length < MIN_PASSWORD_LENGTH || password !== confirmPassword) {
+        return;
+      }
+    }
+
     setSubmitting(true);
+    setSetupSuccess(false);
 
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch(isSetupMode ? "/api/auth/setup" : "/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password }),
       });
 
-      const json = await res.json();
+      let json: { error?: string } | null = null;
+      try {
+        json = await res.json();
+      } catch {
+        json = null;
+      }
 
       if (!res.ok) {
-        setError(json.error ?? "Invalid password");
+        if (isSetupMode && res.status === 409) {
+          const statusRes = await fetch("/api/auth/check", { cache: "no-store" });
+          if (statusRes.ok) {
+            const statusJson = await statusRes.json() as {
+              authenticated?: unknown;
+              requiresSetup?: unknown;
+            };
+            if (
+              typeof statusJson.authenticated === "boolean"
+              && typeof statusJson.requiresSetup === "boolean"
+            ) {
+              if (statusJson.authenticated) {
+                router.replace("/");
+                return;
+              }
+              if (!statusJson.requiresSetup) {
+                setMode("login");
+                setPassword("");
+                setConfirmPassword("");
+                setPasswordTouched(false);
+                setConfirmTouched(false);
+                setRequestError(null);
+                setSubmitting(false);
+                return;
+              }
+            }
+          }
+        }
+
+        setRequestError(
+          isSetupMode
+            ? "Setup failed. Please try again."
+            : (json?.error ?? "Invalid password")
+        );
         setSubmitting(false);
         return;
       }
 
+      if (isSetupMode) {
+        setSetupSuccess(true);
+        setSubmitting(false);
+        await new Promise((resolve) => setTimeout(resolve, 900));
+      }
+
       router.replace("/");
     } catch {
-      setError("Connection error. Please try again.");
+      setRequestError(
+        isSetupMode ? "Setup failed. Please try again." : "Connection error. Please try again."
+      );
       setSubmitting(false);
     }
   }
@@ -143,8 +202,11 @@ export default function LoginPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-vault-bg">
-        <Loader2 className="w-8 h-8 text-[#00C2FF] animate-spin" />
+      <div className="flex min-h-screen items-center justify-center bg-vault-bg">
+        <div className="flex items-center gap-3 rounded-lg border border-vault-border bg-vault-surface px-4 py-3 text-sm text-vault-text-muted">
+          <Loader2 className="h-4 w-4 animate-spin text-[#00C2FF]" />
+          Checking vault status...
+        </div>
       </div>
     );
   }
@@ -180,15 +242,90 @@ export default function LoginPage() {
               Authentication
             </h2>
           </div>
+          <p className="text-sm text-vault-text-muted">
+            Unable to verify vault state. Retry to continue.
+          </p>
+          <button
+            type="button"
+            onClick={() => void resolveAuthState()}
+            className="mt-4 w-full rounded-md border border-[#00C2FF]/35 bg-[#00C2FF]/10 px-4 py-2.5 text-sm font-medium text-[#00C2FF] transition-colors hover:bg-[#00C2FF]/20"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
-          {error && (
-            <div className="flex items-center gap-2 bg-[#E53935]/10 border border-[#E53935]/30 rounded-md px-3 py-2 mb-4">
-              <AlertCircle className="w-4 h-4 text-[#E53935] shrink-0" />
-              <p className="text-xs text-[#E53935]">{error}</p>
+  const submitDisabled = submitting
+    || setupSuccess
+    || !password
+    || (isSetupMode && (!confirmPassword || passwordTooShort || passwordMismatch));
+
+  return (
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-vault-canvas px-6 py-12">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(0,194,255,0.12),transparent_55%)]" />
+      <div className="pointer-events-none absolute inset-0 tactical-grid opacity-60" />
+
+      <div className="relative mx-auto w-full max-w-md">
+        <div className="mb-8 text-center">
+          <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full border border-[#00C2FF]/35 bg-[#00C2FF]/10">
+            <Shield className="h-7 w-7 text-[#00C2FF]" />
+          </div>
+          <h1 className="font-mono text-2xl font-bold uppercase tracking-[0.18em] text-vault-text">
+            BlackVault
+          </h1>
+          <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-vault-text-muted">
+            BlackVault is a self-hosted command center for securing your inventory, records, and builds.
+          </p>
+
+          {isSetupMode ? (
+            <p className="mt-1 text-xs uppercase tracking-[0.18em] text-vault-text-faint">
+              First-time setup
+            </p>
+          ) : (
+            <p className="mt-1 text-xs uppercase tracking-[0.18em] text-vault-text-faint">
+              Secure access
+            </p>
+          )}
+        </div>
+
+        <div className="rounded-2xl border border-vault-border bg-vault-surface/95 p-6 shadow-2xl backdrop-blur">
+          {isSetupMode && (
+            <p className="mb-3 text-[11px] uppercase tracking-[0.18em] text-vault-text-faint">
+              Step 1 of 1 — Initialize Vault
+            </p>
+          )}
+
+          <h2 className="text-xl font-semibold text-vault-text">
+            {isSetupMode ? "Initialize Your Vault" : "Unlock Vault"}
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-vault-text-muted">
+            {isSetupMode
+              ? "Set a master password to secure your data. This is the only key to access your vault."
+              : "Enter your vault password to continue."}
+          </p>
+          {isSetupMode && (
+            <p className="mt-2 text-xs leading-5 text-vault-text-faint">
+              Initializing the vault means creating your local master key and locking this system behind it.
+            </p>
+          )}
+
+          {requestError && (
+            <div className="mb-4 mt-5 flex items-center gap-2 rounded-md border border-[#E53935]/30 bg-[#E53935]/10 px-3 py-2">
+              <AlertCircle className="h-4 w-4 shrink-0 text-[#E53935]" />
+              <p className="text-xs text-[#E53935]">{requestError}</p>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          {isSetupMode && setupSuccess && (
+            <div className="mb-4 mt-5 flex items-center gap-2 rounded-md border border-[#00C853]/30 bg-[#00C853]/12 px-3 py-2">
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-[#00C853]" />
+              <p className="text-xs font-medium uppercase tracking-[0.14em] text-[#00C853]">Vault Ready</p>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="mt-5 space-y-4">
             <div>
               <label className={LABEL_CLASS}>
                 Vault Password
@@ -197,33 +334,115 @@ export default function LoginPage() {
                 <input
                   type={showPassword ? "text" : "password"}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter vault password..."
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (requestError) setRequestError(null);
+                    if (setupSuccess) setSetupSuccess(false);
+                  }}
+                  onBlur={() => setPasswordTouched(true)}
+                  placeholder={isSetupMode ? "Create master password..." : "Enter vault password..."}
                   autoFocus
-                  className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2.5 pr-10 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint transition-colors"
-                  autoComplete="current-password"
+                  disabled={submitting || setupSuccess}
+                  className="w-full rounded-md border border-vault-border bg-vault-bg px-3 py-2.5 pr-10 text-sm text-vault-text transition-colors placeholder:text-vault-text-faint focus:border-[#00C2FF] focus:outline-none disabled:cursor-not-allowed disabled:opacity-70"
+                  autoComplete={isSetupMode ? "new-password" : "current-password"}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-vault-text-faint hover:text-vault-text-muted transition-colors"
+                  disabled={submitting || setupSuccess}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-vault-text-faint transition-colors hover:text-vault-text-muted disabled:cursor-not-allowed"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
+
+              {isSetupMode && (
+                <>
+                  {passwordStrength && (
+                    <div className="mt-2">
+                      <div className="mb-1 flex items-center justify-between">
+                        <p className="font-mono text-[10px] uppercase tracking-widest text-vault-text-faint">
+                          Password Strength
+                        </p>
+                        <p className={`text-xs font-medium ${strengthStyles.textClass}`}>
+                          {strengthStyles.label}
+                        </p>
+                      </div>
+                      <div className="h-1.5 overflow-hidden rounded-full bg-vault-muted">
+                        <div className={`h-full ${strengthStyles.barClass} ${strengthStyles.widthClass}`} />
+                      </div>
+                    </div>
+                  )}
+                  <p className="mt-2 text-[11px] text-vault-text-faint">
+                    Use at least {MIN_PASSWORD_LENGTH} characters. Mix uppercase, lowercase, numbers, and
+                    symbols for a stronger key.
+                  </p>
+                  {showPasswordLengthError && (
+                    <p className="mt-1 text-xs text-[#E53935]">
+                      Use at least {MIN_PASSWORD_LENGTH} characters.
+                    </p>
+                  )}
+                </>
+              )}
             </div>
+
+            {isSetupMode && (
+              <div>
+                <label className="mb-1.5 block font-mono text-[10px] uppercase tracking-widest text-vault-text-faint">
+                  Confirm Password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value);
+                      if (requestError) setRequestError(null);
+                    }}
+                    onBlur={() => setConfirmTouched(true)}
+                    placeholder="Confirm vault password..."
+                    disabled={submitting || setupSuccess}
+                    className="w-full rounded-md border border-vault-border bg-vault-bg px-3 py-2.5 pr-10 text-sm text-vault-text transition-colors placeholder:text-vault-text-faint focus:border-[#00C2FF] focus:outline-none disabled:cursor-not-allowed disabled:opacity-70"
+                    autoComplete="new-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((v) => !v)}
+                    disabled={submitting || setupSuccess}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-vault-text-faint transition-colors hover:text-vault-text-muted disabled:cursor-not-allowed"
+                    aria-label={showConfirmPassword ? "Hide password confirmation" : "Show password confirmation"}
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                {showPasswordMismatchError && (
+                  <p className="mt-1 text-xs text-[#E53935]">Passwords do not match.</p>
+                )}
+              </div>
+            )}
 
             <button
               type="submit"
-              disabled={submitting || !password}
-              className="w-full flex items-center justify-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2.5 rounded-md text-sm font-medium transition-colors"
+              disabled={submitDisabled}
+              className={`flex w-full items-center justify-center gap-2 rounded-md border px-4 py-2.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+                setupSuccess
+                  ? "border-[#00C853]/35 bg-[#00C853]/15 text-[#00C853]"
+                  : "border-[#00C2FF]/35 bg-[#00C2FF]/10 text-[#00C2FF] hover:bg-[#00C2FF]/20"
+              }`}
             >
-              {submitting ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+              {setupSuccess ? (
+                <CheckCircle2 className="h-4 w-4" />
+              ) : submitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <Lock className="w-4 h-4" />
+                <Lock className="h-4 w-4" />
               )}
-              {submitting ? "Authenticating..." : "Unlock Vault"}
+              {setupSuccess
+                ? "Vault Ready"
+                : submitting
+                  ? (isSetupMode ? "Initializing Vault..." : "Authenticating...")
+                  : (isSetupMode ? "Create Vault" : "Unlock Vault")}
             </button>
           </form>
 
@@ -313,12 +532,6 @@ export default function LoginPage() {
               Password can be changed in Settings
             </p>
           )}
-        </div>
-
-        {/* Corner brackets decoration */}
-        <div className="mt-6 flex justify-between px-2">
-          <div className="w-6 h-6 border-t border-l border-[#00C2FF]/20" />
-          <div className="w-6 h-6 border-t border-r border-[#00C2FF]/20" />
         </div>
       </div>
     </div>

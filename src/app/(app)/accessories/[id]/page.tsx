@@ -15,6 +15,7 @@ import {
   Plus,
   Loader2,
   AlertCircle,
+  Battery,
   ChevronDown,
   ChevronUp,
   Pencil,
@@ -58,6 +59,11 @@ interface Accessory {
   notes: string | null;
   imageUrl: string | null;
   roundCount: number;
+  hasBattery: boolean;
+  batteryType: string | null;
+  batteryReplacementIntervalDays: number | null;
+  lastBatteryChangeDate: string | null;
+  batteryNotes: string | null;
   roundCountLogs: RoundCountLog[];
   currentBuild: CurrentBuild | null;
   hasBattery: boolean;
@@ -93,6 +99,8 @@ export default function AccessoryDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
   const [localImageUrl, setLocalImageUrl] = useState<string | null>(null);
+  const [batteryUpdating, setBatteryUpdating] = useState(false);
+  const [batteryError, setBatteryError] = useState<string | null>(null);
 
   // Log rounds form
   const [logOpen, setLogOpen] = useState(false);
@@ -245,9 +253,66 @@ export default function AccessoryDetailPage() {
 
   const roundColor = roundCountColor(accessory.roundCount, accessory.type);
   const visibleLogs = historyExpanded ? accessory.roundCountLogs : accessory.roundCountLogs.slice(0, 5);
+  const slotTypeLabel =
+    SLOT_TYPE_LABELS[accessory.type as keyof typeof SLOT_TYPE_LABELS] ?? accessory.type;
+  const currentBuildSlotLabel = accessory.currentBuild
+    ? SLOT_TYPE_LABELS[accessory.currentBuild.slotType as keyof typeof SLOT_TYPE_LABELS] ??
+      accessory.currentBuild.slotType
+    : null;
+  const nextBatteryDueDate =
+    accessory.hasBattery &&
+    accessory.lastBatteryChangeDate &&
+    accessory.batteryReplacementIntervalDays
+      ? new Date(
+          new Date(accessory.lastBatteryChangeDate).getTime() +
+            accessory.batteryReplacementIntervalDays * 24 * 60 * 60 * 1000
+        )
+      : null;
+  const batteryIsOverdue = nextBatteryDueDate
+    ? nextBatteryDueDate.getTime() < Date.now()
+    : false;
 
   function handlePhotoChange(url: string | null) {
     setLocalImageUrl(url);
+  }
+
+  async function recordBatteryChangeNow() {
+    const accessorySnapshot = accessory;
+    if (!accessorySnapshot || !accessorySnapshot.hasBattery) return;
+    setBatteryUpdating(true);
+    setBatteryError(null);
+    try {
+      const now = new Date().toISOString();
+      const res = await fetch(`/api/accessories/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          hasBattery: true,
+          lastBatteryChangeDate: now,
+          batteryType: accessorySnapshot.batteryType,
+          batteryReplacementIntervalDays:
+            accessorySnapshot.batteryReplacementIntervalDays,
+          batteryNotes: accessorySnapshot.batteryNotes,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setBatteryError(json.error ?? "Failed to record battery change");
+        return;
+      }
+      setAccessory((prev) =>
+        prev
+          ? {
+              ...prev,
+              lastBatteryChangeDate: json.lastBatteryChangeDate ?? now,
+            }
+          : prev
+      );
+    } catch {
+      setBatteryError("Failed to record battery change");
+    } finally {
+      setBatteryUpdating(false);
+    }
   }
 
   return (
@@ -531,6 +596,63 @@ export default function AccessoryDetailPage() {
         </div>
 
         {/* Current build info */}
+        {accessory.hasBattery && (
+          <div className="bg-vault-surface border border-vault-border rounded-lg p-4">
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-vault-text-muted mb-3 flex items-center gap-2">
+              <Battery className="w-3.5 h-3.5" />
+              Battery Tracking
+            </h2>
+            {batteryError && (
+              <p className="text-xs text-[#E53935] mb-2">{batteryError}</p>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-1">Type</p>
+                <p className="text-sm text-vault-text">{accessory.batteryType || "—"}</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-1">Replacement Interval</p>
+                <p className="text-sm text-vault-text">
+                  {accessory.batteryReplacementIntervalDays
+                    ? `${accessory.batteryReplacementIntervalDays} days`
+                    : "—"}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-1">Last Change</p>
+                <p className="text-sm text-vault-text">
+                  {accessory.lastBatteryChangeDate
+                    ? formatDate(accessory.lastBatteryChangeDate)
+                    : "—"}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-1">Next Due</p>
+                <p className={`text-sm font-medium ${batteryIsOverdue ? "text-[#E53935]" : "text-vault-text"}`}>
+                  {nextBatteryDueDate
+                    ? formatDate(nextBatteryDueDate.toISOString())
+                    : "—"}
+                </p>
+              </div>
+            </div>
+            {accessory.batteryNotes && (
+              <p className="text-xs text-vault-text-muted mt-3 border-t border-vault-border pt-2">
+                {accessory.batteryNotes}
+              </p>
+            )}
+            <div className="mt-3">
+              <button
+                onClick={recordBatteryChangeNow}
+                disabled={batteryUpdating}
+                className="text-xs bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-50 px-3 py-1.5 rounded transition-colors"
+              >
+                {batteryUpdating ? "Recording..." : "Record Battery Change"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Current build info */}
         {accessory.currentBuild && (
           <div className="bg-vault-surface border border-vault-border rounded-lg p-4">
             <h2 className="text-xs font-semibold uppercase tracking-widest text-vault-text-muted mb-3 flex items-center gap-2">
@@ -548,7 +670,7 @@ export default function AccessoryDetailPage() {
                 </p>
               </div>
               <Link
-                href={`/builds/${accessory.currentBuild.id}`}
+                href={`/vault/${accessory.currentBuild.firearm.id}/builds/${accessory.currentBuild.id}`}
                 className="text-xs bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 px-3 py-1.5 rounded transition-colors"
               >
                 Open Build

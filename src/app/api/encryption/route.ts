@@ -30,18 +30,27 @@ export async function GET() {
 
     // Never expose a key that was set via env var — it's managed outside the app
     if (process.env.VAULT_ENCRYPTION_KEY) {
-      return NextResponse.json({ error: "Key is managed via environment variable" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Key is managed via environment variable" },
+        { status: 403, headers: { "Cache-Control": "no-store" } }
+      );
     }
 
     const settings = await prisma.appSettings.findUnique({ where: { id: "singleton" } });
     if (!settings?.encryptionKey) {
-      return NextResponse.json({ error: "No encryption key configured" }, { status: 404 });
+      return NextResponse.json(
+        { error: "No encryption key configured" },
+        { status: 404, headers: { "Cache-Control": "no-store" } }
+      );
     }
 
-    return NextResponse.json({ key: settings.encryptionKey });
-  } catch (error) {
-    console.error("GET /api/encryption error:", error);
-    return NextResponse.json({ error: "Failed to retrieve key" }, { status: 500 });
+    return NextResponse.json(
+      { key: settings.encryptionKey },
+      { headers: { "Cache-Control": "no-store" } }
+    );
+  } catch {
+    console.error("GET /api/encryption failed");
+    return NextResponse.json({ error: "Failed to retrieve key" }, { status: 500, headers: { "Cache-Control": "no-store" } });
   }
 }
 
@@ -89,8 +98,8 @@ export async function POST(request: NextRequest) {
     clearKeyCache();
 
     return NextResponse.json({ key }, { status: 201 });
-  } catch (error) {
-    console.error("POST /api/encryption error:", error);
+  } catch {
+    console.error("POST /api/encryption failed");
     return NextResponse.json({ error: "Failed to generate key" }, { status: 500 });
   }
 }
@@ -179,8 +188,8 @@ export async function DELETE(request: NextRequest) {
     clearKeyCache();
 
     return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("DELETE /api/encryption error:", error);
+  } catch {
+    console.error("DELETE /api/encryption failed");
     return NextResponse.json({ error: "Failed to remove key" }, { status: 500 });
   }
 }

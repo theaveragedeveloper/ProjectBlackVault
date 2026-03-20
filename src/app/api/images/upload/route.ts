@@ -16,6 +16,8 @@ const ALLOWED_ENTITY_TYPES = new Set([
   "ammo",
   "build",
 ]);
+const MAX_SIZE = 10 * 1024 * 1024;
+const SAFE_ENTITY_ID = /^[a-zA-Z0-9_-]{1,64}$/;
 
 // POST /api/images/upload - Upload an image for an entity
 // Accepts multipart form data: file, entityType, entityId
@@ -65,14 +67,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Sanitize entityId to prevent path traversal
-    const sanitizedEntityId = entityId.replace(/[^a-zA-Z0-9_-]/g, "");
-    if (!sanitizedEntityId) {
+    if (!SAFE_ENTITY_ID.test(entityId)) {
       return NextResponse.json(
         { error: "Invalid entityId" },
         { status: 400 }
       );
     }
+    const sanitizedEntityId = entityId;
 
     const entityAccess = await requireEntityWriteAccess(
       request,
@@ -84,7 +85,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Check file size (limit to 10MB)
-    const MAX_SIZE = 10 * 1024 * 1024;
     if (file.size > MAX_SIZE) {
       return NextResponse.json(
         { error: "File too large. Maximum size is 10MB." },
@@ -141,8 +141,8 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (error) {
-    console.error("POST /api/images/upload error:", error);
+  } catch {
+    console.error("POST /api/images/upload failed");
     return NextResponse.json(
       { error: "Failed to upload image" },
       { status: 500 }

@@ -83,6 +83,8 @@ export async function POST(request: NextRequest) {
       groupNotes,
       // Ammo links
       ammoTransactionIds,
+      // Drill results
+      drills,
     } = body;
 
     if (!Array.isArray(firearms) || firearms.length === 0) {
@@ -164,6 +166,36 @@ export async function POST(request: NextRequest) {
             where: { sessionId_transactionId: { sessionId: created.id, transactionId } },
             create: { sessionId: created.id, transactionId },
             update: {},
+          });
+        }
+      }
+
+      if (Array.isArray(drills) && drills.length > 0) {
+        for (let i = 0; i < drills.length; i += 1) {
+          const drill = drills[i] as Record<string, unknown>;
+          const drillName =
+            typeof drill.drillName === "string" ? drill.drillName.trim() : "";
+          if (!drillName) continue;
+
+          await tx.sessionDrill.create({
+            data: {
+              sessionId: created.id,
+              templateId:
+                typeof drill.templateId === "string" && drill.templateId
+                  ? drill.templateId
+                  : null,
+              drillName: drillName.slice(0, 200),
+              timeSeconds: parseFloat_(drill.timeSeconds),
+              hits: parseInt_(drill.hits),
+              totalShots: parseInt_(drill.totalShots),
+              accuracy: parseFloat_(drill.accuracy),
+              score: parseFloat_(drill.score),
+              notes:
+                typeof drill.notes === "string" && drill.notes.trim()
+                  ? drill.notes.trim().slice(0, 1000)
+                  : null,
+              sortOrder: i,
+            },
           });
         }
       }
