@@ -26,6 +26,8 @@ export default function NewAccessoryPage() {
   const [hasBattery, setHasBattery] = useState(false);
   const [batteryType, setBatteryType] = useState("");
   const [batteryIntervalDays, setBatteryIntervalDays] = useState("");
+  const [batteryChangedAtInput, setBatteryChangedAtInput] = useState("");
+  const [batteryNotes, setBatteryNotes] = useState("");
 
   const filteredCalibers = COMMON_CALIBERS.filter((c) =>
     c.toLowerCase().includes(caliberInput.toLowerCase())
@@ -54,6 +56,8 @@ export default function NewAccessoryPage() {
       hasBattery,
       batteryType: hasBattery ? batteryType || null : null,
       batteryIntervalDays: hasBattery ? batteryIntervalDays || null : null,
+      lastBatteryChangeDate: hasBattery ? batteryChangedAtInput || null : null,
+      batteryNotes: hasBattery ? batteryNotes || null : null,
     };
 
     try {
@@ -266,8 +270,8 @@ export default function NewAccessoryPage() {
                   <input
                     type="number"
                     min={1}
-                    value={batteryReplacementIntervalDays}
-                    onChange={(e) => setBatteryReplacementIntervalDays(e.target.value)}
+                    value={batteryIntervalDays}
+                    onChange={(e) => setBatteryIntervalDays(e.target.value)}
                     placeholder="e.g. 180"
                     className={INPUT_CLASS}
                   />
@@ -276,8 +280,8 @@ export default function NewAccessoryPage() {
                   <label className={LABEL_CLASS}>Last Battery Change</label>
                   <input
                     type="date"
-                    value={lastBatteryChangeDate}
-                    onChange={(e) => setLastBatteryChangeDate(e.target.value)}
+                    value={batteryChangedAtInput}
+                    onChange={(e) => setBatteryChangedAtInput(e.target.value)}
                     className={INPUT_CLASS}
                   />
                 </div>

@@ -120,6 +120,8 @@ export async function PUT(
       hasBattery,
       batteryType,
       batteryIntervalDays,
+      lastBatteryChangeDate,
+      batteryNotes,
     } = body;
 
     const existing = await prisma.accessory.findUnique({ where: { id } });
@@ -167,7 +169,9 @@ export async function PUT(
         ...(compatibleCalibers !== undefined && { compatibleCalibers }),
         ...(hasBattery !== undefined && { hasBattery }),
         ...(batteryType !== undefined && { batteryType: batteryType || null }),
-        ...(batteryIntervalDays !== undefined && { batteryIntervalDays: batteryIntervalDays !== "" && batteryIntervalDays !== null ? parseInt(String(batteryIntervalDays), 10) : null }),
+        ...(batteryIntervalDays !== undefined && { batteryReplacementIntervalDays: batteryIntervalDays !== "" && batteryIntervalDays !== null ? parseInt(String(batteryIntervalDays), 10) : null }),
+        ...(lastBatteryChangeDate !== undefined && { lastBatteryChangeDate: lastBatteryChangeDate ? (() => { const d = new Date(lastBatteryChangeDate); return isNaN(d.getTime()) ? null : d; })() : null }),
+        ...(batteryNotes !== undefined && { batteryNotes: batteryNotes || null }),
       },
       include: {
         roundCountLogs: {

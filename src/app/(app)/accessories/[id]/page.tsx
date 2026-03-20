@@ -66,10 +66,6 @@ interface Accessory {
   batteryNotes: string | null;
   roundCountLogs: RoundCountLog[];
   currentBuild: CurrentBuild | null;
-  hasBattery: boolean;
-  batteryType: string | null;
-  batteryChangedAt: string | null;
-  batteryIntervalDays: number | null;
 }
 
 function computeBatteryDue(changedAt: string | null, intervalDays: number | null) {
@@ -123,7 +119,6 @@ export default function AccessoryDetailPage() {
   const [batteryChangedAtInput, setBatteryChangedAtInput] = useState("");
   const [savingBattery, setSavingBattery] = useState(false);
   const [loggingBatteryChange, setLoggingBatteryChange] = useState(false);
-  const [batteryError, setBatteryError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/accessories/${id}`)
@@ -134,8 +129,8 @@ export default function AccessoryDetailPage() {
         } else {
           setAccessory(data);
           setLocalImageUrl(data.imageUrl ?? null);
-          setBatteryForm({ hasBattery: data.hasBattery ?? false, batteryType: data.batteryType ?? "", batteryIntervalDays: data.batteryIntervalDays?.toString() ?? "" });
-          setBatteryChangedAtInput(data.batteryChangedAt ? new Date(data.batteryChangedAt).toISOString().slice(0, 10) : "");
+          setBatteryForm({ hasBattery: data.hasBattery ?? false, batteryType: data.batteryType ?? "", batteryIntervalDays: data.batteryReplacementIntervalDays?.toString() ?? "" });
+          setBatteryChangedAtInput(data.lastBatteryChangeDate ? new Date(data.lastBatteryChangeDate).toISOString().slice(0, 10) : "");
         }
         setLoading(false);
       })
@@ -200,7 +195,7 @@ export default function AccessoryDetailPage() {
       });
       if (res.ok) {
         const updated = await res.json();
-        setAccessory((prev) => prev ? { ...prev, hasBattery: updated.hasBattery, batteryType: updated.batteryType, batteryIntervalDays: updated.batteryIntervalDays } : prev);
+        setAccessory((prev) => prev ? { ...prev, hasBattery: updated.hasBattery, batteryType: updated.batteryType, batteryReplacementIntervalDays: updated.batteryReplacementIntervalDays } : prev);
         setShowBatterySettings(false);
       } else {
         const json = await res.json().catch(() => ({}));
@@ -221,8 +216,8 @@ export default function AccessoryDetailPage() {
       });
       if (res.ok) {
         const updated = await res.json();
-        setAccessory((prev) => prev ? { ...prev, batteryChangedAt: updated.batteryChangedAt } : prev);
-        setBatteryChangedAtInput(updated.batteryChangedAt ? new Date(updated.batteryChangedAt).toISOString().slice(0, 10) : "");
+        setAccessory((prev) => prev ? { ...prev, lastBatteryChangeDate: updated.lastBatteryChangeDate } : prev);
+        setBatteryChangedAtInput(updated.lastBatteryChangeDate ? new Date(updated.lastBatteryChangeDate).toISOString().slice(0, 10) : "");
       } else {
         const json = await res.json().catch(() => ({}));
         setBatteryError(json.error ?? "Failed to log battery change.");
@@ -798,16 +793,16 @@ export default function AccessoryDetailPage() {
               )}
               <div className="flex items-center justify-between">
                 <span className="text-xs text-vault-text-faint">Last Changed</span>
-                <span className="text-sm text-vault-text">{accessory.batteryChangedAt ? new Date(accessory.batteryChangedAt).toLocaleDateString() : "Never"}</span>
+                <span className="text-sm text-vault-text">{accessory.lastBatteryChangeDate ? new Date(accessory.lastBatteryChangeDate).toLocaleDateString() : "Never"}</span>
               </div>
-              {accessory.batteryIntervalDays && (
+              {accessory.batteryReplacementIntervalDays && (
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-vault-text-faint">Interval</span>
-                  <span className="text-sm text-vault-text">Every {accessory.batteryIntervalDays} days</span>
+                  <span className="text-sm text-vault-text">Every {accessory.batteryReplacementIntervalDays} days</span>
                 </div>
               )}
               {(() => {
-                const due = computeBatteryDue(accessory.batteryChangedAt, accessory.batteryIntervalDays);
+                const due = computeBatteryDue(accessory.lastBatteryChangeDate, accessory.batteryReplacementIntervalDays);
                 if (!due) return null;
                 const dueColor = due.overdue ? "text-red-400" : due.daysRemaining <= 30 ? "text-orange-400" : "text-[#00C853]";
                 return (

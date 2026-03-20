@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { isAllowedImageUrlForStorage, IMAGE_URL_ALLOWLIST_ERROR } from "@/lib/image-url-validation";
 import { allowExternalImageUrls } from "@/lib/network-policy";
 import {

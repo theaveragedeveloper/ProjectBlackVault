@@ -2,12 +2,55 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Lock, Eye, EyeOff, Loader2, AlertCircle, KeyRound, ChevronDown, ChevronUp, CheckCircle2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Eye, EyeOff, Loader2, Lock, Shield } from "lucide-react";
 
-const INPUT_CLASS =
-  "w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint transition-colors";
-const LABEL_CLASS =
-  "block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5 font-mono";
+type AuthMode = "login" | "setup";
+type PasswordStrength = "weak" | "medium" | "strong";
+
+const MIN_PASSWORD_LENGTH = 8;
+
+function getPasswordStrength(password: string): PasswordStrength | null {
+  if (!password) return null;
+
+  const checks = [
+    password.length >= MIN_PASSWORD_LENGTH,
+    password.length >= 12,
+    /[a-z]/.test(password),
+    /[A-Z]/.test(password),
+    /\d/.test(password),
+    /[^A-Za-z0-9]/.test(password),
+  ];
+  const score = checks.filter(Boolean).length;
+
+  if (score <= 2) return "weak";
+  if (score <= 4) return "medium";
+  return "strong";
+}
+
+function getStrengthStyles(strength: PasswordStrength | null) {
+  if (strength === "weak") {
+    return {
+      label: "Weak",
+      textClass: "text-[#E53935]",
+      barClass: "bg-[#E53935]",
+      widthClass: "w-1/3",
+    };
+  }
+  if (strength === "medium") {
+    return {
+      label: "Medium",
+      textClass: "text-[#F5A623]",
+      barClass: "bg-[#F5A623]",
+      widthClass: "w-2/3",
+    };
+  }
+  return {
+    label: "Strong",
+    textClass: "text-[#00C853]",
+    barClass: "bg-[#00C853]",
+    widthClass: "w-full",
+  };
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,55 +61,67 @@ export default function LoginPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [setupSuccess, setSetupSuccess] = useState(false);
+  const [passwordTouched, setPasswordTouched] = useState(false);
+  const [confirmTouched, setConfirmTouched] = useState(false);
+  const [requestError, setRequestError] = useState<string | null>(null);
 
-  // Recovery state
-  const [showRecovery, setShowRecovery] = useState(false);
-  const [recoverySecret, setRecoverySecret] = useState("");
-  const [recoverPassword, setRecoverPassword] = useState("");
-  const [recoverConfirmPassword, setRecoverConfirmPassword] = useState("");
-  const [recoverBusy, setRecoverBusy] = useState(false);
-  const [recoverError, setRecoverError] = useState<string | null>(null);
-  const [recoverSuccess, setRecoverSuccess] = useState<string | null>(null);
+  const resolveAuthState = useCallback(async (signal?: AbortSignal) => {
+    setLoading(true);
+    setRequestError(null);
+
+    try {
+      const res = await fetch("/api/auth/check", { cache: "no-store", signal });
+      if (!res.ok) {
+        throw new Error("bootstrap_check_failed");
+      }
+
+      const data = await res.json() as {
+        authenticated?: unknown;
+        requiresSetup?: unknown;
+      };
+      if (typeof data.authenticated !== "boolean" || typeof data.requiresSetup !== "boolean") {
+        throw new Error("bootstrap_check_invalid_payload");
+      }
+
+      // Setup state has higher priority than auth redirect.
+      if (data.authenticated && !data.requiresSetup) {
+        router.replace("/");
+        return;
+      }
+
+      setMode(data.requiresSetup ? "setup" : "login");
+      if (!data.requiresSetup) {
+        setConfirmPassword("");
+        setShowConfirmPassword(false);
+      }
+    } catch {
+      if (signal?.aborted) return;
+      setMode(null);
+      setRequestError("Unable to verify authentication status. Please try again.");
+    } finally {
+      if (!signal?.aborted) {
+        setLoading(false);
+      }
+    }
+  }, [router]);
 
   useEffect(() => {
-    // Check if password is required
-    fetch("/api/auth/check")
-      .then(async (r) => ({ ok: r.ok, data: await r.json() }))
-      .then(async (data) => {
-        if (!data.ok || data.data?.error) {
-          setError(data.data?.error ?? "Authentication service is unavailable.");
-          setLoading(false);
-          return;
-        }
+    const controller = new AbortController();
+    void resolveAuthState(controller.signal);
+    return () => controller.abort();
+  }, [resolveAuthState]);
 
-        if (!data.data.passwordRequired) {
-          // No password set — auto-login and redirect
-          const autoLoginRes = await fetch("/api/auth/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ password: "" }),
-          });
-
-          if (!autoLoginRes.ok) {
-            const json = await autoLoginRes.json().catch(() => null);
-            setError(json?.error ?? "Auto-login failed. Set SESSION_SECRET in your .env and restart dev mode.");
-            setLoading(false);
-            return;
-          }
-
-
-          router.replace("/");
-        } else if (data.data.authenticated) {
-          router.replace("/");
-        } else {
-          setLoading(false);
-        }
-      })
-      .catch(() => {
-        setLoading(false);
-      });
-  }, [router]);
+  const isSetupMode = mode === "setup";
+  const passwordStrength = useMemo(
+    () => (isSetupMode ? getPasswordStrength(password) : null),
+    [isSetupMode, password]
+  );
+  const strengthStyles = getStrengthStyles(passwordStrength);
+  const passwordTooShort = isSetupMode && password.length > 0 && password.length < MIN_PASSWORD_LENGTH;
+  const passwordMismatch = isSetupMode && confirmPassword.length > 0 && password !== confirmPassword;
+  const showPasswordLengthError = passwordTouched && passwordTooShort;
+  const showPasswordMismatchError = confirmTouched && passwordMismatch;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -151,55 +206,6 @@ export default function LoginPage() {
     }
   }
 
-  async function handleRecoverReset(e: React.FormEvent) {
-    e.preventDefault();
-    setRecoverError(null);
-    setRecoverSuccess(null);
-
-    if (!recoverySecret.trim()) {
-      setRecoverError("Recovery secret is required.");
-      return;
-    }
-
-    if (!recoverPassword || recoverPassword.length < 8) {
-      setRecoverError("New password must be at least 8 characters.");
-      return;
-    }
-
-    if (recoverPassword !== recoverConfirmPassword) {
-      setRecoverError("New password and confirmation do not match.");
-      return;
-    }
-
-    setRecoverBusy(true);
-    try {
-      const res = await fetch("/api/auth/recover", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          recoverySecret,
-          newPassword: recoverPassword,
-        }),
-      });
-
-      const json = await res.json();
-      if (!res.ok) {
-        setRecoverError(json.error ?? "Recovery failed.");
-        return;
-      }
-
-      setRecoverSuccess("Password reset successful. You can now log in with your new password.");
-      setShowRecovery(false);
-      setRecoverySecret("");
-      setRecoverPassword("");
-      setRecoverConfirmPassword("");
-    } catch {
-      setRecoverError("Network error. Please try again.");
-    } finally {
-      setRecoverBusy(false);
-    }
-  }
-
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-vault-bg">
@@ -211,35 +217,16 @@ export default function LoginPage() {
     );
   }
 
-  return (
-    <div className="flex items-center justify-center min-h-screen bg-vault-bg tactical-grid">
-      <div className="w-full max-w-sm mx-auto px-6">
-        {/* Logo / Title */}
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#00C2FF]/10 border border-[#00C2FF]/30 mb-4 p-2">
-            <img src="/blackvault-logo.svg" alt="BlackVault logo" width={32} height={32} className="w-8 h-8" />
-          </div>
-          <h1 className="text-2xl font-bold tracking-[0.2em] text-vault-text uppercase font-mono">
-            BlackVault
-          </h1>
-          <p className="text-xs text-vault-text-muted mt-1 tracking-widest uppercase">
-            Secure Access Required
-          </p>
-        </div>
-
-        {recoverSuccess && (
-          <div className="flex items-center gap-2 bg-[#00C853]/10 border border-[#00C853]/30 rounded-md px-3 py-2 mb-4">
-            <CheckCircle2 className="w-4 h-4 text-[#00C853] shrink-0" />
-            <p className="text-xs text-[#00C853]">{recoverSuccess}</p>
-          </div>
-        )}
-
-        {/* Login Card */}
-        <div className="bg-vault-surface border border-vault-border rounded-xl p-6 shadow-2xl">
-          <div className="flex items-center gap-2 mb-6">
-            <Lock className="w-4 h-4 text-[#00C2FF]" />
-            <h2 className="text-sm font-semibold text-vault-text tracking-widest uppercase">
-              Authentication
+  if (!mode) {
+    return (
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-vault-canvas px-6 py-12">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(0,194,255,0.12),transparent_55%)]" />
+        <div className="pointer-events-none absolute inset-0 tactical-grid opacity-60" />
+        <div className="relative mx-auto w-full max-w-md rounded-2xl border border-vault-border bg-vault-surface/95 p-6 shadow-2xl backdrop-blur">
+          <div className="mb-3 flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-[#E53935]" />
+            <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-vault-text">
+              Authentication Check Failed
             </h2>
           </div>
           <p className="text-sm text-vault-text-muted">
@@ -327,8 +314,8 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="mt-5 space-y-4">
             <div>
-              <label className={LABEL_CLASS}>
-                Vault Password
+              <label className="mb-1.5 block font-mono text-[10px] uppercase tracking-widest text-vault-text-faint">
+                {isSetupMode ? "Master Password" : "Vault Password"}
               </label>
               <div className="relative">
                 <input
@@ -446,92 +433,11 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-4 text-center">
-            <button
-              type="button"
-              onClick={() => {
-                setShowRecovery((prev) => {
-                  if (prev) {
-                    setRecoverError(null);
-                    setRecoverySecret("");
-                    setRecoverPassword("");
-                    setRecoverConfirmPassword("");
-                  }
-                  return !prev;
-                });
-              }}
-              className="inline-flex items-center gap-1 text-[10px] text-vault-text-faint hover:text-vault-text-muted transition-colors"
-            >
-              <KeyRound className="w-3 h-3" />
-              Forgot password?
-              {showRecovery ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-            </button>
-          </div>
-
-          {showRecovery && (
-            <div className="mt-3 border-t border-vault-border pt-3 space-y-3">
-              <p className="text-[10px] text-vault-text-faint leading-relaxed">
-                Enter your recovery secret (PASSWORD_RECOVERY_SECRET from your .env) to reset your vault password.
-              </p>
-
-              {recoverError && (
-                <div className="flex items-center gap-2 bg-[#E53935]/10 border border-[#E53935]/30 rounded-md px-3 py-2">
-                  <AlertCircle className="w-3.5 h-3.5 text-[#E53935] shrink-0" />
-                  <p className="text-xs text-[#E53935]">{recoverError}</p>
-                </div>
-              )}
-
-              <form onSubmit={handleRecoverReset} className="space-y-3">
-                <div>
-                  <label className={LABEL_CLASS}>Recovery Secret</label>
-                  <input
-                    type="password"
-                    value={recoverySecret}
-                    onChange={(e) => setRecoverySecret(e.target.value)}
-                    className={INPUT_CLASS}
-                    autoComplete="off"
-                    placeholder="Enter recovery secret"
-                  />
-                </div>
-                <div>
-                  <label className={LABEL_CLASS}>New Password</label>
-                  <input
-                    type="password"
-                    value={recoverPassword}
-                    onChange={(e) => setRecoverPassword(e.target.value)}
-                    className={INPUT_CLASS}
-                    autoComplete="new-password"
-                    placeholder="Min 8 characters"
-                  />
-                </div>
-                <div>
-                  <label className={LABEL_CLASS}>Confirm New Password</label>
-                  <input
-                    type="password"
-                    value={recoverConfirmPassword}
-                    onChange={(e) => setRecoverConfirmPassword(e.target.value)}
-                    className={INPUT_CLASS}
-                    autoComplete="new-password"
-                    placeholder="Re-enter new password"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={recoverBusy || !recoverySecret || !recoverPassword}
-                  className="w-full flex items-center justify-center gap-2 bg-[#E53935]/10 border border-[#E53935]/30 text-[#E53935] hover:bg-[#E53935]/20 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 rounded-md text-xs font-medium transition-colors"
-                >
-                  {recoverBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <KeyRound className="w-3.5 h-3.5" />}
-                  {recoverBusy ? "Resetting..." : "Reset Password"}
-                </button>
-              </form>
-            </div>
-          )}
-
-          {!showRecovery && (
-            <p className="text-[10px] text-vault-text-faint text-center mt-2">
-              Password can be changed in Settings
-            </p>
-          )}
+          <p className="mt-4 text-center text-[11px] text-vault-text-faint">
+            {isSetupMode
+              ? "Your data is stored locally and never leaves your system."
+              : "Password can be changed in Settings."}
+          </p>
         </div>
       </div>
     </div>

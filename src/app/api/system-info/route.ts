@@ -75,6 +75,13 @@ export async function GET() {
       dbPath = path.basename(relative);
     }
 
+    // Sort: private IPs first, then others
+    const orderedLocalIPs = [...localIPs].sort((a, b) => {
+      const aPrivate = isPrivateIPv4(a) ? 0 : 1;
+      const bPrivate = isPrivateIPv4(b) ? 0 : 1;
+      return aPrivate - bPrivate;
+    });
+
     const port = process.env.PORT ?? "3000";
     const hostname = os.hostname();
     const canonicalUrl = resolveCanonicalUrl(process.env.APP_BASE_URL);
