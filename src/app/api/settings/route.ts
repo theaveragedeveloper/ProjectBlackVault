@@ -7,6 +7,9 @@ import { enforceRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/server/client-ip";
 import { requireAuth } from "@/lib/server/auth";
 
+const CURRENCY_RE = /^[A-Z]{3}$/;
+const KEY_EXPORT_ENABLED = (process.env.ALLOW_ENCRYPTION_KEY_EXPORT ?? "").trim().toLowerCase() === "true";
+
 // GET /api/settings - Get the singleton AppSettings
 export async function GET() {
   const auth = await requireAuth();
@@ -38,8 +41,8 @@ export async function GET() {
       encryptionEnabled: !!process.env.VAULT_ENCRYPTION_KEY,
       encryptionViaEnv: !!process.env.VAULT_ENCRYPTION_KEY,
     });
-  } catch (error) {
-    console.error("GET /api/settings error:", error);
+  } catch {
+    console.error("GET /api/settings failed");
     return NextResponse.json(
       { error: "Failed to fetch settings" },
       { status: 500 }
@@ -77,7 +80,13 @@ export async function PUT(request: NextRequest) {
     updateData.googleCseSearchEngineId = null;
 
     if (defaultCurrency !== undefined) {
-      updateData.defaultCurrency = defaultCurrency;
+      if (typeof defaultCurrency !== "string" || !CURRENCY_RE.test(defaultCurrency.trim().toUpperCase())) {
+        return NextResponse.json(
+          { error: "defaultCurrency must be a 3-letter currency code (e.g. USD)" },
+          { status: 400 }
+        );
+      }
+      updateData.defaultCurrency = defaultCurrency.trim().toUpperCase();
     }
 
     if (appPassword !== undefined) {

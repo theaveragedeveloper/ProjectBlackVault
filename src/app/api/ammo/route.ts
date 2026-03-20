@@ -28,6 +28,9 @@ export async function GET() {
       {
         caliber: string;
         totalQuantity: number;
+        avgPricePerRound: number | null;
+        pricedRounds: number;
+        pricedValue: number;
         stocks: typeof stocks;
       }
     > = {};
@@ -37,11 +40,23 @@ export async function GET() {
         grouped[stock.caliber] = {
           caliber: stock.caliber,
           totalQuantity: 0,
+          avgPricePerRound: null,
+          pricedRounds: 0,
+          pricedValue: 0,
           stocks: [],
         };
       }
       grouped[stock.caliber].totalQuantity += stock.quantity;
+      if (typeof stock.purchasePrice === "number" && stock.purchasePrice > 0) {
+        grouped[stock.caliber].pricedRounds += stock.quantity;
+        grouped[stock.caliber].pricedValue += stock.quantity * stock.purchasePrice;
+      }
       grouped[stock.caliber].stocks.push(stock);
+    }
+
+    for (const group of Object.values(grouped)) {
+      group.avgPricePerRound =
+        group.pricedRounds > 0 ? group.pricedValue / group.pricedRounds : null;
     }
 
     const result = {

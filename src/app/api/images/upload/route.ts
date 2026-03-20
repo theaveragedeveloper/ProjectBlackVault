@@ -5,8 +5,10 @@ import { detectFileSignature, isHeicFamilySignature } from "@/lib/server/file-si
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/server/client-ip";
 import { requireAuth } from "@/lib/server/auth";
+import { ALLOWED_IMAGE_EXTENSIONS, SUPPORTED_IMAGE_FORMATS_LABEL } from "@/lib/image-formats";
+import { requireEntityWriteAccess, type WritableEntityType } from "@/lib/server/entity-write-access";
 
-const ALLOWED_EXTENSIONS = new Set(["jpg", "png", "webp", "avif"]);
+const ALLOWED_EXTENSIONS = new Set<string>(ALLOWED_IMAGE_EXTENSIONS);
 
 const ALLOWED_ENTITY_TYPES = new Set([
   "firearm",
@@ -14,6 +16,8 @@ const ALLOWED_ENTITY_TYPES = new Set([
   "ammo",
   "build",
 ]);
+const MAX_SIZE = 10 * 1024 * 1024;
+const SAFE_ENTITY_ID = /^[a-zA-Z0-9_-]{1,64}$/;
 
 // POST /api/images/upload - Upload an image for an entity
 // Accepts multipart form data: file, entityType, entityId
@@ -63,17 +67,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Sanitize entityId to prevent path traversal
-    const sanitizedEntityId = entityId.replace(/[^a-zA-Z0-9_-]/g, "");
-    if (!sanitizedEntityId) {
+    if (!SAFE_ENTITY_ID.test(entityId)) {
       return NextResponse.json(
         { error: "Invalid entityId" },
         { status: 400 }
       );
     }
+    const sanitizedEntityId = entityId;
+
+    const entityAccess = await requireEntityWriteAccess(
+      request,
+      entityType as WritableEntityType,
+      sanitizedEntityId
+    );
+    if (!entityAccess.ok) {
+      return entityAccess.response;
+    }
 
     // Check file size (limit to 10MB)
-    const MAX_SIZE = 10 * 1024 * 1024;
     if (file.size > MAX_SIZE) {
       return NextResponse.json(
         { error: "File too large. Maximum size is 10MB." },
@@ -97,7 +108,7 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json(
         {
-          error: `Invalid file type. Only raster formats are allowed: ${Array.from(ALLOWED_EXTENSIONS).join(", ")}`,
+          error: `Invalid file type. Supported formats: ${SUPPORTED_IMAGE_FORMATS_LABEL}.`,
         },
         { status: 400 }
       );
@@ -130,8 +141,8 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (error) {
-    console.error("POST /api/images/upload error:", error);
+  } catch {
+    console.error("POST /api/images/upload failed");
     return NextResponse.json(
       { error: "Failed to upload image" },
       { status: 500 }

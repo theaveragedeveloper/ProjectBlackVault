@@ -251,6 +251,24 @@ export default function NewAmmoStockPage() {
                 <p className="text-xs text-vault-text-faint mt-1">If entered alone, cost per round will be calculated from quantity.</p>
               </div>
               <div>
+                <label htmlFor="purchasePriceTotal" className={LABEL_CLASS}>
+                  Purchase Price (total)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-vault-text-faint text-sm">$</span>
+                  <input
+                    id="purchasePriceTotal"
+                    name="purchasePriceTotal"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="e.g. 140.00"
+                    className={`${INPUT_CLASS} pl-7`}
+                  />
+                </div>
+                <p className="text-xs text-vault-text-faint mt-1">If entered alone, price per round is calculated from quantity.</p>
+              </div>
+              <div className="sm:col-span-2">
                 <label htmlFor="purchaseDate" className={LABEL_CLASS}>
                   Purchase Date
                 </label>

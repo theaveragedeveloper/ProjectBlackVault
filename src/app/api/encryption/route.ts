@@ -9,6 +9,51 @@ import crypto from "crypto";
 import { requireAuth } from "@/lib/server/auth";
 
 const HEX_KEY_RE = /^[0-9a-fA-F]{64}$/;
+const isProduction = process.env.NODE_ENV === "production";
+
+function parseBooleanEnv(value: string | undefined): boolean {
+  return ["1", "true", "yes", "on"].includes((value ?? "").trim().toLowerCase());
+}
+
+const allowDbKeyManagement = parseBooleanEnv(process.env.ALLOW_DB_ENCRYPTION_KEY_MANAGEMENT);
+const allowKeyExport = parseBooleanEnv(process.env.ALLOW_ENCRYPTION_KEY_EXPORT);
+
+// GET /api/encryption — export the DB-stored key (not shown if set via env var)
+export async function GET() {
+  try {
+    if (isProduction && !allowKeyExport) {
+      return NextResponse.json(
+        { error: "Encryption key export is disabled in production." },
+        { status: 403 }
+      );
+    }
+
+    // Never expose a key that was set via env var — it's managed outside the app
+    if (process.env.VAULT_ENCRYPTION_KEY) {
+      return NextResponse.json(
+        { error: "Key is managed via environment variable" },
+        { status: 403, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    const settings = await prisma.appSettings.findUnique({ where: { id: "singleton" } });
+    if (!settings?.encryptionKey) {
+      return NextResponse.json(
+        { error: "No encryption key configured" },
+        { status: 404, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    return NextResponse.json(
+      { key: settings.encryptionKey },
+      { headers: { "Cache-Control": "no-store" } }
+    );
+  } catch {
+    console.error("GET /api/encryption failed");
+    return NextResponse.json({ error: "Failed to retrieve key" }, { status: 500, headers: { "Cache-Control": "no-store" } });
+  }
+}
+
 
 // POST /api/encryption — generate a new random key and save it
 export async function POST(request: NextRequest) {
@@ -16,6 +61,13 @@ export async function POST(request: NextRequest) {
   if (auth) return auth;
 
   try {
+    if (isProduction && !allowDbKeyManagement) {
+      return NextResponse.json(
+        { error: "UI key generation is disabled in production. Set VAULT_ENCRYPTION_KEY instead." },
+        { status: 403 }
+      );
+    }
+
     const ip = getClientIp(request);
     const rate = await enforceRateLimit({ key: `encryption:generate:${ip}`, windowMs: 60_000, maxAttempts: 5 });
     if (!rate.allowed) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
@@ -46,8 +98,8 @@ export async function POST(request: NextRequest) {
     clearKeyCache();
 
     return NextResponse.json({ key }, { status: 201 });
-  } catch (error) {
-    console.error("POST /api/encryption error:", error);
+  } catch {
+    console.error("POST /api/encryption failed");
     return NextResponse.json({ error: "Failed to generate key" }, { status: 500 });
   }
 }
@@ -58,6 +110,13 @@ export async function PUT(request: NextRequest) {
   if (auth) return auth;
 
   try {
+    if (isProduction && !allowDbKeyManagement) {
+      return NextResponse.json(
+        { error: "UI key management is disabled in production. Set VAULT_ENCRYPTION_KEY instead." },
+        { status: 403 }
+      );
+    }
+
     const ip = getClientIp(request);
     const rate = await enforceRateLimit({ key: `encryption:import:${ip}`, windowMs: 60_000, maxAttempts: 5 });
     if (!rate.allowed) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
@@ -102,6 +161,13 @@ export async function DELETE(request: NextRequest) {
   if (auth) return auth;
 
   try {
+    if (isProduction && !allowDbKeyManagement) {
+      return NextResponse.json(
+        { error: "UI key management is disabled in production. Set VAULT_ENCRYPTION_KEY instead." },
+        { status: 403 }
+      );
+    }
+
     const ip = getClientIp(request);
     const rate = await enforceRateLimit({ key: `encryption:delete:${ip}`, windowMs: 60_000, maxAttempts: 5 });
     if (!rate.allowed) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
@@ -122,8 +188,8 @@ export async function DELETE(request: NextRequest) {
     clearKeyCache();
 
     return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("DELETE /api/encryption error:", error);
+  } catch {
+    console.error("DELETE /api/encryption failed");
     return NextResponse.json({ error: "Failed to remove key" }, { status: 500 });
   }
 }

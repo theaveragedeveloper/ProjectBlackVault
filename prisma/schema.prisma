@@ -110,6 +110,11 @@ model Accessory {
   notes                  String?
   imageUrl               String?
   imageSource            String?
+  hasBattery             Boolean         @default(false)
+  batteryType            String?
+  batteryReplacementIntervalDays Int?
+  lastBatteryChangeDate  DateTime?
+  batteryNotes           String?
 
   // Round count persists with the accessory across all builds
   roundCount             Int             @default(0)
@@ -117,12 +122,6 @@ model Accessory {
 
   buildSlots             BuildSlot[]
   documents              Document[]
-
-  // Battery tracking
-  hasBattery             Boolean         @default(false)
-  batteryType            String?         // e.g. "CR2032", "AA"
-  batteryChangedAt       DateTime?
-  batteryIntervalDays    Int?            // how often to replace in days
 
   // Comma-separated compatible values, e.g. "RIFLE,SMG"
   compatibleFirearmTypes String?
@@ -262,6 +261,7 @@ model MaintenanceNote {
   firearmId   String
   firearm     Firearm  @relation(fields: [firearmId], references: [id], onDelete: Cascade)
   date        DateTime @default(now())
+  dueDate     DateTime?
   // type: "cleaning" | "repair" | "inspection" | "upgrade" | "other"
   type        String   @default("other")
   description String
@@ -272,6 +272,7 @@ model MaintenanceNote {
 
   @@index([firearmId])
   @@index([date])
+  @@index([dueDate])
 }
 
 // ─── MAINTENANCE SCHEDULES ────────────────────────────────────

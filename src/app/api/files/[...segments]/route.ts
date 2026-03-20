@@ -2,13 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
 import { requireAuth } from "@/lib/server/auth";
+import { IMAGE_MIME_BY_EXTENSION } from "@/lib/image-formats";
 
 const MIME_BY_EXTENSION: Record<string, string> = {
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-  png: "image/png",
-  webp: "image/webp",
-  avif: "image/avif",
+  ...IMAGE_MIME_BY_EXTENSION,
+  jpeg: IMAGE_MIME_BY_EXTENSION.jpg,
   pdf: "application/pdf",
 };
 

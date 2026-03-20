@@ -66,7 +66,7 @@ export const SLOT_TYPES = [
 
 export type SlotType = (typeof SLOT_TYPES)[number];
 
-export const SLOT_TYPE_LABELS: Record<SlotType, string> = {
+export const SLOT_TYPE_LABELS: Record<string, string> = {
   MUZZLE: "Muzzle",
   BARREL: "Barrel",
   BARREL_NUT: "Barrel Nut",

@@ -2,7 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyTokenEdge } from "@/lib/session-edge";
 import { getSessionSecret } from "@/lib/session-config";
 
-const PUBLIC_PATHS = ["/login", "/api/auth", "/api/health", "/_next", "/favicon.ico"];
+const PUBLIC_PATHS = [
+  "/login",
+  "/api/auth",
+  "/api/health",
+  "/_next",
+  "/favicon",
+  "/icons",
+  "/manifest",
+  "/apple-touch",
+  "/download",
+];
 
 // Reject oversized request bodies early (before route handlers read them).
 // 10 MB is a generous limit; individual routes may enforce tighter limits.
@@ -28,10 +38,23 @@ export async function proxy(request: NextRequest) {
     if (isApiRoute) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    return NextResponse.redirect(new URL("/login", request.url));
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("from", pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
   const sessionSecret = getSessionSecret();
+  if (!sessionSecret) {
+    if (isApiRoute) {
+      return NextResponse.json(
+        { error: "Server misconfiguration: SESSION_SECRET is required for protected API routes." },
+        { status: 500 }
+      );
+    }
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("from", pathname);
+    return NextResponse.redirect(loginUrl);
+  }
 
   const hasVersionPrefix = /^\d+:[^\s]+\./.test(session);
   const valid = hasVersionPrefix ? await verifyTokenEdge(session, sessionSecret) : false;
@@ -39,7 +62,9 @@ export async function proxy(request: NextRequest) {
     if (isApiRoute) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    return NextResponse.redirect(new URL("/login", request.url));
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("from", pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
   return NextResponse.next();
