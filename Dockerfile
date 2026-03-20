@@ -47,10 +47,6 @@ RUN apk add --no-cache libc6-compat openssl
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Create a non-root user
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
-
 # Copy standalone output
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
@@ -66,16 +62,15 @@ COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/node_modules/prisma  ./node_modules/prisma
 
 # Create persistent data directories
-RUN mkdir -p /app/data /app/uploads && \
-    chown -R nextjs:nodejs /app/data /app/uploads /app
-
-USER nextjs
+RUN mkdir -p /app/data /app/uploads
 
 EXPOSE 3000
 
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 ENV DATABASE_URL="file:/app/data/vault.db"
+ENV IMAGE_UPLOAD_DIR="/app/uploads"
+ENV SESSION_COOKIE_SECURE="auto"
 
 # Run migrations then start the server
 CMD ["sh", "-c", ". ./scripts/bootstrap-session-secret.sh && node ./node_modules/prisma/build/index.js migrate deploy && node server.js"]

@@ -19,7 +19,7 @@
   <img src="https://img.shields.io/badge/self--hosted-yes-green" alt="Self-Hosted" />
 </p>
 
----
+## 1. Project Overview
 
 ## Quick Links
 
@@ -32,7 +32,7 @@
 - [Password Recovery Secret](#password-recovery-secret-operational-guidance)
 - [Having Trouble?](#having-trouble)
 
----
+## 2. Features
 
 ## What is ProjectBlackVault?
 
@@ -230,7 +230,7 @@ npm run dev
 
 Then open your browser and go to **[http://localhost:3000](http://localhost:3000)**
 
----
+Open the `ProjectBlackVault` folder in Finder/File Explorer.
 
 ## Backup & Data Safety
 
@@ -480,7 +480,7 @@ docker compose -f docker-compose.dev.yml down
 - Launcher downloads are available on GitHub Releases.
 - Advanced package channels (like winget/homebrew tap) may not always be published for every release; if unavailable, use the direct installer download from releases.
 
----
+## 4. First Run (What to Expect)
 
 ## Data Responsibility Notice
 
@@ -512,6 +512,35 @@ You are solely responsible for all data you create, upload, store, or share thro
 
 ### Project Structure
 
+To use BlackVault on your phone:
+
+- Your phone and computer must be on the same Wi-Fi.
+- On your computer, open BlackVault and go to `Settings` -> `Network Access`.
+- Use the shown local link on your phone, for example:
+  - `http://192.168.1.42:3000`
+
+BlackVault shows this local network link in Settings so you can copy or scan it.
+
+## 6. Guided Install with ChatGPT
+
+Use this prompt with ChatGPT if you want hand-holding setup:
+
+```text
+Help me install and run BlackVault on my computer using Docker.
+
+Important instructions:
+- Assume I am non-technical.
+- Give exactly one step at a time.
+- Wait for my confirmation before moving on.
+- If I hit an error, explain the fix in plain language and keep going.
+- Help me open BlackVault at http://localhost:3000.
+- Then help me access it from my phone on the same Wi-Fi using the local network URL.
+- If needed, help me do a full clean reset safely.
+
+While we work:
+- Ask me to paste command output when useful.
+- Keep each step short and specific.
+- Do not skip checks.
 ```
 ProjectBlackVault/
 ├── electron/               # Standalone desktop app (bundles Next.js, no Docker)

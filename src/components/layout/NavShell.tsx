@@ -5,6 +5,7 @@ import { Sidebar } from "./Sidebar";
 import { MobileHeader } from "./MobileHeader";
 
 export function NavShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const handleMobileClose = useCallback(() => setMobileOpen(false), []);
   const handleMenuOpen = useCallback(() => setMobileOpen(true), []);

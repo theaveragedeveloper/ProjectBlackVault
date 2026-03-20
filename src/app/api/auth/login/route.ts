@@ -21,6 +21,29 @@ function parseBooleanEnv(value: string | undefined): boolean | undefined {
   return undefined;
 }
 
+function noStoreJson(data: unknown, status = 200) {
+  return NextResponse.json(data, {
+    status,
+    headers: {
+      "Cache-Control": "no-store",
+    },
+  });
+}
+
+function shouldUseSecureCookie(request: NextRequest): boolean {
+  const override = (process.env.SESSION_COOKIE_SECURE ?? "auto").trim().toLowerCase();
+  if (override === "true" || override === "1" || override === "yes") return true;
+  if (override === "false" || override === "0" || override === "no") return false;
+
+  const forwardedProto = request.headers
+    .get("x-forwarded-proto")
+    ?.split(",")[0]
+    ?.trim()
+    ?.toLowerCase();
+  if (forwardedProto) return forwardedProto === "https";
+  return request.nextUrl.protocol === "https:";
+}
+
 export async function POST(request: NextRequest) {
   try {
     const secret = process.env.SESSION_SECRET;
@@ -37,19 +60,20 @@ export async function POST(request: NextRequest) {
     if (!rate.allowed) {
       return NextResponse.json(
         { error: "Too many login attempts. Please wait a minute." },
-        { status: 429 }
+        429
       );
     }
 
     const { password } = await parseJsonBody(request, authSchemas.login, { maxBytes: 8 * 1024 });
 
     // Guard against DoS via enormous password strings sent to scrypt
-    if (typeof password === "string" && password.length > 1024) {
-      return NextResponse.json({ error: "Invalid password" }, { status: 401 });
+    if (normalizedPassword.length > 1024) {
+      return noStoreJson({ error: "Invalid password" }, 401);
     }
 
-    let settings = await prisma.appSettings.findUnique({
+    const settings = await prisma.appSettings.findUnique({
       where: { id: "singleton" },
+      select: { appPassword: true },
     });
 
     if (!settings) {
@@ -66,8 +90,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify password (supports both hashed and legacy plaintext)
-    if (!verifyPassword(password ?? "", settings.appPassword)) {
-      return NextResponse.json({ error: "Invalid password" }, { status: 401 });
+    if (!verifyPassword(normalizedPassword, storedPassword)) {
+      return noStoreJson({ error: "Invalid password" }, 401);
     }
 
     const token = createSessionToken(settings.sessionVersion || 1);
@@ -75,7 +99,7 @@ export async function POST(request: NextRequest) {
     const cookieStore = await cookies();
     cookieStore.set("vault_session", cookieValue, getSessionCookieOptions());
 
-    return NextResponse.json({ success: true });
+    return noStoreJson({ success: true });
   } catch (error) {
     if (error instanceof Error && (error as { status?: number }).status) {
       return validationErrorResponse(error, "Invalid login payload");

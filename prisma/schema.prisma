@@ -110,6 +110,11 @@ model Accessory {
   notes                  String?
   imageUrl               String?
   imageSource            String?
+  hasBattery             Boolean         @default(false)
+  batteryType            String?
+  batteryReplacementIntervalDays Int?
+  lastBatteryChangeDate  DateTime?
+  batteryNotes           String?
 
   // Round count persists with the accessory across all builds
   roundCount             Int             @default(0)
@@ -262,6 +267,7 @@ model MaintenanceNote {
   firearmId   String
   firearm     Firearm  @relation(fields: [firearmId], references: [id], onDelete: Cascade)
   date        DateTime @default(now())
+  dueDate     DateTime?
   // type: "cleaning" | "repair" | "inspection" | "upgrade" | "other"
   type        String   @default("other")
   description String
@@ -272,6 +278,7 @@ model MaintenanceNote {
 
   @@index([firearmId])
   @@index([date])
+  @@index([dueDate])
 }
 
 // ─── MAINTENANCE SCHEDULES ────────────────────────────────────
