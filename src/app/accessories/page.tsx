@@ -242,7 +242,7 @@ export default async function AccessoriesPage() {
                               </p>
                             </div>
                           ) : (
-                            <p className="text-xs text-vault-text-faint">Uninstalled</p>
+                            <p className="text-xs text-vault-text-faint">Not Assigned</p>
                           )}
                         </td>
 
