@@ -1,0 +1,61 @@
+name: Feature Request
+description: Suggest an idea or improvement for ProjectBlackVault
+title: "[Feature]: "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature! Please keep in mind that ProjectBlackVault is designed to be **self-hosted, offline-first, and privacy-focused**. Features that require external services or accounts are unlikely to be accepted.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the pain point or gap this feature would address.
+      placeholder: "I find it frustrating when..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Describe the solution you'd like
+      description: A clear description of what you want to happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you've considered
+      description: Have you tried any workarounds? Are there other ways to solve this?
+    validations:
+      required: false
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Which area of the app does this relate to?
+      options:
+        - Firearms inventory
+        - Ammunition tracking
+        - Range sessions
+        - Accessories / attachments
+        - Import / export
+        - Authentication / security
+        - Docker / deployment
+        - UI / design
+        - Other
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and this hasn't been requested before
+          required: true
+        - label: This feature works offline and doesn't require an external account or service
+          required: false

@@ -4,6 +4,20 @@ import { encryptField, decryptField } from "@/lib/crypto";
 import { revalidateDashboardCaches } from "@/lib/server/dashboard";
 import { validateOptionalImageUrl } from "@/lib/image-url-validation";
 import { requireAuth } from "@/lib/server/auth";
+import { requireEntityWriteAccess } from "@/lib/server/entity-write-access";
+
+function parseBatteryIntervalDays(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = parseInt(String(value), 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return parsed;
+}
+
+function parseBatteryDate(value: unknown): Date | null {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = new Date(String(value));
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
 
 // GET /api/accessories/[id] - Get a single accessory with roundCountLogs and current buildSlots
 export async function GET(
@@ -106,9 +120,16 @@ export async function PUT(
       hasBattery,
       batteryType,
       batteryIntervalDays,
+      lastBatteryChangeDate,
+      batteryNotes,
     } = body;
 
     const existing = await prisma.accessory.findUnique({ where: { id } });
+    const entityAccess = await requireEntityWriteAccess(request, "accessory", id);
+    if (!entityAccess.ok) {
+      return entityAccess.response;
+    }
+
     if (!existing) {
       return NextResponse.json(
         { error: "Accessory not found" },
@@ -148,7 +169,9 @@ export async function PUT(
         ...(compatibleCalibers !== undefined && { compatibleCalibers }),
         ...(hasBattery !== undefined && { hasBattery }),
         ...(batteryType !== undefined && { batteryType: batteryType || null }),
-        ...(batteryIntervalDays !== undefined && { batteryIntervalDays: batteryIntervalDays !== "" && batteryIntervalDays !== null ? parseInt(String(batteryIntervalDays), 10) : null }),
+        ...(batteryIntervalDays !== undefined && { batteryReplacementIntervalDays: batteryIntervalDays !== "" && batteryIntervalDays !== null ? parseInt(String(batteryIntervalDays), 10) : null }),
+        ...(lastBatteryChangeDate !== undefined && { lastBatteryChangeDate: lastBatteryChangeDate ? (() => { const d = new Date(lastBatteryChangeDate); return isNaN(d.getTime()) ? null : d; })() : null }),
+        ...(batteryNotes !== undefined && { batteryNotes: batteryNotes || null }),
       },
       include: {
         roundCountLogs: {
@@ -187,7 +210,7 @@ export async function PUT(
 
 // DELETE /api/accessories/[id] - Delete an accessory
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const auth = await requireAuth();
@@ -197,6 +220,11 @@ export async function DELETE(
     const { id } = await params;
 
     const existing = await prisma.accessory.findUnique({ where: { id } });
+    const entityAccess = await requireEntityWriteAccess(request, "accessory", id);
+    if (!entityAccess.ok) {
+      return entityAccess.response;
+    }
+
     if (!existing) {
       return NextResponse.json(
         { error: "Accessory not found" },

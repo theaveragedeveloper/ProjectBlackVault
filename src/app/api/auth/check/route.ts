@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
-import { extractSessionVersion, verifyTokenNode } from "@/lib/session";
+import { extractSessionVersion, verifyTokenNode, SESSION_COOKIE_NAME } from "@/lib/session";
 import { getSessionSecret } from "@/lib/session-config";
+import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   try {
@@ -26,9 +26,9 @@ export async function GET() {
         })()
       : false;
 
-    return NextResponse.json({ passwordRequired, authenticated });
+    return NextResponse.json({ passwordRequired, authenticated, requiresSetup: !passwordRequired });
   } catch (error) {
     console.error("GET /api/auth/check error:", error);
-    return NextResponse.json({ passwordRequired: false, authenticated: false });
+    return NextResponse.json({ passwordRequired: false, authenticated: false, requiresSetup: true });
   }
 }

@@ -1,0 +1,11 @@
+.git
+.github
+node_modules
+.next
+.claude
+launcher
+electron
+.env.local
+.blackvault.env
+*.log
+coverage

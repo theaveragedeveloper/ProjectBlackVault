@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { formatCurrency, formatNumber } from "@/lib/utils";
@@ -39,20 +39,6 @@ interface CaliberGroup {
   stocks: AmmoStock[];
 }
 
-function stockStatus(quantity: number, lowAlert?: number | null): "ok" | "low" | "critical" | "empty" {
-  if (quantity === 0) return "empty";
-  if (lowAlert && quantity <= lowAlert / 2) return "critical";
-  if (lowAlert && quantity <= lowAlert) return "low";
-  return "ok";
-}
-
-const STATUS_STYLES: Record<string, { dot: string; bar: string; text: string; bg: string; border: string }> = {
-  ok:       { dot: "bg-[#00C853]",               bar: "bg-[#00C853]",  text: "text-[#00C853]", bg: "bg-[#00C853]/10", border: "border-[#00C853]/30" },
-  low:      { dot: "bg-[#F5A623]",               bar: "bg-[#F5A623]",  text: "text-[#F5A623]", bg: "bg-[#F5A623]/10", border: "border-[#F5A623]/30" },
-  critical: { dot: "bg-[#E53935] animate-pulse", bar: "bg-[#E53935]",  text: "text-[#E53935]", bg: "bg-[#E53935]/10", border: "border-[#E53935]/30" },
-  empty:    { dot: "bg-[#E53935]",               bar: "bg-[#E53935]",  text: "text-[#E53935]", bg: "bg-[#E53935]/10", border: "border-[#E53935]/30" },
-};
-
 function avgPricePerRound(stocks: AmmoStock[]): number | null {
   let pricedRounds = 0;
   let pricedValue = 0;
@@ -67,6 +53,20 @@ function avgPricePerRound(stocks: AmmoStock[]): number | null {
   if (pricedRounds === 0) return null;
   return pricedValue / pricedRounds;
 }
+
+function stockStatus(quantity: number, lowAlert?: number | null): "ok" | "low" | "critical" | "empty" {
+  if (quantity === 0) return "empty";
+  if (lowAlert && quantity <= lowAlert / 2) return "critical";
+  if (lowAlert && quantity <= lowAlert) return "low";
+  return "ok";
+}
+
+const STATUS_STYLES: Record<string, { dot: string; bar: string; text: string; bg: string; border: string }> = {
+  ok:       { dot: "bg-[#00C853]",               bar: "bg-[#00C853]",  text: "text-[#00C853]", bg: "bg-[#00C853]/10", border: "border-[#00C853]/30" },
+  low:      { dot: "bg-[#F5A623]",               bar: "bg-[#F5A623]",  text: "text-[#F5A623]", bg: "bg-[#F5A623]/10", border: "border-[#F5A623]/30" },
+  critical: { dot: "bg-[#E53935] animate-pulse", bar: "bg-[#E53935]",  text: "text-[#E53935]", bg: "bg-[#E53935]/10", border: "border-[#E53935]/30" },
+  empty:    { dot: "bg-[#E53935]",               bar: "bg-[#E53935]",  text: "text-[#E53935]", bg: "bg-[#E53935]/10", border: "border-[#E53935]/30" },
+};
 
 const CALIBER_TEXT_COLORS: Record<string, string> = {
   ok:       "text-[#00C853]",
@@ -437,10 +437,17 @@ export default function AmmoPage() {
   const [editModal, setEditModal] = useState<AmmoStock | null>(null);
 
   const fetchAmmo = useCallback(async () => {
-    const res = await fetch("/api/ammo");
-    const data = await res.json();
-    setGroups(data.grouped ?? []);
-    setLoading(false);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/ammo");
+      const data = await res.json() as { grouped?: CaliberGroup[]; error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Failed to load ammo");
+      setGroups(data.grouped ?? []);
+    } catch (err) {
+      console.error("Failed to fetch ammo:", err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -716,7 +723,7 @@ export default function AmmoPage() {
                               </button>
                               {stock.purchasePrice && (
                                 <span className="text-[10px] text-vault-text-faint font-mono ml-auto">
-                                  {formatCurrency(stock.purchasePrice)}
+                                  {formatCurrency(stock.purchasePrice)}/rd
                                 </span>
                               )}
                             </div>

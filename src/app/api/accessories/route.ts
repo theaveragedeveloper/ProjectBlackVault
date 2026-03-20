@@ -7,6 +7,19 @@ import { requireAuth } from "@/lib/server/auth";
 
 const BATTERY_TRACKED_SLOT_TYPES = new Set(["OPTIC", "LIGHT", "LASER"]);
 
+function parseBatteryIntervalDays(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = parseInt(String(value), 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return parsed;
+}
+
+function parseBatteryDate(value: unknown): Date | null {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = new Date(String(value));
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 // GET /api/accessories - List all accessories with current build name
 export async function GET(request: NextRequest) {
   const auth = await requireAuth();
@@ -95,6 +108,8 @@ export async function POST(request: NextRequest) {
       hasBattery,
       batteryType,
       batteryIntervalDays,
+      lastBatteryChangeDate,
+      batteryNotes,
     } = body;
 
     const imageValidation = validateOptionalImageUrl(imageUrl);
@@ -134,11 +149,15 @@ export async function POST(request: NextRequest) {
         compatibleCalibers: compatibleCalibers ?? null,
         hasBattery: shouldEnableBattery,
         batteryType: shouldEnableBattery ? batteryType ?? null : null,
-        batteryIntervalDays: shouldEnableBattery
+        batteryReplacementIntervalDays: shouldEnableBattery
           ? batteryIntervalDays !== undefined && batteryIntervalDays !== null && batteryIntervalDays !== ""
             ? parseInt(String(batteryIntervalDays), 10)
             : null
           : null,
+        lastBatteryChangeDate: shouldEnableBattery && lastBatteryChangeDate
+          ? (() => { const d = new Date(lastBatteryChangeDate); return isNaN(d.getTime()) ? null : d; })()
+          : null,
+        batteryNotes: shouldEnableBattery ? batteryNotes ?? null : null,
       },
     });
 

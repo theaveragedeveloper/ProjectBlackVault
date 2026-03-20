@@ -1,9 +1,14 @@
 "use client";
 
-import { useRef, useState } from "react";
-import Image from "next/image";
+import { useRef, useState, useEffect } from "react";
 import { isAllowedImageUrlForStorage, IMAGE_URL_ALLOWLIST_ERROR } from "@/lib/image-url-validation";
 import { allowExternalImageUrls } from "@/lib/network-policy";
+import {
+  ALLOWED_IMAGE_MIME_TYPES,
+  SUPPORTED_IMAGE_FORMATS_LABEL,
+  IMAGE_PICKER_ACCEPT,
+} from "@/lib/image-formats";
+import Image from "next/image";
 import { Camera, Link, Loader2, X, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
 
 interface ImagePickerProps {
@@ -13,15 +18,6 @@ interface ImagePickerProps {
   onChange: (url: string | null, source: string | null) => void;
 }
 
-const ACCEPTED_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/gif",
-  "image/webp",
-  "image/avif",
-  "image/heic",
-  "image/heif",
-];
 const HEIC_TYPES = new Set(["image/heic", "image/heif"]);
 const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
 
@@ -74,11 +70,15 @@ export default function ImagePicker({
   const [urlInput, setUrlInput] = useState("");
   const externalUrlEntryAllowed = allowExternalImageUrls();
 
+  useEffect(() => {
+    setPreview(currentUrl ?? null);
+  }, [currentUrl]);
+
   async function handleFile(file: File) {
     setError(null);
 
-    if (!ACCEPTED_TYPES.includes(file.type)) {
-      setError("Only JPG, PNG, GIF, WebP, AVIF, and phone HEIC/HEIF photos are supported.");
+    if (!ALLOWED_IMAGE_MIME_TYPES.includes(file.type as (typeof ALLOWED_IMAGE_MIME_TYPES)[number]) && !HEIC_TYPES.has(file.type)) {
+      setError(`Only ${SUPPORTED_IMAGE_FORMATS_LABEL} and phone HEIC/HEIF photos are supported.`);
       return;
     }
     if (file.size > MAX_BYTES) {
@@ -96,7 +96,7 @@ export default function ImagePicker({
       fd.append("entityId", entityId ?? tempId.current);
 
       const res = await fetch("/api/images/upload", { method: "POST", body: fd });
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
 
       if (!res.ok) {
         setError(json.error ?? "Upload failed. Please try again.");
@@ -127,12 +127,14 @@ export default function ImagePicker({
   }
 
   function handleRemove() {
+    setError(null);
     setPreview(null);
     setUrlInput("");
     onChange(null, null);
   }
 
   function handleUrlApply() {
+    setError(null);
     const url = urlInput.trim();
     if (!url) return;
 
@@ -152,16 +154,14 @@ export default function ImagePicker({
       {/* Preview */}
       {preview ? (
         <div className="relative rounded-md overflow-hidden border border-vault-border bg-vault-bg">
-          <Image
+          <img
             src={preview}
             alt="Preview"
-            width={1200}
-            height={800}
+            loading="lazy"
             className="w-full max-h-48 h-auto object-contain"
             onError={() => {
               setError("Could not load this image URL. Please check the link.");
             }}
-            unoptimized
           />
           <button
             type="button"
@@ -194,7 +194,7 @@ export default function ImagePicker({
                   Click to choose, or drag and drop. iPhone/Android photos are supported and may be auto-converted.
                 </p>
                 <p className="text-[10px] text-vault-text-faint mt-1 font-mono">
-                  JPG · PNG · GIF · WebP · AVIF · HEIC/HEIF &nbsp;·&nbsp; Max 10 MB
+                  JPG · PNG · WebP · AVIF · HEIC/HEIF &nbsp;·&nbsp; Max 10 MB
                 </p>
               </div>
             </>
@@ -205,7 +205,7 @@ export default function ImagePicker({
       <input
         ref={fileInputRef}
         type="file"
-        accept={ACCEPTED_TYPES.join(",")}
+        accept={IMAGE_PICKER_ACCEPT}
         className="hidden"
         onChange={handleFileInput}
       />

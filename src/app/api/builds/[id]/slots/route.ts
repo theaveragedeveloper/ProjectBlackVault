@@ -17,8 +17,6 @@ function isCustomSlotType(slotType: string): boolean {
 
 // PUT /api/builds/[id]/slots - Assign or remove an accessory from a slot
 // Body: { slotType: string, accessoryId: string | null }
-// Creates the slot if it doesn't exist for this build, updates if it does.
-// When assigning an accessory, checks it's not already in another active slot.
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

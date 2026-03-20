@@ -35,6 +35,7 @@ interface Accessory {
   caliber: string | null;
   roundCount: number;
   imageUrl: string | null;
+  imageSource: string | null;
   purchasePrice: number | null;
   notes: string | null;
 }
@@ -102,8 +103,8 @@ function AccessoryEditModal({ accessory, onClose, onSaved }: AccessoryEditModalP
     model: accessory.model ?? "",
     caliber: accessory.caliber ?? "",
     purchasePrice: accessory.purchasePrice != null ? String(accessory.purchasePrice) : "",
-    imageUrl: accessory.imageUrl ?? "",
-    imageSource: accessory.imageUrl ? "url" : null,
+    imageUrl: accessory.imageUrl,
+    imageSource: accessory.imageSource,
     notes: accessory.notes ?? "",
   });
   const [saving, setSaving] = useState(false);
@@ -126,8 +127,8 @@ function AccessoryEditModal({ accessory, onClose, onSaved }: AccessoryEditModalP
           model: form.model.trim() || null,
           caliber: form.caliber.trim() || null,
           purchasePrice: form.purchasePrice ? parseFloat(form.purchasePrice) : null,
-          imageUrl: form.imageUrl.trim() || null,
-          imageSource: form.imageUrl.trim() ? form.imageSource : null,
+          imageUrl: form.imageUrl,
+          imageSource: form.imageSource,
           notes: form.notes.trim() || null,
         }),
       });
@@ -239,19 +240,13 @@ function AccessoryEditModal({ accessory, onClose, onSaved }: AccessoryEditModalP
 
           <div>
             <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">
-              Image
+              Photo
             </label>
             <ImagePicker
               entityType="accessory"
               entityId={accessory.id}
-              currentUrl={form.imageUrl || null}
-              onChange={(url, source) =>
-                setForm((f) => ({
-                  ...f,
-                  imageUrl: url ?? "",
-                  imageSource: source,
-                }))
-              }
+              currentUrl={form.imageUrl}
+              onChange={(url, source) => setForm((f) => ({ ...f, imageUrl: url, imageSource: source }))}
             />
           </div>
 
@@ -315,7 +310,7 @@ function AccessoryBrowserModal({
   const [assignError, setAssignError] = useState<string | null>(null);
 
   const [view, setView] = useState<"browse" | "create">("browse");
-  const [form, setForm] = useState({ name: "", manufacturer: "", model: "", caliber: "", purchasePrice: "", imageUrl: "", imageSource: null as string | null });
+  const [form, setForm] = useState({ name: "", manufacturer: "", model: "", caliber: "", purchasePrice: "", imageUrl: null as string | null, imageSource: null as string | null });
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -386,8 +381,8 @@ function AccessoryBrowserModal({
           type: slotType,
           caliber: form.caliber.trim() || undefined,
           purchasePrice: form.purchasePrice ? parseFloat(form.purchasePrice) : undefined,
-          imageUrl: form.imageUrl.trim() || undefined,
-          imageSource: form.imageUrl.trim() ? form.imageSource : undefined,
+          imageUrl: form.imageUrl ?? undefined,
+          imageSource: form.imageSource ?? undefined,
           hasBattery: ["OPTIC", "LIGHT", "LASER"].includes(slotType),
         }),
       });
@@ -623,18 +618,12 @@ function AccessoryBrowserModal({
                   <input type="number" value={form.purchasePrice} onChange={e => setForm(f => ({...f, purchasePrice: e.target.value}))}
                     className={FIELD_CLASS} placeholder="0.00" />
                 </div>
-                <div className="sm:col-span-2">
-                  <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Image</label>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Photo</label>
                   <ImagePicker
                     entityType="accessory"
-                    currentUrl={form.imageUrl || null}
-                    onChange={(url, source) =>
-                      setForm((f) => ({
-                        ...f,
-                        imageUrl: url ?? "",
-                        imageSource: source,
-                      }))
-                    }
+                    currentUrl={form.imageUrl}
+                    onChange={(url, source) => setForm(f => ({ ...f, imageUrl: url, imageSource: source }))}
                   />
                 </div>
               </div>

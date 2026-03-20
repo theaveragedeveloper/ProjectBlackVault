@@ -31,7 +31,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     const updated = await prisma.accessory.update({
       where: { id },
-      data: { batteryChangedAt: changedAt },
+      data: { lastBatteryChangeDate: changedAt },
     });
 
     revalidateDashboardCaches(["accessories"]);
