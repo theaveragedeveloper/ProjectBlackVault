@@ -318,7 +318,7 @@ export default function SettingsPage() {
                 </button>
               </div>
               <p className="text-xs text-vault-text-faint mt-1">
-                Note: This is a simple access restriction, not end-to-end encryption.
+                Note: Password setting is saved but enforcement requires the auth system (not active in this build).
               </p>
             </div>
           </fieldset>
