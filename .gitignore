@@ -15,7 +15,13 @@
 
 # next.js
 /.next/
+/.next.bak*/
 /out/
+
+# local data & secrets
+/data/
+session-secret
+*.local
 
 # production
 /build
