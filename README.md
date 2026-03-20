@@ -45,6 +45,8 @@ This is the standard way to run ProjectBlackVault. The installer builds the Dock
 
 > No coding experience required. The installer handles everything else.
 
+> **Apple Silicon (M1/M2/M3/M4):** Fully supported. The installer builds natively for your chip — no extra steps needed.
+
 ---
 
 ### macOS / Linux
@@ -187,6 +189,20 @@ Look for error messages near the bottom of the output. A common cause is that th
 - Make sure your phone is on the same Wi-Fi network, not mobile data
 - Make sure you are using your computer's local IP address — not `127.0.0.1` or `localhost`
 - Check that your computer's firewall is not blocking port 3000
+
+### "Container crashes on Apple Silicon with a Prisma/engine error"
+
+This can happen if you pulled a pre-built x86_64 image. Run the following to rebuild natively for your chip:
+
+```bash
+docker compose --env-file .blackvault.env build --no-cache
+```
+
+Then start the container:
+
+```bash
+docker compose --env-file .blackvault.env up -d
+```
 
 ---
 
