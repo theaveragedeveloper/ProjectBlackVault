@@ -139,6 +139,17 @@ docker compose up -d
 
 ---
 
+## 🔄 Updating to a New Version
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+Your data is preserved automatically.
+
+---
+
 ## 🧪 Local Development (Advanced)
 
 Only needed if you want to modify the app.
