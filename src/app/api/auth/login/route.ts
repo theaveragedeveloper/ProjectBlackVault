@@ -11,15 +11,6 @@ import { getClientIp } from "@/lib/server/client-ip";
 
 const MAX_ATTEMPTS = 10;
 const WINDOW_MS = 60 * 1000;
-const MAX_TRACKED_IPS = 5000;
-
-function parseBooleanEnv(value: string | undefined): boolean | undefined {
-  if (value === undefined) return undefined;
-  const normalized = value.trim().toLowerCase();
-  if (["1", "true", "yes", "on"].includes(normalized)) return true;
-  if (["0", "false", "no", "off"].includes(normalized)) return false;
-  return undefined;
-}
 
 function noStoreJson(data: unknown, status = 200) {
   return NextResponse.json(data, {
@@ -28,20 +19,6 @@ function noStoreJson(data: unknown, status = 200) {
       "Cache-Control": "no-store",
     },
   });
-}
-
-function shouldUseSecureCookie(request: NextRequest): boolean {
-  const override = (process.env.SESSION_COOKIE_SECURE ?? "auto").trim().toLowerCase();
-  if (override === "true" || override === "1" || override === "yes") return true;
-  if (override === "false" || override === "0" || override === "no") return false;
-
-  const forwardedProto = request.headers
-    .get("x-forwarded-proto")
-    ?.split(",")[0]
-    ?.trim()
-    ?.toLowerCase();
-  if (forwardedProto) return forwardedProto === "https";
-  return request.nextUrl.protocol === "https:";
 }
 
 export async function POST(request: NextRequest) {
@@ -91,7 +68,7 @@ export async function POST(request: NextRequest) {
 
     // Verify password
     const storedPassword = settings.appPassword;
-    const passwordValid = await verifyPassword(password, storedPassword);
+    const passwordValid = verifyPassword(password, storedPassword);
     if (!passwordValid) {
       return noStoreJson({ error: "Invalid password" }, 401);
     }
