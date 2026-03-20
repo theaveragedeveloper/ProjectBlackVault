@@ -68,21 +68,6 @@ const STATUS_STYLES: Record<string, { dot: string; bar: string; text: string; bg
   empty:    { dot: "bg-[#E53935]",               bar: "bg-[#E53935]",  text: "text-[#E53935]", bg: "bg-[#E53935]/10", border: "border-[#E53935]/30" },
 };
 
-function avgPricePerRound(stocks: AmmoStock[]): number | null {
-  let pricedRounds = 0;
-  let pricedValue = 0;
-
-  for (const stock of stocks) {
-    if (stock.purchasePrice !== null && stock.purchasePrice !== undefined && stock.purchasePrice > 0) {
-      pricedRounds += stock.quantity;
-      pricedValue += stock.quantity * stock.purchasePrice;
-    }
-  }
-
-  if (pricedRounds === 0) return null;
-  return pricedValue / pricedRounds;
-}
-
 const CALIBER_TEXT_COLORS: Record<string, string> = {
   ok:       "text-[#00C853]",
   low:      "text-[#F5A623]",

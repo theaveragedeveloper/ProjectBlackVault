@@ -35,6 +35,8 @@ import {
   Package,
   Wrench,
   Award,
+  Battery,
+  CheckCircle2,
 } from "lucide-react";
 
 const DEFAULT_ORDER = ["stats", "range-sessions", "personal-records", "maintenance-due", "low-ammo", "recent", "ammo-summary"];

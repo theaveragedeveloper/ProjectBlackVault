@@ -60,20 +60,20 @@ export async function POST(request: NextRequest) {
     if (!rate.allowed) {
       return NextResponse.json(
         { error: "Too many login attempts. Please wait a minute." },
-        429
+        { status: 429 }
       );
     }
 
     const { password } = await parseJsonBody(request, authSchemas.login, { maxBytes: 8 * 1024 });
 
     // Guard against DoS via enormous password strings sent to scrypt
-    if (normalizedPassword.length > 1024) {
+    if (!password || password.length > 1024) {
       return noStoreJson({ error: "Invalid password" }, 401);
     }
 
-    const settings = await prisma.appSettings.findUnique({
+    let settings = await prisma.appSettings.findUnique({
       where: { id: "singleton" },
-      select: { appPassword: true },
+      select: { appPassword: true, sessionVersion: true },
     });
 
     if (!settings) {
@@ -89,8 +89,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    // Verify password (supports both hashed and legacy plaintext)
-    if (!verifyPassword(normalizedPassword, storedPassword)) {
+    // Verify password
+    const storedPassword = settings.appPassword;
+    const passwordValid = await verifyPassword(password, storedPassword);
+    if (!passwordValid) {
       return noStoreJson({ error: "Invalid password" }, 401);
     }
 

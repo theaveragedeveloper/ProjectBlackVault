@@ -100,6 +100,8 @@ interface RangeSession {
   groupSizeMoa: number | null;
   numberOfGroups: number | null;
   groupNotes: string | null;
+  buildId: string | null;
+  build?: { id: string; name: string } | null;
   sessionFirearms: SessionFirearm[];
   sessionDrills: SessionDrill[];
   ammoLinks: AmmoLink[];

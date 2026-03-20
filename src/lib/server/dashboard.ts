@@ -122,8 +122,8 @@ async function getDashboardAggregatesUncached() {
       orderBy: { createdAt: "asc" },
     }),
     prisma.accessory.findMany({
-      where: { hasBattery: true, batteryIntervalDays: { not: null } },
-      select: { id: true, name: true, batteryChangedAt: true, batteryIntervalDays: true },
+      where: { hasBattery: true, batteryReplacementIntervalDays: { not: null } },
+      select: { id: true, name: true, lastBatteryChangeDate: true, batteryReplacementIntervalDays: true },
     }),
     prisma.sessionFirearm.groupBy({
       by: ["firearmId"],
@@ -205,10 +205,10 @@ async function getDashboardAggregatesUncached() {
       };
     }),
     ...batteriesTracked.map((a) => {
-      const base = a.batteryChangedAt ? new Date(a.batteryChangedAt) : null;
+      const base = a.lastBatteryChangeDate ? new Date(a.lastBatteryChangeDate) : null;
       const daysUntilDue =
-        base && a.batteryIntervalDays
-          ? Math.ceil((base.getTime() + a.batteryIntervalDays * 86400000 - now) / 86400000)
+        base && a.batteryReplacementIntervalDays
+          ? Math.ceil((base.getTime() + a.batteryReplacementIntervalDays * 86400000 - now) / 86400000)
           : null;
       return {
         id: `battery-${a.id}`,
