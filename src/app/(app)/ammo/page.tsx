@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { formatCurrency, formatNumber } from "@/lib/utils";
@@ -435,6 +435,20 @@ export default function AmmoPage() {
   const [addModal, setAddModal] = useState<AmmoStock | null>(null);
   const [logModal, setLogModal] = useState<AmmoStock | null>(null);
   const [editModal, setEditModal] = useState<AmmoStock | null>(null);
+
+  const fetchAmmo = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/ammo");
+      const data = await res.json() as { grouped?: CaliberGroup[]; error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Failed to load ammo");
+      setGroups(data.grouped ?? []);
+    } catch (err) {
+      console.error("Failed to fetch ammo:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
