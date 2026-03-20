@@ -59,3 +59,31 @@ prisma/prisma/
 # Electron launcher build artifacts
 /launcher/node_modules/
 /launcher/dist/
+
+# Local app env/secrets
+.blackvault.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Electron artifacts
+/electron/node_modules/
+/electron/dist/
+/electron/out/
+/electron/release/
+
+# Local runtime data and backups
+*.sqlite
+*.sqlite-journal
+*.db-wal
+*.db-shm
+*.bak
+# Signing artifacts and certificate exports
+*.p12
+*.pfx
+*.cer
+*.key
+*.mobileprovision
+.signing/
+
