@@ -119,7 +119,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const rounds = parsedFirearms.reduce((sum, entry) => sum + entry.roundsFired, 0);
 
     const parseFloat_ = (v: unknown) => {
       if (v === null || v === undefined || v === "") return null;

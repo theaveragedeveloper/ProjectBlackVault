@@ -1,5 +1,5 @@
 {
-  "name": "blackvault-temp",
+  "name": "project-black-vault",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -18,7 +18,10 @@
     "check:merge-conflicts": "./scripts/check-merge-conflicts.sh",
     "electron:dev": "npm run build && cd electron && npm install && electron .",
     "electron:build": "npm run build && cd electron && npm install && npm run build",
-    "release": "node -e \"const v=require('./electron/package.json').version;require('child_process').execSync('git tag v'+v+' && git push origin v'+v,{stdio:'inherit'})\""
+    "release": "node -e \"const v=require('./electron/package.json').version;require('child_process').execSync('git tag v'+v+' && git push origin v'+v,{stdio:'inherit'})\"",
+    "electron:install": "npm --prefix electron ci",
+    "electron:dist": "npm run build && npm run electron:install && npm --prefix electron run dist",
+    "release:tag": "npm run release"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -72,5 +75,23 @@
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
-  }
+  },
+  "description": "Private, offline-first, self-hosted firearms inventory, ammo, maintenance, and training tracker.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/theaveragedeveloper/ProjectBlackVault.git"
+  },
+  "homepage": "https://github.com/theaveragedeveloper/ProjectBlackVault",
+  "bugs": {
+    "url": "https://github.com/theaveragedeveloper/ProjectBlackVault/issues"
+  },
+  "keywords": [
+    "self-hosted",
+    "inventory",
+    "home-server",
+    "firearms",
+    "tracking",
+    "offline-first"
+  ]
 }

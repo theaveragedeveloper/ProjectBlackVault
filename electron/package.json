@@ -14,7 +14,8 @@
   },
   "devDependencies": {
     "electron": "^33.0.0",
-    "electron-builder": "^25.0.0"
+    "electron-builder": "^25.0.0",
+    "@electron/notarize": "^2.5.0"
   },
   "build": {
     "appId": "io.github.theaveragedeveloper.projectblackvault",
@@ -22,9 +23,18 @@
     "icon": "../launcher/assets/icon.png",
     "copyright": "Copyright © 2025 theaveragedeveloper",
     "extraResources": [
-      { "from": "../.next/standalone", "to": "app" },
-      { "from": "../.next/static",     "to": "app/.next/static" },
-      { "from": "../public",           "to": "app/public" }
+      {
+        "from": "../.next/standalone",
+        "to": "app"
+      },
+      {
+        "from": "../.next/static",
+        "to": "app/.next/static"
+      },
+      {
+        "from": "../public",
+        "to": "app/public"
+      }
     ],
     "files": [
       "main.js",

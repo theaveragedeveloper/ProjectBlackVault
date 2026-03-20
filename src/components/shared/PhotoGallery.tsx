@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { Camera, Plus, Star, Trash2, Loader2, AlertCircle } from "lucide-react";
 
 interface Photo {
@@ -224,10 +225,13 @@ export default function PhotoGallery({
               key={photo.id}
               className="relative group aspect-square rounded-md overflow-hidden border border-vault-border bg-vault-bg"
             >
-              <img
+              <Image
                 src={photo.url}
                 alt="Photo"
-                className="w-full h-full object-cover"
+                fill
+                sizes="(max-width: 640px) 33vw, 25vw"
+                className="object-cover"
+                unoptimized
               />
 
               {/* Primary badge */}
