@@ -153,29 +153,72 @@ fi
 
 echo "Configuration written to .blackvault.env"
 
-# ── Pull and start ────────────────────────────────────────────
+# ── Pull image (build locally if no published image is available) ──
 echo ""
 echo "Pulling latest BlackVault image..."
-$COMPOSE --env-file .blackvault.env pull
+if ! $COMPOSE --env-file .blackvault.env pull 2>&1; then
+  echo ""
+  echo "  No pre-built image found — building locally."
+  echo "  This takes a few minutes on first install; subsequent starts are instant."
+  echo ""
+  $COMPOSE --env-file .blackvault.env build
+fi
 
 echo ""
 echo "Starting BlackVault..."
 $COMPOSE --env-file .blackvault.env up -d
 
+# ── Wait for healthy status (up to 90 s) ─────────────────────
 echo ""
-echo "Waiting for BlackVault to be ready..."
-MAX_RETRIES=15
-for i in $(seq 1 $MAX_RETRIES); do
-  if wget -qO- "http://localhost:${PORT}/api/health" 2>/dev/null | grep -q '"ok"'; then
-    echo "BlackVault is ready."
+echo "Waiting for BlackVault to start (up to 90 seconds)..."
+
+_fail_with_logs() {
+  local reason="$1"
+  echo ""
+  echo "╔══════════════════════════════════════════════════════════╗"
+  echo "║  ERROR: $reason"
+  echo "╚══════════════════════════════════════════════════════════╝"
+  echo ""
+  echo "Container logs:"
+  echo "───────────────────────────────────────────────────────────"
+  $COMPOSE --env-file .blackvault.env logs --tail=60
+  echo "───────────────────────────────────────────────────────────"
+  echo ""
+  echo "  Common causes:"
+  echo "    - Database migration failed (search logs above for 'Error')"
+  echo "    - Port $PORT already in use by another process"
+  echo "    - Insufficient disk space or permissions in $DATA_DIR"
+  echo ""
+  echo "  To clean up and retry:"
+  echo "    $COMPOSE --env-file .blackvault.env down"
+  echo "    ./install.sh"
+  exit 1
+}
+
+ATTEMPTS=0
+MAX_ATTEMPTS=45   # 45 × 2 s = 90 s
+
+while true; do
+  PS_OUT=$($COMPOSE --env-file .blackvault.env ps 2>/dev/null)
+
+  if echo "$PS_OUT" | grep -q "(healthy)"; then
+    echo ""
+    echo "BlackVault is healthy."
     break
   fi
-  if [ "$i" -eq "$MAX_RETRIES" ]; then
-    echo "Still starting — check logs with:"
-    echo "  $COMPOSE --env-file .blackvault.env logs -f"
-  else
-    sleep 2
+
+  # Fail fast on crash-loop or clean exit with error
+  if echo "$PS_OUT" | grep -qE "Restarting|Exit [^0]|exited \([^0]\)"; then
+    _fail_with_logs "BlackVault failed to start (crash loop detected)"
   fi
+
+  ATTEMPTS=$((ATTEMPTS + 1))
+  if [ "$ATTEMPTS" -ge "$MAX_ATTEMPTS" ]; then
+    _fail_with_logs "BlackVault did not become healthy within 90 seconds"
+  fi
+
+  printf "."
+  sleep 2
 done
 
 # ── Summary ───────────────────────────────────────────────────
