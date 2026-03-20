@@ -14,6 +14,7 @@
     "db:seed": "prisma db seed",
     "db:reset": "prisma migrate reset",
     "typecheck": "tsc --noEmit",
+    "verify:fresh": "bash scripts/verify-fresh.sh",
     "ci:quality-gate": "node scripts/quality-gate.mjs",
     "check:merge-conflicts": "./scripts/check-merge-conflicts.sh",
     "electron:dev": "npm run build && cd electron && npm install && electron .",
