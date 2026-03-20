@@ -108,6 +108,8 @@ export async function POST(request: NextRequest) {
       hasBattery,
       batteryType,
       batteryIntervalDays,
+      lastBatteryChangeDate,
+      batteryNotes,
     } = body;
 
     const imageValidation = validateOptionalImageUrl(imageUrl);
@@ -147,11 +149,15 @@ export async function POST(request: NextRequest) {
         compatibleCalibers: compatibleCalibers ?? null,
         hasBattery: shouldEnableBattery,
         batteryType: shouldEnableBattery ? batteryType ?? null : null,
-        batteryIntervalDays: shouldEnableBattery
+        batteryReplacementIntervalDays: shouldEnableBattery
           ? batteryIntervalDays !== undefined && batteryIntervalDays !== null && batteryIntervalDays !== ""
             ? parseInt(String(batteryIntervalDays), 10)
             : null
           : null,
+        lastBatteryChangeDate: shouldEnableBattery && lastBatteryChangeDate
+          ? (() => { const d = new Date(lastBatteryChangeDate); return isNaN(d.getTime()) ? null : d; })()
+          : null,
+        batteryNotes: shouldEnableBattery ? batteryNotes ?? null : null,
       },
     });
 

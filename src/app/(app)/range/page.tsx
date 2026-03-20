@@ -144,7 +144,6 @@ export default function RangeSessionPage() {
   const [weatherNotes, setWeatherNotes] = useState<string>("");
 
   // Drills
-  const [drillTemplates, setDrillTemplates] = useState<DrillTemplate[]>([]);
   const [showDrillFieldset, setShowDrillFieldset] = useState(false);
   const [inlineDrills, setInlineDrills] = useState<InlineDrill[]>([]);
   const [addingDrill, setAddingDrill] = useState(false);
@@ -165,7 +164,7 @@ export default function RangeSessionPage() {
   const [groupSizeIn, setGroupSizeIn] = useState<string>("");
   const [numberOfGroups, setNumberOfGroups] = useState<string>("");
   const [groupNotes, setGroupNotes] = useState<string>("");
-  const [sessionDrills, setSessionDrills] = useState<DrillDraft[]>([]);
+  const [sessionDrills, setSessionDrills] = useState<InlineDrill[]>([]);
 
   const [loadingFirearms, setLoadingFirearms] = useState(true);
   const [loadingBuilds, setLoadingBuilds] = useState(false);
@@ -176,9 +175,10 @@ export default function RangeSessionPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [createdSessionId, setCreatedSessionId] = useState<string | null>(null);
-  const [successDetails, setSuccessDetails] = useState<{ accessories: string[]; ammoLeft: string[] }>({
+  const [successDetails, setSuccessDetails] = useState<{ accessories: string[]; ammoLeft: string[]; drillCount: number }>({
     accessories: [],
     ammoLeft: [],
+    drillCount: 0,
   });
 
   // MOA auto-computed
@@ -470,7 +470,7 @@ export default function RangeSessionPage() {
         }
       }
 
-      setSuccessDetails({ accessories: results, ammoLeft, drillCount: drillsPayload.length });
+      setSuccessDetails({ accessories: results, ammoLeft, drillCount: inlineDrills.length });
       setSuccess(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Session log failed");
