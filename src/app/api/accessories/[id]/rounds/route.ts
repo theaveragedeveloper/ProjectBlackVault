@@ -41,7 +41,7 @@ export async function POST(
     }
 
     const previousCount = accessory.roundCount;
-    const newCount = previousCount + rounds;
+    const newCount = Math.max(0, previousCount + rounds);
 
     // Use a transaction to atomically update roundCount and create the log
     const [updatedAccessory, log] = await prisma.$transaction([
