@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+/node_modules_old
 /.pnp
 .pnp.*
 .yarn/*
@@ -49,35 +50,33 @@ prisma/prisma/
 
 # User uploads
 /uploads/
+/data/
+/data-dev/
 
-# Electron launcher build artifacts
+# local generated config/secrets
+.blackvault.env
+prisma/session-secret
+
+# local Next.js backup artifacts
+.next.bak.*/
+
+# launcher/electron artifacts (kept ignored even though desktop is not V1 primary)
 /launcher/node_modules/
 /launcher/dist/
-
-# Local app env/secrets
-.blackvault.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# Electron artifacts
 /electron/node_modules/
 /electron/dist/
 /electron/out/
 /electron/release/
 
-# Local runtime data and backups
+# local runtime data/signing artifacts
 *.sqlite
 *.sqlite-journal
 *.db-wal
 *.db-shm
 *.bak
-# Signing artifacts and certificate exports
 *.p12
 *.pfx
 *.cer
 *.key
 *.mobileprovision
 .signing/
-

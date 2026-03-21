@@ -1,28 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { revalidateDashboardCaches } from "@/lib/server/dashboard";
-import { requireAuth } from "@/lib/server/auth";
-
-type FirearmPayload = {
-  firearmId?: unknown;
-  roundsFired?: unknown;
-  buildId?: unknown;
-};
-
-const firearmInclude = {
-  sessionFirearms: {
-    include: {
-      firearm: { select: { id: true, name: true, caliber: true } },
-      build: { select: { id: true, name: true } },
-    }
-  },
-};
 
 // GET /api/range-sessions - List range sessions, optional ?firearmId= filter, ?include=analytics
 export async function GET(request: NextRequest) {
-  const auth = await requireAuth();
-  if (auth) return auth;
-
   try {
     const { searchParams } = new URL(request.url);
     const firearmId = searchParams.get("firearmId");
@@ -31,9 +11,10 @@ export async function GET(request: NextRequest) {
     const includeAnalytics = searchParams.get("include") === "analytics";
 
     const sessions = await prisma.rangeSession.findMany({
-      where: firearmId ? { sessionFirearms: { some: { firearmId } } } : undefined,
+      where: firearmId ? { firearmId } : undefined,
       include: {
-        ...firearmInclude,
+        firearm: { select: { id: true, name: true, caliber: true } },
+        build: { select: { id: true, name: true } },
         _count: { select: { sessionDrills: true } },
         ...(includeAnalytics
           ? {
@@ -56,13 +37,12 @@ export async function GET(request: NextRequest) {
 
 // POST /api/range-sessions - Create a new range session
 export async function POST(request: NextRequest) {
-  const auth = await requireAuth();
-  if (auth) return auth;
-
   try {
     const body = await request.json();
     const {
-      firearms,
+      firearmId,
+      buildId,
+      roundsFired,
       rangeName,
       rangeLocation,
       notes,
@@ -83,40 +63,21 @@ export async function POST(request: NextRequest) {
       groupNotes,
       // Ammo links
       ammoTransactionIds,
+      // Drill results
+      drills,
     } = body;
 
-    if (!Array.isArray(firearms) || firearms.length === 0) {
-      return NextResponse.json({ error: "At least one firearm entry is required" }, { status: 400 });
-    }
-
-    const parsedFirearms = (firearms as FirearmPayload[]).map((entry) => ({
-      firearmId: typeof entry.firearmId === "string" ? entry.firearmId : "",
-      buildId: typeof entry.buildId === "string" && entry.buildId ? entry.buildId : null,
-      roundsFired: parseInt(String(entry.roundsFired), 10),
-    }));
-
-    if (parsedFirearms.some((entry) => !entry.firearmId || !Number.isFinite(entry.roundsFired) || entry.roundsFired <= 0)) {
+    if (!firearmId || roundsFired === undefined || roundsFired === null) {
       return NextResponse.json(
-        { error: "Each firearm entry must include firearmId and a roundsFired value greater than 0" },
+        { error: "Missing required fields: firearmId, roundsFired" },
         { status: 400 }
       );
     }
 
-    // Validate that all referenced firearm IDs exist
-    const firearmIds = [...new Set(parsedFirearms.map((entry) => entry.firearmId))];
-    const existingFirearms = await prisma.firearm.findMany({
-      where: { id: { in: firearmIds } },
-      select: { id: true },
-    });
-    if (existingFirearms.length !== firearmIds.length) {
-      const existingIds = new Set(existingFirearms.map((f) => f.id));
-      const missingIds = firearmIds.filter((id) => !existingIds.has(id));
-      return NextResponse.json(
-        { error: `Referenced firearm(s) not found: ${missingIds.join(", ")}` },
-        { status: 400 }
-      );
+    const rounds = parseInt(String(roundsFired), 10);
+    if (!Number.isFinite(rounds) || rounds < 0) {
+      return NextResponse.json({ error: "roundsFired must be a non-negative integer" }, { status: 400 });
     }
-
 
     const parseFloat_ = (v: unknown) => {
       if (v === null || v === undefined || v === "") return null;
@@ -132,6 +93,9 @@ export async function POST(request: NextRequest) {
     const session = await prisma.$transaction(async (tx) => {
       const created = await tx.rangeSession.create({
         data: {
+          firearmId,
+          buildId: buildId || null,
+          roundsFired: rounds,
           rangeName: typeof rangeName === "string" ? rangeName.slice(0, 200) : null,
           rangeLocation: typeof rangeLocation === "string" ? rangeLocation.slice(0, 200) : null,
           notes: typeof notes === "string" ? notes.slice(0, 5000) : null,
@@ -150,11 +114,11 @@ export async function POST(request: NextRequest) {
           groupSizeMoa: parseFloat_(groupSizeMoa),
           numberOfGroups: parseInt_(numberOfGroups),
           groupNotes: typeof groupNotes === "string" && groupNotes ? groupNotes.slice(0, 1000) : null,
-          sessionFirearms: {
-            create: parsedFirearms,
-          },
         },
-        include: firearmInclude,
+        include: {
+          firearm: { select: { id: true, name: true, caliber: true } },
+          build: { select: { id: true, name: true } },
+        },
       });
 
       if (Array.isArray(ammoTransactionIds) && ammoTransactionIds.length > 0) {
@@ -167,10 +131,38 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      if (Array.isArray(drills) && drills.length > 0) {
+        for (let i = 0; i < drills.length; i += 1) {
+          const drill = drills[i] as Record<string, unknown>;
+          const drillName =
+            typeof drill.drillName === "string" ? drill.drillName.trim() : "";
+          if (!drillName) continue;
+
+          await tx.sessionDrill.create({
+            data: {
+              sessionId: created.id,
+              templateId:
+                typeof drill.templateId === "string" && drill.templateId
+                  ? drill.templateId
+                  : null,
+              drillName: drillName.slice(0, 200),
+              timeSeconds: parseFloat_(drill.timeSeconds),
+              hits: parseInt_(drill.hits),
+              totalShots: parseInt_(drill.totalShots),
+              accuracy: parseFloat_(drill.accuracy),
+              score: parseFloat_(drill.score),
+              notes:
+                typeof drill.notes === "string" && drill.notes.trim()
+                  ? drill.notes.trim().slice(0, 1000)
+                  : null,
+              sortOrder: i,
+            },
+          });
+        }
+      }
+
       return created;
     });
-
-    revalidateDashboardCaches(["range", "ammo"]);
 
     return NextResponse.json(session, { status: 201 });
   } catch (error) {

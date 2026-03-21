@@ -23,18 +23,14 @@ function applyTheme(t: Theme) {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window === "undefined") {
-      return "dark";
-    }
-
-    const stored = localStorage.getItem("vault-theme") as Theme | null;
-    return stored === "light" ? "light" : "dark";
-  });
+  const [theme, setTheme] = useState<Theme>("dark");
 
   useEffect(() => {
-    applyTheme(theme);
-  }, [theme]);
+    const stored = localStorage.getItem("vault-theme") as Theme | null;
+    const resolved: Theme = stored === "light" ? "light" : "dark";
+    setTheme(resolved);
+    applyTheme(resolved);
+  }, []);
 
   function toggleTheme() {
     setTheme((prev) => {

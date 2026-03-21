@@ -2,17 +2,17 @@
 setlocal EnableDelayedExpansion
 
 echo ╔══════════════════════════════════════════╗
-echo ║      BlackVault — Setup Wizard           ║
+echo ║   ProjectBlackVault Setup Wizard         ║
 echo ╚══════════════════════════════════════════╝
 echo.
 
-:: ── Prerequisites check ─────────────────────────────────────
 docker compose version >nul 2>&1
 if %errorlevel% neq 0 (
   docker-compose version >nul 2>&1
   if %errorlevel% neq 0 (
     echo ERROR: Docker with Compose is required.
-    echo        Install Docker Desktop from https://www.docker.com/products/docker-desktop/
+    echo Install Docker Desktop and retry:
+    echo https://www.docker.com/products/docker-desktop/
     pause
     exit /b 1
   )
@@ -21,163 +21,154 @@ if %errorlevel% neq 0 (
   set COMPOSE=docker compose
 )
 
-:: ── Existing installation guard ──────────────────────────────
 if exist ".blackvault.env" (
-  echo WARNING: .blackvault.env already exists.
-  echo   Re-running install can generate NEW secret keys.
-  echo   Any existing encrypted data may become unrecoverable if keys change.
-  echo   SESSION_SECRET stays in the data directory unless reset manually.
+  echo Existing .blackvault.env found.
+  echo Re-running install can rotate your encryption key and lock encrypted fields.
   echo.
-  set /p KEEP_EXISTING="  Keep existing config and just restart? [Y/n]: "
+  set /p KEEP_EXISTING="Keep existing config and only restart the app? [Y/n]: "
   if "!KEEP_EXISTING!"=="" set KEEP_EXISTING=Y
   if /i "!KEEP_EXISTING!"=="Y" (
-    echo.
-    echo Keeping existing config.
-    echo Pulling latest BlackVault image...
+    set PORT=3000
+    for /f "usebackq tokens=1,* delims==" %%A in (".blackvault.env") do (
+      if /i "%%A"=="PORT" set PORT=%%B
+    )
+
+    echo Trying to pull latest image...
     %COMPOSE% --env-file .blackvault.env pull
+    if %errorlevel% neq 0 (
+      echo Pull skipped or failed. Continuing with local build.
+    )
+
     echo.
-    echo Starting BlackVault...
-    %COMPOSE% --env-file .blackvault.env up -d
+    echo Starting ProjectBlackVault...
+    %COMPOSE% --env-file .blackvault.env up -d --build --remove-orphans
+
+    call :wait_for_health !PORT!
     echo.
-    echo BlackVault started. Check logs with:
-    echo   %COMPOSE% --env-file .blackvault.env logs -f
-    echo.
+    echo Open: http://localhost:!PORT!
     pause
     exit /b 0
   )
   echo.
 )
 
-:: ── Data directory ───────────────────────────────────────────
-echo Where should BlackVault store its data?
-echo   Default: %USERPROFILE%\.blackvault
-set /p DATA_DIR_INPUT="  Data directory [press Enter for default]: "
+echo Where should ProjectBlackVault store your data?
+echo Default: %USERPROFILE%\.projectblackvault
+set /p DATA_DIR_INPUT="Data directory [press Enter for default]: "
 if "%DATA_DIR_INPUT%"=="" (
-  set DATA_DIR=%USERPROFILE%\.blackvault
+  set DATA_DIR=%USERPROFILE%\.projectblackvault
 ) else (
   set DATA_DIR=%DATA_DIR_INPUT%
 )
 
-:: ── Port ─────────────────────────────────────────────────────
 echo.
-set /p PORT_INPUT="Port to run BlackVault on [3000]: "
+set /p PORT_INPUT="Port to run ProjectBlackVault on [3000]: "
 if "%PORT_INPUT%"=="" set PORT=3000
 if not "%PORT_INPUT%"=="" set PORT=%PORT_INPUT%
 
-:: ── Password recovery secret option ───────────────────────────
-echo.
-set /p GENERATE_RECOVERY_SECRET="Generate PASSWORD_RECOVERY_SECRET for account recovery workflows? [y/N]: "
-if "!GENERATE_RECOVERY_SECRET!"=="" set GENERATE_RECOVERY_SECRET=N
-
-:: ── Secrets (minimal by default, optional advanced branch) ─────────────
-echo.
-set /p ADVANCED_SETUP="Advanced setup (provide your own secrets)? [y/N]: "
-
-if /i "!ADVANCED_SETUP!"=="Y" (
-  echo.
-  echo Advanced setup selected. Leave blank to auto-generate.
-  set /p VAULT_ENCRYPTION_KEY="  VAULT_ENCRYPTION_KEY [auto-generate if blank]: "
+echo !PORT!| findstr /r "^[0-9][0-9]*$" >nul
+if %errorlevel% neq 0 (
+  echo ERROR: Port must be a number between 1 and 65535.
+  pause
+  exit /b 1
 )
-for /f "delims=" %%s in ('powershell -NoProfile -Command "[Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32))"') do (
-  set SESSION_SECRET=%%s
+if !PORT! lss 1 (
+  echo ERROR: Port must be a number between 1 and 65535.
+  pause
+  exit /b 1
+)
+if !PORT! gtr 65535 (
+  echo ERROR: Port must be a number between 1 and 65535.
+  pause
+  exit /b 1
+)
+
+echo.
+set /p LAN_ACCESS="Allow access from other devices on your local network? [y/N]: "
+if /i "!LAN_ACCESS!"=="Y" (
+  set BIND_ADDRESS=0.0.0.0
+) else (
+  set BIND_ADDRESS=127.0.0.1
+)
+
+echo.
+echo Generating encryption key...
+for /f "delims=" %%k in ('powershell -NoProfile -Command "([System.BitConverter]::ToString([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32)) -replace '-','').ToLower()"') do (
+  set VAULT_ENCRYPTION_KEY=%%k
 )
 
 if "!VAULT_ENCRYPTION_KEY!"=="" (
-  for /f "delims=" %%k in ('powershell -NoProfile -Command "([System.BitConverter]::ToString([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32)) -replace '-','').ToLower()"') do (
-    set VAULT_ENCRYPTION_KEY=%%k
-  )
-)
-
-if /i "!GENERATE_RECOVERY_SECRET!"=="Y" (
-  for /f "delims=" %%k in ('powershell -NoProfile -Command "([System.BitConverter]::ToString([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32)) -replace '-','').ToLower()"') do (
-    set PASSWORD_RECOVERY_SECRET=%%k
-  )
-)
-
-if "!VAULT_ENCRYPTION_KEY!"=="" (
-  echo ERROR: Failed to set VAULT_ENCRYPTION_KEY.
-  echo        Use advanced setup to provide a manual value, or ensure PowerShell is available.
+  echo ERROR: Failed to generate encryption key. Ensure PowerShell is available.
   pause
   exit /b 1
 )
 
-if /i "!GENERATE_RECOVERY_SECRET!"=="Y" if "!PASSWORD_RECOVERY_SECRET!"=="" (
-  echo ERROR: Failed to generate PASSWORD_RECOVERY_SECRET. Ensure PowerShell is available.
-  pause
-  exit /b 1
-)
-if "!SESSION_SECRET!"=="" (
-  echo ERROR: Failed to generate session secret. Ensure PowerShell is available.
-  pause
-  exit /b 1
-)
-
-:: ── Create directories ────────────────────────────────────────
 echo.
 echo Creating data directories...
 if not exist "!DATA_DIR!\db" mkdir "!DATA_DIR!\db"
 if not exist "!DATA_DIR!\uploads" mkdir "!DATA_DIR!\uploads"
 
-:: ── Write .blackvault.env ─────────────────────────────────────
 (
-  echo # BlackVault configuration — generated by install.bat
-  echo # CRITICAL: Keep this file safe.
-  echo #   Losing VAULT_ENCRYPTION_KEY makes encrypted data unrecoverable.
-  echo #   SESSION_SECRET is generated automatically on first container start and saved under DATA_DIR\db\config\session.env.
-  echo #   PASSWORD_RECOVERY_SECRET is optional but should be unique and never shared.
+  echo # ProjectBlackVault configuration — generated by install.bat
+  echo # Keep this file safe. It includes your encryption key.
   echo.
   echo DATA_DIR=!DATA_DIR!
   echo PORT=!PORT!
+  echo BIND_ADDRESS=!BIND_ADDRESS!
+  echo SESSION_COOKIE_SECURE=auto
+  echo ALLOW_ENCRYPTION_KEY_EXPORT=false
   echo VAULT_ENCRYPTION_KEY=!VAULT_ENCRYPTION_KEY!
-  echo SESSION_SECRET=!SESSION_SECRET!
 ) > .blackvault.env
-
-if /i "!GENERATE_RECOVERY_SECRET!"=="Y" (
-  >> .blackvault.env echo PASSWORD_RECOVERY_SECRET=!PASSWORD_RECOVERY_SECRET!
-  echo Included PASSWORD_RECOVERY_SECRET in .blackvault.env
-) else (
-  echo Skipped PASSWORD_RECOVERY_SECRET generation. You can add it later manually.
-)
 
 echo Configuration written to .blackvault.env
 
-:: ── Pull and start ────────────────────────────────────────────
 echo.
-echo Pulling latest BlackVault image...
+echo Trying to pull latest image...
 %COMPOSE% --env-file .blackvault.env pull
+if %errorlevel% neq 0 (
+  echo Pull skipped or failed. Continuing with local build.
+)
 
 echo.
-echo Starting BlackVault...
-%COMPOSE% --env-file .blackvault.env up -d
+echo Starting ProjectBlackVault...
+%COMPOSE% --env-file .blackvault.env up -d --build --remove-orphans
 
-echo.
-echo Waiting for startup...
-timeout /t 5 /nobreak >nul
-
-:: ── Summary ───────────────────────────────────────────────────
+call :wait_for_health !PORT!
 echo.
 echo ╔══════════════════════════════════════════════════════════╗
-echo ║  BlackVault is ready!                                    ║
+echo ║           ProjectBlackVault is ready                     ║
 echo ╚══════════════════════════════════════════════════════════╝
 echo.
-echo   URL:         http://localhost:!PORT!
-echo   Data stored: !DATA_DIR!
+echo Open on this computer: http://localhost:!PORT!
+echo Data folder: !DATA_DIR!
 echo.
-echo   WARNING: Back up your secrets!
-echo   Losing VAULT_ENCRYPTION_KEY can make encrypted data unrecoverable.
-echo   Exposing PASSWORD_RECOVERY_SECRET can enable account takeover via recovery flows.
+echo IMPORTANT: Back up .blackvault.env in a secure location.
+echo If you lose VAULT_ENCRYPTION_KEY, encrypted fields cannot be recovered.
+echo SESSION_SECRET is auto-managed by the container under your data folder.
 echo.
-echo   Secrets stored in: .blackvault.env
-echo   Back up that file to a secure location now, and never share it in screenshots/logs.
+echo To stop:
+echo   %COMPOSE% --env-file .blackvault.env down
 echo.
-echo   Session secret is auto-managed at runtime in:
-echo     !DATA_DIR!\db\config\session.env
-echo   Deleting that file forces a new secret and logs out all sessions.
-echo.
-echo   To stop BlackVault:
-echo     %COMPOSE% --env-file .blackvault.env down
-echo.
-echo   To update BlackVault in the future, run:
-echo     update.bat
+echo To update:
+echo   update.bat
 echo.
 pause
+exit /b 0
+
+:wait_for_health
+set TARGET_PORT=%~1
+if "%TARGET_PORT%"=="" set TARGET_PORT=3000
+echo.
+echo Waiting for ProjectBlackVault to become ready...
+for /l %%I in (1,1,45) do (
+  powershell -NoProfile -Command "$ErrorActionPreference='Stop'; $r=Invoke-RestMethod -UseBasicParsing -Uri 'http://localhost:%TARGET_PORT%/api/health' -TimeoutSec 4; if($r.status -eq 'ok'){exit 0} else {exit 1}" >nul 2>&1
+  if !errorlevel! equ 0 (
+    echo ProjectBlackVault is ready.
+    exit /b 0
+  )
+  timeout /t 2 /nobreak >nul
+)
+echo ProjectBlackVault is still starting.
+echo Check logs with:
+echo   %COMPOSE% --env-file .blackvault.env logs -f
+exit /b 0

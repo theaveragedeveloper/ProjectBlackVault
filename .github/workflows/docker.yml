@@ -3,6 +3,9 @@ name: Build & Push Docker Image
 on:
   push:
     branches: [main]
+    tags:
+      - "v*"
+  workflow_dispatch:
 
 jobs:
   build:
@@ -23,6 +26,20 @@ jobs:
         with:
           platforms: arm64,amd64
 
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/theaveragedeveloper/projectblackvault
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha
+            type=ref,event=tag
+          labels: |
+            org.opencontainers.image.title=ProjectBlackVault
+            org.opencontainers.image.description=Self-hosted tactical inventory and armory management
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -36,8 +53,7 @@ jobs:
           context: .
           push: true
           platforms: linux/amd64,linux/arm64
-          tags: |
-            ghcr.io/theaveragedeveloper/projectblackvault:latest
-            ghcr.io/theaveragedeveloper/projectblackvault:${{ github.sha }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

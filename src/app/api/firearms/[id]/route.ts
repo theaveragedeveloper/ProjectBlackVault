@@ -1,18 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { encryptField, decryptField } from "@/lib/crypto";
-import { revalidateDashboardCaches } from "@/lib/server/dashboard";
-import { validateOptionalImageUrl } from "@/lib/image-url-validation";
-import { requireAuth } from "@/lib/server/auth";
 
 // GET /api/firearms/[id] - Get a single firearm with active build, slots, and accessories
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAuth();
-  if (auth) return auth;
-
   try {
     const { id } = await params;
 
@@ -51,7 +45,6 @@ export async function GET(
     });
   } catch (error) {
     console.error("GET /api/firearms/[id] error:", error);
-
     return NextResponse.json(
       { error: "Failed to fetch firearm" },
       { status: 500 }
@@ -64,9 +57,6 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAuth();
-  if (auth) return auth;
-
   try {
     const { id } = await params;
     const body = await request.json();
@@ -91,20 +81,6 @@ export async function PUT(
       return NextResponse.json({ error: "Firearm not found" }, { status: 404 });
     }
 
-    if (imageUrl !== undefined) {
-      const imageValidation = validateOptionalImageUrl(imageUrl);
-      if (!imageValidation.valid) {
-        return NextResponse.json({ error: imageValidation.error }, { status: 400 });
-      }
-    }
-
-    if (purchasePrice !== undefined && purchasePrice !== null && purchasePrice < 0) {
-      return NextResponse.json({ error: "purchasePrice cannot be negative" }, { status: 400 });
-    }
-    if (currentValue !== undefined && currentValue !== null && currentValue < 0) {
-      return NextResponse.json({ error: "currentValue cannot be negative" }, { status: 400 });
-    }
-
     const updated = await prisma.firearm.update({
       where: { id },
       data: {
@@ -117,15 +93,12 @@ export async function PUT(
         }),
         ...(type !== undefined && { type }),
         ...(acquisitionDate !== undefined && {
-          acquisitionDate: (() => {
-            const d = new Date(acquisitionDate);
-            return isNaN(d.getTime()) ? undefined : d;
-          })(),
+          acquisitionDate: new Date(acquisitionDate),
         }),
         ...(purchasePrice !== undefined && { purchasePrice }),
         ...(currentValue !== undefined && { currentValue }),
         ...(notes !== undefined && { notes: notes ? await encryptField(notes) : null }),
-        ...(imageUrl !== undefined && { imageUrl: imageUrl?.trim() || null }),
+        ...(imageUrl !== undefined && { imageUrl }),
         ...(imageSource !== undefined && { imageSource }),
       },
       include: {
@@ -143,8 +116,6 @@ export async function PUT(
         },
       },
     });
-
-    revalidateDashboardCaches(["firearms"]);
 
     return NextResponse.json({
       ...updated,
@@ -165,7 +136,6 @@ export async function PUT(
         { status: 409 }
       );
     }
-
     return NextResponse.json(
       { error: "Failed to update firearm" },
       { status: 500 }
@@ -178,9 +148,6 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAuth();
-  if (auth) return auth;
-
   try {
     const { id } = await params;
 
@@ -191,12 +158,9 @@ export async function DELETE(
 
     await prisma.firearm.delete({ where: { id } });
 
-    revalidateDashboardCaches(["firearms"]);
-
     return NextResponse.json({ success: true, id });
   } catch (error) {
     console.error("DELETE /api/firearms/[id] error:", error);
-
     return NextResponse.json(
       { error: "Failed to delete firearm" },
       { status: 500 }

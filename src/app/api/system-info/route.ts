@@ -1,80 +1,85 @@
 import { NextResponse } from "next/server";
 import os from "os";
 import path from "path";
-import {
-  allowExternalImageUrls,
-  allowImageSearchEgress,
-  allowReleaseLookup,
-  requirePrivateNetworkForUpdates,
-} from "@/lib/network-policy";
-import { requireAuth } from "@/lib/server/auth";
 
-function resolveCanonicalUrl(rawUrl: string | undefined): string | null {
-  if (!rawUrl) return null;
+export const dynamic = "force-dynamic";
 
-  try {
-    const parsed = new URL(rawUrl);
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-      return null;
-    }
-
-    parsed.hash = "";
-    parsed.search = "";
-
-    const normalized = parsed.toString();
-    return normalized.endsWith("/") ? normalized.slice(0, -1) : normalized;
-  } catch {
-    return null;
-  }
+function isPrivateIPv4(ip: string) {
+  return (
+    ip.startsWith("10.") ||
+    ip.startsWith("192.168.") ||
+    /^172\.(1[6-9]|2\d|3[0-1])\./.test(ip)
+  );
 }
 
 export async function GET() {
-  const auth = await requireAuth();
-  if (auth) return auth;
-
   try {
     // Collect local IP addresses (IPv4 only, skip loopback)
     const interfaces = os.networkInterfaces();
-    const localIPs: string[] = [];
+    const localIPs = new Set<string>();
 
     for (const iface of Object.values(interfaces)) {
       if (!iface) continue;
       for (const addr of iface) {
         if (addr.family === "IPv4" && !addr.internal) {
-          localIPs.push(addr.address);
+          localIPs.add(addr.address);
         }
       }
     }
 
-    // Derive the database filename from DATABASE_URL env var.
-    // Only expose the filename (not the full path) to avoid leaking filesystem layout.
+    const privateIPs: string[] = [];
+    const otherIPs: string[] = [];
+    for (const ip of localIPs) {
+      if (ip.startsWith("169.254.")) continue; // skip link-local fallback addresses
+      if (isPrivateIPv4(ip)) {
+        privateIPs.push(ip);
+      } else {
+        otherIPs.push(ip);
+      }
+    }
+    const orderedLocalIPs = [...privateIPs, ...otherIPs];
+
+    // Derive the database file path from DATABASE_URL env var
     const dbUrl = process.env.DATABASE_URL ?? "";
     let dbPath = "Not configured";
     if (dbUrl.startsWith("file:")) {
       const relative = dbUrl.replace(/^file:/, "");
-      dbPath = path.basename(relative);
+      dbPath = path.isAbsolute(relative)
+        ? relative
+        : path.resolve(process.cwd(), relative);
     }
 
     const port = process.env.PORT ?? "3000";
+    const bindAddress = (process.env.BIND_ADDRESS ?? "127.0.0.1").trim() || "127.0.0.1";
+    const lanAccessEnabled = bindAddress === "0.0.0.0";
     const hostname = os.hostname();
-    const canonicalUrl = resolveCanonicalUrl(process.env.APP_BASE_URL);
 
-    return NextResponse.json({
-      localIPs,
-      port,
-      hostname,
-      dbPath,
-      platform: os.platform(),
-      canonicalUrl,
-      networkPolicy: {
-        allowReleaseLookup: allowReleaseLookup(),
-        allowImageSearchEgress: allowImageSearchEgress(),
-        allowExternalImageUrls: allowExternalImageUrls(),
-        requirePrivateNetworkForUpdates: requirePrivateNetworkForUpdates(),
+    return NextResponse.json(
+      {
+        localIPs: orderedLocalIPs,
+        port,
+        bindAddress,
+        lanAccessEnabled,
+        hostname,
+        dbPath,
+        platform: os.platform(),
       },
-    });
+      {
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
+    );
   } catch (error) {
     console.error("GET /api/system-info error:", error);
-    return NextResponse.json({ error: "Failed to get system info" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to get system info" },
+      {
+        status: 500,
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
+    );
   }
 }

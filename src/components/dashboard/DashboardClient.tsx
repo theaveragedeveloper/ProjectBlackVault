@@ -18,9 +18,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { StatCard } from "@/components/shared/StatCard";
-import { SafeImage } from "@/components/shared/SafeImage";
 import { formatCurrency, formatNumber, formatDate } from "@/lib/utils";
-import { FIREARM_TYPE_LABELS, TYPE_BADGE_COLORS } from "@/lib/types";
 import {
   Shield,
   Crosshair,
@@ -34,10 +32,33 @@ import {
   X,
   Package,
   Wrench,
-  Award,
+  Battery,
+  CheckCircle2,
 } from "lucide-react";
 
-const DEFAULT_ORDER = ["stats", "range-sessions", "personal-records", "maintenance-due", "low-ammo", "recent", "ammo-summary"];
+const FIREARM_TYPE_LABELS: Record<string, string> = {
+  PISTOL: "Pistol",
+  RIFLE: "Rifle",
+  SHOTGUN: "Shotgun",
+  SMG: "SMG",
+  PCC: "PCC",
+  REVOLVER: "Revolver",
+  BOLT_ACTION: "Bolt Action",
+  LEVER_ACTION: "Lever Action",
+};
+
+const TYPE_BADGE_COLORS: Record<string, string> = {
+  PISTOL: "border-[#00C2FF]/40 text-[#00C2FF]",
+  RIFLE: "border-[#00C853]/40 text-[#00C853]",
+  SHOTGUN: "border-[#F5A623]/40 text-[#F5A623]",
+  SMG: "border-[#9C27B0]/40 text-[#CE93D8]",
+  PCC: "border-[#00BCD4]/40 text-[#00BCD4]",
+  REVOLVER: "border-[#E53935]/40 text-[#EF9A9A]",
+  BOLT_ACTION: "border-[#8B9DB0]/40 text-vault-text-muted",
+  LEVER_ACTION: "border-[#FF7043]/40 text-[#FF7043]",
+};
+
+const DEFAULT_ORDER = ["stats", "maintenance", "range-sessions", "low-ammo", "recent", "ammo-summary"];
 const STORAGE_KEY = "vault-dashboard-layout";
 
 interface AmmoStockItem {
@@ -72,21 +93,8 @@ interface RangeStats {
     date: string | Date;
     rangeName: string | null;
     roundsFired: number;
-    firearmName: string | null;
+    firearmName: string;
   } | null;
-}
-
-interface MaintenanceDueItem {
-  id: string;
-  type: "schedule" | "battery";
-  name: string;
-  entityName: string;
-  entityId: string;
-  entityHref: string;
-  intervalType: "ROUNDS" | "DAYS";
-  daysUntilDue: number | null;
-  roundsUntilDue: number | null;
-  overdue: boolean;
 }
 
 interface DashboardData {
@@ -97,9 +105,21 @@ interface DashboardData {
   lowStockItems: AmmoStockItem[];
   recentFirearms: RecentFirearm[];
   ammoStocks: AmmoStockItem[];
+  maintenanceItems: MaintenanceItem[];
   rangeStats: RangeStats;
-  maintenanceDue: MaintenanceDueItem[];
 }
+
+type MaintenanceItem = {
+  id: string;
+  kind: "maintenance" | "battery";
+  title: string;
+  description: string;
+  dueDate: string;
+  overdue: boolean;
+  firearmId?: string | null;
+  firearmName?: string | null;
+  accessoryId?: string | null;
+};
 
 // ── Sortable wrapper ──────────────────────────────────────────
 function SortableWidget({
@@ -149,7 +169,7 @@ function SortableWidget({
 // ── Widgets ───────────────────────────────────────────────────
 function StatsWidget({ data }: { data: DashboardData }) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+    <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
       <Link href="/vault" className="block group">
         <StatCard
           label="Total Firearms"
@@ -304,16 +324,17 @@ function RecentWidget({ firearms }: { firearms: RecentFirearm[] }) {
                 href={`/vault/${firearm.id}`}
                 className="flex items-center gap-3 px-4 py-3 hover:bg-vault-surface-2 transition-colors group"
               >
-                <div className="relative w-10 h-10 rounded bg-vault-border border border-vault-border overflow-hidden shrink-0 flex items-center justify-center">
-                  <SafeImage
-                    src={firearm.imageUrl}
-                    alt={firearm.name}
-                    fill
-                    sizes="40px"
-                    loading="lazy"
-                    className="w-full h-full object-cover"
-                    fallback={<Shield className="w-4 h-4 text-vault-text-faint" />}
-                  />
+                <div className="w-10 h-10 rounded bg-vault-border border border-vault-border overflow-hidden shrink-0 flex items-center justify-center">
+                  {firearm.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={firearm.imageUrl}
+                      alt={firearm.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <Shield className="w-4 h-4 text-vault-text-faint" />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
@@ -432,6 +453,91 @@ function RangeSessionsWidget({ stats }: { stats: RangeStats }) {
   );
 }
 
+function MaintenanceWidget({ items }: { items: MaintenanceItem[] }) {
+  const overdueCount = items.filter((item) => item.overdue).length;
+
+  return (
+    <section>
+      <div className="flex items-center gap-2 mb-3">
+        <Wrench className="w-4 h-4 text-[#F5A623]" />
+        <h2 className="text-sm font-semibold tracking-widest uppercase text-[#F5A623]">
+          Maintenance Due
+        </h2>
+        {items.length > 0 && (
+          <span className="ml-auto text-xs font-mono bg-[#F5A623]/10 border border-[#F5A623]/30 text-[#F5A623] px-2 py-0.5 rounded">
+            {items.length} due
+          </span>
+        )}
+      </div>
+      <div className="bg-vault-surface border border-vault-border rounded-lg overflow-hidden">
+        {items.length === 0 ? (
+          <div className="p-8 text-center">
+            <div className="w-10 h-10 rounded-full bg-[#00C853]/10 border border-[#00C853]/20 flex items-center justify-center mx-auto mb-3">
+              <CheckCircle2 className="w-5 h-5 text-[#00C853]" />
+            </div>
+            <p className="text-sm text-vault-text-muted">No due maintenance tasks</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-vault-border">
+            {items.map((item) => {
+              const href =
+                item.kind === "battery" && item.accessoryId
+                  ? `/accessories/${item.accessoryId}`
+                  : item.firearmId
+                    ? `/vault/${item.firearmId}`
+                    : "/vault";
+              return (
+                <Link
+                  key={item.id}
+                  href={href}
+                  className="flex items-start gap-3 px-4 py-3 hover:bg-vault-surface-2 transition-colors group"
+                >
+                  <div className="w-8 h-8 rounded border border-vault-border bg-vault-bg flex items-center justify-center shrink-0">
+                    {item.kind === "battery" ? (
+                      <Battery className="w-4 h-4 text-[#00C2FF]" />
+                    ) : (
+                      <Wrench className="w-4 h-4 text-[#F5A623]" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <p className="text-sm font-medium text-vault-text truncate group-hover:text-[#00C2FF] transition-colors">
+                        {item.title}
+                      </p>
+                      <span
+                        className={`text-[10px] px-1.5 py-0.5 rounded border font-mono uppercase shrink-0 ${
+                          item.overdue
+                            ? "border-[#E53935]/30 text-[#E53935]"
+                            : "border-[#F5A623]/30 text-[#F5A623]"
+                        }`}
+                      >
+                        {item.overdue ? "Overdue" : "Due"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-vault-text-muted truncate">{item.description}</p>
+                    <p className="text-[10px] text-vault-text-faint mt-1">
+                      {item.firearmName ? `${item.firearmName} · ` : ""}
+                      Due {formatDate(item.dueDate)}
+                    </p>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-vault-text-faint group-hover:text-[#00C2FF] transition-colors shrink-0 mt-1" />
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </div>
+      {items.length > 0 && (
+        <div className="mt-2 text-right">
+          <span className="text-xs text-vault-text-faint">
+            {overdueCount > 0 ? `${overdueCount} overdue` : "No overdue items"}
+          </span>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function AmmoSummaryWidget({ ammoStocks }: { ammoStocks: AmmoStockItem[] }) {
   // Group by caliber
   const byCaliber = ammoStocks.reduce<Record<string, number>>((acc, stock) => {
@@ -507,175 +613,6 @@ function AmmoSummaryWidget({ ammoStocks }: { ammoStocks: AmmoStockItem[] }) {
   );
 }
 
-interface PersonalRecord {
-  templateId: string;
-  templateName: string;
-  metric: "time" | "score" | "accuracy";
-  value: number;
-  unit: string;
-  date: string;
-  source: string;
-  sourceId: string;
-}
-
-function PersonalRecordsWidget() {
-  const [records, setRecords] = useState<PersonalRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    fetch("/api/personal-records?limit=5")
-      .then((r) => {
-        if (!r.ok) throw new Error("Failed");
-        return r.json();
-      })
-      .then((data) => {
-        setRecords(Array.isArray(data) ? data : []);
-        setLoading(false);
-      })
-      .catch(() => { setError(true); setLoading(false); });
-  }, []);
-
-  const METRIC_LABELS: Record<string, string> = { time: "Best Time", score: "Best Score", accuracy: "Best Accuracy" };
-
-  return (
-    <section>
-      <div className="flex items-center gap-2 mb-3">
-        <Award className="w-4 h-4 text-[#F5A623]" />
-        <h2 className="text-sm font-semibold tracking-widest uppercase text-[#F5A623]">
-          Personal Records
-        </h2>
-      </div>
-      <div className="bg-vault-surface border border-vault-border rounded-lg overflow-hidden">
-        {loading ? (
-          <div className="p-8 text-center">
-            <div className="w-5 h-5 border-2 border-[#F5A623]/30 border-t-[#F5A623] rounded-full animate-spin mx-auto" />
-          </div>
-        ) : error ? (
-          <div className="p-8 text-center">
-            <p className="text-sm text-vault-text-muted">Could not load personal records</p>
-          </div>
-        ) : records.length === 0 ? (
-          <div className="p-8 text-center">
-            <div className="w-10 h-10 rounded-full bg-[#F5A623]/10 border border-[#F5A623]/20 flex items-center justify-center mx-auto mb-3">
-              <Award className="w-5 h-5 text-[#F5A623]" />
-            </div>
-            <p className="text-sm text-vault-text-muted">No personal records yet</p>
-            <p className="text-xs text-vault-text-faint mt-1">Log drills to track your bests</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-vault-border">
-            {records.map((pr, i) => {
-              const href =
-                pr.source === "drill_log"
-                  ? `/range/log-drill/${pr.sourceId}`
-                  : `/range/${pr.sourceId}`;
-              const valueDisplay =
-                pr.metric === "time"
-                  ? `${pr.value}${pr.unit}`
-                  : pr.metric === "accuracy"
-                  ? `${pr.value.toFixed(1)}${pr.unit}`
-                  : `${pr.value}${pr.unit}`;
-              return (
-                <Link
-                  key={i}
-                  href={href}
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-vault-surface-2 transition-colors group"
-                >
-                  <Award className="w-4 h-4 text-[#F5A623] shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-vault-text truncate group-hover:text-[#00C2FF] transition-colors">
-                      {pr.templateName}
-                    </p>
-                    <p className="text-xs text-vault-text-faint">{METRIC_LABELS[pr.metric]}</p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-sm font-bold font-mono text-[#F5A623]">{valueDisplay}</p>
-                    <p className="text-xs text-vault-text-faint">
-                      {new Date(pr.date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
-                    </p>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-vault-text-faint group-hover:text-[#00C2FF] transition-colors shrink-0" />
-                </Link>
-              );
-            })}
-          </div>
-        )}
-      </div>
-      <div className="mt-2 text-right">
-        <Link href="/range/drill-performance" className="text-xs text-[#00C2FF] hover:text-[#00C2FF]/80 flex items-center gap-1 justify-end">
-          View Drill Performance <ChevronRight className="w-3 h-3" />
-        </Link>
-      </div>
-    </section>
-  );
-}
-
-function MaintenanceDueWidget({ items }: { items: MaintenanceDueItem[] }) {
-  return (
-    <section>
-      <div className="flex items-center gap-2 mb-3">
-        <Wrench className="w-4 h-4 text-[#F5A623]" />
-        <h2 className="text-sm font-semibold tracking-widest uppercase text-[#F5A623]">
-          Maintenance Due
-        </h2>
-      </div>
-      <div className="bg-vault-surface border border-vault-border rounded-lg overflow-hidden">
-        {items.length === 0 ? (
-          <div className="p-8 text-center">
-            <div className="w-10 h-10 rounded-full bg-[#00C853]/10 border border-[#00C853]/20 flex items-center justify-center mx-auto mb-3">
-              <Wrench className="w-5 h-5 text-[#00C853]" />
-            </div>
-            <p className="text-sm text-vault-text-muted">No upcoming maintenance</p>
-            <p className="text-xs text-vault-text-faint mt-1">All schedules are current</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-vault-border">
-            {items.map((item) => {
-              const isOverdue = item.overdue;
-              const isDueSoon = !isOverdue && (
-                (item.daysUntilDue != null && item.daysUntilDue <= 14) ||
-                (item.roundsUntilDue != null && item.roundsUntilDue <= 100)
-              );
-              const statusColor = isOverdue ? "text-red-400" : isDueSoon ? "text-orange-400" : "text-[#F5A623]";
-              const dueText = item.intervalType === "ROUNDS" && item.roundsUntilDue != null
-                ? isOverdue ? `Overdue by ${Math.abs(item.roundsUntilDue)} rounds` : `${item.roundsUntilDue} rounds`
-                : item.daysUntilDue != null
-                ? isOverdue ? `Overdue by ${Math.abs(item.daysUntilDue)} days` : `${item.daysUntilDue} days`
-                : "Due";
-
-              return (
-                <Link
-                  key={item.id}
-                  href={item.entityHref}
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-vault-surface-2 transition-colors group"
-                >
-                  <div className={`w-2 h-2 rounded-full shrink-0 ${isOverdue ? "bg-red-400" : isDueSoon ? "bg-orange-400" : "bg-[#F5A623]"}`} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-vault-text truncate group-hover:text-[#00C2FF] transition-colors">
-                      {item.entityName}
-                    </p>
-                    <p className="text-xs text-vault-text-faint">{item.name}</p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className={`text-xs font-semibold ${statusColor}`}>{dueText}</p>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-vault-text-faint group-hover:text-[#00C2FF] transition-colors shrink-0" />
-                </Link>
-              );
-            })}
-          </div>
-        )}
-      </div>
-      <div className="mt-2 text-right">
-        <Link href="/vault" className="text-xs text-[#00C2FF] hover:text-[#00C2FF]/80 flex items-center gap-1 justify-end">
-          View Firearms <ChevronRight className="w-3 h-3" />
-        </Link>
-      </div>
-    </section>
-  );
-}
-
 // ── Main client component ─────────────────────────────────────
 export function DashboardClient({ data }: { data: DashboardData }) {
   const [order, setOrder] = useState<string[]>(DEFAULT_ORDER);
@@ -683,25 +620,21 @@ export function DashboardClient({ data }: { data: DashboardData }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setMounted(true);
-      try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-          const parsed: string[] = JSON.parse(saved);
-          // Ensure all default widgets are present (in case new ones were added)
-          const merged = [
-            ...parsed.filter((id) => DEFAULT_ORDER.includes(id)),
-            ...DEFAULT_ORDER.filter((id) => !parsed.includes(id)),
-          ];
-          setOrder(merged);
-        }
-      } catch {
-        // ignore
+    setMounted(true);
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed: string[] = JSON.parse(saved);
+        // Ensure all default widgets are present (in case new ones were added)
+        const merged = [
+          ...parsed.filter((id) => DEFAULT_ORDER.includes(id)),
+          ...DEFAULT_ORDER.filter((id) => !parsed.includes(id)),
+        ];
+        setOrder(merged);
       }
-    }, 0);
-
-    return () => clearTimeout(timer);
+    } catch {
+      // ignore
+    }
   }, []);
 
   const sensors = useSensors(
@@ -728,10 +661,8 @@ export function DashboardClient({ data }: { data: DashboardData }) {
         return <StatsWidget data={data} />;
       case "range-sessions":
         return <RangeSessionsWidget stats={data.rangeStats} />;
-      case "personal-records":
-        return <PersonalRecordsWidget />;
-      case "maintenance-due":
-        return <MaintenanceDueWidget items={data.maintenanceDue} />;
+      case "maintenance":
+        return <MaintenanceWidget items={data.maintenanceItems} />;
       case "low-ammo":
         return <LowAmmoWidget items={data.lowStockItems} />;
       case "recent":

@@ -1018,21 +1018,20 @@ http://localhost:3000/api/health</code>
           <div class="install-step">
             <div class="step-num">4</div>
             <div class="step-body">
-              <div class="step-title">Set canonical HTTPS hostname (recommended)</div>
+              <div class="step-title">Enable LAN access only if needed</div>
               <code># In .blackvault.env
-APP_BASE_URL=https://vault.yourdomain.com
-# Route reverse proxy HTTPS traffic to this host on port 3000
-# (Caddy / Nginx / Traefik)</code>
+BIND_ADDRESS=0.0.0.0
+# Restart after change
+docker compose --env-file .blackvault.env up -d --build</code>
             </div>
           </div>
           <div class="install-step">
             <div class="step-num">5</div>
             <div class="step-body">
-              <div class="step-title">Install desktop icon from browser</div>
-              <code>Open https://vault.yourdomain.com
-Chrome/Edge: Install App
-Safari (macOS): File &gt; Add to Dock
-Fallback if needed: http://localhost:3000 or http://YOUR-HOST-IP:3000</code>
+              <div class="step-title">Open the app on local or LAN URL</div>
+              <code>Local machine: http://localhost:3000
+LAN (if enabled): http://YOUR-HOST-IP:3000
+Use this browser path for V1 support and docs.</code>
             </div>
           </div>
           <div class="install-step">
@@ -1061,12 +1060,8 @@ Use Settings &rarr; Secure Backup for encrypted exports.</code>
       </div>
 
       <p class="deploy-note">
-        Optional host-admin desktop launcher: <a id="launcher-download-link" href="https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest" target="_blank" rel="noopener">Download Installer</a>
-        <span id="launcher-download-hint"> (falls back to all releases if platform build is unavailable)</span>
-      </p>
-      <p class="channel-note">
-        Advanced channels: <code>winget install --id TheAverageDeveloper.ProjectBlackVault</code> ·
-        <code>brew install --cask theaveragedeveloper/tap/projectblackvault</code>
+        Public V1 support is Docker-first. For full step-by-step setup, use
+        <a href="https://github.com/theaveragedeveloper/ProjectBlackVault/blob/main/NON_TECHNICAL_INSTALL.md" target="_blank" rel="noopener">NON_TECHNICAL_INSTALL.md</a>.
       </p>
     </div>
   </section>
@@ -1106,79 +1101,6 @@ Use Settings &rarr; Secure Backup for encrypted exports.</code>
   </footer>
 
   <script>
-    const launcherDownloadLink = document.getElementById('launcher-download-link');
-    const launcherDownloadHint = document.getElementById('launcher-download-hint');
-
-    const RELEASES_URL = 'https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest';
-    const RELEASE_API_URL = 'https://api.github.com/repos/theaveragedeveloper/ProjectBlackVault/releases/latest';
-    const EXPECTED = {
-      windows: 'ProjectBlackVault-Setup.exe',
-      mac: 'ProjectBlackVault.dmg',
-      linux: 'ProjectBlackVault-Setup.AppImage',
-    };
-
-    function detectPlatform() {
-      const ua = navigator.userAgent.toLowerCase();
-      if (ua.includes('windows')) return 'windows';
-      if (ua.includes('mac os') || ua.includes('macintosh')) return 'mac';
-      if (ua.includes('linux')) return 'linux';
-      return 'unknown';
-    }
-
-    function runHintFor(platform) {
-      if (platform === 'windows') return 'After download, run the .exe installer.';
-      if (platform === 'mac') return 'After download, open the .dmg and drag ProjectBlackVault to Applications.';
-      if (platform === 'linux') return 'After download, mark the AppImage executable and run it.';
-      return 'Open the latest release and download the correct installer for your OS.';
-    }
-
-    async function resolveInstallerUrl(platform) {
-      if (platform === 'unknown') {
-        return {
-          url: RELEASES_URL,
-          hint: runHintFor(platform),
-        };
-      }
-
-      try {
-        const response = await fetch(RELEASE_API_URL, {
-          headers: { Accept: 'application/vnd.github+json' },
-        });
-        if (!response.ok) throw new Error(`release lookup failed (${response.status})`);
-
-        const release = await response.json();
-        const releaseUrl = release?.html_url || RELEASES_URL;
-        const assets = Array.isArray(release?.assets) ? release.assets : [];
-        const filename = EXPECTED[platform];
-        const match = assets.find(asset => asset?.name === filename && asset?.browser_download_url);
-
-        if (match) {
-          return {
-            url: match.browser_download_url,
-            hint: runHintFor(platform),
-          };
-        }
-
-        return {
-          url: releaseUrl,
-          hint: `${runHintFor(platform)} Asset not published yet, so this opens the latest releases page.`,
-        };
-      } catch (_error) {
-        return {
-          url: RELEASES_URL,
-          hint: `${runHintFor(platform)} If direct download is unavailable, this opens latest releases.`,
-        };
-      }
-    }
-
-    (async () => {
-      if (!launcherDownloadLink) return;
-      const platform = detectPlatform();
-      const resolved = await resolveInstallerUrl(platform);
-      launcherDownloadLink.href = resolved.url;
-      if (launcherDownloadHint) launcherDownloadHint.textContent = ` (${resolved.hint})`;
-    })();
-
     const observer = new IntersectionObserver(
       entries => entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); }),
       { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }

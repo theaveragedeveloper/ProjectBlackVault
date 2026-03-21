@@ -15,7 +15,7 @@ import {
 
 const INPUT_CLASS =
   "w-full bg-vault-surface border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint transition-colors text-center font-mono";
-const LABEL_CLASS = "block text-xs font-medium text-vault-text-faint mb-1 text-center";
+const LABEL_CLASS = "block text-[10px] font-medium uppercase tracking-widest text-vault-text-faint mb-1 text-center";
 
 // Truncate to 4 decimal places (USPSA spec — no rounding)
 function truncate4(n: number): string {
@@ -135,13 +135,13 @@ export default function HitFactorCalculatorPage() {
     const penaltyCount = misses + noShoots + procedurals;
     const penaltyPoints = penaltyCount * PENALTY;
     const netPoints = grossPoints + penaltyPoints;
+    const totalShots = totalHits + misses;
 
     const hitFactor = time > 0 ? netPoints / time : null;
     const hitFactorStr = hitFactor != null ? truncate4(hitFactor) : null;
 
     // What-if: all Alphas (same total shots, same time)
-    const totalShots = totalHits + misses;
-    // Actually: if all shots were Alphas instead of C/D/M
+    // If all shots were Alphas instead of C/D/M
     const whatIfAlphaGross = (alpha + charlie + delta + misses) * pz.alpha + steel * pz.steel;
     const whatIfAlphaNet = whatIfAlphaGross; // no penalties since no misses assumed
     const whatIfAlphaHF = time > 0 ? whatIfAlphaNet / time : null;
@@ -188,8 +188,8 @@ export default function HitFactorCalculatorPage() {
   return (
     <div className="min-h-full">
       <PageHeader
-        title="Hit Factor Calculator"
-        subtitle="USPSA/IPSC stage scoring in points per second."
+        title="HIT FACTOR CALCULATOR"
+        subtitle="USPSA / IPSC stage scoring — points per second"
       />
 
       <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
@@ -208,7 +208,7 @@ export default function HitFactorCalculatorPage() {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-[#F5A623]" />
-              <span className="text-sm font-semibold text-vault-text-muted">Power Factor</span>
+              <span className="text-xs font-mono uppercase tracking-widest text-vault-text-muted">Power Factor</span>
             </div>
             <button
               onClick={() => setShowPFCalc(!showPFCalc)}
@@ -298,7 +298,7 @@ export default function HitFactorCalculatorPage() {
 
         {/* Hit counters */}
         <div>
-          <p className="text-sm font-medium text-vault-text-faint mb-3 flex items-center gap-2">
+          <p className="text-xs font-mono uppercase tracking-widest text-vault-text-faint mb-3 flex items-center gap-2">
             <Target className="w-3.5 h-3.5" /> Hits
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -311,7 +311,7 @@ export default function HitFactorCalculatorPage() {
 
         {/* Penalty counters */}
         <div>
-          <p className="text-sm font-medium text-vault-text-faint mb-3 flex items-center gap-2">
+          <p className="text-xs font-mono uppercase tracking-widest text-vault-text-faint mb-3 flex items-center gap-2">
             <AlertTriangle className="w-3.5 h-3.5" /> Penalties (−10 pts each)
           </p>
           <div className="grid grid-cols-3 gap-3">
@@ -325,7 +325,7 @@ export default function HitFactorCalculatorPage() {
         <div className="bg-vault-surface border border-vault-border rounded-lg p-4">
           <div className="flex items-center gap-2 mb-3">
             <Timer className="w-4 h-4 text-[#00C2FF]" />
-            <span className="text-sm font-semibold text-vault-text-muted">Stage Time</span>
+            <span className="text-xs font-mono uppercase tracking-widest text-vault-text-muted">Stage Time</span>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex-1">
@@ -346,7 +346,7 @@ export default function HitFactorCalculatorPage() {
         {/* RESULT */}
         <div className={`bg-vault-surface border rounded-lg p-6 ${calculation.hitFactorStr ? "border-[#00C2FF]/30" : "border-vault-border"}`}>
           <div className="text-center mb-6">
-            <p className="text-xs text-vault-text-faint mb-2">Hit Factor</p>
+            <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-2">Hit Factor</p>
             <p className={`text-6xl font-mono font-bold tracking-tight ${calculation.hitFactorStr ? hfColor : "text-vault-text-faint"}`}>
               {calculation.hitFactorStr ?? "—"}
             </p>
@@ -358,7 +358,7 @@ export default function HitFactorCalculatorPage() {
           {/* Breakdown */}
           {(calculation.totalHits > 0 || calculation.penaltyCount > 0) && (
             <div className="border-t border-vault-border pt-4 space-y-2">
-              <p className="text-xs text-vault-text-faint mb-3">Score Breakdown</p>
+              <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-3">Score Breakdown</p>
 
               <div className="space-y-1.5 text-sm">
                 {alpha > 0 && (
@@ -415,7 +415,7 @@ export default function HitFactorCalculatorPage() {
           <div className="bg-vault-surface border border-vault-border rounded-lg p-4">
             <div className="flex items-center gap-2 mb-4">
               <TrendingUp className="w-4 h-4 text-[#00C2FF]" />
-              <span className="text-sm font-semibold text-vault-text-muted">What-If Scenarios</span>
+              <span className="text-xs font-mono uppercase tracking-widest text-vault-text-muted">What-If Scenarios</span>
             </div>
             <div className="space-y-3">
               {/* All Alphas */}
@@ -458,7 +458,7 @@ export default function HitFactorCalculatorPage() {
           <div className="bg-vault-surface border border-vault-border rounded-lg p-4">
             <div className="flex items-center gap-2 mb-3">
               <Target className="w-4 h-4 text-[#00C2FF]" />
-              <span className="text-sm font-semibold text-vault-text-muted">Stage Percentage</span>
+              <span className="text-xs font-mono uppercase tracking-widest text-vault-text-muted">Stage Percentage</span>
             </div>
             <p className="text-xs text-vault-text-faint mb-3">
               Enter the stage winner&apos;s hit factor to calculate your stage score (70 points max awarded to winner).
@@ -472,7 +472,7 @@ export default function HitFactorCalculatorPage() {
               </div>
               {calculation.stagePercent != null && (
                 <div className="text-center min-w-[90px]">
-                  <p className="text-xs text-vault-text-faint mb-1">Your %</p>
+                  <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-1">Your %</p>
                   <p className={`text-3xl font-mono font-bold ${
                     calculation.stagePercent >= 90 ? "text-[#00C853]" :
                     calculation.stagePercent >= 70 ? "text-[#F5A623]" : "text-[#E53935]"

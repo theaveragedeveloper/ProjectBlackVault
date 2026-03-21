@@ -1,40 +1,67 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 echo "╔══════════════════════════════════════╗"
-echo "║   BlackVault — Update Script         ║"
+echo "║ ProjectBlackVault Update Script      ║"
 echo "╚══════════════════════════════════════╝"
 echo ""
 
+if docker compose version >/dev/null 2>&1; then
+  COMPOSE="docker compose"
+elif docker-compose version >/dev/null 2>&1; then
+  COMPOSE="docker-compose"
+else
+  echo "ERROR: Docker Compose is required."
+  echo "Install or update Docker Desktop, then retry."
+  exit 1
+fi
+
 ENV_ARGS=""
+PORT=3000
 if [ -f ".blackvault.env" ]; then
   ENV_ARGS="--env-file .blackvault.env"
   echo "Using config from .blackvault.env"
+  PORT="$(grep '^PORT=' .blackvault.env 2>/dev/null | cut -d= -f2 || true)"
+  PORT="${PORT:-3000}"
 fi
 
-echo "Pulling latest BlackVault image from registry..."
-docker compose $ENV_ARGS pull
+health_check() {
+  local url="$1"
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsS "$url" 2>/dev/null | grep -q '"status":"ok"'
+    return $?
+  fi
+  if command -v wget >/dev/null 2>&1; then
+    wget -qO- "$url" 2>/dev/null | grep -q '"status":"ok"'
+    return $?
+  fi
+  return 1
+}
+
+echo "Trying to pull latest image..."
+if ! $COMPOSE $ENV_ARGS pull; then
+  echo "Image pull failed or skipped. Continuing with local build."
+fi
 
 echo ""
-echo "Restarting with updated image..."
-docker compose $ENV_ARGS up -d
+echo "Restarting ProjectBlackVault..."
+$COMPOSE $ENV_ARGS up -d --build --remove-orphans
 
 echo ""
-PORT=$(grep '^PORT=' .blackvault.env 2>/dev/null | cut -d= -f2)
-PORT="${PORT:-3000}"
-echo "Waiting for BlackVault to be ready..."
-MAX_RETRIES=15
-for i in $(seq 1 $MAX_RETRIES); do
-  if wget -qO- "http://localhost:${PORT}/api/health" 2>/dev/null | grep -q '"ok"'; then
-    echo "BlackVault is running and healthy."
-    break
+echo "Checking health..."
+MAX_RETRIES=45
+for i in $(seq 1 "$MAX_RETRIES"); do
+  if health_check "http://localhost:${PORT}/api/health"; then
+    echo "ProjectBlackVault is running and healthy."
+    echo ""
+    echo "Update complete."
+    exit 0
   fi
-  if [ "$i" -eq "$MAX_RETRIES" ]; then
-    echo "Still starting — check logs with: docker compose $ENV_ARGS logs -f"
-  else
-    sleep 2
-  fi
+  sleep 2
 done
 
+echo "ProjectBlackVault is still starting."
+echo "Check logs with:"
+echo "  $COMPOSE $ENV_ARGS logs -f"
 echo ""
-echo "Update complete."
+echo "Update command finished, but health was not confirmed yet."

@@ -1,59 +1,17 @@
 "use client";
 
-import { useRef, useState } from "react";
-import Image from "next/image";
-import { isAllowedImageUrlForStorage, IMAGE_URL_ALLOWLIST_ERROR } from "@/lib/image-url-validation";
-import { allowExternalImageUrls } from "@/lib/network-policy";
+import { useEffect, useRef, useState } from "react";
 import { Camera, Link, Loader2, X, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
 
 interface ImagePickerProps {
-  entityType: "firearm" | "accessory" | "ammo" | "build";
+  entityType: "firearm" | "accessory";
   entityId?: string; // undefined on new forms; a temp UUID will be used
   currentUrl?: string | null;
   onChange: (url: string | null, source: string | null) => void;
 }
 
-const ACCEPTED_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/gif",
-  "image/webp",
-  "image/avif",
-  "image/heic",
-  "image/heif",
-];
-const HEIC_TYPES = new Set(["image/heic", "image/heif"]);
+const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/avif"];
 const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
-
-async function convertHeicLikeFile(file: File): Promise<File> {
-  const bitmap = await createImageBitmap(file);
-  const canvas = document.createElement("canvas");
-  canvas.width = bitmap.width;
-  canvas.height = bitmap.height;
-
-  const context = canvas.getContext("2d");
-  if (!context) {
-    throw new Error("Could not initialize image conversion context.");
-  }
-
-  context.drawImage(bitmap, 0, 0);
-  bitmap.close();
-
-  const targetType = "image/webp";
-  const convertedBlob = await new Promise<Blob | null>((resolve) => {
-    canvas.toBlob(resolve, targetType, 0.92);
-  });
-
-  if (!convertedBlob) {
-    throw new Error("Could not convert HEIC/HEIF photo. Please export as JPG and try again.");
-  }
-
-  const normalizedName = file.name.replace(/\.[^.]+$/, "") || "photo";
-  return new File([convertedBlob], `${normalizedName}.webp`, {
-    type: targetType,
-    lastModified: Date.now(),
-  });
-}
 
 export default function ImagePicker({
   entityType,
@@ -72,13 +30,16 @@ export default function ImagePicker({
   const [error, setError] = useState<string | null>(null);
   const [showUrl, setShowUrl] = useState(false);
   const [urlInput, setUrlInput] = useState("");
-  const externalUrlEntryAllowed = allowExternalImageUrls();
+
+  useEffect(() => {
+    setPreview(currentUrl ?? null);
+  }, [currentUrl]);
 
   async function handleFile(file: File) {
     setError(null);
 
     if (!ACCEPTED_TYPES.includes(file.type)) {
-      setError("Only JPG, PNG, GIF, WebP, AVIF, and phone HEIC/HEIF photos are supported.");
+      setError("Only JPG, PNG, GIF, WebP, and AVIF photos are supported.");
       return;
     }
     if (file.size > MAX_BYTES) {
@@ -88,15 +49,13 @@ export default function ImagePicker({
 
     setUploading(true);
     try {
-      const uploadFile = HEIC_TYPES.has(file.type) ? await convertHeicLikeFile(file) : file;
-
       const fd = new FormData();
-      fd.append("file", uploadFile);
+      fd.append("file", file);
       fd.append("entityType", entityType);
       fd.append("entityId", entityId ?? tempId.current);
 
       const res = await fetch("/api/images/upload", { method: "POST", body: fd });
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
 
       if (!res.ok) {
         setError(json.error ?? "Upload failed. Please try again.");
@@ -105,9 +64,8 @@ export default function ImagePicker({
 
       setPreview(json.url);
       onChange(json.url, "uploaded");
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Upload failed. Check your connection and try again.";
-      setError(message);
+    } catch {
+      setError("Upload failed. Check your connection and try again.");
     } finally {
       setUploading(false);
     }
@@ -127,21 +85,28 @@ export default function ImagePicker({
   }
 
   function handleRemove() {
+    setError(null);
     setPreview(null);
     setUrlInput("");
     onChange(null, null);
   }
 
   function handleUrlApply() {
+    setError(null);
     const url = urlInput.trim();
     if (!url) return;
 
-    if (!isAllowedImageUrlForStorage(url)) {
-      setError(IMAGE_URL_ALLOWLIST_ERROR);
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+        setError("Only http:// or https:// image links are supported.");
+        return;
+      }
+    } catch {
+      setError("Enter a valid image URL.");
       return;
     }
 
-    setError(null);
     setPreview(url);
     onChange(url, "url");
     setShowUrl(false);
@@ -152,16 +117,14 @@ export default function ImagePicker({
       {/* Preview */}
       {preview ? (
         <div className="relative rounded-md overflow-hidden border border-vault-border bg-vault-bg">
-          <Image
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
             src={preview}
             alt="Preview"
-            width={1200}
-            height={800}
-            className="w-full max-h-48 h-auto object-contain"
+            className="w-full max-h-48 object-contain"
             onError={() => {
               setError("Could not load this image URL. Please check the link.");
             }}
-            unoptimized
           />
           <button
             type="button"
@@ -191,10 +154,10 @@ export default function ImagePicker({
               <div className="text-center">
                 <p className="text-sm font-medium text-vault-text">Add a Photo</p>
                 <p className="text-xs text-vault-text-faint mt-0.5">
-                  Click to choose, or drag and drop. iPhone/Android photos are supported and may be auto-converted.
+                  Click to choose, or drag and drop
                 </p>
                 <p className="text-[10px] text-vault-text-faint mt-1 font-mono">
-                  JPG · PNG · GIF · WebP · AVIF · HEIC/HEIF &nbsp;·&nbsp; Max 10 MB
+                  JPG · PNG · GIF · WebP &nbsp;·&nbsp; Max 10 MB
                 </p>
               </div>
             </>
@@ -231,43 +194,37 @@ export default function ImagePicker({
       )}
 
       {/* URL fallback (collapsible) */}
-      {externalUrlEntryAllowed ? (
-        <div>
-          <button
-            type="button"
-            onClick={() => setShowUrl((v) => !v)}
-            className="flex items-center gap-1 text-xs text-vault-text-faint hover:text-vault-text-muted transition-colors"
-          >
-            <Link className="w-3 h-3" />
-            Or enter a URL
-            {showUrl ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-          </button>
+      <div>
+        <button
+          type="button"
+          onClick={() => setShowUrl((v) => !v)}
+          className="flex items-center gap-1 text-xs text-vault-text-faint hover:text-vault-text-muted transition-colors"
+        >
+          <Link className="w-3 h-3" />
+          Or enter a URL
+          {showUrl ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+        </button>
 
-          {showUrl && (
-            <div className="mt-2 flex gap-2">
-              <input
-                type="url"
-                value={urlInput}
-                onChange={(e) => setUrlInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleUrlApply())}
-                placeholder="https://example.com/image.jpg"
-                className="flex-1 bg-vault-surface border border-vault-border text-vault-text rounded-md px-3 py-1.5 text-xs focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
-              />
-              <button
-                type="button"
-                onClick={handleUrlApply}
-                className="px-3 py-1.5 bg-vault-surface border border-vault-border text-vault-text-muted hover:text-vault-text rounded-md text-xs transition-colors"
-              >
-                Use
-              </button>
-            </div>
-          )}
-        </div>
-      ) : (
-        <p className="text-[11px] text-vault-text-faint">
-          External image URLs are disabled by policy. Upload local image files only.
-        </p>
-      )}
+        {showUrl && (
+          <div className="mt-2 flex gap-2">
+            <input
+              type="url"
+              value={urlInput}
+              onChange={(e) => setUrlInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleUrlApply())}
+              placeholder="https://example.com/image.jpg"
+              className="flex-1 bg-vault-surface border border-vault-border text-vault-text rounded-md px-3 py-1.5 text-xs focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
+            />
+            <button
+              type="button"
+              onClick={handleUrlApply}
+              className="px-3 py-1.5 bg-vault-surface border border-vault-border text-vault-text-muted hover:text-vault-text rounded-md text-xs transition-colors"
+            >
+              Use
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
