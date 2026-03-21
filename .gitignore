@@ -1,3 +1,23 @@
+# Logs
+*.log
+docker-main.log
+
+# Database / app data
+data/
+*.db
+
+# Node
+node_modules/
+
+# Next.js
+.next/
+
+# Mac junk
+.DS_Store
+
+# accidental nested repo
+ProjectBlackVault/
+
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
