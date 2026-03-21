@@ -14,7 +14,7 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat openssl
 
 # Copy production deps from stage 1
 COPY --from=deps /app/node_modules ./node_modules
@@ -30,14 +30,16 @@ RUN npx prisma generate
 
 # Build Next.js in standalone mode
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build
+# Provide a throw-away DB so pages that call Prisma can prerender during build
+ENV DATABASE_URL="file:/tmp/prisma-build.db"
+RUN npx prisma migrate deploy && npm run build
 
 # ─── Stage 3: Production runner ───────────────────────────────────────────────
 FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat openssl
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -55,6 +57,7 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 
 # Create persistent data directories
 RUN mkdir -p /app/data /app/uploads && \
@@ -69,4 +72,4 @@ ENV HOSTNAME="0.0.0.0"
 ENV DATABASE_URL="file:/app/data/vault.db"
 
 # Run migrations then start the server
-CMD ["sh", "-c", "npx prisma migrate deploy && node server.js"]
+CMD ["sh", "-c", "node node_modules/prisma/build/index.js migrate deploy && node server.js"]
