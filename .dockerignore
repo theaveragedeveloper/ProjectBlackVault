@@ -9,3 +9,10 @@ electron
 .blackvault.env
 *.log
 coverage
+.gitignore
+prisma/dev.db
+prisma/dev.db-journal
+.env
+.env.*
+*.md
+data/

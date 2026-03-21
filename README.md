@@ -2,7 +2,7 @@
   <img src="./public/blackvault-logo.svg" alt="BlackVault Logo" width="120" height="120" />
 </p>
 
-<h1 align="center">ProjectBlackVault</h1>
+A self-hosted tactical firearms management application — inventory, loadout builder, accessories, and ammo tracking. Runs on your own machine. Your data never leaves your home.
 
 <p align="center">
   Your personal, private firearms management app — runs on your own computer, no account or internet required.
@@ -34,11 +34,186 @@
 
 ---
 
-## What is ProjectBlackVault?
+## Self-Hosted Install (Recommended)
+
+This is the standard way to run ProjectBlackVault. The installer builds the Docker image on your machine and starts the app automatically.
+
+### Prerequisites
+
+- **Docker Desktop** — [Mac/Windows](https://www.docker.com/products/docker-desktop/) | [Linux](https://docs.docker.com/engine/install/)
+- **Git** — [https://git-scm.com/downloads](https://git-scm.com/downloads)
+
+> No coding experience required. The installer handles everything else.
+
+> **Apple Silicon (M1/M2/M3/M4):** Fully supported. The installer builds natively for your chip — no extra steps needed.
+
+---
+
+### macOS / Linux
+
+1. Install Docker Desktop and make sure it is running. You should see the Docker whale icon in your menu bar (Mac) or system tray.
+
+2. Open **Terminal**.
+
+3. Clone the repository and enter the folder:
+   ```bash
+   git clone https://github.com/theaveragedeveloper/ProjectBlackVault.git && cd ProjectBlackVault
+   ```
+
+4. Run the installer:
+   ```bash
+   ./install.sh
+   ```
+   If you see a "permission denied" error, run this first, then re-run the installer:
+   ```bash
+   chmod +x install.sh
+   ```
+
+5. The installer will ask two questions: where to store your data (default: `~/.blackvault`) and which port to use (default: `3000`). Press **Enter** to accept the defaults.
+
+6. The first build takes 3–5 minutes. You will see progress in the terminal. Wait for it to finish.
+
+7. Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+---
+
+### Windows
+
+1. Install Docker Desktop and make sure it is running. You should see the Docker whale icon in your system tray.
+
+2. Open **Command Prompt** or **PowerShell**.
+
+3. Clone the repository:
+   ```
+   git clone https://github.com/theaveragedeveloper/ProjectBlackVault.git
+   ```
+   Then enter the folder:
+   ```
+   cd ProjectBlackVault
+   ```
+
+4. Run the installer:
+   ```
+   install.bat
+   ```
+
+5. The installer will ask two questions: where to store your data and which port to use. Press **Enter** to accept the defaults.
+
+6. The first build takes 3–5 minutes. Wait for it to finish.
+
+7. Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+---
+
+### Accessing from your phone (same Wi-Fi)
+
+Your phone and computer must be on the same Wi-Fi network (not mobile data).
+
+First, find your computer's local IP address:
+
+- **Mac:** Run `ipconfig getifaddr en0` in Terminal, or go to System Settings → Wi-Fi → Details
+- **Windows:** Run `ipconfig` in Command Prompt and look for **IPv4 Address** under your Wi-Fi adapter
+- **Linux:** Run `ip addr show` or `hostname -I`
+
+Then open `http://<your-ip>:3000` on your phone (for example: `http://192.168.1.42:3000`).
+
+> This only works on your local network. Your data stays private and never leaves your home.
+
+---
+
+### Remote access (VPN recommended)
+
+To access BlackVault away from home, we recommend setting up a VPN like [Tailscale](https://tailscale.com) (free, easy to set up) rather than exposing the port directly to the internet. Never forward port 3000 to the internet without additional security measures.
+
+---
+
+## Managing BlackVault
+
+| Task | Command |
+|------|---------|
+| Stop | `docker compose --env-file .blackvault.env down` |
+| Start (after stopping) | `docker compose --env-file .blackvault.env up -d` |
+| Update to latest version | `./update.sh` |
+| View logs | `docker compose --env-file .blackvault.env logs -f` |
+| Uninstall | Stop the container, then delete the data folder shown in your `.blackvault.env` file |
+
+Your data is stored in the folder you chose during setup (default: `~/.blackvault`). Back up this folder regularly to preserve your database and uploaded images.
+
+---
+
+## Your encryption key
+
+After install, BlackVault generates a unique encryption key that protects your serial numbers and private notes (AES-256-GCM encryption at rest).
+
+The key is stored in `.blackvault.env` in the ProjectBlackVault folder.
+
+**Back up this file.** If you lose it, your serial numbers and private notes will be permanently unreadable — there is no recovery option.
+
+- Do not share this file with anyone
+- Do not commit it to git (it is already listed in `.gitignore`)
+
+---
+
+## Troubleshooting
+
+### "Docker Desktop is not running"
+
+1. Open Docker Desktop from Applications (Mac) or the Start Menu (Windows)
+2. Wait until the whale icon stops animating and is steady
+3. Re-run the installer
+
+### "Port 3000 is already in use"
+
+Run the installer again and choose a different port when prompted (for example: `3001`). Alternatively, find and stop whatever process is currently using port 3000.
+
+### "Permission denied when running install.sh"
+
+Run the following command, then try the installer again:
+
+```bash
+chmod +x install.sh
+```
+
+### "Container keeps restarting / app never loads"
+
+Run the following to see what's going wrong:
+
+```bash
+docker compose --env-file .blackvault.env logs --tail=50
+```
+
+Look for error messages near the bottom of the output. A common cause is that the data directory is not writable by Docker. Try the default path (`~/.blackvault`) or choose a folder you have full write access to.
+
+### "App works on my computer but not my phone"
+
+- Make sure your phone is on the same Wi-Fi network, not mobile data
+- Make sure you are using your computer's local IP address — not `127.0.0.1` or `localhost`
+- Check that your computer's firewall is not blocking port 3000
+
+### "Container crashes on Apple Silicon with a Prisma/engine error"
+
+This can happen if you pulled a pre-built x86_64 image. Run the following to rebuild natively for your chip:
+
+```bash
+docker compose --env-file .blackvault.env build --no-cache
+```
+
+Then start the container:
+
+```bash
+docker compose --env-file .blackvault.env up -d
+```
+
+---
+
+## Local Development
+
+For contributors and developers who want to run the app outside Docker.
 
 ProjectBlackVault is a **personal inventory and tracking app** for firearms owners. Think of it like a digital logbook — you can keep track of every gun you own, all your attachments and accessories, your ammunition stockpile, and your range sessions, all in one place.
 
-Everything is stored **on your own computer or home server** — your data never goes to any outside company or cloud service. It's yours, private, and always accessible without an internet connection.
+- Node.js 20+
+- npm
 
 ## What ProjectBlackVault Does
 
@@ -135,7 +310,8 @@ If you want BlackVault always available on your network or run it on a NAS/home 
 #### 2) Clone this repo
 
 ```bash
-git clone <repo-url>
+# 1. Clone the repository
+git clone https://github.com/theaveragedeveloper/ProjectBlackVault.git
 cd ProjectBlackVault
 ```
 
@@ -207,24 +383,20 @@ If you're comfortable with a terminal, you can run the app directly on your mach
 **Steps:**
 
 ```bash
-# 1. Download the code
-git clone <repo-url>
+# 1. Clone the repository
+git clone https://github.com/theaveragedeveloper/ProjectBlackVault.git
 cd ProjectBlackVault
 
 # 2. Install the app's dependencies
 npm install
 
-# 3. Set up your configuration file
+# 3. Copy the environment file
 cp .env.example .env
-# Open the .env file in a text editor — the default settings work fine for local use
 
 # 4. Set up the database
 npx prisma migrate dev
 
-# 5. (Optional) Add some sample data to explore the app
-npx prisma db seed
-
-# 6. Start the app
+# 5. Start the development server
 npm run dev
 ```
 

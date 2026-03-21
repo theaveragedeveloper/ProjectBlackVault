@@ -63,11 +63,15 @@ COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/prisma  ./node_modules/prisma
+COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+
+# Startup script
+COPY entrypoint.sh /entrypoint.sh
 
 # Create persistent data directories
 RUN mkdir -p /app/data /app/uploads && \
-    chown -R nextjs:nodejs /app/data /app/uploads /app
+    chown -R nextjs:nodejs /app/data /app/uploads /app && \
+    chmod +x /entrypoint.sh
 
 USER nextjs
 
@@ -77,5 +81,4 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 ENV DATABASE_URL="file:/app/data/vault.db"
 
-# Run migrations then start the server
-CMD ["sh", "-c", ". ./scripts/bootstrap-session-secret.sh && node ./node_modules/prisma/build/index.js migrate deploy && node server.js"]
+ENTRYPOINT ["/entrypoint.sh"]

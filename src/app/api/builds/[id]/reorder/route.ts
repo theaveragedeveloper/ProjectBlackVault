@@ -15,9 +15,9 @@ export async function PUT(
       where: { id },
       data: { sortOrder },
     });
-    return NextResponse.json(build);
+    return Response.json(build);
   } catch (error) {
     console.error("PUT /api/builds/[id]/reorder error:", error);
-    return NextResponse.json({ error: "Failed to update sort order" }, { status: 500 });
+    return Response.json({ error: "Failed to update sort order" }, { status: 500 });
   }
 }
