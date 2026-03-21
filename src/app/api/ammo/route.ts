@@ -1,13 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { revalidateDashboardCaches } from "@/lib/server/dashboard";
-import { requireAuth } from "@/lib/server/auth";
+import { revalidatePath } from "next/cache";
 
 // GET /api/ammo - List all AmmoStock grouped by caliber
 export async function GET() {
-  const auth = await requireAuth();
-  if (auth) return auth;
-
   try {
     const stocks = await prisma.ammoStock.findMany({
       include: {
@@ -28,6 +24,9 @@ export async function GET() {
       {
         caliber: string;
         totalQuantity: number;
+        avgPricePerRound: number | null;
+        pricedRounds: number;
+        pricedValue: number;
         stocks: typeof stocks;
       }
     > = {};
@@ -37,11 +36,23 @@ export async function GET() {
         grouped[stock.caliber] = {
           caliber: stock.caliber,
           totalQuantity: 0,
+          avgPricePerRound: null,
+          pricedRounds: 0,
+          pricedValue: 0,
           stocks: [],
         };
       }
       grouped[stock.caliber].totalQuantity += stock.quantity;
+      if (typeof stock.purchasePrice === "number" && stock.purchasePrice > 0) {
+        grouped[stock.caliber].pricedRounds += stock.quantity;
+        grouped[stock.caliber].pricedValue += stock.quantity * stock.purchasePrice;
+      }
       grouped[stock.caliber].stocks.push(stock);
+    }
+
+    for (const group of Object.values(grouped)) {
+      group.avgPricePerRound =
+        group.pricedRounds > 0 ? group.pricedValue / group.pricedRounds : null;
     }
 
     const result = {
@@ -54,7 +65,6 @@ export async function GET() {
     return NextResponse.json(result);
   } catch (error) {
     console.error("GET /api/ammo error:", error);
-
     return NextResponse.json(
       { error: "Failed to fetch ammo stock" },
       { status: 500 }
@@ -64,9 +74,6 @@ export async function GET() {
 
 // POST /api/ammo - Create a new AmmoStock entry
 export async function POST(request: NextRequest) {
-  const auth = await requireAuth();
-  if (auth) return auth;
-
   try {
     const body = await request.json();
 
@@ -135,12 +142,11 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    revalidateDashboardCaches(["ammo"]);
+    revalidatePath("/");
 
     return NextResponse.json(stock, { status: 201 });
   } catch (error) {
     console.error("POST /api/ammo error:", error);
-
     return NextResponse.json(
       { error: "Failed to create ammo stock" },
       { status: 500 }

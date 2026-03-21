@@ -1,18 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { encryptField, decryptField } from "@/lib/crypto";
-import { revalidateDashboardCaches } from "@/lib/server/dashboard";
-import { validateOptionalImageUrl } from "@/lib/image-url-validation";
-import { requireAuth } from "@/lib/server/auth";
+
+function parseBatteryIntervalDays(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = parseInt(String(value), 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return parsed;
+}
+
+function parseBatteryDate(value: unknown): Date | null {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = new Date(String(value));
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
 
 // GET /api/accessories/[id] - Get a single accessory with roundCountLogs and current buildSlots
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAuth();
-  if (auth) return auth;
-
   try {
     const { id } = await params;
 
@@ -58,7 +64,6 @@ export async function GET(
 
     return NextResponse.json({
       ...accessory,
-      notes: await decryptField(accessory.notes),
       currentBuild: activeSlot
         ? {
             id: activeSlot.build.id,
@@ -70,7 +75,6 @@ export async function GET(
     });
   } catch (error) {
     console.error("GET /api/accessories/[id] error:", error);
-
     return NextResponse.json(
       { error: "Failed to fetch accessory" },
       { status: 500 }
@@ -83,9 +87,6 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAuth();
-  if (auth) return auth;
-
   try {
     const { id } = await params;
     const body = await request.json();
@@ -105,7 +106,9 @@ export async function PUT(
       compatibleCalibers,
       hasBattery,
       batteryType,
-      batteryIntervalDays,
+      batteryReplacementIntervalDays,
+      lastBatteryChangeDate,
+      batteryNotes,
     } = body;
 
     const existing = await prisma.accessory.findUnique({ where: { id } });
@@ -116,16 +119,55 @@ export async function PUT(
       );
     }
 
-    if (imageUrl !== undefined) {
-      const imageValidation = validateOptionalImageUrl(imageUrl);
-      if (!imageValidation.valid) {
-        return NextResponse.json({ error: imageValidation.error }, { status: 400 });
-      }
-    }
+    const hasBatteryProvided = hasBattery !== undefined;
+    const hasBatteryFlag = Boolean(hasBattery);
 
-    if (purchasePrice !== undefined && purchasePrice !== null && purchasePrice < 0) {
-      return NextResponse.json({ error: "purchasePrice cannot be negative" }, { status: 400 });
-    }
+    const batteryData = hasBatteryProvided
+      ? hasBatteryFlag
+        ? {
+            hasBattery: true,
+            batteryType:
+              typeof batteryType === "string" && batteryType.trim()
+                ? batteryType.trim()
+                : null,
+            batteryReplacementIntervalDays: parseBatteryIntervalDays(
+              batteryReplacementIntervalDays
+            ),
+            lastBatteryChangeDate: parseBatteryDate(lastBatteryChangeDate),
+            batteryNotes:
+              typeof batteryNotes === "string" && batteryNotes.trim()
+                ? batteryNotes.trim().slice(0, 1000)
+                : null,
+          }
+        : {
+            hasBattery: false,
+            batteryType: null,
+            batteryReplacementIntervalDays: null,
+            lastBatteryChangeDate: null,
+            batteryNotes: null,
+          }
+      : {
+          ...(batteryType !== undefined && {
+            batteryType:
+              typeof batteryType === "string" && batteryType.trim()
+                ? batteryType.trim()
+                : null,
+          }),
+          ...(batteryReplacementIntervalDays !== undefined && {
+            batteryReplacementIntervalDays: parseBatteryIntervalDays(
+              batteryReplacementIntervalDays
+            ),
+          }),
+          ...(lastBatteryChangeDate !== undefined && {
+            lastBatteryChangeDate: parseBatteryDate(lastBatteryChangeDate),
+          }),
+          ...(batteryNotes !== undefined && {
+            batteryNotes:
+              typeof batteryNotes === "string" && batteryNotes.trim()
+                ? batteryNotes.trim().slice(0, 1000)
+                : null,
+          }),
+        };
 
     const updated = await prisma.accessory.update({
       where: { id },
@@ -137,18 +179,14 @@ export async function PUT(
         ...(caliber !== undefined && { caliber }),
         ...(purchasePrice !== undefined && { purchasePrice }),
         ...(acquisitionDate !== undefined && {
-          acquisitionDate: acquisitionDate
-            ? (() => { const d = new Date(acquisitionDate); return isNaN(d.getTime()) ? null : d; })()
-            : null,
+          acquisitionDate: acquisitionDate ? new Date(acquisitionDate) : null,
         }),
-        ...(notes !== undefined && { notes: notes ? await encryptField(notes) : null }),
-        ...(imageUrl !== undefined && { imageUrl: imageUrl?.trim() || null }),
+        ...(notes !== undefined && { notes }),
+        ...(imageUrl !== undefined && { imageUrl }),
         ...(imageSource !== undefined && { imageSource }),
         ...(compatibleFirearmTypes !== undefined && { compatibleFirearmTypes }),
         ...(compatibleCalibers !== undefined && { compatibleCalibers }),
-        ...(hasBattery !== undefined && { hasBattery }),
-        ...(batteryType !== undefined && { batteryType: batteryType || null }),
-        ...(batteryIntervalDays !== undefined && { batteryIntervalDays: batteryIntervalDays !== "" && batteryIntervalDays !== null ? parseInt(String(batteryIntervalDays), 10) : null }),
+        ...batteryData,
       },
       include: {
         roundCountLogs: {
@@ -172,12 +210,9 @@ export async function PUT(
       },
     });
 
-    revalidateDashboardCaches(["accessories"]);
-
     return NextResponse.json(updated);
   } catch (error) {
     console.error("PUT /api/accessories/[id] error:", error);
-
     return NextResponse.json(
       { error: "Failed to update accessory" },
       { status: 500 }
@@ -190,9 +225,6 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAuth();
-  if (auth) return auth;
-
   try {
     const { id } = await params;
 
@@ -206,12 +238,9 @@ export async function DELETE(
 
     await prisma.accessory.delete({ where: { id } });
 
-    revalidateDashboardCaches(["accessories"]);
-
     return NextResponse.json({ success: true, id });
   } catch (error) {
     console.error("DELETE /api/accessories/[id] error:", error);
-
     return NextResponse.json(
       { error: "Failed to delete accessory" },
       { status: 500 }

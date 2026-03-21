@@ -23,26 +23,26 @@ export function StatCard({ label, value, subValue, icon: Icon, accent = "default
   return (
     <div
       className={cn(
-        "bg-vault-surface border border-vault-border border-t-2 rounded-lg p-3 sm:p-4 animate-slide-up",
+        "bg-vault-surface border border-vault-border border-t-2 rounded-lg p-4 animate-slide-up",
         styles.border,
         className
       )}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[10px] sm:text-xs uppercase tracking-widest text-vault-text-faint font-medium mb-1.5 sm:mb-2">
+          <p className="text-xs uppercase tracking-widest text-vault-text-faint font-medium mb-2">
             {label}
           </p>
-          <p className={cn("text-xl sm:text-2xl font-bold font-mono tabular-nums", styles.value)}>
+          <p className={cn("text-2xl font-bold font-mono tabular-nums", styles.value)}>
             {value}
           </p>
           {subValue && (
-            <p className="text-[11px] sm:text-xs text-vault-text-muted mt-1">{subValue}</p>
+            <p className="text-xs text-vault-text-muted mt-1">{subValue}</p>
           )}
         </div>
         {Icon && (
           <div className={cn("p-2 rounded-md shrink-0", styles.icon)}>
-            <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
+            <Icon className="w-5 h-5" />
           </div>
         )}
       </div>

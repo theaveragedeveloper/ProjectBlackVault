@@ -12,7 +12,7 @@ export const FIREARM_TYPES = [
 
 export type FirearmType = (typeof FIREARM_TYPES)[number];
 
-export const FIREARM_TYPE_LABELS: Record<string, string> = {
+export const FIREARM_TYPE_LABELS: Record<FirearmType, string> = {
   PISTOL: "Pistol",
   RIFLE: "Rifle",
   SHOTGUN: "Shotgun",
@@ -66,7 +66,7 @@ export const SLOT_TYPES = [
 
 export type SlotType = (typeof SLOT_TYPES)[number];
 
-export const SLOT_TYPE_LABELS: Record<SlotType, string> = {
+export const SLOT_TYPE_LABELS: Record<string, string> = {
   MUZZLE: "Muzzle",
   BARREL: "Barrel",
   BARREL_NUT: "Barrel Nut",
@@ -275,42 +275,6 @@ export const SLOTS_BY_FIREARM_TYPE: Record<FirearmType, SlotType[]> = {
   ],
 };
 
-// ─── Build Statuses ────────────────────────────────────────────
-export const BUILD_STATUSES = [
-  { value: "in-progress", label: "In Progress" },
-  { value: "complete", label: "Complete" },
-  { value: "wishlist", label: "Wishlist" },
-] as const;
-
-export type BuildStatus = (typeof BUILD_STATUSES)[number]["value"];
-
-// ─── Slot Categories (for grouping in build detail) ────────────
-export const SLOT_CATEGORIES: { label: string; slots: string[] }[] = [
-  {
-    label: "Upper Assembly",
-    slots: [
-      "UPPER_RECEIVER",
-      "BARREL",
-      "HANDGUARD",
-      "MUZZLE",
-      "COMPENSATOR",
-      "SUPPRESSOR",
-      "CHARGING_HANDLE",
-    ],
-  },
-  {
-    label: "Lower Assembly",
-    slots: ["LOWER_RECEIVER", "STOCK", "BUFFER_TUBE", "GRIP", "TRIGGER"],
-  },
-  { label: "Sighting", slots: ["OPTIC", "OPTIC_MOUNT"] },
-  { label: "Magazine", slots: ["MAGAZINE"] },
-  {
-    label: "Attachments",
-    slots: ["LIGHT", "LASER", "UNDERBARREL", "BIPOD", "SLING"],
-  },
-  { label: "Pistol Frame", slots: ["FRAME", "SLIDE"] },
-];
-
 // ─── Ammo Transaction Types ────────────────────────────────────
 export const TRANSACTION_TYPES = [
   "PURCHASE",
@@ -328,18 +292,6 @@ export const TRANSACTION_TYPE_LABELS: Record<TransactionType, string> = {
   TRANSFER_OUT: "Transfer Out",
   INVENTORY_CORRECTION: "Inventory Correction",
   EXPENDED: "Expended",
-};
-
-// ─── Type Badge Colors ────────────────────────────────────────
-export const TYPE_BADGE_COLORS: Record<string, string> = {
-  PISTOL: "border-[#00C2FF]/40 text-[#00C2FF]",
-  RIFLE: "border-[#00C853]/40 text-[#00C853]",
-  SHOTGUN: "border-[#F5A623]/40 text-[#F5A623]",
-  SMG: "border-[#9C27B0]/40 text-[#CE93D8]",
-  PCC: "border-[#00BCD4]/40 text-[#00BCD4]",
-  REVOLVER: "border-[#E53935]/40 text-[#EF9A9A]",
-  BOLT_ACTION: "border-[#8B9DB0]/40 text-vault-text-muted",
-  LEVER_ACTION: "border-[#FF7043]/40 text-[#FF7043]",
 };
 
 // ─── Common Calibers ──────────────────────────────────────────

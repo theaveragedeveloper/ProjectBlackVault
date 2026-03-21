@@ -28,18 +28,15 @@ model Firearm {
   imageSource     String?
 
   builds          Build[]
-  sessionFirearms SessionFirearm[]
+  rangeSessions   RangeSession[]
   maintenanceNotes MaintenanceNote[]
-  maintenanceSchedules MaintenanceSchedule[]
   documents       Document[]
-  dopeCards       DopeCard[]
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   @@index([caliber])
   @@index([type])
-  @@index([createdAt])
 }
 
 // ─── BUILDS ───────────────────────────────────────────────────
@@ -48,27 +45,19 @@ model Build {
   id          String      @id @default(cuid())
   name        String
   description String?
-  imageUrl    String?
-  imageSource String?
   isActive    Boolean     @default(false)
   sortOrder   Int         @default(0)
-  status      String      @default("in-progress")
-  notes       String?
   firearmId   String
   firearm     Firearm     @relation(fields: [firearmId], references: [id], onDelete: Cascade)
 
   slots       BuildSlot[]
-  sessionFirearms SessionFirearm[]
-  dopeCards     DopeCard[]
+  rangeSessions RangeSession[]
 
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
   @@index([firearmId])
   @@index([isActive])
-  @@index([status])
-  @@index([isActive, updatedAt])
-  @@index([firearmId, isActive, updatedAt])
 }
 
 model BuildSlot {
@@ -110,6 +99,11 @@ model Accessory {
   notes                  String?
   imageUrl               String?
   imageSource            String?
+  hasBattery             Boolean         @default(false)
+  batteryType            String?
+  batteryReplacementIntervalDays Int?
+  lastBatteryChangeDate  DateTime?
+  batteryNotes           String?
 
   // Round count persists with the accessory across all builds
   roundCount             Int             @default(0)
@@ -117,12 +111,6 @@ model Accessory {
 
   buildSlots             BuildSlot[]
   documents              Document[]
-
-  // Battery tracking
-  hasBattery             Boolean         @default(false)
-  batteryType            String?         // e.g. "CR2032", "AA"
-  batteryChangedAt       DateTime?
-  batteryIntervalDays    Int?            // how often to replace in days
 
   // Comma-separated compatible values, e.g. "RIFLE,SMG"
   compatibleFirearmTypes String?
@@ -133,8 +121,6 @@ model Accessory {
 
   @@index([type])
   @@index([roundCount])
-  @@index([createdAt])
-  @@index([type, createdAt])
 }
 
 model RoundCountLog {
@@ -155,7 +141,12 @@ model RoundCountLog {
 
 model RangeSession {
   id            String   @id @default(cuid())
+  firearmId     String
+  firearm       Firearm  @relation(fields: [firearmId], references: [id], onDelete: Cascade)
+  buildId       String?
+  build         Build?   @relation(fields: [buildId], references: [id], onDelete: SetNull)
   date          DateTime @default(now())
+  roundsFired   Int
   rangeName     String?
   rangeLocation String?
   notes         String?
@@ -177,29 +168,14 @@ model RangeSession {
   groupNotes       String?
 
   // ── Relations ─────────────────────────────────────────
-  sessionFirearms SessionFirearm[]
   sessionDrills  SessionDrill[]
   ammoLinks      SessionAmmoLink[]
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  @@index([date])
-}
-
-model SessionFirearm {
-  id          String       @id @default(cuid())
-  sessionId   String
-  session     RangeSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  firearmId   String
-  firearm     Firearm      @relation(fields: [firearmId], references: [id], onDelete: Cascade)
-  buildId     String?
-  build       Build?       @relation(fields: [buildId], references: [id], onDelete: SetNull)
-  roundsFired Int
-
-  @@index([sessionId])
   @@index([firearmId])
-  @@unique([sessionId, firearmId, buildId])
+  @@index([date])
 }
 
 model DrillTemplate {
@@ -215,7 +191,6 @@ model DrillTemplate {
   isBuiltIn   Boolean        @default(false)
 
   sessionDrills SessionDrill[]
-  drillLogs     DrillLog[]
 
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
@@ -262,6 +237,7 @@ model MaintenanceNote {
   firearmId   String
   firearm     Firearm  @relation(fields: [firearmId], references: [id], onDelete: Cascade)
   date        DateTime @default(now())
+  dueDate     DateTime?
   // type: "cleaning" | "repair" | "inspection" | "upgrade" | "other"
   type        String   @default("other")
   description String
@@ -272,40 +248,7 @@ model MaintenanceNote {
 
   @@index([firearmId])
   @@index([date])
-}
-
-// ─── MAINTENANCE SCHEDULES ────────────────────────────────────
-
-model MaintenanceSchedule {
-  id              String                  @id @default(cuid())
-  firearmId       String
-  firearm         Firearm                 @relation(fields: [firearmId], references: [id], onDelete: Cascade)
-  taskName        String
-  // intervalType: "ROUNDS" | "DAYS"
-  intervalType    String
-  intervalValue   Int
-  lastCompletedAt DateTime?
-  lastRoundCount  Int?                    // firearm round count at last completion (for ROUNDS type)
-  notes           String?
-  completions     MaintenanceCompletion[]
-
-  createdAt       DateTime                @default(now())
-  updatedAt       DateTime                @updatedAt
-
-  @@index([firearmId])
-}
-
-model MaintenanceCompletion {
-  id                     String              @id @default(cuid())
-  scheduleId             String
-  schedule               MaintenanceSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
-  completedAt            DateTime            @default(now())
-  roundCountAtCompletion Int?
-  notes                  String?
-
-  createdAt              DateTime            @default(now())
-
-  @@index([scheduleId])
+  @@index([dueDate])
 }
 
 // ─── AMMO ─────────────────────────────────────────────────────
@@ -325,7 +268,6 @@ model AmmoStock {
   notes           String?
 
   transactions    AmmoTransaction[]
-  dopeCards       DopeCard[]
 
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
@@ -351,55 +293,6 @@ model AmmoTransaction {
   @@index([transactedAt])
 }
 
-// ─── DOPE CARDS ──────────────────────────────────────────────
-
-model DopeCard {
-  id                  String     @id @default(cuid())
-  firearmId           String
-  firearm             Firearm    @relation(fields: [firearmId], references: [id], onDelete: Cascade)
-  buildId             String?
-  build               Build?     @relation(fields: [buildId], references: [id], onDelete: SetNull)
-  ammoStockId         String?
-  ammoStock           AmmoStock? @relation(fields: [ammoStockId], references: [id], onDelete: SetNull)
-
-  name                String
-  zeroDistanceYd      Float
-  sightHeightIn       Float?
-  // unit: "MIL" | "MOA"
-  unit                String
-
-  temperatureF        Float?
-  pressureInHg        Float?
-  densityAltitudeFt   Float?
-  notes               String?
-
-  // JSON-encoded rows payload for SQLite compatibility
-  // Example row: {"distanceYd":100,"elevation":0.0,"wind10mph":0.4,"velocity":2700,"energy":2500}
-  rows                String
-
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-
-  @@index([firearmId])
-  @@index([updatedAt])
-}
-
-// ─── PHOTOS ───────────────────────────────────────────────────
-
-model Photo {
-  id         String   @id @default(cuid())
-  // entityType: "firearm" | "accessory" | "build" | "ammo"
-  entityType String
-  entityId   String
-  url        String
-  // source: "uploaded"
-  source     String
-  isPrimary  Boolean  @default(false)
-  createdAt  DateTime @default(now())
-
-  @@index([entityType, entityId])
-}
-
 // ─── IMAGE CACHE ──────────────────────────────────────────────
 
 model ImageCache {
@@ -418,35 +311,13 @@ model ImageCache {
   @@index([entityType, entityId])
 }
 
-// ─── DRILL LOGS ───────────────────────────────────────────────
-
-model DrillLog {
-  id          String         @id @default(cuid())
-  templateId  String?
-  template    DrillTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
-  drillName   String         // denormalized; preserved if template is deleted
-  performedAt DateTime       @default(now())
-  timeSeconds Float?
-  hits        Int?
-  totalShots  Int?
-  accuracy    Float?         // 0-100 percentage
-  score       Float?
-  notes       String?
-
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-
-  @@index([templateId])
-  @@index([performedAt])
-}
-
 // ─── DOCUMENTS ────────────────────────────────────────────────
 
 model Document {
   id          String   @id @default(cuid())
   name        String
-  // type: "RECEIPT" | "NFA_TAX_STAMP" | "OTHER"
-  type        String   @default("RECEIPT")
+  // type: "RECIPE" | "TAX_STAMP" | "RECEIPT" | "OTHER"
+  type        String   @default("OTHER")
   fileUrl     String
   fileSize    Int?
   mimeType    String?
@@ -474,20 +345,8 @@ model AppSettings {
   enableImageSearch       Boolean  @default(false)
   defaultCurrency         String   @default("USD")
   appPassword             String?
-  sessionVersion          Int      @default(1)
   encryptionKey           String?
   dataStoragePath         String?
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
-}
-
-// ─── API RATE LIMITS ──────────────────────────────────────────
-
-model ApiRateLimit {
-  bucketId    String   @id
-  key         String
-  windowStart DateTime
-  count       Int      @default(0)
-
-  @@index([key, windowStart])
 }

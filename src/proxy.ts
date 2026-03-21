@@ -1,45 +1,93 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyTokenEdge } from "@/lib/session-edge";
-import { getSessionSecret } from "@/lib/session-config";
 
-const PUBLIC_PATHS = ["/login", "/api/auth", "/api/health", "/_next", "/favicon.ico"];
+const SESSION_COOKIE_NAME = "vault_session";
 
-// Reject oversized request bodies early (before route handlers read them).
-// 10 MB is a generous limit; individual routes may enforce tighter limits.
-const MAX_BODY_BYTES = 10 * 1024 * 1024;
+function isLoginPath(pathname: string): boolean {
+  return pathname === "/login" || pathname.startsWith("/login/");
+}
+
+function isBypassPath(pathname: string): boolean {
+  if (pathname === "/api/auth" || pathname.startsWith("/api/auth/")) return true;
+  if (pathname === "/api/health") return true;
+  if (pathname === "/favicon.ico") return true;
+  if (pathname.startsWith("/_next/")) return true;
+  return false;
+}
+
+type AuthBootstrap = {
+  authenticated: boolean;
+  requiresSetup: boolean;
+};
+
+async function getAuthBootstrap(request: NextRequest): Promise<AuthBootstrap | null> {
+  const checkUrl = new URL("/api/auth/check", request.url);
+  try {
+    const res = await fetch(checkUrl, {
+      method: "GET",
+      headers: {
+        cookie: request.headers.get("cookie") ?? "",
+      },
+      cache: "no-store",
+    });
+
+    if (!res.ok) return null;
+    const json = await res.json() as Partial<AuthBootstrap>;
+    if (typeof json.authenticated !== "boolean" || typeof json.requiresSetup !== "boolean") {
+      return null;
+    }
+    return {
+      authenticated: json.authenticated,
+      requiresSetup: json.requiresSetup,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function redirectToLogin(request: NextRequest, clearCookie: boolean) {
+  const loginUrl = new URL("/login", request.url);
+
+  const response = NextResponse.redirect(loginUrl);
+  if (clearCookie) {
+    response.cookies.set(SESSION_COOKIE_NAME, "", {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      expires: new Date(0),
+    });
+  }
+  return response;
+}
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
-
-  if (isPublic) {
+  if (isBypassPath(pathname)) {
     return NextResponse.next();
   }
 
-  const contentLength = request.headers.get("content-length");
-  if (contentLength !== null && Number(contentLength) > MAX_BODY_BYTES) {
-    return NextResponse.json({ error: "Request body too large" }, { status: 413 });
+  const bootstrap = await getAuthBootstrap(request);
+
+  if (isLoginPath(pathname)) {
+    if (!bootstrap || bootstrap.requiresSetup || !bootstrap.authenticated) {
+      return NextResponse.next();
+    }
+    return NextResponse.redirect(new URL("/", request.url));
   }
 
-  const isApiRoute = pathname.startsWith("/api/");
-  const session = request.cookies.get("vault_session")?.value;
-
-  if (!session) {
-    if (isApiRoute) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    return NextResponse.redirect(new URL("/login", request.url));
+  // Resolve first-run state before applying auth redirects.
+  // If setup is still required, always send users to the setup flow.
+  if (bootstrap?.requiresSetup) {
+    return redirectToLogin(request, false);
   }
 
-  const sessionSecret = getSessionSecret();
+  // If we cannot determine auth state, fail closed to the login route.
+  if (!bootstrap) {
+    return redirectToLogin(request, false);
+  }
 
-  const hasVersionPrefix = /^\d+:[^\s]+\./.test(session);
-  const valid = hasVersionPrefix ? await verifyTokenEdge(session, sessionSecret) : false;
-  if (!valid) {
-    if (isApiRoute) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    return NextResponse.redirect(new URL("/login", request.url));
+  if (!bootstrap.authenticated) {
+    const hasSessionCookie = !!request.cookies.get(SESSION_COOKIE_NAME)?.value;
+    return redirectToLogin(request, hasSessionCookie);
   }
 
   return NextResponse.next();
@@ -47,7 +95,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon\\.ico|icons/|.*\\.svg$|.*\\.png$|.*\\.jpg$|.*\\.webp$|.*\\.ico$).*)",
-    "/api/:path*",
+    "/((?!_next/static|_next/image|favicon\\.ico|public).*)",
   ],
 };

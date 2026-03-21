@@ -30,7 +30,7 @@ import {
 
 const INPUT_CLASS =
   "w-full bg-vault-surface border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint transition-colors";
-const LABEL_CLASS = "block text-sm font-medium text-vault-text-muted mb-1.5";
+const LABEL_CLASS = "block text-xs font-medium uppercase tracking-widest text-vault-text-muted mb-1.5";
 
 interface DrillTemplate {
   id: string;
@@ -73,14 +73,6 @@ interface AmmoLink {
   };
 }
 
-interface SessionFirearm {
-  id: string;
-  firearmId: string;
-  roundsFired: number;
-  firearm: { id: string; name: string; caliber: string };
-  build: { id: string; name: string } | null;
-}
-
 interface RangeSession {
   id: string;
   date: string;
@@ -100,7 +92,8 @@ interface RangeSession {
   groupSizeMoa: number | null;
   numberOfGroups: number | null;
   groupNotes: string | null;
-  sessionFirearms: SessionFirearm[];
+  firearm: { id: string; name: string; caliber: string };
+  build: { id: string; name: string } | null;
   sessionDrills: SessionDrill[];
   ammoLinks: AmmoLink[];
 }
@@ -121,20 +114,17 @@ const SCORING_FIELDS: Record<string, string[]> = {
   NOTES_ONLY: [],
 };
 
-function normalizeDrillName(name: string) {
-  return name.trim().toLowerCase();
-}
-
-function findUniqueTemplateByNormalizedName(templates: DrillTemplate[], drillName: string) {
-  const normalized = normalizeDrillName(drillName);
-  const matches = templates.filter((t) => normalizeDrillName(t.name) === normalized);
-  return matches.length === 1 ? matches[0] : undefined;
-}
-
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("en-US", {
     weekday: "long", year: "numeric", month: "long", day: "numeric",
   });
+}
+
+function toDateTimeLocalValue(dateStr: string): string {
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return "";
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
 }
 
 function DrillCard({ drill, onEdit, onDelete }: {
@@ -226,12 +216,7 @@ function DrillForm({ templates, initialValues, onSubmit, onCancel, submitting }:
   onCancel: () => void;
   submitting: boolean;
 }) {
-  const matchedTemplateFromName = !initialValues?.templateId && initialValues?.drillName
-    ? findUniqueTemplateByNormalizedName(templates, initialValues.drillName ?? "")
-    : undefined;
-
-  const [templateId, setTemplateId] = useState(initialValues?.templateId ?? matchedTemplateFromName?.id ?? "");
-  const [templateTouched, setTemplateTouched] = useState(false);
+  const [templateId, setTemplateId] = useState(initialValues?.templateId ?? "");
   const [drillName, setDrillName] = useState(initialValues?.drillName ?? "");
   const [timeSeconds, setTimeSeconds] = useState(initialValues?.timeSeconds?.toString() ?? "");
   const [hits, setHits] = useState(initialValues?.hits?.toString() ?? "");
@@ -240,11 +225,7 @@ function DrillForm({ templates, initialValues, onSubmit, onCancel, submitting }:
   const [score, setScore] = useState(initialValues?.score?.toString() ?? "");
   const [notes, setNotes] = useState(initialValues?.notes ?? "");
 
-  const effectiveTemplateId = templateTouched
-    ? templateId
-    : (templateId || initialValues?.templateId || matchedTemplateFromName?.id || "");
-
-  const selectedTemplate = templates.find((t) => t.id === effectiveTemplateId);
+  const selectedTemplate = templates.find((t) => t.id === templateId);
   const activeFields = selectedTemplate
     ? SCORING_FIELDS[selectedTemplate.scoringType] ?? []
     : ["timeSeconds", "hits", "totalShots", "accuracy", "score"];
@@ -256,7 +237,6 @@ function DrillForm({ templates, initialValues, onSubmit, onCancel, submitting }:
       : accuracy;
 
   function handleTemplateChange(id: string) {
-    setTemplateTouched(true);
     setTemplateId(id);
     const tpl = templates.find((t) => t.id === id);
     if (tpl && !initialValues?.drillName) {
@@ -267,7 +247,7 @@ function DrillForm({ templates, initialValues, onSubmit, onCancel, submitting }:
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     await onSubmit({
-      templateId: effectiveTemplateId || null,
+      templateId: templateId || null,
       drillName,
       timeSeconds: timeSeconds ? parseFloat(timeSeconds) : null,
       hits: hits ? parseInt(hits) : null,
@@ -288,7 +268,7 @@ function DrillForm({ templates, initialValues, onSubmit, onCancel, submitting }:
     <form onSubmit={handleSubmit} className="bg-vault-surface border border-[#00C2FF]/30 rounded-lg p-4 space-y-4">
       <div className="flex items-center gap-2 mb-1">
         <ListChecks className="w-4 h-4 text-[#00C2FF]" />
-        <span className="text-sm font-semibold text-[#00C2FF]">
+        <span className="text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
           {initialValues?.id ? "Edit Drill" : "Add Drill"}
         </span>
       </div>
@@ -300,7 +280,7 @@ function DrillForm({ templates, initialValues, onSubmit, onCancel, submitting }:
           Drill Template (or enter custom name below)
         </label>
         <div className="relative">
-          <select value={effectiveTemplateId} onChange={(e) => handleTemplateChange(e.target.value)} className={INPUT_CLASS}>
+          <select value={templateId} onChange={(e) => handleTemplateChange(e.target.value)} className={INPUT_CLASS}>
             <option value="">Custom / No Template</option>
             {Object.entries(byCategory).map(([cat, tpls]) => (
               <optgroup key={cat} label={cat}>
@@ -410,12 +390,16 @@ export default function RangeSessionDetailPage() {
   const [drillSubmitting, setDrillSubmitting] = useState(false);
   const [deletingDrillId, setDeletingDrillId] = useState<string | null>(null);
   const [deleteSessionConfirm, setDeleteSessionConfirm] = useState(false);
+  const [sessionDateInput, setSessionDateInput] = useState("");
+  const [savingSessionDate, setSavingSessionDate] = useState(false);
 
   const fetchSession = useCallback(async () => {
     try {
       const res = await fetch(`/api/range-sessions/${id}`);
       if (!res.ok) throw new Error("Session not found");
-      setSession(await res.json());
+      const json = await res.json();
+      setSession(json);
+      setSessionDateInput(toDateTimeLocalValue(json.date));
     } catch {
       setError("Failed to load session.");
     } finally {
@@ -486,6 +470,53 @@ export default function RangeSessionDetailPage() {
     }
   }
 
+  async function handleSaveSessionDate() {
+    if (!session || !sessionDateInput) return;
+
+    setSavingSessionDate(true);
+    setError(null);
+
+    try {
+      const res = await fetch(`/api/range-sessions/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          buildId: session.build?.id ?? null,
+          roundsFired: session.roundsFired,
+          rangeName: session.rangeName,
+          rangeLocation: session.rangeLocation,
+          notes: session.notes,
+          date: new Date(sessionDateInput).toISOString(),
+          environment: session.environment,
+          temperatureF: session.temperatureF,
+          windSpeedMph: session.windSpeedMph,
+          windDirection: session.windDirection,
+          humidity: session.humidity,
+          lightCondition: session.lightCondition,
+          weatherNotes: session.weatherNotes,
+          targetDistanceYd: session.targetDistanceYd,
+          groupSizeIn: session.groupSizeIn,
+          groupSizeMoa: session.groupSizeMoa,
+          numberOfGroups: session.numberOfGroups,
+          groupNotes: session.groupNotes,
+          ammoTransactionIds: session.ammoLinks.map((link) => link.transaction.id),
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error ?? "Failed to update session date");
+      }
+
+      setSession(json);
+      setSessionDateInput(toDateTimeLocalValue(json.date));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update session date");
+    } finally {
+      setSavingSessionDate(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-full flex items-center justify-center">
@@ -497,7 +528,7 @@ export default function RangeSessionDetailPage() {
   if (error && !session) {
     return (
       <div className="min-h-full">
-        <PageHeader title="Session Details" subtitle="" />
+        <PageHeader title="SESSION DETAIL" subtitle="" />
         <div className="max-w-3xl mx-auto px-6 py-8">
           <div className="flex items-center gap-3 bg-[#E53935]/10 border border-[#E53935]/30 rounded-lg px-4 py-3">
             <AlertCircle className="w-4 h-4 text-[#E53935]" />
@@ -516,7 +547,7 @@ export default function RangeSessionDetailPage() {
   return (
     <div className="min-h-full">
       <PageHeader
-        title={session.sessionFirearms.map((sf) => sf.firearm.name).join(" + ")}
+        title={session.firearm.name.toUpperCase()}
         subtitle={formatDate(session.date)}
       />
 
@@ -561,15 +592,38 @@ export default function RangeSessionDetailPage() {
         </div>
 
         {/* Session summary strip */}
+        <div className="bg-vault-surface border border-vault-border rounded-lg p-4">
+          <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+            <div className="flex-1">
+              <label className={LABEL_CLASS}>Session Date &amp; Time</label>
+              <input
+                type="datetime-local"
+                value={sessionDateInput}
+                onChange={(e) => setSessionDateInput(e.target.value)}
+                className={INPUT_CLASS}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={handleSaveSessionDate}
+              disabled={savingSessionDate || !sessionDateInput}
+              className="h-10 px-4 rounded-md text-sm bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+            >
+              {savingSessionDate ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              {savingSessionDate ? "Saving..." : "Save Date"}
+            </button>
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
             { label: "Rounds Fired", value: formatNumber(session.roundsFired), unit: "rds", color: "text-[#00C2FF]" },
-            { label: "Calibers", value: Array.from(new Set(session.sessionFirearms.map((sf) => sf.firearm.caliber))).join(", "), color: "text-vault-text" },
-            { label: "Builds", value: session.sessionFirearms.filter((sf) => sf.build).map((sf) => sf.build!.name).join(", ") || "—", color: "text-vault-text" },
+            { label: "Caliber", value: session.firearm.caliber, color: "text-vault-text" },
+            { label: "Build", value: session.build?.name ?? "—", color: "text-vault-text" },
             { label: "Range", value: session.rangeName ?? "—", color: "text-vault-text" },
           ].map(({ label, value, color }) => (
             <div key={label} className="bg-vault-surface border border-vault-border rounded-lg p-3">
-              <p className="text-xs text-vault-text-faint mb-1">{label}</p>
+              <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-1">{label}</p>
               <p className={`text-sm font-medium truncate ${color}`}>{value}</p>
             </div>
           ))}
@@ -584,7 +638,7 @@ export default function RangeSessionDetailPage() {
               <div className="bg-vault-surface border border-vault-border rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Thermometer className="w-4 h-4 text-[#00C2FF]" />
-                  <h3 className="text-sm font-semibold text-vault-text-muted">Environment</h3>
+                  <h3 className="text-xs font-mono uppercase tracking-widest text-vault-text-muted">Environment</h3>
                 </div>
                 <div className="flex flex-wrap gap-2 mb-3">
                   {session.environment && (
@@ -624,30 +678,30 @@ export default function RangeSessionDetailPage() {
               <div className="bg-vault-surface border border-vault-border rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Crosshair className="w-4 h-4 text-[#00C2FF]" />
-                  <h3 className="text-sm font-semibold text-vault-text-muted">Shot Groups</h3>
+                  <h3 className="text-xs font-mono uppercase tracking-widest text-vault-text-muted">Shot Groups</h3>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   {session.targetDistanceYd != null && (
                     <div>
-                      <p className="text-xs text-vault-text-faint mb-0.5">Distance</p>
+                      <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-0.5">Distance</p>
                       <p className="text-sm font-mono text-vault-text">{session.targetDistanceYd} yd</p>
                     </div>
                   )}
                   {session.numberOfGroups != null && (
                     <div>
-                      <p className="text-xs text-vault-text-faint mb-0.5">Groups</p>
+                      <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-0.5">Groups</p>
                       <p className="text-sm font-mono text-vault-text">{session.numberOfGroups}</p>
                     </div>
                   )}
                   {session.groupSizeIn != null && (
                     <div>
-                      <p className="text-xs text-vault-text-faint mb-0.5">Best Group</p>
+                      <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-0.5">Best Group</p>
                       <p className="text-sm font-mono text-[#00C853] font-bold">{session.groupSizeIn}&quot;</p>
                     </div>
                   )}
                   {session.groupSizeMoa != null && (
                     <div>
-                      <p className="text-xs text-vault-text-faint mb-0.5">Best Group (MOA)</p>
+                      <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-0.5">Best Group (MOA)</p>
                       <p className="text-sm font-mono text-[#00C853] font-bold">{session.groupSizeMoa.toFixed(2)} MOA</p>
                     </div>
                   )}
@@ -663,7 +717,7 @@ export default function RangeSessionDetailPage() {
               <div className="bg-vault-surface border border-vault-border rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <PackageCheck className="w-4 h-4 text-[#00C2FF]" />
-                  <h3 className="text-sm font-semibold text-vault-text-muted">Ammo Used</h3>
+                  <h3 className="text-xs font-mono uppercase tracking-widest text-vault-text-muted">Ammo Used</h3>
                 </div>
                 <div className="space-y-2">
                   {session.ammoLinks.map((link) => (
@@ -686,7 +740,7 @@ export default function RangeSessionDetailPage() {
             {/* Notes card */}
             {session.notes && (
               <div className="bg-vault-surface border border-vault-border rounded-lg p-4">
-                <p className="text-sm font-medium text-vault-text-faint mb-2">Session Notes</p>
+                <p className="text-xs font-mono uppercase tracking-widest text-vault-text-faint mb-2">Session Notes</p>
                 <p className="text-sm text-vault-text-muted whitespace-pre-wrap">{session.notes}</p>
               </div>
             )}
@@ -697,7 +751,7 @@ export default function RangeSessionDetailPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <ListChecks className="w-4 h-4 text-[#00C2FF]" />
-                <h3 className="text-sm font-semibold text-vault-text-muted">
+                <h3 className="text-xs font-mono uppercase tracking-widest text-vault-text-muted">
                   Drills ({session.sessionDrills.length})
                 </h3>
               </div>

@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/server/auth";
+
+function parseDateInput(value: unknown): Date | null | "invalid" {
+  if (value === undefined || value === null || value === "") return null;
+  const parsed = new Date(String(value));
+  return Number.isNaN(parsed.getTime()) ? "invalid" : parsed;
+}
 
 export async function GET(request: NextRequest) {
-  const auth = await requireAuth();
-  if (auth) return auth;
-
   try {
     const { searchParams } = new URL(request.url);
     const firearmId = searchParams.get("firearmId");
@@ -27,12 +29,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAuth();
-  if (auth) return auth;
-
   try {
     const body = await request.json();
-    const { firearmId, description, type, date, mileage } = body;
+    const { firearmId, description, type, date, dueDate, mileage } = body;
 
     if (!firearmId || !description) {
       return NextResponse.json(
@@ -45,8 +44,19 @@ export async function POST(request: NextRequest) {
       ? parseInt(String(mileage), 10)
       : null;
 
-    if (mileageInt !== null && Number.isNaN(mileageInt)) {
+    if (mileageInt !== null && !Number.isFinite(mileageInt)) {
       return NextResponse.json({ error: "mileage must be a valid integer" }, { status: 400 });
+    }
+
+    const parsedDate = parseDateInput(date);
+    const parsedDueDate = parseDateInput(dueDate);
+
+    if (parsedDate === "invalid") {
+      return NextResponse.json({ error: "date must be a valid date" }, { status: 400 });
+    }
+
+    if (parsedDueDate === "invalid") {
+      return NextResponse.json({ error: "dueDate must be a valid date" }, { status: 400 });
     }
 
     const note = await prisma.maintenanceNote.create({
@@ -54,7 +64,8 @@ export async function POST(request: NextRequest) {
         firearmId,
         description: typeof description === "string" ? description.slice(0, 5000) : String(description),
         type: typeof type === "string" ? type.slice(0, 100) : "Other",
-        date: date ? new Date(date) : new Date(),
+        date: parsedDate ?? new Date(),
+        dueDate: parsedDueDate,
         mileage: mileageInt,
       },
       include: { firearm: { select: { id: true, name: true } } },

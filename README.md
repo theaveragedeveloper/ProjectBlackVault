@@ -1,99 +1,215 @@
-# Project Black Vault
+# ProjectBlackVault (V1)
 
-> Private, offline-first firearms inventory, ammo, maintenance, and training tracker — fully self-hosted and controlled by you.
+ProjectBlackVault is a private, self-hosted vault for firearm inventory, builds, ammo records, and range logs.
 
-No cloud accounts. No external storage. No vendor lock-in.
+V1 public release support is **Docker-only** for home server / on-prem installs.
 
-![License](https://img.shields.io/badge/license-MIT-green)
-![Self-hosted](https://img.shields.io/badge/self--hosted-yes-blue)
-![Offline-first](https://img.shields.io/badge/offline--first-yes-informational)
+## V1 Public Support Scope
 
-## Download the Latest Desktop App
+- Supported path: Docker Compose from this repository folder
+- Not a supported public V1 path: desktop/downloader/one-click installer flows
+- Legacy helper scripts may remain for compatibility, but docs and support are Docker-first
 
-Get the newest desktop installers from GitHub Releases:
-https://github.com/theaveragedeveloper/ProjectBlackVault/releases/latest
+## What This App Is
 
-- **macOS:** download the `.dmg` installer
-- **Windows:** download the `Project Black Vault-Setup.exe` installer
-- **Home server users:** use the Docker deployment flow in this repository
+ProjectBlackVault helps you keep sensitive records on hardware you control.
 
-> Installer signing status can vary by platform/release setup. If a build is unsigned, GitHub still serves it from this official releases page.
+- Runs on your own machine with Docker
+- Stores your data locally (SQLite + uploaded files)
+- Uses a master password for setup and login
+- Lets you access the app from devices on your local network
 
-## Why Project Black Vault?
+## Who It Is For
 
-Most inventory workflows are split across spreadsheets, notes apps, and cloud tools.
+- Owners who want an organized local system for inventory and history
+- Families or households that want private, shared local access
+- Users who do not want cloud-hosted storage for this data
 
-Project Black Vault gives you a purpose-built system for:
+## Why Self-Hosted Matters
 
-- Firearms inventory and metadata
-- Ammo stock and usage history
-- Loadouts and configurations
-- Maintenance and service tracking
-- Training logs and performance trends
-- Local backup and restore workflows
+- Your records stay on your machine
+- You control backups and recovery
+- You decide if the app is reachable only locally or on your LAN
+- You are not locked into a third-party SaaS account
 
-All data remains local to your machine or home server.
+## Docker-Only Install Walkthrough (V1)
 
-## Choose Your Setup
+For a beginner-focused guide, see [NON_TECHNICAL_INSTALL.md](NON_TECHNICAL_INSTALL.md).
 
-### 🖥 Desktop App (Easiest)
-Best for single-computer use with minimal setup.
+### 1) Prerequisites
 
-### 🐳 Docker / Home Server
-Best for NAS or always-on environments with LAN/VPN access.
+- A computer or home server that stays on when you want the app available
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows/macOS) or Docker Engine + Compose plugin (Linux)
+- This project folder on that machine
 
-### 🛠 Run from Source (Advanced)
-Best for developers and custom deployments.
+### 2) Open a Terminal in the Project Folder
 
-## App Preview
+Use the folder that contains `docker-compose.yml`.
 
-> The repository owner provides screenshots at `public/readme/`.
+### 3) Create a Local Config File
 
-![Dashboard](public/readme/dashboard.png)
-![Vault](public/readme/vault.png)
-![Ammo](public/readme/ammo.png)
-![Range Sessions](public/readme/range-sessions.png)
-![Settings](public/readme/settings.png)
-![Backup](public/readme/backup.png)
-
-## Releasing the Desktop App
-
-Maintainers can cut a new desktop release by bumping `electron/package.json`, pushing a `v*` tag, and letting GitHub Actions publish installers automatically. See [`docs/releasing.md`](docs/releasing.md) for the full runbook.
-
-## Quick Start (Developer)
+macOS/Linux:
 
 ```bash
-git clone https://github.com/theaveragedeveloper/ProjectBlackVault.git
-cd ProjectBlackVault
-
-npm install
 cp .env.example .env
-
-npx prisma migrate dev
-npm run dev
 ```
 
-Open: http://localhost:3000
+Windows (PowerShell):
 
-## Production-minded Setup Notes
+```powershell
+copy .env.example .env
+```
 
-- Keep `.env` / `.blackvault.env` private and out of source control.
-- Set strong secrets for production (`SESSION_SECRET`, `PASSWORD_RECOVERY_SECRET`, and `VAULT_ENCRYPTION_KEY`).
-- Back up your database and exported backups regularly.
+### 4) Start the App
 
-## Trust & Project Standards
+```bash
+docker compose up -d --build
+```
 
-- 📜 [License (MIT)](LICENSE)
-- 🤝 [Contributing Guide](CONTRIBUTING.md)
-- 🛡️ [Security Policy](SECURITY.md)
-- ❤️ [Code of Conduct](CODE_OF_CONDUCT.md)
-- 🗒️ [Changelog](CHANGELOG.md)
+### 5) Open the App
 
-## Community & Support
+- [http://localhost:3000](http://localhost:3000)
+- If the page does not open immediately, wait 20-30 seconds and refresh.
 
-- Feature requests and bug reports: [GitHub Issues](https://github.com/theaveragedeveloper/ProjectBlackVault/issues)
-- Security disclosures: follow [SECURITY.md](SECURITY.md)
+## First Startup
 
----
+On first launch, you will see setup.
 
-If this project helps you, consider starring the repository to support development.
+1. Create your master password.
+2. Save this password somewhere safe.
+3. Finish setup and enter the dashboard.
+
+After setup, future launches show a login screen instead of setup.
+
+## Setup And Login
+
+- Setup appears once per data folder
+- Login uses the password you created during setup
+- If setup is missing and you see login, that data folder was already initialized
+
+## Backups
+
+Back up these items together:
+
+- `./data/db` (database and local session secret)
+- `./data/uploads` (uploaded files)
+- `.env` (if you store custom settings such as encryption key there)
+
+Minimum safe backup workflow:
+
+```bash
+docker compose down
+```
+
+Then copy `data/` and `.env` to another drive/location.
+
+Start again:
+
+```bash
+docker compose up -d
+```
+
+## Updating
+
+1. Back up first (section above).
+2. Update app code to the newest release in this folder.
+3. Rebuild and restart:
+
+```bash
+docker compose up -d --build
+```
+
+4. Verify health:
+
+```bash
+curl -fsS http://localhost:3000/api/health
+```
+
+## Troubleshooting
+
+### App does not load
+
+Run:
+
+```bash
+docker compose ps
+docker compose logs --tail=150
+```
+
+### Setup screen is missing
+
+- This usually means setup already completed for this data folder.
+- Try logging in with your existing password.
+
+### Port 3000 is already in use
+
+1. Edit `.env`
+2. Change `PORT=3000` to `PORT=3001`
+3. Restart:
+
+```bash
+docker compose up -d --build
+```
+
+Then open `http://localhost:3001`.
+
+### Docker command fails
+
+- Confirm Docker is running.
+- Confirm Compose is available:
+
+```bash
+docker compose version
+```
+
+## Local Network Access (Phone/Tablet/Another PC)
+
+By default, `.env.example` uses `BIND_ADDRESS=127.0.0.1` (same machine only).
+
+To allow devices on your home network:
+
+1. Open `.env`
+2. Set:
+
+```text
+BIND_ADDRESS=0.0.0.0
+```
+
+3. Restart:
+
+```bash
+docker compose up -d --build
+```
+
+4. Find your server IP (example `192.168.1.42`) and open:
+
+```text
+http://192.168.1.42:3000
+```
+
+5. Make sure the device is on the same network.
+
+## FAQ
+
+### Do I need a desktop app, downloader, or installer for V1?
+No. Public V1 support is Docker-only.
+
+### Does uninstalling Docker delete my records?
+Not by itself. Your records are in your data folder (`./data` unless changed).
+
+### Can I move data to another machine?
+Yes. Move your `data/` folder and `.env`, then start the app with Docker on the new machine.
+
+### What if I forget my master password?
+There is no password recovery flow in V1. Keep a secure password record.
+
+### Do I need internet after install?
+You need internet to pull/build dependencies and updates. Day-to-day local use is on your LAN.
+
+## ChatGPT Helper Prompts
+
+Use ready-to-paste prompts from [CHATGPT_INSTALL_PROMPTS.md](CHATGPT_INSTALL_PROMPTS.md).
+
+## Screenshot Capture Plan
+
+Screenshots are not included yet. Capture plan is documented in [SCREENSHOT_CAPTURE_PLAN.md](SCREENSHOT_CAPTURE_PLAN.md).

@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { FileText, Upload, X, AlertCircle, FileIcon } from "lucide-react";
+import { useRef, useState } from "react";
+import { AlertCircle, FileIcon, FileText, Upload, X } from "lucide-react";
 
 export interface UploadedDocument {
   id: string;
   name: string;
-  type: string;
+  type: "RECIPE" | "TAX_STAMP" | "RECEIPT" | "OTHER";
   fileUrl: string;
   fileSize: number | null;
   mimeType: string | null;
@@ -19,96 +19,82 @@ export interface UploadedDocument {
 }
 
 interface DocumentUploaderProps {
-  entityType?: "firearm" | "accessory" | null;
-  entityId?: string | null;
-  defaultDocType?: "RECEIPT" | "NFA_TAX_STAMP" | "OTHER";
+  firearmId?: string | null;
+  accessoryId?: string | null;
   onUploadComplete: (doc: UploadedDocument) => void;
   onCancel?: () => void;
 }
 
-const DOC_TYPES = [
+const DOC_TYPES: Array<{ value: UploadedDocument["type"]; label: string }> = [
+  { value: "RECIPE", label: "Recipe" },
+  { value: "TAX_STAMP", label: "Tax Stamp" },
   { value: "RECEIPT", label: "Receipt" },
-  { value: "NFA_TAX_STAMP", label: "NFA Tax Stamp" },
   { value: "OTHER", label: "Other" },
-] as const;
+];
 
 const ALLOWED_TYPES = ["application/pdf", "image/jpeg", "image/jpg", "image/png", "image/webp"];
 const MAX_SIZE = 20 * 1024 * 1024;
 
-function formatBytes(bytes: number) {
+function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function DocumentUploader({
-  entityType,
-  entityId,
-  defaultDocType = "RECEIPT",
-  onUploadComplete,
-  onCancel,
-}: DocumentUploaderProps) {
+export function DocumentUploader({ firearmId, accessoryId, onUploadComplete, onCancel }: DocumentUploaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
-  const [docName, setDocName] = useState("");
-  const [docType, setDocType] = useState<"RECEIPT" | "NFA_TAX_STAMP" | "OTHER">(defaultDocType);
+  const [name, setName] = useState("");
+  const [type, setType] = useState<UploadedDocument["type"]>("RECIPE");
   const [notes, setNotes] = useState("");
   const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function handleFileSelect(selected: File) {
+  function selectFile(nextFile: File) {
     setError(null);
-    if (!ALLOWED_TYPES.includes(selected.type)) {
+    if (!ALLOWED_TYPES.includes(nextFile.type)) {
       setError("Invalid file type. Allowed: PDF, JPG, PNG, WebP");
       return;
     }
-    if (selected.size > MAX_SIZE) {
+    if (nextFile.size > MAX_SIZE) {
       setError("File too large. Maximum size is 20MB.");
       return;
     }
-    setFile(selected);
-    if (!docName) {
-      // Auto-fill name from filename (strip extension)
-      const base = selected.name.replace(/\.[^.]+$/, "");
-      setDocName(base);
+    setFile(nextFile);
+    if (!name) {
+      setName(nextFile.name.replace(/\.[^.]+$/, ""));
     }
   }
 
-  function handleDrop(e: React.DragEvent) {
-    e.preventDefault();
+  function handleDrop(event: React.DragEvent) {
+    event.preventDefault();
     setDragOver(false);
-    const dropped = e.dataTransfer.files[0];
-    if (dropped) handleFileSelect(dropped);
+    const droppedFile = event.dataTransfer.files[0];
+    if (droppedFile) {
+      selectFile(droppedFile);
+    }
   }
 
-  async function handleUpload() {
-    if (!file || !docName.trim()) return;
+  async function uploadDocument() {
+    if (!file || !name.trim()) return;
     setUploading(true);
     setError(null);
 
     try {
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("name", docName.trim());
-      formData.append("type", docType);
-      if (entityType && entityId) {
-        formData.append(entityType === "firearm" ? "firearmId" : "accessoryId", entityId);
-      }
+      formData.append("name", name.trim());
+      formData.append("type", type);
+      if (firearmId) formData.append("firearmId", firearmId);
+      if (accessoryId) formData.append("accessoryId", accessoryId);
       if (notes.trim()) formData.append("notes", notes.trim());
 
-      const res = await fetch("/api/documents/upload", {
-        method: "POST",
-        body: formData,
-      });
+      const res = await fetch("/api/documents/upload", { method: "POST", body: formData });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Upload failed");
 
-      if (!res.ok) {
-        const json = await res.json();
-        throw new Error(json.error ?? "Upload failed");
-      }
-
-      const doc: UploadedDocument = await res.json();
-      onUploadComplete(doc);
+      onUploadComplete(json);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
     } finally {
@@ -120,11 +106,13 @@ export function DocumentUploader({
 
   return (
     <div className="space-y-4">
-      {/* Drop zone */}
       {!file ? (
         <div
           onDrop={handleDrop}
-          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragOver(true);
+          }}
           onDragLeave={() => setDragOver(false)}
           onClick={() => fileInputRef.current?.click()}
           className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
@@ -138,11 +126,14 @@ export function DocumentUploader({
             type="file"
             accept=".pdf,.jpg,.jpeg,.png,.webp"
             className="sr-only"
-            onChange={(e) => { if (e.target.files?.[0]) handleFileSelect(e.target.files[0]); }}
+            onChange={(e) => {
+              const next = e.target.files?.[0];
+              if (next) selectFile(next);
+            }}
           />
           <Upload className="w-8 h-8 text-vault-text-faint mx-auto mb-2" />
           <p className="text-sm text-vault-text-muted">Drop file here or click to browse</p>
-          <p className="text-xs text-vault-text-faint mt-1">PDF, JPG, PNG, WebP — max 20MB</p>
+          <p className="text-xs text-vault-text-faint mt-1">PDF, JPG, PNG, WebP - max 20MB</p>
         </div>
       ) : (
         <div className="flex items-center gap-3 p-3 rounded-lg border border-vault-border bg-vault-bg">
@@ -157,8 +148,11 @@ export function DocumentUploader({
           </div>
           <button
             type="button"
-            onClick={() => { setFile(null); setError(null); }}
-            className="text-vault-text-faint hover:text-red-400 transition-colors"
+            onClick={() => {
+              setFile(null);
+              setError(null);
+            }}
+            className="text-vault-text-faint hover:text-[#E53935] transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -166,13 +160,12 @@ export function DocumentUploader({
       )}
 
       {error && (
-        <div className="flex items-center gap-2 text-red-400 text-xs">
+        <div className="flex items-center gap-2 text-[#E53935] text-xs">
           <AlertCircle className="w-3.5 h-3.5 shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
-      {/* Form fields */}
       <div className="space-y-3">
         <div>
           <label className="block text-xs font-medium uppercase tracking-widest text-vault-text-muted mb-1.5">
@@ -180,30 +173,28 @@ export function DocumentUploader({
           </label>
           <input
             type="text"
-            value={docName}
-            onChange={(e) => setDocName(e.target.value)}
-            placeholder="e.g. Glock 19 Purchase Receipt"
-            className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint transition-colors"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. 300 BLK Subsonic Recipe"
+            className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-medium uppercase tracking-widest text-vault-text-muted mb-1.5">
-            Document Type
-          </label>
-          <div className="flex gap-2">
-            {DOC_TYPES.map((dt) => (
+          <label className="block text-xs font-medium uppercase tracking-widest text-vault-text-muted mb-1.5">Document Type</label>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {DOC_TYPES.map((docType) => (
               <button
-                key={dt.value}
+                key={docType.value}
                 type="button"
-                onClick={() => setDocType(dt.value)}
-                className={`flex-1 py-1.5 rounded-md text-xs font-medium border transition-colors ${
-                  docType === dt.value
+                onClick={() => setType(docType.value)}
+                className={`py-1.5 rounded-md text-xs font-medium border transition-colors ${
+                  type === docType.value
                     ? "bg-[#00C2FF]/10 border-[#00C2FF]/30 text-[#00C2FF]"
                     : "border-vault-border text-vault-text-muted hover:bg-vault-border"
                 }`}
               >
-                {dt.label}
+                {docType.label}
               </button>
             ))}
           </div>
@@ -217,18 +208,18 @@ export function DocumentUploader({
             rows={2}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="e.g. Original purchase from Cabela's, $549..."
-            className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint transition-colors resize-none"
+            placeholder="Optional notes..."
+            className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint resize-none"
           />
         </div>
       </div>
 
-      <div className="flex gap-2 pt-1">
+      <div className="flex gap-2">
         <button
           type="button"
-          onClick={handleUpload}
-          disabled={!file || !docName.trim() || uploading}
-          className="flex items-center gap-2 px-4 py-2 rounded-md bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] text-sm hover:bg-[#00C2FF]/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          onClick={uploadDocument}
+          disabled={!file || !name.trim() || uploading}
+          className="flex items-center gap-2 px-4 py-2 rounded-md bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] text-sm hover:bg-[#00C2FF]/20 transition-colors disabled:opacity-50"
         >
           {uploading ? (
             <div className="w-4 h-4 border-2 border-[#00C2FF]/30 border-t-[#00C2FF] rounded-full animate-spin" />

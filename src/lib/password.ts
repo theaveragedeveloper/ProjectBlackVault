@@ -4,20 +4,13 @@ import crypto from "crypto";
 const PREFIX = "scrypt:";
 const SALT_BYTES = 16;
 const KEY_LEN = 64;
-// Use explicit, stronger-than-default scrypt parameters (OWASP recommends N≥65536)
-const SCRYPT_PARAMS = {
-  N: 65536,
-  r: 8,
-  p: 1,
-  maxmem: 128 * 1024 * 1024,
-} as const;
 
 /**
  * Hash a plaintext password using scrypt. Returns a storable string.
  */
 export function hashPassword(plaintext: string): string {
   const salt = crypto.randomBytes(SALT_BYTES).toString("hex");
-  const hash = crypto.scryptSync(plaintext, salt, KEY_LEN, SCRYPT_PARAMS).toString("hex");
+  const hash = crypto.scryptSync(plaintext, salt, KEY_LEN).toString("hex");
   return `${PREFIX}${salt}:${hash}`;
 }
 
@@ -36,7 +29,7 @@ export function verifyPassword(plaintext: string, stored: string): boolean {
     const salt = rest.slice(0, sep);
     const expectedHash = rest.slice(sep + 1);
     try {
-      const actualHash = crypto.scryptSync(plaintext, salt, KEY_LEN, SCRYPT_PARAMS).toString("hex");
+      const actualHash = crypto.scryptSync(plaintext, salt, KEY_LEN).toString("hex");
       return crypto.timingSafeEqual(
         Buffer.from(actualHash, "hex"),
         Buffer.from(expectedHash, "hex")

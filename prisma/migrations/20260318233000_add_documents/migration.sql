@@ -1,0 +1,2 @@
+-- No-op: Document table/indexes were already created in
+-- 20260306140400_add_drill_logs_and_documents.

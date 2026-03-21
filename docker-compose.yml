@@ -1,29 +1,31 @@
-version: '3.8'
-
-# Production compose — pulls pre-built image from GitHub Container Registry.
-# Run `./install.sh` (or install.bat on Windows) for first-time setup.
-# Run `./update.sh` to pull the latest version.
-# For local development, use docker-compose.dev.yml instead.
-
 services:
   blackvault:
-    image: ghcr.io/theaveragedeveloper/projectblackvault:latest
-    container_name: blackvault
+    build:
+      context: .
+    image: projectblackvault:v1
+    container_name: projectblackvault
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     ports:
-      - "${PORT:-3000}:3000"
+      - "${BIND_ADDRESS:-127.0.0.1}:${PORT:-3000}:${PORT:-3000}"
     environment:
       - NODE_ENV=production
+      - PORT=${PORT:-3000}
+      - BIND_ADDRESS=${BIND_ADDRESS:-127.0.0.1}
       - DATABASE_URL=file:/app/data/vault.db
+      - IMAGE_UPLOAD_DIR=/app/uploads
+      - SESSION_COOKIE_SECURE=${SESSION_COOKIE_SECURE:-auto}
       - VAULT_ENCRYPTION_KEY=${VAULT_ENCRYPTION_KEY:-}
+      - ALLOW_ENCRYPTION_KEY_EXPORT=${ALLOW_ENCRYPTION_KEY_EXPORT:-false}
       - SESSION_SECRET=${SESSION_SECRET:-}
-      - PASSWORD_RECOVERY_SECRET=${PASSWORD_RECOVERY_SECRET:-}
-      - ALLOW_SESSION_SECRET_PASSWORD_RESET=${ALLOW_SESSION_SECRET_PASSWORD_RESET:-false}
     volumes:
       - ${DATA_DIR:-./data}/db:/app/data
       - ${DATA_DIR:-./data}/uploads:/app/uploads
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      test: ["CMD-SHELL", "wget -qO- \"http://127.0.0.1:${PORT:-3000}/api/health\" >/dev/null 2>&1 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3

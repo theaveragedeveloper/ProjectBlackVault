@@ -1,8 +1,11 @@
 import { PrismaClient } from "@prisma/client";
+import { assertRuntimeConfig } from "@/lib/runtime-config";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
+
+assertRuntimeConfig();
 
 export const prisma =
   globalForPrisma.prisma ??

@@ -1,9 +1,11 @@
-# Releasing the Electron Desktop App
+# Releasing the Electron Desktop App (Optional / Non-V1)
 
-This project ships desktop installers through **GitHub Actions** using `electron-builder`.
+Public V1 release/support is Docker-first. This desktop flow is optional maintainer work and is not the primary supported V1 install/update path.
+
+Desktop installers are shipped through **GitHub Actions** using `electron-builder`.
 
 - Workflow: `.github/workflows/electron-release.yml`
-- Trigger: push a semantic version tag (`v*`, for example `v0.1.0`)
+- Trigger: push a desktop semantic version tag (`desktop-v*`, for example `desktop-v0.1.0`)
 - Output: GitHub Release assets for Windows, macOS, and Linux (AppImage)
 
 For the full secrets contract, see [`docs/release-secrets.md`](release-secrets.md).
@@ -33,12 +35,13 @@ npm run electron:dist
 git push
 
 # create and push release tag that matches electron/package.json version
-npm run release:tag
+git tag "desktop-v$(node -p \"require('./electron/package.json').version\")"
+git push origin "desktop-v$(node -p \"require('./electron/package.json').version\")"
 ```
 
 What happens next:
 
-1. Tag push (`vX.Y.Z`) triggers **Electron Tagged Release**.
+1. Tag push (`desktop-vX.Y.Z`) triggers **Electron Tagged Release**.
 2. CI builds installers on `windows-latest`, `macos-latest`, and `ubuntu-latest`.
 3. `electron-builder` publishes assets to the matching GitHub Release.
 4. Each matrix job uploads `electron/dist` as a workflow artifact for troubleshooting.
@@ -70,10 +73,10 @@ This mode builds installers and uploads workflow artifacts without publishing re
 ## Troubleshooting
 
 ### "Tag format is invalid"
-Use semantic version tags prefixed with `v`:
+Use semantic version tags prefixed with `desktop-v`:
 
-- ✅ `v0.1.0`
-- ❌ `0.1.0`
+- ✅ `desktop-v0.1.0`
+- ❌ `v0.1.0`
 
 ### macOS build is not notarized
 Check that all notarization secrets exist:
@@ -91,7 +94,7 @@ Open the failed matrix job and inspect:
 ### Need to retry a failed release
 
 1. Fix the issue in a new commit.
-2. Re-run the failed job, or cut a new tag (for example `v0.1.1`).
+2. Re-run the failed job, or cut a new tag (for example `desktop-v0.1.1`).
 3. Confirm assets on the release page after rerun.
 
 ## Where users should download

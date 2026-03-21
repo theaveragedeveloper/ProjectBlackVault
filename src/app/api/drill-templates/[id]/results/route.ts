@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/server/auth";
 
 // GET /api/drill-templates/[id]/results
 // Returns all SessionDrill records for a template with session dates, sorted chronologically
@@ -8,9 +7,6 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAuth();
-  if (auth) return auth;
-
   try {
     const { id } = await params;
 

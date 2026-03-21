@@ -1,27 +1,19 @@
 {
-  "name": "project-black-vault",
-  "version": "0.1.0",
+  "name": "projectblackvault",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
-    "lint": "eslint",
+    "lint": "eslint src prisma",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/**/*.test.ts",
+    "validate:runtime": "tsx scripts/validate-runtime-config.ts",
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
     "db:reset": "prisma migrate reset",
-    "typecheck": "tsc --noEmit",
-    "ci:quality-gate": "node scripts/quality-gate.mjs",
-    "check:merge-conflicts": "./scripts/check-merge-conflicts.sh",
-    "electron:dev": "npm run build && cd electron && npm install && electron .",
-    "electron:build": "npm run build && cd electron && npm install && npm run build",
-    "release": "node -e \"const v=require('./electron/package.json').version;require('child_process').execSync('git tag v'+v+' && git push origin v'+v,{stdio:'inherit'})\"",
-    "electron:install": "npm --prefix electron ci",
-    "electron:dist": "npm run build && npm run electron:install && npm --prefix electron run dist",
-    "release:tag": "npm run release"
+    "release:check": "npm run lint && npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -46,9 +38,9 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.34.5",
-    "jspdf": "^4.2.1",
     "lucide-react": "^0.576.0",
-    "next": "16.1.7",
+    "next": "16.2.0",
+    "qrcode.react": "^4.2.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "recharts": "^3.7.0",
@@ -62,34 +54,15 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@vitest/coverage-v8": "^4.0.18",
     "eslint": "^9",
-    "eslint-config-next": "16.1.7",
+    "eslint-config-next": "16.2.0",
     "prisma": "^5.22.0",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
-    "typescript": "^5",
-    "vitest": "^4.0.18"
+    "tsx": "^4.21.0",
+    "typescript": "^5"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
-  },
-  "description": "Private, offline-first, self-hosted firearms inventory, ammo, maintenance, and training tracker.",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/theaveragedeveloper/ProjectBlackVault.git"
-  },
-  "homepage": "https://github.com/theaveragedeveloper/ProjectBlackVault",
-  "bugs": {
-    "url": "https://github.com/theaveragedeveloper/ProjectBlackVault/issues"
-  },
-  "keywords": [
-    "self-hosted",
-    "inventory",
-    "home-server",
-    "firearms",
-    "tracking",
-    "offline-first"
-  ]
+  }
 }

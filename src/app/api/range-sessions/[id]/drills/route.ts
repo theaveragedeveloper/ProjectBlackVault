@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/server/auth";
 
 // POST /api/range-sessions/[id]/drills - Add a drill result to a session
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAuth();
-  if (auth) return auth;
-
   try {
     const { id: sessionId } = await params;
     const body = await request.json();

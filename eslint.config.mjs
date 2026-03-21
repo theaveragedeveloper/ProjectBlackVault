@@ -6,10 +6,12 @@ const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
   {
-    files: [
-      "electron/**/*.js",
-      "launcher/**/*.js",
-    ],
+    rules: {
+      "react-hooks/set-state-in-effect": "off",
+    },
+  },
+  {
+    files: ["electron/**/*.js", "launcher/**/*.js"],
     rules: {
       "@typescript-eslint/no-require-imports": "off",
     },
@@ -18,8 +20,10 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Default ignores of eslint-config-next:
     ".next/**",
+    ".next.bak.*/**",
     "out/**",
     "build/**",
+    "standalone/**",
     "next-env.d.ts",
   ]),
 ]);

@@ -1,16 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { encryptField, decryptField } from "@/lib/crypto";
-import { revalidateDashboardCaches } from "@/lib/server/dashboard";
-import { validateOptionalImageUrl } from "@/lib/image-url-validation";
-import { FIREARM_TYPES } from "@/lib/types";
-import { requireAuth } from "@/lib/server/auth";
+import { revalidatePath } from "next/cache";
 
 // GET /api/firearms - List all firearms with build count
 export async function GET() {
-  const auth = await requireAuth();
-  if (auth) return auth;
-
   try {
     const firearms = await prisma.firearm.findMany({
       include: {
@@ -58,9 +52,6 @@ export async function GET() {
 
 // POST /api/firearms - Create a new firearm
 export async function POST(request: NextRequest) {
-  const auth = await requireAuth();
-  if (auth) return auth;
-
   try {
     const body = await request.json();
 
@@ -79,21 +70,9 @@ export async function POST(request: NextRequest) {
       imageSource,
     } = body;
 
-    const imageValidation = validateOptionalImageUrl(imageUrl);
-    if (!imageValidation.valid) {
-      return NextResponse.json({ error: imageValidation.error }, { status: 400 });
-    }
-
     if (!name) {
       return NextResponse.json(
         { error: "Missing required field: name" },
-        { status: 400 }
-      );
-    }
-
-    if (!FIREARM_TYPES.includes(type)) {
-      return NextResponse.json(
-        { error: `Invalid firearm type. Must be one of: ${FIREARM_TYPES.join(", ")}` },
         { status: 400 }
       );
     }
@@ -106,13 +85,11 @@ export async function POST(request: NextRequest) {
         caliber: caliber || "",
         serialNumber: serialNumber ? await encryptField(serialNumber) : null,
         type: type || "",
-        acquisitionDate: acquisitionDate
-          ? (() => { const d = new Date(acquisitionDate); return isNaN(d.getTime()) ? null : d; })()
-          : null,
-        purchasePrice: purchasePrice != null && isFinite(purchasePrice) ? purchasePrice : null,
-        currentValue: currentValue != null && isFinite(currentValue) ? currentValue : null,
+        acquisitionDate: acquisitionDate ? new Date(acquisitionDate) : null,
+        purchasePrice: purchasePrice ?? null,
+        currentValue: currentValue ?? null,
         notes: notes ? await encryptField(notes) : null,
-        imageUrl: imageValidation.normalized,
+        imageUrl: imageUrl ?? null,
         imageSource: imageSource ?? null,
       },
       include: {
@@ -122,7 +99,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    revalidateDashboardCaches(["firearms"]);
+    revalidatePath("/");
 
     return NextResponse.json(
       { ...firearm, buildCount: firearm._count.builds, _count: undefined },

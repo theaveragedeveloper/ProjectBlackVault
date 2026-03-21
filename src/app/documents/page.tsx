@@ -1,19 +1,29 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { FileText, Upload, ExternalLink, X, Filter } from "lucide-react";
 import Link from "next/link";
-import { PageHeader } from "@/components/shared/PageHeader";
+import { useEffect, useMemo, useState } from "react";
+import { ExternalLink, FileText, Filter, Upload, X } from "lucide-react";
 import { DocumentUploader, type UploadedDocument } from "@/components/shared/DocumentUploader";
 
-type DocTypeFilter = "ALL" | "RECEIPT" | "NFA_TAX_STAMP" | "OTHER";
-type EntityFilter = "ALL" | "FIREARM" | "ACCESSORY" | "UNATTACHED";
+type DocTypeFilter = "ALL" | "RECIPE" | "TAX_STAMP" | "RECEIPT" | "OTHER";
+type AttachmentFilter = "ALL" | "FIREARM" | "ACCESSORY" | "UNATTACHED";
 
-function formatBytes(bytes: number | null) {
+function formatBytes(bytes: number | null): string {
   if (!bytes) return "";
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function typeLabel(type: UploadedDocument["type"]): string {
+  if (type === "RECIPE") return "Recipe";
+  if (type === "TAX_STAMP") return "Tax Stamp";
+  if (type === "RECEIPT") return "Receipt";
+  return "Other";
+}
+
+function isSafeDocumentHref(href: string): boolean {
+  return /^\/uploads\/documents\/[a-zA-Z0-9._-]+$/.test(href);
 }
 
 export default function DocumentLibraryPage() {
@@ -21,54 +31,57 @@ export default function DocumentLibraryPage() {
   const [loading, setLoading] = useState(true);
   const [showUploader, setShowUploader] = useState(false);
   const [typeFilter, setTypeFilter] = useState<DocTypeFilter>("ALL");
-  const [entityFilter, setEntityFilter] = useState<EntityFilter>("ALL");
+  const [attachmentFilter, setAttachmentFilter] = useState<AttachmentFilter>("ALL");
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/documents")
-      .then((r) => r.json())
+      .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) setDocuments(data);
-        setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
-  const filtered = documents.filter((doc) => {
-    if (typeFilter !== "ALL" && doc.type !== typeFilter) return false;
-    if (entityFilter === "FIREARM" && !doc.firearmId) return false;
-    if (entityFilter === "ACCESSORY" && !doc.accessoryId) return false;
-    if (entityFilter === "UNATTACHED" && (doc.firearmId || doc.accessoryId)) return false;
-    return true;
-  });
+  const filtered = useMemo(
+    () =>
+      documents.filter((doc) => {
+        if (typeFilter !== "ALL" && doc.type !== typeFilter) return false;
+        if (attachmentFilter === "FIREARM" && !doc.firearmId) return false;
+        if (attachmentFilter === "ACCESSORY" && !doc.accessoryId) return false;
+        if (attachmentFilter === "UNATTACHED" && (doc.firearmId || doc.accessoryId)) return false;
+        return true;
+      }),
+    [attachmentFilter, documents, typeFilter]
+  );
 
-  async function handleDelete(id: string) {
+  async function deleteDocument(id: string) {
     if (!confirm("Delete this document?")) return;
     setDeletingId(id);
     try {
-      const res = await fetch(`/api/documents/${id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const json = await res.json().catch(() => null);
-        alert(json?.error ?? "Failed to delete document");
-        return;
-      }
-      setDocuments((prev) => prev.filter((d) => d.id !== id));
+      await fetch(`/api/documents/${id}`, { method: "DELETE" });
+      setDocuments((prev) => prev.filter((doc) => doc.id !== id));
     } catch {
-      alert("Network error — could not delete document");
+      // ignore
     } finally {
       setDeletingId(null);
     }
   }
 
-  const isPdf = (doc: UploadedDocument) =>
-    doc.mimeType === "application/pdf" || (doc.fileUrl ?? "").endsWith(".pdf");
-
   return (
     <div className="min-h-full">
-      <PageHeader
-        title="Document Library"
-        subtitle="Store receipts, tax stamps, and other supporting records."
-        actions={
+      <div className="border-b border-vault-border bg-vault-surface px-6 py-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-md bg-[#00C2FF]/10 border border-[#00C2FF]/20 flex items-center justify-center">
+              <FileText className="w-4 h-4 text-[#00C2FF]" />
+            </div>
+            <div>
+              <h1 className="text-base font-bold text-vault-text tracking-wide uppercase">Document Library</h1>
+              <p className="text-xs text-vault-text-faint">Store recipes, tax stamps, receipts, and supporting files.</p>
+            </div>
+          </div>
           <button
             onClick={() => setShowUploader((v) => !v)}
             className="flex items-center gap-2 px-3 py-2 rounded-md bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] text-sm hover:bg-[#00C2FF]/20 transition-colors"
@@ -76,11 +89,10 @@ export default function DocumentLibraryPage() {
             <Upload className="w-4 h-4" />
             Upload Document
           </button>
-        }
-      />
+        </div>
+      </div>
 
       <div className="p-6 space-y-5 max-w-4xl mx-auto">
-        {/* Upload panel */}
         {showUploader && (
           <div className="rounded-xl border border-vault-border bg-vault-surface p-5">
             <div className="flex items-center justify-between mb-4">
@@ -90,8 +102,6 @@ export default function DocumentLibraryPage() {
               </button>
             </div>
             <DocumentUploader
-              entityType={null}
-              entityId={null}
               onUploadComplete={(doc) => {
                 setDocuments((prev) => [doc, ...prev]);
                 setShowUploader(false);
@@ -101,52 +111,44 @@ export default function DocumentLibraryPage() {
           </div>
         )}
 
-        {/* Filters */}
-        <div className="flex flex-wrap gap-2 items-center">
+        <div className="flex flex-wrap items-center gap-2">
           <Filter className="w-3.5 h-3.5 text-vault-text-faint shrink-0" />
-
-          {/* Type filter */}
           <div className="flex gap-1.5 flex-wrap">
-            {(["ALL", "RECEIPT", "NFA_TAX_STAMP", "OTHER"] as DocTypeFilter[]).map((t) => (
+            {(["ALL", "RECIPE", "TAX_STAMP", "RECEIPT", "OTHER"] as DocTypeFilter[]).map((type) => (
               <button
-                key={t}
-                onClick={() => setTypeFilter(t)}
+                key={type}
+                onClick={() => setTypeFilter(type)}
                 className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
-                  typeFilter === t
+                  typeFilter === type
                     ? "bg-[#00C2FF]/10 border-[#00C2FF]/30 text-[#00C2FF]"
                     : "border-vault-border text-vault-text-faint hover:text-vault-text-muted hover:bg-vault-border"
                 }`}
               >
-                {t === "ALL" ? "All Types" : t === "NFA_TAX_STAMP" ? "NFA Stamps" : t === "RECEIPT" ? "Receipts" : "Other"}
+                {type === "ALL" ? "All Types" : typeLabel(type)}
               </button>
             ))}
           </div>
-
           <div className="w-px h-5 bg-vault-border hidden sm:block" />
-
-          {/* Entity filter */}
           <div className="flex gap-1.5 flex-wrap">
-            {(["ALL", "FIREARM", "ACCESSORY", "UNATTACHED"] as EntityFilter[]).map((e) => (
+            {(["ALL", "FIREARM", "ACCESSORY", "UNATTACHED"] as AttachmentFilter[]).map((type) => (
               <button
-                key={e}
-                onClick={() => setEntityFilter(e)}
+                key={type}
+                onClick={() => setAttachmentFilter(type)}
                 className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
-                  entityFilter === e
+                  attachmentFilter === type
                     ? "bg-[#00C2FF]/10 border-[#00C2FF]/30 text-[#00C2FF]"
                     : "border-vault-border text-vault-text-faint hover:text-vault-text-muted hover:bg-vault-border"
                 }`}
               >
-                {e === "ALL" ? "All Items" : e === "FIREARM" ? "Firearms" : e === "ACCESSORY" ? "Accessories" : "Unattached"}
+                {type === "ALL" ? "All Items" : type}
               </button>
             ))}
           </div>
-
           <span className="ml-auto text-xs text-vault-text-faint">
             {filtered.length} document{filtered.length !== 1 ? "s" : ""}
           </span>
         </div>
 
-        {/* Document list */}
         {loading ? (
           <div className="flex justify-center py-16">
             <div className="w-6 h-6 border-2 border-[#00C2FF]/30 border-t-[#00C2FF] rounded-full animate-spin" />
@@ -159,96 +161,69 @@ export default function DocumentLibraryPage() {
             </h3>
             <p className="text-xs text-vault-text-faint mb-4">
               {documents.length === 0
-                ? "Upload receipts from a firearm or accessory page, or upload a standalone document above."
+                ? "Upload your first document to build a useful reference and backup library."
                 : "Try adjusting your filters."}
             </p>
-            {documents.length === 0 && (
-              <button
-                onClick={() => setShowUploader(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-md bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] text-sm hover:bg-[#00C2FF]/20 transition-colors mx-auto"
-              >
-                <Upload className="w-4 h-4" />
-                Upload First Document
-              </button>
-            )}
           </div>
         ) : (
           <div className="rounded-xl border border-vault-border bg-vault-surface overflow-hidden">
             <div className="divide-y divide-vault-border">
               {filtered.map((doc) => (
                 <div key={doc.id} className="flex items-center gap-4 px-4 py-3 hover:bg-vault-border/20 group transition-colors">
-                  {/* Icon */}
-                  <div className={`w-10 h-10 rounded-md border flex items-center justify-center shrink-0 ${
-                    isPdf(doc)
-                      ? "border-[#F5A623]/20 bg-[#F5A623]/5"
-                      : "border-[#00C2FF]/20 bg-[#00C2FF]/5"
-                  }`}>
-                    <FileText className={`w-5 h-5 ${isPdf(doc) ? "text-[#F5A623]" : "text-[#00C2FF]"}`} />
+                  <div className="w-10 h-10 rounded-md border border-[#00C2FF]/20 bg-[#00C2FF]/5 flex items-center justify-center shrink-0">
+                    <FileText className="w-5 h-5 text-[#00C2FF]" />
                   </div>
 
-                  {/* Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-medium text-vault-text truncate">{doc.name}</p>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded border font-mono shrink-0 ${
-                        doc.type === "NFA_TAX_STAMP"
-                          ? "border-[#F5A623]/30 text-[#F5A623]"
-                          : doc.type === "RECEIPT"
-                          ? "border-[#00C2FF]/30 text-[#00C2FF]"
-                          : "border-vault-border text-vault-text-faint"
-                      }`}>
-                        {doc.type === "NFA_TAX_STAMP" ? "NFA Tax Stamp" : doc.type === "RECEIPT" ? "Receipt" : "Other"}
+                      <span className="text-[10px] px-1.5 py-0.5 rounded border font-mono border-vault-border text-vault-text-faint">
+                        {typeLabel(doc.type)}
                       </span>
                     </div>
                     <div className="flex items-center gap-3 mt-0.5 flex-wrap">
                       {doc.firearm && (
-                        <Link
-                          href={`/vault/${doc.firearm.id}`}
-                          className="text-xs text-[#00C2FF] hover:underline"
-                          onClick={(e) => e.stopPropagation()}
-                        >
+                        <Link href={`/vault/${doc.firearm.id}`} className="text-xs text-[#00C2FF] hover:underline">
                           {doc.firearm.name}
                         </Link>
                       )}
                       {doc.accessory && (
-                        <Link
-                          href={`/accessories/${doc.accessory.id}`}
-                          className="text-xs text-[#00C2FF] hover:underline"
-                          onClick={(e) => e.stopPropagation()}
-                        >
+                        <Link href={`/accessories/${doc.accessory.id}`} className="text-xs text-[#00C2FF] hover:underline">
                           {doc.accessory.name}
                         </Link>
                       )}
-                      {!doc.firearm && !doc.accessory && (
-                        <span className="text-xs text-vault-text-faint">Unattached</span>
-                      )}
+                      {!doc.firearm && !doc.accessory && <span className="text-xs text-vault-text-faint">Unattached</span>}
                       <span className="text-xs text-vault-text-faint">
                         {new Date(doc.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
                       </span>
-                      {doc.fileSize && (
+                      {doc.fileSize != null && (
                         <span className="text-xs text-vault-text-faint">{formatBytes(doc.fileSize)}</span>
                       )}
                     </div>
-                    {doc.notes && (
-                      <p className="text-xs text-vault-text-faint mt-0.5 truncate">{doc.notes}</p>
-                    )}
+                    {doc.notes && <p className="text-xs text-vault-text-faint mt-0.5 truncate">{doc.notes}</p>}
                   </div>
 
-                  {/* Actions */}
                   <div className="flex items-center gap-2 shrink-0">
-                    <a
-                      href={doc.fileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs border border-vault-border text-vault-text-muted hover:text-[#00C2FF] hover:border-[#00C2FF]/30 transition-colors"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                      Open
-                    </a>
+                    {isSafeDocumentHref(doc.fileUrl) ? (
+                      <a
+                        href={doc.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs border border-vault-border text-vault-text-muted hover:text-[#00C2FF] hover:border-[#00C2FF]/30 transition-colors"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        Open
+                      </a>
+                    ) : (
+                      <span className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs border border-vault-border text-vault-text-faint">
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        Unavailable
+                      </span>
+                    )}
                     <button
-                      onClick={() => handleDelete(doc.id)}
+                      onClick={() => deleteDocument(doc.id)}
                       disabled={deletingId === doc.id}
-                      className="p-1.5 rounded-md text-vault-text-faint hover:text-red-400 hover:bg-red-400/10 transition-colors disabled:opacity-50 opacity-0 group-hover:opacity-100"
+                      className="p-1.5 rounded-md text-vault-text-faint hover:text-[#E53935] hover:bg-[#E53935]/10 transition-colors disabled:opacity-50 opacity-0 group-hover:opacity-100"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
