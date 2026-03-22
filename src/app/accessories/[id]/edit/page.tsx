@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { SLOT_TYPES, SLOT_TYPE_LABELS, COMMON_CALIBERS } from "@/lib/types";
+import { ImagePicker } from "@/components/shared/ImagePicker";
 import { ArrowLeft, Save, Loader2, AlertCircle } from "lucide-react";
 
 const INPUT_CLASS =
@@ -66,6 +67,7 @@ export default function EditAccessoryPage() {
         } else {
           setAccessory(data);
           setCaliberInput(data.caliber ?? "");
+          setImageUrl(data.imageUrl ?? "");
         }
         setDataLoading(false);
       })
@@ -93,8 +95,8 @@ export default function EditAccessoryPage() {
       acquisitionDate: (data.get("acquisitionDate") as string) || null,
       purchasePrice: data.get("purchasePrice") ? Number(data.get("purchasePrice")) : null,
       notes: (data.get("notes") as string) || null,
-      imageUrl: (data.get("imageUrl") as string) || null,
-      imageSource: data.get("imageUrl") ? "url" : null,
+      imageUrl: imageUrl || null,
+      imageSource: imageUrl ? "uploaded" : null,
       hasBattery: data.get("hasBattery") === "on",
       batteryType: (data.get("batteryType") as string) || null,
       lastBatteryChangeDate: (data.get("lastBatteryChangeDate") as string) || null,
@@ -207,13 +209,12 @@ export default function EditAccessoryPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="manufacturer" className={LABEL_CLASS}>
-                  Manufacturer <span className="text-[#E53935]">*</span>
+                  Manufacturer
                 </label>
                 <input
                   id="manufacturer"
                   name="manufacturer"
                   type="text"
-                  required
                   defaultValue={accessory.manufacturer}
                   className={INPUT_CLASS}
                 />
@@ -236,12 +237,11 @@ export default function EditAccessoryPage() {
               {/* Type */}
               <div>
                 <label htmlFor="type" className={LABEL_CLASS}>
-                  Type / Slot <span className="text-[#E53935]">*</span>
+                  Type / Slot
                 </label>
                 <select
                   id="type"
                   name="type"
-                  required
                   defaultValue={accessory.type}
                   className={INPUT_CLASS}
                 >
@@ -369,29 +369,7 @@ export default function EditAccessoryPage() {
             <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
               Image
             </legend>
-            <div>
-              <label htmlFor="imageUrl" className={LABEL_CLASS}>
-                Image URL
-              </label>
-              <input
-                id="imageUrl"
-                name="imageUrl"
-                type="url"
-                defaultValue={accessory.imageUrl ?? ""}
-                placeholder="https://example.com/image.jpg"
-                className={INPUT_CLASS}
-              />
-              {accessory.imageUrl && (
-                <div className="mt-3 w-full h-28 rounded-md overflow-hidden border border-vault-border">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={accessory.imageUrl}
-                    alt={accessory.name}
-                    className="w-full h-full object-contain bg-vault-bg"
-                  />
-                </div>
-              )}
-            </div>
+            <ImagePicker entityType="accessory" value={imageUrl} onChange={setImageUrl} />
           </fieldset>
 
           {/* Notes */}
