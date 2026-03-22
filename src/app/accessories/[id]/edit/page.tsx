@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { SLOT_TYPES, SLOT_TYPE_LABELS, COMMON_CALIBERS } from "@/lib/types";
-import { ImagePicker } from "@/components/shared/ImagePicker";
+import ImagePicker from "@/components/shared/ImagePicker";
 import { ArrowLeft, Save, Loader2, AlertCircle } from "lucide-react";
 
 const INPUT_CLASS =
@@ -53,6 +53,7 @@ export default function EditAccessoryPage() {
 
   const [caliberInput, setCaliberInput] = useState("");
   const [caliberDropdownOpen, setCaliberDropdownOpen] = useState(false);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
 
   const filteredCalibers = COMMON_CALIBERS.filter((c) =>
     c.toLowerCase().includes(caliberInput.toLowerCase())
