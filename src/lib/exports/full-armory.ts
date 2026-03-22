@@ -1,73 +1,179 @@
-import { prisma } from "@/lib/prisma";
-import { DEFAULT_EXPORT_FIELDS } from "@/lib/exports/full-armory-fields";
+export type ExportPreset = "CLAIMS" | "BACKUP";
+export type ExportImageMode = "PRIMARY_ONLY" | "ALL_IMAGES";
 
-export type ArmoryField = (typeof DEFAULT_EXPORT_FIELDS)[number];
-
-export async function buildArmoryRows(fields: string[]) {
-  const [firearms, accessories, ammo] = await Promise.all([
-    prisma.firearm.findMany(),
-    prisma.accessory.findMany(),
-    prisma.ammoStock.findMany(),
-  ]);
-
-  const rows = [
-    ...firearms.map((item) => ({
-      category: "firearm",
-      name: item.name,
-      manufacturer: item.manufacturer,
-      model: item.model,
-      type: item.type,
-      caliber: item.caliber,
-      serialNumber: item.serialNumber,
-      purchasePrice: item.purchasePrice,
-      currentValue: item.currentValue,
-      acquisitionDate: item.acquisitionDate?.toISOString() ?? null,
-      notes: item.notes,
-    })),
-    ...accessories.map((item) => ({
-      category: "accessory",
-      name: item.name,
-      manufacturer: item.manufacturer,
-      model: item.model,
-      type: item.type,
-      caliber: item.caliber,
-      serialNumber: null,
-      purchasePrice: item.purchasePrice,
-      currentValue: null,
-      acquisitionDate: item.acquisitionDate?.toISOString() ?? null,
-      notes: item.notes,
-    })),
-    ...ammo.map((item) => ({
-      category: "ammo",
-      name: `${item.brand} ${item.caliber}`.trim(),
-      manufacturer: item.brand,
-      model: null,
-      type: item.bulletType,
-      caliber: item.caliber,
-      serialNumber: null,
-      purchasePrice: item.purchasePrice,
-      currentValue: null,
-      acquisitionDate: item.purchaseDate?.toISOString() ?? null,
-      notes: item.notes,
-    })),
-  ];
-
-  return rows.map((row) => {
-    const selected: Record<string, unknown> = {};
-    for (const field of fields) {
-      selected[field] = row[field as keyof typeof row] ?? null;
-    }
-    return selected;
-  });
+export interface FullArmoryExportOptions {
+  preset: ExportPreset;
+  includePhotos: boolean;
+  includeReceipts: boolean;
+  imageMode: ExportImageMode;
 }
 
-export function rowsToCsv(rows: Record<string, unknown>[]) {
-  if (rows.length === 0) return "";
-  const headers = Object.keys(rows[0]);
-  const esc = (value: unknown) => `"${String(value ?? "").replaceAll('"', '""')}"`;
+export interface FullArmoryItemRow {
+  itemId: string;
+  entityType: "FIREARM" | "ACCESSORY";
+  category: string;
+  manufacturer: string;
+  model: string;
+  caliber: string;
+  serialNumber: string;
+  hasSerial: boolean;
+  purchaseDate: string;
+  purchasePrice: number | null;
+  replacementValue: number | null;
+  receiptCount: number;
+  documentCount: number;
+  hasPhoto: boolean;
+  imageUrl: string;
+  missingSerial: boolean;
+  missingReceipt: boolean;
+  missingPhoto: boolean;
+  missingValue: boolean;
+  notes: string;
+}
 
-  return [
-    headers.join(","),
-    ...rows.map((row) => headers.map((header) => esc(row[header])).join(",")),
-  ].join("\n");
+export interface FullArmoryAttachmentRow {
+  documentId: string;
+  type: string;
+  name: string;
+  linkedItemId: string;
+  linkedItemType: "FIREARM" | "ACCESSORY" | "UNATTACHED";
+  linkedItemName: string;
+  mimeType: string;
+  fileSize: number | string;
+  fileUrl: string;
+  uploadedAt: string;
+}
+
+export interface FullArmoryExportResponse {
+  meta: {
+    generatedAt: string;
+    preset: ExportPreset;
+    includesAllUploadedReceipts: boolean;
+    exportOptions: FullArmoryExportOptions;
+  };
+  summary: {
+    totalItems: number;
+    totalFirearms: number;
+    totalAccessories: number;
+    totalDocuments: number;
+    totalReceipts: number;
+    totalPurchaseValue: number;
+    totalReplacementValue: number;
+    missingEvidence: {
+      missingReceipts: number;
+      missingPhotos: number;
+      missingValues: number;
+      missingSerials: number;
+    };
+  };
+  items: FullArmoryItemRow[];
+  attachments: FullArmoryAttachmentRow[];
+  csv: {
+    inventoryItems: string;
+    attachmentsIndex: string;
+    valuationSummary: string;
+  };
+}
+
+export interface VisualEvidenceImage {
+  id: string;
+  source: "ITEM_PHOTO" | "RECEIPT_IMAGE";
+  title: string;
+  imageUrl: string;
+  linkedItemId: string;
+  linkedItemName: string;
+  uploadedAt?: string;
+}
+
+const TRUE_VALUES = new Set(["1", "true", "yes", "on"]);
+const FALSE_VALUES = new Set(["0", "false", "no", "off"]);
+const IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".avif"];
+
+function parseBool(raw: string | null, fallback: boolean): boolean {
+  if (raw == null) return fallback;
+  const normalized = raw.trim().toLowerCase();
+  if (TRUE_VALUES.has(normalized)) return true;
+  if (FALSE_VALUES.has(normalized)) return false;
+  return fallback;
+}
+
+export function parseExportOptionsFromSearchParams(searchParams: URLSearchParams): FullArmoryExportOptions {
+  const presetRaw = searchParams.get("preset");
+  const imageModeRaw = searchParams.get("imageMode");
+
+  return {
+    preset: presetRaw === "BACKUP" ? "BACKUP" : "CLAIMS",
+    includePhotos: parseBool(searchParams.get("includePhotos"), true),
+    includeReceipts: parseBool(searchParams.get("includeReceipts"), true),
+    imageMode: imageModeRaw === "ALL_IMAGES" ? "ALL_IMAGES" : "PRIMARY_ONLY",
+  };
+}
+
+export function buildExportQueryString(options: FullArmoryExportOptions): string {
+  const query = new URLSearchParams();
+  query.set("preset", options.preset);
+  query.set("includePhotos", String(options.includePhotos));
+  query.set("includeReceipts", String(options.includeReceipts));
+  query.set("imageMode", options.imageMode);
+  return query.toString();
+}
+
+function isImageAttachment(row: FullArmoryAttachmentRow): boolean {
+  const mime = (row.mimeType ?? "").toLowerCase();
+  if (mime.startsWith("image/")) return true;
+
+  const url = (row.fileUrl ?? "").toLowerCase();
+  return IMAGE_EXTENSIONS.some((ext) => url.endsWith(ext));
+}
+
+export function selectVisualEvidence(
+  payload: Pick<FullArmoryExportResponse, "items" | "attachments">,
+  options: FullArmoryExportOptions
+): VisualEvidenceImage[] {
+  const images: VisualEvidenceImage[] = [];
+
+  if (options.includePhotos) {
+    for (const item of payload.items) {
+      if (!item.imageUrl) continue;
+      images.push({
+        id: `item:${item.itemId}`,
+        source: "ITEM_PHOTO",
+        title: `${item.entityType}: ${item.manufacturer} ${item.model}`.trim(),
+        imageUrl: item.imageUrl,
+        linkedItemId: item.itemId,
+        linkedItemName: item.model || item.manufacturer || item.itemId,
+      });
+    }
+  }
+
+  if (options.includeReceipts) {
+    for (const row of payload.attachments) {
+      if (row.type !== "RECEIPT") continue;
+      if (!row.fileUrl || !isImageAttachment(row)) continue;
+
+      images.push({
+        id: `receipt:${row.documentId}`,
+        source: "RECEIPT_IMAGE",
+        title: `Receipt: ${row.name}`,
+        imageUrl: row.fileUrl,
+        linkedItemId: row.linkedItemId || "UNATTACHED",
+        linkedItemName: row.linkedItemName || "Unattached",
+        uploadedAt: row.uploadedAt,
+      });
+    }
+  }
+
+  if (options.imageMode === "ALL_IMAGES") {
+    return images;
+  }
+
+  const deduped: VisualEvidenceImage[] = [];
+  const seen = new Set<string>();
+  for (const image of images) {
+    const key = `${image.source}:${image.linkedItemId}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(image);
+  }
+  return deduped;
 }

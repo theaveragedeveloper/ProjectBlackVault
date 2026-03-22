@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { decryptField } from "@/lib/crypto";
+import { isTrustedExternalImageUrl } from "@/lib/image-host-allowlist";
+import { allowImageSearchEgress } from "@/lib/network-policy";
+import { requireAuth } from "@/lib/server/auth";
 
 interface GoogleCseItem {
   title: string;
@@ -23,7 +27,20 @@ interface GoogleCseItem {
 // Returns array of image results.
 // If no API key, returns 400 with helpful message.
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
+    if (!allowImageSearchEgress()) {
+      return NextResponse.json(
+        {
+          error:
+            "External image search is disabled by policy. Set ALLOW_IMAGE_SEARCH_EGRESS=true to enable.",
+        },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const { query } = body;
 
@@ -39,7 +56,10 @@ export async function POST(request: NextRequest) {
       where: { id: "singleton" },
     });
 
-    if (!settings?.googleCseApiKey || !settings?.googleCseSearchEngineId) {
+    const googleCseApiKey = await decryptField(settings?.googleCseApiKey ?? null);
+    const googleCseSearchEngineId = settings?.googleCseSearchEngineId ?? null;
+
+    if (!settings || !googleCseApiKey || !googleCseSearchEngineId) {
       return NextResponse.json(
         {
           error:
@@ -60,8 +80,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    const { googleCseApiKey, googleCseSearchEngineId } = settings;
 
     const searchUrl = new URL(
       "https://www.googleapis.com/customsearch/v1"
@@ -98,16 +116,21 @@ export async function POST(request: NextRequest) {
     const data = await response.json();
     const items: GoogleCseItem[] = data.items ?? [];
 
-    const results = items.map((item) => ({
-      title: item.title,
-      url: item.link,
-      thumbnailUrl: item.image?.thumbnailLink ?? item.link,
-      width: item.image?.width ?? null,
-      height: item.image?.height ?? null,
-      contextLink: item.image?.contextLink ?? null,
-      displayLink: item.displayLink ?? null,
-      snippet: item.snippet ?? null,
-    }));
+    const results = items
+      .filter((item) => isTrustedExternalImageUrl(item.link))
+      .map((item) => ({
+        title: item.title,
+        url: item.link,
+        thumbnailUrl:
+          item.image?.thumbnailLink && isTrustedExternalImageUrl(item.image.thumbnailLink)
+            ? item.image.thumbnailLink
+            : item.link,
+        width: item.image?.width ?? null,
+        height: item.image?.height ?? null,
+        contextLink: item.image?.contextLink ?? null,
+        displayLink: item.displayLink ?? null,
+        snippet: item.snippet ?? null,
+      }));
 
     return NextResponse.json({ results, query: query.trim() });
   } catch (error) {
