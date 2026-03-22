@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+
+function normalizeString(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 // GET /api/accessories/[id] - Get a single accessory with roundCountLogs and current buildSlots
 export async function GET(
   _request: NextRequest,
@@ -108,10 +113,10 @@ export async function PUT(
     const updated = await prisma.accessory.update({
       where: { id },
       data: {
-        ...(name !== undefined && { name }),
-        ...(manufacturer !== undefined && { manufacturer }),
-        ...(model !== undefined && { model }),
-        ...(type !== undefined && { type }),
+        ...(name !== undefined && { name: normalizeString(name) || existing.name }),
+        ...(manufacturer !== undefined && { manufacturer: normalizeString(manufacturer) || "Unknown" }),
+        ...(model !== undefined && { model: normalizeString(model) || null }),
+        ...(type !== undefined && { type: normalizeString(type) || "UNSPECIFIED" }),
         ...(caliber !== undefined && { caliber }),
         ...(purchasePrice !== undefined && { purchasePrice }),
         ...(acquisitionDate !== undefined && {
