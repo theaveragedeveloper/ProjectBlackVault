@@ -24,6 +24,8 @@ interface Firearm {
   currentValue: number | null;
   notes: string | null;
   imageUrl: string | null;
+  lastMaintenanceDate: string | null;
+  maintenanceIntervalDays: number | null;
 }
 
 function toDateInputValue(dateStr: string | null): string {
@@ -96,6 +98,8 @@ export default function EditFirearmPage() {
       notes: (data.get("notes") as string) || null,
       imageUrl: (data.get("imageUrl") as string) || null,
       imageSource: data.get("imageUrl") ? "url" : null,
+      lastMaintenanceDate: (data.get("lastMaintenanceDate") as string) || null,
+      maintenanceIntervalDays: data.get("maintenanceIntervalDays") ? Number(data.get("maintenanceIntervalDays")) : null,
     };
 
     try {
@@ -367,6 +371,24 @@ export default function EditFirearmPage() {
                     className={`${INPUT_CLASS} pl-7`}
                   />
                 </div>
+              </div>
+            </div>
+          </fieldset>
+
+          {/* Maintenance */}
+          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
+            <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
+              Maintenance
+            </legend>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="lastMaintenanceDate" className={LABEL_CLASS}>Last Maintenance</label>
+                <input id="lastMaintenanceDate" name="lastMaintenanceDate" type="date" defaultValue={toDateInputValue(firearm.lastMaintenanceDate)} className={INPUT_CLASS} />
+              </div>
+              <div>
+                <label htmlFor="maintenanceIntervalDays" className={LABEL_CLASS}>Maintenance Interval (days)</label>
+                <input id="maintenanceIntervalDays" name="maintenanceIntervalDays" type="number" min="1" step="1" defaultValue={firearm.maintenanceIntervalDays ?? ""} placeholder="e.g. 180" className={INPUT_CLASS} />
               </div>
             </div>
           </fieldset>

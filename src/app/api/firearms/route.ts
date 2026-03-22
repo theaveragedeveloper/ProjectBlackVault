@@ -63,6 +63,8 @@ export async function POST(request: NextRequest) {
       notes,
       imageUrl,
       imageSource,
+      lastMaintenanceDate,
+      maintenanceIntervalDays,
     } = body;
 
     if (!name || !manufacturer || !model || !caliber || !serialNumber || !type || !acquisitionDate) {
@@ -86,6 +88,8 @@ export async function POST(request: NextRequest) {
         notes: notes ? encryptField(notes) : null,
         imageUrl: imageUrl ?? null,
         imageSource: imageSource ?? null,
+        lastMaintenanceDate: lastMaintenanceDate ? new Date(lastMaintenanceDate) : null,
+        maintenanceIntervalDays: maintenanceIntervalDays ?? null,
       },
       include: {
         _count: {

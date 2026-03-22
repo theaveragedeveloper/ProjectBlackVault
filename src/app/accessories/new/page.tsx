@@ -40,6 +40,10 @@ export default function NewAccessoryPage() {
       notes: (data.get("notes") as string) || null,
       imageUrl: (data.get("imageUrl") as string) || null,
       imageSource: data.get("imageUrl") ? "url" : null,
+      hasBattery: data.get("hasBattery") === "on",
+      batteryType: (data.get("batteryType") as string) || null,
+      lastBatteryChangeDate: (data.get("lastBatteryChangeDate") as string) || null,
+      replacementIntervalDays: data.get("replacementIntervalDays") ? Number(data.get("replacementIntervalDays")) : null,
     };
 
     try {
@@ -231,6 +235,36 @@ export default function NewAccessoryPage() {
                   />
                 </div>
               </div>
+            </div>
+          </fieldset>
+
+
+
+          {/* Battery Tracking */}
+          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
+            <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
+              Battery Tracking
+            </legend>
+
+            <label className="flex items-center gap-2 text-sm text-vault-text">
+              <input id="hasBattery" name="hasBattery" type="checkbox" className="rounded border-vault-border" />
+              This accessory uses a battery
+            </label>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="batteryType" className={LABEL_CLASS}>Battery Type</label>
+                <input id="batteryType" name="batteryType" type="text" placeholder="e.g. CR2032" className={INPUT_CLASS} />
+              </div>
+              <div>
+                <label htmlFor="replacementIntervalDays" className={LABEL_CLASS}>Replacement Interval (days)</label>
+                <input id="replacementIntervalDays" name="replacementIntervalDays" type="number" min="1" step="1" placeholder="e.g. 180" className={INPUT_CLASS} />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="lastBatteryChangeDate" className={LABEL_CLASS}>Last Battery Change</label>
+              <input id="lastBatteryChangeDate" name="lastBatteryChangeDate" type="date" className={INPUT_CLASS} />
             </div>
           </fieldset>
 

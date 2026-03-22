@@ -55,7 +55,7 @@ const TYPE_BADGE_COLORS: Record<string, string> = {
   LEVER_ACTION: "border-[#FF7043]/40 text-[#FF7043]",
 };
 
-const DEFAULT_ORDER = ["stats", "low-ammo", "recent", "ammo-summary"];
+const DEFAULT_ORDER = ["stats", "maintenance-due", "low-ammo", "recent", "ammo-summary"];
 const STORAGE_KEY = "vault-dashboard-layout";
 
 interface AmmoStockItem {
@@ -81,6 +81,80 @@ interface RecentFirearm {
   createdAt: Date;
 }
 
+
+interface MaintenanceDueItem {
+  id: string;
+  name: string;
+  manufacturer: string;
+  model: string;
+  lastMaintenanceDate: string | null;
+  maintenanceIntervalDays: number | null;
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function MaintenanceDueWidget() {
+  const [items, setItems] = useState<MaintenanceDueItem[]>([]);
+
+  useEffect(() => {
+    fetch("/api/firearms")
+      .then((r) => r.json())
+      .then((firearms) => {
+        const now = new Date();
+        const due = (Array.isArray(firearms) ? firearms : [])
+          .filter((f) => f.lastMaintenanceDate && f.maintenanceIntervalDays)
+          .map((f) => ({
+            ...f,
+            dueDate: addDays(new Date(f.lastMaintenanceDate), Number(f.maintenanceIntervalDays)),
+          }))
+          .filter((f) => f.dueDate <= now)
+          .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
+          .slice(0, 8);
+        setItems(due);
+      })
+      .catch(() => setItems([]));
+  }, []);
+
+  return (
+    <section>
+      <div className="flex items-center gap-2 mb-3">
+        <Clock className="w-4 h-4 text-[#E53935]" />
+        <h2 className="text-sm font-semibold tracking-widest uppercase text-[#E53935]">
+          Maintenance Due
+        </h2>
+      </div>
+      <div className="bg-vault-surface border border-vault-border rounded-lg overflow-hidden">
+        {items.length === 0 ? (
+          <div className="p-8 text-center">
+            <p className="text-sm text-vault-text-muted">No firearms currently due for maintenance</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-vault-border">
+            {items.map((item) => (
+              <Link
+                key={item.id}
+                href={`/vault/${item.id}`}
+                className="flex items-center justify-between px-4 py-3 hover:bg-vault-surface-2 transition-colors"
+              >
+                <div>
+                  <p className="text-sm font-semibold text-vault-text">{item.name}</p>
+                  <p className="text-xs text-vault-text-muted">{item.manufacturer} · {item.model}</p>
+                </div>
+                <span className="text-xs text-[#E53935] font-mono">
+                  Due
+                </span>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
 interface DashboardData {
   firearmCount: number;
   accessoryCount: number;
@@ -414,27 +488,22 @@ function AmmoSummaryWidget({ ammoStocks }: { ammoStocks: AmmoStockItem[] }) {
 
 // ── Main client component ─────────────────────────────────────
 export function DashboardClient({ data }: { data: DashboardData }) {
-  const [order, setOrder] = useState<string[]>(DEFAULT_ORDER);
-  const [editMode, setEditMode] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
+  const [order, setOrder] = useState<string[]>(() => {
+    if (typeof window === "undefined") return DEFAULT_ORDER;
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed: string[] = JSON.parse(saved);
-        // Ensure all default widgets are present (in case new ones were added)
-        const merged = [
-          ...parsed.filter((id) => DEFAULT_ORDER.includes(id)),
-          ...DEFAULT_ORDER.filter((id) => !parsed.includes(id)),
-        ];
-        setOrder(merged);
-      }
+      if (!saved) return DEFAULT_ORDER;
+      const parsed: string[] = JSON.parse(saved);
+      return [
+        ...parsed.filter((id) => DEFAULT_ORDER.includes(id)),
+        ...DEFAULT_ORDER.filter((id) => !parsed.includes(id)),
+      ];
     } catch {
-      // ignore
+      return DEFAULT_ORDER;
     }
-  }, []);
+  });
+  const [editMode, setEditMode] = useState(false);
+  const [mounted] = useState(() => typeof window !== "undefined");
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -458,6 +527,8 @@ export function DashboardClient({ data }: { data: DashboardData }) {
     switch (id) {
       case "stats":
         return <StatsWidget data={data} />;
+      case "maintenance-due":
+        return <MaintenanceDueWidget />;
       case "low-ammo":
         return <LowAmmoWidget items={data.lowStockItems} />;
       case "recent":
