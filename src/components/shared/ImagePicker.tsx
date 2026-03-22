@@ -8,14 +8,14 @@ import {
   SUPPORTED_IMAGE_FORMATS_LABEL,
   IMAGE_PICKER_ACCEPT,
 } from "@/lib/image-formats";
-import Image from "next/image";
 import { Camera, Link, Loader2, X, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
 
 interface ImagePickerProps {
   entityType: "firearm" | "accessory" | "ammo" | "build";
   entityId?: string; // undefined on new forms; a temp UUID will be used
   currentUrl?: string | null;
-  onChange: (url: string | null, source: string | null) => void;
+  value?: string | null;
+  onChange: (url: string | null, source?: string | null) => void;
 }
 
 const HEIC_TYPES = new Set(["image/heic", "image/heif"]);
@@ -55,6 +55,7 @@ export default function ImagePicker({
   entityType,
   entityId,
   currentUrl,
+  value,
   onChange,
 }: ImagePickerProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -63,7 +64,7 @@ export default function ImagePicker({
     typeof crypto !== "undefined" ? crypto.randomUUID() : `tmp-${Date.now()}`
   );
 
-  const [preview, setPreview] = useState<string | null>(currentUrl ?? null);
+  const [preview, setPreview] = useState<string | null>(value ?? currentUrl ?? null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showUrl, setShowUrl] = useState(false);
@@ -71,8 +72,8 @@ export default function ImagePicker({
   const externalUrlEntryAllowed = allowExternalImageUrls();
 
   useEffect(() => {
-    setPreview(currentUrl ?? null);
-  }, [currentUrl]);
+    setPreview(value ?? currentUrl ?? null);
+  }, [currentUrl, value]);
 
   async function handleFile(file: File) {
     setError(null);
