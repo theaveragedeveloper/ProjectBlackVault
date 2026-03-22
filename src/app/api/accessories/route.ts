@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+
+function normalizeString(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 // GET /api/accessories - List all accessories with current build name
 export async function GET() {
   try {
@@ -79,19 +84,20 @@ export async function POST(request: NextRequest) {
       replacementIntervalDays,
     } = body;
 
-    if (!name || !manufacturer || !type) {
+    const normalizedName = normalizeString(name);
+    if (!normalizedName) {
       return NextResponse.json(
-        { error: "Missing required fields: name, manufacturer, type" },
+        { error: "Missing required field: name" },
         { status: 400 }
       );
     }
 
     const accessory = await prisma.accessory.create({
       data: {
-        name,
-        manufacturer,
-        model: model ?? null,
-        type,
+        name: normalizedName,
+        manufacturer: normalizeString(manufacturer) || "Unknown",
+        model: normalizeString(model) || null,
+        type: normalizeString(type) || "UNSPECIFIED",
         caliber: caliber ?? null,
         purchasePrice: purchasePrice ?? null,
         acquisitionDate: acquisitionDate ? new Date(acquisitionDate) : null,
