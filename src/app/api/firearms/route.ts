@@ -2,6 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { encryptField, decryptField } from "@/lib/crypto";
 
+
+function normalizeString(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function fallbackSerialNumber() {
+  return `AUTO-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+}
+
 // GET /api/firearms - List all firearms with build count
 export async function GET() {
   try {
@@ -67,22 +76,23 @@ export async function POST(request: NextRequest) {
       maintenanceIntervalDays,
     } = body;
 
-    if (!name || !manufacturer || !model || !caliber || !serialNumber || !type || !acquisitionDate) {
+    const normalizedName = normalizeString(name);
+    if (!normalizedName) {
       return NextResponse.json(
-        { error: "Missing required fields: name, manufacturer, model, caliber, serialNumber, type, acquisitionDate" },
+        { error: "Missing required field: name" },
         { status: 400 }
       );
     }
 
     const firearm = await prisma.firearm.create({
       data: {
-        name,
-        manufacturer,
-        model,
-        caliber,
-        serialNumber: encryptField(serialNumber),
-        type,
-        acquisitionDate: new Date(acquisitionDate),
+        name: normalizedName,
+        manufacturer: normalizeString(manufacturer) || "Unknown",
+        model: normalizeString(model) || "Unknown",
+        caliber: normalizeString(caliber) || "Unknown",
+        serialNumber: encryptField(normalizeString(serialNumber) || fallbackSerialNumber()),
+        type: normalizeString(type) || "UNSPECIFIED",
+        acquisitionDate: acquisitionDate ? new Date(acquisitionDate) : new Date(),
         purchasePrice: purchasePrice ?? null,
         currentValue: currentValue ?? null,
         notes: notes ? encryptField(notes) : null,
