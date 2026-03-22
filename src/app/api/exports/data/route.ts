@@ -395,13 +395,13 @@ export async function GET(request: NextRequest) {
 
     if (flags.rangeSessions) {
       queries.push(
-        prisma.rangeSession.findMany({
+        (prisma as any).rangeSession.findMany({
           include: {
             sessionDrills: { orderBy: { sortOrder: "asc" } },
             ammoLinks: true,
           },
           orderBy: { date: "desc" },
-        }).then((rows) => {
+        }).then((rows: any) => {
           payload.rangeSessions = rows;
         })
       );
@@ -409,13 +409,13 @@ export async function GET(request: NextRequest) {
 
     if (flags.documents) {
       queries.push(
-        prisma.document.findMany({
+        (prisma as any).document.findMany({
           include: {
             firearm: { select: { id: true, name: true } },
             accessory: { select: { id: true, name: true } },
           },
           orderBy: { createdAt: "desc" },
-        }).then((rows) => {
+        }).then((rows: any) => {
           payload.documents = rows;
         })
       );
@@ -428,17 +428,18 @@ export async function GET(request: NextRequest) {
             payload.settings = null;
             return;
           }
+          const settingsAny = settings as any;
           payload.settings = {
-            id: settings.id,
-            defaultCurrency: settings.defaultCurrency,
-            enableImageSearch: settings.enableImageSearch,
-            googleCseSearchEngineId: settings.googleCseSearchEngineId,
-            hasGoogleCseApiKey: !!settings.googleCseApiKey,
-            hasAppPassword: !!settings.appPassword,
-            hasEncryptionKey: !!settings.encryptionKey,
-            dataStoragePath: settings.dataStoragePath,
-            createdAt: settings.createdAt,
-            updatedAt: settings.updatedAt,
+            id: settingsAny.id,
+            defaultCurrency: settingsAny.defaultCurrency,
+            enableImageSearch: settingsAny.enableImageSearch,
+            googleCseSearchEngineId: settingsAny.googleCseSearchEngineId,
+            hasGoogleCseApiKey: !!settingsAny.googleCseApiKey,
+            hasAppPassword: !!settingsAny.appPassword,
+            hasEncryptionKey: !!settingsAny.encryptionKey,
+            dataStoragePath: settingsAny.dataStoragePath,
+            createdAt: settingsAny.createdAt,
+            updatedAt: settingsAny.updatedAt,
           };
         })
       );

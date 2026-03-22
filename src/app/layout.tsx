@@ -1,12 +1,9 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { MobileHeader } from "@/components/layout/MobileHeader";
 import { ThemeProvider } from "@/components/layout/ThemeProvider";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
-
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
   title: "Project BlackVault",
@@ -28,7 +25,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${inter.variable} antialiased bg-vault-bg text-vault-text`}>
+      <body className="antialiased bg-vault-bg text-vault-text">
         <ThemeProvider>
           <div className="flex h-screen overflow-hidden">
             <Sidebar />

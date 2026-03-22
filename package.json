@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "DATABASE_URL=${DATABASE_URL:-file:${PWD}/prisma/prisma/dev.db} prisma generate && DATABASE_URL=${DATABASE_URL:-file:${PWD}/prisma/prisma/dev.db} prisma migrate deploy && DATABASE_URL=${DATABASE_URL:-file:${PWD}/prisma/prisma/dev.db} next build",
     "start": "next start",
     "lint": "eslint"
   },
@@ -31,6 +31,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.34.5",
+    "jspdf": "^2.5.2",
     "lucide-react": "^0.576.0",
     "next": "16.1.6",
     "prisma": "^5.22.0",

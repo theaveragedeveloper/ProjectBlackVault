@@ -12,7 +12,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   try {
     const { id } = await params;
-    const doc = await prisma.document.findUnique({
+    const doc = await (prisma as any).document.findUnique({
       where: { id },
       include: {
         firearm: { select: { id: true, name: true } },
@@ -36,7 +36,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const body = await req.json();
     const { name, type, notes, firearmId, accessoryId } = body;
 
-    const doc = await prisma.document.update({
+    const doc = await (prisma as any).document.update({
       where: { id },
       data: {
         ...(name !== undefined && { name }),
@@ -65,7 +65,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
   try {
     const { id } = await params;
-    await prisma.document.delete({ where: { id } });
+    await (prisma as any).document.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error) {
     if (isNotFoundError(error)) return NextResponse.json({ error: "Not found" }, { status: 404 });
