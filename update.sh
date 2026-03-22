@@ -12,8 +12,8 @@ if [ -f ".blackvault.env" ]; then
   echo "Using config from .blackvault.env"
 fi
 
-echo "Pulling latest BlackVault image from registry..."
-docker compose $ENV_ARGS pull
+echo "Rebuilding BlackVault image from source..."
+docker compose $ENV_ARGS build --pull
 
 echo ""
 echo "Restarting with updated image..."
