@@ -1,29 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
+import { detectFileSignature, isHeicFamilySignature } from "@/lib/server/file-signatures";
+import { enforceRateLimit } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/server/client-ip";
+import { requireAuth } from "@/lib/server/auth";
+import { ALLOWED_IMAGE_EXTENSIONS, SUPPORTED_IMAGE_FORMATS_LABEL } from "@/lib/image-formats";
+import { requireEntityWriteAccess, type WritableEntityType } from "@/lib/server/entity-write-access";
 
-const ALLOWED_EXTENSIONS = new Set([
-  "jpg",
-  "jpeg",
-  "png",
-  "gif",
-  "webp",
-  "avif",
-  "svg",
-]);
+const ALLOWED_EXTENSIONS = new Set<string>(ALLOWED_IMAGE_EXTENSIONS);
 
 const ALLOWED_ENTITY_TYPES = new Set([
   "firearm",
   "accessory",
   "ammo",
+  "build",
 ]);
+const MAX_SIZE = 10 * 1024 * 1024;
+const SAFE_ENTITY_ID = /^[a-zA-Z0-9_-]{1,64}$/;
 
 // POST /api/images/upload - Upload an image for an entity
 // Accepts multipart form data: file, entityType, entityId
-// Saves to /public/uploads/{entityType}s/{entityId}.{ext}
+// Saves to /storage/uploads/images/{entityType}s/{entityId}.{ext}
 // Returns the URL path.
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
+    // Rate limiting
+    const ip = getClientIp(request);
+    const rate = await enforceRateLimit({ key: `upload:images:${ip}`, windowMs: 60_000, maxAttempts: 20 });
+    if (!rate.allowed) {
+      return NextResponse.json(
+        { error: "Too many upload attempts. Please wait a minute." },
+        { status: 429 }
+      );
+    }
+
     const formData = await request.formData();
 
     const file = formData.get("file") as File | null;
@@ -53,45 +67,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Sanitize entityId to prevent path traversal
-    const sanitizedEntityId = entityId.replace(/[^a-zA-Z0-9_-]/g, "");
-    if (!sanitizedEntityId) {
+    if (!SAFE_ENTITY_ID.test(entityId)) {
       return NextResponse.json(
         { error: "Invalid entityId" },
         { status: 400 }
       );
     }
+    const sanitizedEntityId = entityId;
 
-    // Determine the file extension
-    const originalName = file.name ?? "";
-    const dotIndex = originalName.lastIndexOf(".");
-    let ext = dotIndex !== -1 ? originalName.slice(dotIndex + 1).toLowerCase() : "";
-
-    // Also check MIME type as fallback
-    if (!ext || !ALLOWED_EXTENSIONS.has(ext)) {
-      const mimeToExt: Record<string, string> = {
-        "image/jpeg": "jpg",
-        "image/jpg": "jpg",
-        "image/png": "png",
-        "image/gif": "gif",
-        "image/webp": "webp",
-        "image/avif": "avif",
-        "image/svg+xml": "svg",
-      };
-      ext = mimeToExt[file.type] ?? "";
-    }
-
-    if (!ext || !ALLOWED_EXTENSIONS.has(ext)) {
-      return NextResponse.json(
-        {
-          error: `Invalid file type. Allowed types: ${Array.from(ALLOWED_EXTENSIONS).join(", ")}`,
-        },
-        { status: 400 }
-      );
+    const entityAccess = await requireEntityWriteAccess(
+      request,
+      entityType as WritableEntityType,
+      sanitizedEntityId
+    );
+    if (!entityAccess.ok) {
+      return entityAccess.response;
     }
 
     // Check file size (limit to 10MB)
-    const MAX_SIZE = 10 * 1024 * 1024;
     if (file.size > MAX_SIZE) {
       return NextResponse.json(
         { error: "File too large. Maximum size is 10MB." },
@@ -99,23 +92,42 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const detected = detectFileSignature(buffer);
+
+    if (!detected || !ALLOWED_EXTENSIONS.has(detected.extension)) {
+      if (isHeicFamilySignature(buffer) || ["image/heic", "image/heif"].includes(file.type)) {
+        return NextResponse.json(
+          {
+            error: "HEIC/HEIF photos must be converted before upload. Please try again from a supported browser to auto-convert, or export as JPG/WebP.",
+          },
+          { status: 400 }
+        );
+      }
+
+      return NextResponse.json(
+        {
+          error: `Invalid file type. Supported formats: ${SUPPORTED_IMAGE_FORMATS_LABEL}.`,
+        },
+        { status: 400 }
+      );
+    }
+
     // Build paths
     // entityType = "firearm" -> directory = "firearms"
     const entityTypeDir = `${entityType}s`;
-    const fileName = `${sanitizedEntityId}.${ext}`;
-    const relativeUrl = `/uploads/${entityTypeDir}/${fileName}`;
+    const fileName = `${sanitizedEntityId}_${Date.now()}.${detected.extension}`;
+    const relativeUrl = `/api/files/images/${entityTypeDir}/${fileName}`;
 
-    // Resolve the absolute path within the project's public directory
+    // Resolve the absolute path outside the web root
     const projectRoot = process.cwd();
-    const uploadDir = path.join(projectRoot, "public", "uploads", entityTypeDir);
+    const uploadDir = path.join(projectRoot, "storage", "uploads", "images", entityTypeDir);
     const filePath = path.join(uploadDir, fileName);
 
     // Ensure the directory exists
     await fs.mkdir(uploadDir, { recursive: true });
 
-    // Read the file contents and write to disk
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
     await fs.writeFile(filePath, buffer);
 
     return NextResponse.json(
@@ -125,12 +137,12 @@ export async function POST(request: NextRequest) {
         entityId: sanitizedEntityId,
         fileName,
         size: file.size,
-        mimeType: file.type,
+        mimeType: detected.mimeType,
       },
       { status: 201 }
     );
-  } catch (error) {
-    console.error("POST /api/images/upload error:", error);
+  } catch {
+    console.error("POST /api/images/upload failed");
     return NextResponse.json(
       { error: "Failed to upload image" },
       { status: 500 }
