@@ -26,7 +26,7 @@ export function MobileHeader() {
           </p>
         </div>
       </header>
-      <Sidebar mobileOpen={open} onMobileClose={() => setOpen(false)} />
+      <Sidebar mobileOnly mobileOpen={open} onMobileClose={() => setOpen(false)} />
     </>
   );
 }
