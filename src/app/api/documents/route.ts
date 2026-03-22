@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
     const accessoryId = searchParams.get("accessoryId");
     const type = searchParams.get("type");
 
-    const docs = await prisma.document.findMany({
+    const docs = await (prisma as any).document.findMany({
       where: {
         ...(firearmId ? { firearmId } : {}),
         ...(accessoryId ? { accessoryId } : {}),
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "name and fileUrl are required" }, { status: 400 });
     }
 
-    const doc = await prisma.document.create({
+    const doc = await (prisma as any).document.create({
       data: {
         name,
         type: type || "RECEIPT",

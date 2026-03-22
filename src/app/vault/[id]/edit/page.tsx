@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ImagePicker } from "@/components/shared/ImagePicker";
+import ImagePicker from "@/components/shared/ImagePicker";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { FIREARM_TYPES, FIREARM_TYPE_LABELS, COMMON_CALIBERS } from "@/lib/types";
@@ -53,7 +53,7 @@ export default function EditFirearmPage() {
 
   const [caliberInput, setCaliberInput] = useState("");
   const [caliberDropdownOpen, setCaliberDropdownOpen] = useState(false);
-  const [imageUrl, setImageUrl] = useState("");
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const caliberRef = useRef<HTMLDivElement>(null);
 
   const filteredCalibers = COMMON_CALIBERS.filter((c) =>

@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
 
     await fs.writeFile(filePath, buffer);
 
-    const doc = await prisma.document.create({
+    const doc = await (prisma as any).document.create({
       data: {
         name,
         type,

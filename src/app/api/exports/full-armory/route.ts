@@ -47,21 +47,21 @@ export async function GET(request: NextRequest) {
     const [firearms, accessories, documents] = await Promise.all([
       prisma.firearm.findMany({ orderBy: [{ manufacturer: "asc" }, { model: "asc" }, { name: "asc" }] }),
       prisma.accessory.findMany({ orderBy: [{ manufacturer: "asc" }, { name: "asc" }] }),
-      prisma.document.findMany({
+      (prisma as any).document.findMany({
         orderBy: [{ createdAt: "asc" }],
         include: {
           firearm: { select: { id: true, name: true } },
           accessory: { select: { id: true, name: true } },
         },
       }),
-    ]);
+    ]) as [any[], any[], any[]];
 
-    const receiptDocuments = documents.filter((doc) => doc.type === "RECEIPT");
+    const receiptDocuments = documents.filter((doc: any) => doc.type === "RECEIPT");
 
     const itemRows = [
-      ...firearms.map((firearm) => {
-        const itemDocs = documents.filter((doc) => doc.firearmId === firearm.id);
-        const receiptCount = itemDocs.filter((doc) => doc.type === "RECEIPT").length;
+      ...firearms.map((firearm: any) => {
+        const itemDocs = documents.filter((doc: any) => doc.firearmId === firearm.id);
+        const receiptCount = itemDocs.filter((doc: any) => doc.type === "RECEIPT").length;
         const hasPhoto = !!firearm.imageUrl;
 
         return {
@@ -87,9 +87,9 @@ export async function GET(request: NextRequest) {
           notes: firearm.notes ?? "",
         };
       }),
-      ...accessories.map((accessory) => {
-        const itemDocs = documents.filter((doc) => doc.accessoryId === accessory.id);
-        const receiptCount = itemDocs.filter((doc) => doc.type === "RECEIPT").length;
+      ...accessories.map((accessory: any) => {
+        const itemDocs = documents.filter((doc: any) => doc.accessoryId === accessory.id);
+        const receiptCount = itemDocs.filter((doc: any) => doc.type === "RECEIPT").length;
         const hasPhoto = !!accessory.imageUrl;
 
         return {
@@ -117,7 +117,7 @@ export async function GET(request: NextRequest) {
       }),
     ];
 
-    const attachmentsRows = documents.map((doc) => ({
+    const attachmentsRows = documents.map((doc: any) => ({
       documentId: doc.id,
       type: doc.type,
       name: doc.name,
