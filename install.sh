@@ -70,10 +70,10 @@ EOF
 
 echo "Configuration written to .blackvault.env"
 
-# ── Pull and start ────────────────────────────────────────────
+# ── Build and start ───────────────────────────────────────────
 echo ""
-echo "Pulling latest BlackVault image..."
-$COMPOSE --env-file .blackvault.env pull
+echo "Building BlackVault image (this may take a few minutes)..."
+$COMPOSE --env-file .blackvault.env build
 
 echo ""
 echo "Starting BlackVault..."
