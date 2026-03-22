@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { ImagePicker } from "@/components/shared/ImagePicker";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { FIREARM_TYPES, FIREARM_TYPE_LABELS, COMMON_CALIBERS } from "@/lib/types";
@@ -52,6 +53,7 @@ export default function EditFirearmPage() {
 
   const [caliberInput, setCaliberInput] = useState("");
   const [caliberDropdownOpen, setCaliberDropdownOpen] = useState(false);
+  const [imageUrl, setImageUrl] = useState<string>("");
   const caliberRef = useRef<HTMLDivElement>(null);
 
   const filteredCalibers = COMMON_CALIBERS.filter((c) =>
@@ -67,6 +69,7 @@ export default function EditFirearmPage() {
         } else {
           setFirearm(data);
           setCaliberInput(data.caliber ?? "");
+          setImageUrl(data.imageUrl ?? "");
         }
         setDataLoading(false);
       })
@@ -96,8 +99,8 @@ export default function EditFirearmPage() {
       purchasePrice: data.get("purchasePrice") ? Number(data.get("purchasePrice")) : null,
       currentValue: data.get("currentValue") ? Number(data.get("currentValue")) : null,
       notes: (data.get("notes") as string) || null,
-      imageUrl: (data.get("imageUrl") as string) || null,
-      imageSource: data.get("imageUrl") ? "url" : null,
+      imageUrl: imageUrl || null,
+      imageSource: imageUrl ? "uploaded" : null,
       lastMaintenanceDate: (data.get("lastMaintenanceDate") as string) || null,
       maintenanceIntervalDays: data.get("maintenanceIntervalDays") ? Number(data.get("maintenanceIntervalDays")) : null,
     };
@@ -208,26 +211,24 @@ export default function EditFirearmPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="manufacturer" className={LABEL_CLASS}>
-                  Manufacturer <span className="text-[#E53935]">*</span>
+                  Manufacturer
                 </label>
                 <input
                   id="manufacturer"
                   name="manufacturer"
                   type="text"
-                  required
                   defaultValue={firearm.manufacturer}
                   className={INPUT_CLASS}
                 />
               </div>
               <div>
                 <label htmlFor="model" className={LABEL_CLASS}>
-                  Model <span className="text-[#E53935]">*</span>
+                  Model
                 </label>
                 <input
                   id="model"
                   name="model"
                   type="text"
-                  required
                   defaultValue={firearm.model}
                   className={INPUT_CLASS}
                 />
@@ -238,7 +239,7 @@ export default function EditFirearmPage() {
               {/* Caliber Combobox */}
               <div>
                 <label className={LABEL_CLASS}>
-                  Caliber <span className="text-[#E53935]">*</span>
+                  Caliber
                 </label>
                 <div className="relative" ref={caliberRef}>
                   <input
@@ -250,7 +251,6 @@ export default function EditFirearmPage() {
                     }}
                     onFocus={() => setCaliberDropdownOpen(true)}
                     onBlur={() => setTimeout(() => setCaliberDropdownOpen(false), 150)}
-                    required
                     placeholder="e.g. 9mm Luger"
                     className={INPUT_CLASS}
                   />
@@ -277,12 +277,11 @@ export default function EditFirearmPage() {
               {/* Type */}
               <div>
                 <label htmlFor="type" className={LABEL_CLASS}>
-                  Type <span className="text-[#E53935]">*</span>
+                  Type
                 </label>
                 <select
                   id="type"
                   name="type"
-                  required
                   defaultValue={firearm.type}
                   className={INPUT_CLASS}
                 >
@@ -298,13 +297,12 @@ export default function EditFirearmPage() {
 
             <div>
               <label htmlFor="serialNumber" className={LABEL_CLASS}>
-                Serial Number <span className="text-[#E53935]">*</span>
+                Serial Number
               </label>
               <input
                 id="serialNumber"
                 name="serialNumber"
                 type="text"
-                required
                 defaultValue={firearm.serialNumber}
                 className={`${INPUT_CLASS} font-mono`}
               />
@@ -319,13 +317,12 @@ export default function EditFirearmPage() {
 
             <div>
               <label htmlFor="acquisitionDate" className={LABEL_CLASS}>
-                Date Acquired <span className="text-[#E53935]">*</span>
+                Date Acquired
               </label>
               <input
                 id="acquisitionDate"
                 name="acquisitionDate"
                 type="date"
-                required
                 defaultValue={toDateInputValue(firearm.acquisitionDate)}
                 className={INPUT_CLASS}
               />
@@ -398,29 +395,7 @@ export default function EditFirearmPage() {
             <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
               Image
             </legend>
-            <div>
-              <label htmlFor="imageUrl" className={LABEL_CLASS}>
-                Image URL
-              </label>
-              <input
-                id="imageUrl"
-                name="imageUrl"
-                type="url"
-                defaultValue={firearm.imageUrl ?? ""}
-                placeholder="https://example.com/image.jpg"
-                className={INPUT_CLASS}
-              />
-              {firearm.imageUrl && (
-                <div className="mt-3 w-full h-32 rounded-md overflow-hidden border border-vault-border">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={firearm.imageUrl}
-                    alt={firearm.name}
-                    className="w-full h-full object-contain bg-vault-bg"
-                  />
-                </div>
-              )}
-            </div>
+            <ImagePicker entityType="firearm" value={imageUrl} onChange={setImageUrl} />
           </fieldset>
 
           {/* Notes */}
