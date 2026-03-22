@@ -2,6 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { encryptField, decryptField } from "@/lib/crypto";
 
+
+function normalizeString(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function fallbackSerialNumber() {
+  return `AUTO-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+}
+
 // GET /api/firearms/[id] - Get a single firearm with active build, slots, and accessories
 export async function GET(
   _request: NextRequest,
@@ -86,14 +95,14 @@ export async function PUT(
     const updated = await prisma.firearm.update({
       where: { id },
       data: {
-        ...(name !== undefined && { name }),
-        ...(manufacturer !== undefined && { manufacturer }),
-        ...(model !== undefined && { model }),
-        ...(caliber !== undefined && { caliber }),
-        ...(serialNumber !== undefined && { serialNumber: encryptField(serialNumber) }),
-        ...(type !== undefined && { type }),
+        ...(name !== undefined && { name: normalizeString(name) || existing.name }),
+        ...(manufacturer !== undefined && { manufacturer: normalizeString(manufacturer) || "Unknown" }),
+        ...(model !== undefined && { model: normalizeString(model) || "Unknown" }),
+        ...(caliber !== undefined && { caliber: normalizeString(caliber) || "Unknown" }),
+        ...(serialNumber !== undefined && { serialNumber: encryptField(normalizeString(serialNumber) || fallbackSerialNumber()) }),
+        ...(type !== undefined && { type: normalizeString(type) || "UNSPECIFIED" }),
         ...(acquisitionDate !== undefined && {
-          acquisitionDate: new Date(acquisitionDate),
+          acquisitionDate: acquisitionDate ? new Date(acquisitionDate) : existing.acquisitionDate,
         }),
         ...(purchasePrice !== undefined && { purchasePrice }),
         ...(currentValue !== undefined && { currentValue }),
