@@ -73,6 +73,10 @@ export async function POST(request: NextRequest) {
       imageSource,
       compatibleFirearmTypes,
       compatibleCalibers,
+      hasBattery,
+      batteryType,
+      lastBatteryChangeDate,
+      replacementIntervalDays,
     } = body;
 
     if (!name || !manufacturer || !type) {
@@ -96,6 +100,10 @@ export async function POST(request: NextRequest) {
         imageSource: imageSource ?? null,
         compatibleFirearmTypes: compatibleFirearmTypes ?? null,
         compatibleCalibers: compatibleCalibers ?? null,
+        hasBattery: Boolean(hasBattery),
+        batteryType: batteryType ?? null,
+        lastBatteryChangeDate: lastBatteryChangeDate ? new Date(lastBatteryChangeDate) : null,
+        replacementIntervalDays: replacementIntervalDays ?? null,
       },
     });
 

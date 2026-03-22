@@ -27,6 +27,10 @@ model Firearm {
   // imageSource: "uploaded" | "google_cse" | "seed" | "url"
   imageSource     String?
 
+  // Maintenance tracking
+  lastMaintenanceDate DateTime?
+  maintenanceIntervalDays Int?
+
   builds          Build[]
 
   createdAt       DateTime @default(now())
@@ -104,6 +108,12 @@ model Accessory {
   // Comma-separated compatible values, e.g. "RIFLE,SMG"
   compatibleFirearmTypes String?
   compatibleCalibers     String?
+
+  // Battery tracking
+  hasBattery             Boolean         @default(false)
+  batteryType            String?
+  lastBatteryChangeDate  DateTime?
+  replacementIntervalDays Int?
 
   createdAt              DateTime        @default(now())
   updatedAt              DateTime        @updatedAt
