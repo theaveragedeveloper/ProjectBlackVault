@@ -74,6 +74,8 @@ export async function PUT(
       notes,
       imageUrl,
       imageSource,
+      lastMaintenanceDate,
+      maintenanceIntervalDays,
     } = body;
 
     const existing = await prisma.firearm.findUnique({ where: { id } });
@@ -98,6 +100,10 @@ export async function PUT(
         ...(notes !== undefined && { notes: notes ? encryptField(notes) : null }),
         ...(imageUrl !== undefined && { imageUrl }),
         ...(imageSource !== undefined && { imageSource }),
+        ...(lastMaintenanceDate !== undefined && {
+          lastMaintenanceDate: lastMaintenanceDate ? new Date(lastMaintenanceDate) : null,
+        }),
+        ...(maintenanceIntervalDays !== undefined && { maintenanceIntervalDays }),
       },
       include: {
         _count: {
