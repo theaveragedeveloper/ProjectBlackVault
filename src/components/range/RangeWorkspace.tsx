@@ -53,6 +53,7 @@ interface AmmoSelection {
 interface SessionDrill {
   id: string;
   name: string;
+  setNumber: number;
   timeSeconds: number;
   points: number;
   penalties: number | null;
@@ -82,6 +83,16 @@ interface RangeSession {
     };
   }>;
   sessionDrills: SessionDrill[];
+}
+
+interface DrillEntryDraft {
+  id: string;
+  name: string;
+  timeSeconds: string;
+  points: string;
+  penalties: string;
+  hits: string;
+  notes: string;
 }
 
 const SLOT_TYPE_LABELS: Record<string, string> = {
@@ -123,6 +134,9 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
   const [sessionLocation, setSessionLocation] = useState<string>("");
   const [sessionNote, setSessionNote] = useState<string>("");
   const [selectedAccessories, setSelectedAccessories] = useState<Set<string>>(new Set());
+  const [sessionDrillEntries, setSessionDrillEntries] = useState<DrillEntryDraft[]>([
+    { id: crypto.randomUUID(), name: "", timeSeconds: "", points: "", penalties: "", hits: "", notes: "" },
+  ]);
 
   const [selectedSessionId, setSelectedSessionId] = useState<string>("");
   const [drillName, setDrillName] = useState<string>("");
@@ -303,6 +317,13 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
     return calculateHitFactor(adjustedPoints, time);
   }, [drillTime, drillPoints, drillPenalties]);
 
+  const nextSetNumberForSelectedDrill = useMemo(() => {
+    const normalizedName = drillName.trim().toLowerCase();
+    if (!normalizedName) return 1;
+    const existingCount = sessionDrills.filter((entry) => entry.name.trim().toLowerCase() === normalizedName).length;
+    return existingCount + 1;
+  }, [drillName, sessionDrills]);
+
   function updateAmmoSelection(index: number, next: Partial<AmmoSelection>) {
     setAmmoSelections((prev) => prev.map((item, itemIndex) => (itemIndex === index ? { ...item, ...next } : item)));
   }
@@ -313,6 +334,26 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
 
   function removeAmmoSelection(index: number) {
     setAmmoSelections((prev) => (prev.length <= 1 ? prev : prev.filter((_, itemIndex) => itemIndex !== index)));
+  }
+
+  function updateSessionDrillEntry(entryId: string, next: Partial<DrillEntryDraft>) {
+    setSessionDrillEntries((prev) => prev.map((entry) => (entry.id === entryId ? { ...entry, ...next } : entry)));
+  }
+
+  function addSessionDrillEntry() {
+    setSessionDrillEntries((prev) => [
+      ...prev,
+      { id: crypto.randomUUID(), name: "", timeSeconds: "", points: "", penalties: "", hits: "", notes: "" },
+    ]);
+  }
+
+  function removeSessionDrillEntry(entryId: string) {
+    setSessionDrillEntries((prev) => {
+      if (prev.length <= 1) {
+        return [{ ...prev[0], name: "", timeSeconds: "", points: "", penalties: "", hits: "", notes: "" }];
+      }
+      return prev.filter((entry) => entry.id !== entryId);
+    });
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -330,6 +371,36 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
         roundsUsed: Number.parseInt(selection.roundsUsed, 10),
       }))
       .filter((selection) => selection.ammoStockId && Number.isInteger(selection.roundsUsed) && selection.roundsUsed > 0);
+    const drillSetCounter = new Map<string, number>();
+    const normalizedSessionDrills = sessionDrillEntries.flatMap((entry, index) => {
+      const name = entry.name.trim();
+      const timeSeconds = Number.parseFloat(entry.timeSeconds);
+      const points = Number.parseFloat(entry.points);
+      const penalties = Number.parseFloat(entry.penalties || "0");
+      const hits = Number.parseInt(entry.hits, 10);
+
+      if (!name && !entry.timeSeconds && !entry.points && !entry.penalties && !entry.hits && !entry.notes.trim()) {
+        return [];
+      }
+
+      if (!name || !Number.isFinite(timeSeconds) || timeSeconds <= 0 || !Number.isFinite(points) || points < 0) {
+        return [];
+      }
+
+      const setNumber = (drillSetCounter.get(name) ?? 0) + 1;
+      drillSetCounter.set(name, setNumber);
+
+      return [{
+        name,
+        setNumber,
+        timeSeconds,
+        points,
+        penalties: Number.isFinite(penalties) && penalties >= 0 ? penalties : undefined,
+        hits: Number.isInteger(hits) && hits >= 0 ? hits : undefined,
+        notes: entry.notes.trim() || undefined,
+        sortOrder: index,
+      }];
+    });
 
     const ammoRoundsTotal = normalizedAmmoLinks.reduce((sum, selection) => sum + selection.roundsUsed, 0);
     const explicitRounds = Number.parseInt(roundsFired, 10);
@@ -341,6 +412,18 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
 
     if (!selectedFirearmId) {
       setError("Add at least one firearm in the vault before logging a range session.");
+      setSubmitting(false);
+      return;
+    }
+
+    const hasIncompleteDrillRows = sessionDrillEntries.some((entry) => {
+      const hasAnyValue = Boolean(entry.name.trim() || entry.timeSeconds || entry.points || entry.penalties || entry.hits || entry.notes.trim());
+      if (!hasAnyValue) return false;
+      const hasRequired = Boolean(entry.name.trim() && entry.timeSeconds && entry.points);
+      return !hasRequired;
+    });
+    if (hasIncompleteDrillRows) {
+      setError("Each drill set row must include drill name, time, and points (or leave the row blank).");
       setSubmitting(false);
       return;
     }
@@ -372,6 +455,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
           roundsFired: resolvedRounds,
           notes: sessionNote,
           ammoLinks: normalizedAmmoLinks,
+          sessionDrills: normalizedSessionDrills,
         }),
       });
 
@@ -410,6 +494,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
       setRoundsFired("");
       setSessionNote("");
       setAmmoSelections([{ ammoStockId: "", roundsUsed: "" }]);
+      setSessionDrillEntries([{ id: crypto.randomUUID(), name: "", timeSeconds: "", points: "", penalties: "", hits: "", notes: "" }]);
     } catch (err) {
       setFinalizeState("idle");
       setError(err instanceof Error ? err.message : "Session log failed");
@@ -431,6 +516,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
     try {
       const payload = {
         name: drillName,
+        setNumber: nextSetNumberForSelectedDrill,
         timeSeconds: Number.parseFloat(drillTime),
         points: Number.parseFloat(drillPoints),
         penalties: drillPenalties ? Number.parseFloat(drillPenalties) : undefined,
@@ -454,13 +540,11 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
       setSessionDrills(Array.isArray(drillsJson) ? drillsJson : []);
       await loadSessions();
 
-      setDrillName("");
       setDrillTime("");
       setDrillPoints("");
       setDrillPenalties("");
       setDrillHits("");
-      setDrillNotes("");
-      setSuccess("Drill logged successfully.");
+      setSuccess(`Drill set ${nextSetNumberForSelectedDrill} logged successfully.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Drill log failed");
     } finally {
@@ -751,6 +835,112 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
               <p className="text-xs text-vault-text-faint">Leave rows blank to skip ammo deductions. When rounds fired is blank, it auto-calculates from ammo rows.</p>
             </div>
 
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <label className={LABEL_CLASS}>Drills Completed During This Session</label>
+                <button
+                  type="button"
+                  onClick={addSessionDrillEntry}
+                  className="px-2.5 py-1.5 rounded-md text-xs border border-[#00C2FF]/30 text-[#00C2FF] bg-[#00C2FF]/10 hover:bg-[#00C2FF]/20"
+                >
+                  Add Drill Set
+                </button>
+              </div>
+              <p className="text-xs text-vault-text-faint">Add zero, one, or many drill sets. Repeat the same drill name for multiple attempts (Set 1, Set 2, Set 3...).</p>
+              {sessionDrillEntries.map((entry, index) => (
+                <div key={entry.id} className="rounded-md border border-vault-border bg-vault-bg p-3 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs uppercase tracking-widest text-vault-text-muted">Set {index + 1}</p>
+                    <button
+                      type="button"
+                      onClick={() => removeSessionDrillEntry(entry.id)}
+                      className="px-2.5 py-1.5 rounded-md text-xs border border-vault-border text-vault-text-faint hover:text-vault-text"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <div className="grid md:grid-cols-2 gap-3">
+                    <div>
+                      <label className={LABEL_CLASS}>Drill Name</label>
+                      <input
+                        value={entry.name}
+                        onChange={(e) => updateSessionDrillEntry(entry.id, { name: e.target.value })}
+                        className={INPUT_CLASS}
+                        placeholder="e.g. Bill Drill"
+                      />
+                    </div>
+                    <div>
+                      <label className={LABEL_CLASS}>Time (seconds)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        value={entry.timeSeconds}
+                        onChange={(e) => updateSessionDrillEntry(entry.id, { timeSeconds: e.target.value })}
+                        className={INPUT_CLASS}
+                        placeholder="2.45"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-3">
+                    <div>
+                      <label className={LABEL_CLASS}>Points</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={entry.points}
+                        onChange={(e) => updateSessionDrillEntry(entry.id, { points: e.target.value })}
+                        className={INPUT_CLASS}
+                        placeholder="90"
+                      />
+                    </div>
+                    <div>
+                      <label className={LABEL_CLASS}>Penalties</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={entry.penalties}
+                        onChange={(e) => updateSessionDrillEntry(entry.id, { penalties: e.target.value })}
+                        className={INPUT_CLASS}
+                        placeholder="0"
+                      />
+                    </div>
+                    <div>
+                      <label className={LABEL_CLASS}>Hits</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={entry.hits}
+                        onChange={(e) => updateSessionDrillEntry(entry.id, { hits: e.target.value })}
+                        className={INPUT_CLASS}
+                        placeholder="6"
+                      />
+                    </div>
+                    <div className="bg-vault-surface border border-vault-border rounded-md px-3 py-2">
+                      <p className="text-[11px] text-vault-text-faint uppercase tracking-widest">Hit Factor</p>
+                      <p className="text-lg font-mono text-[#00C2FF]">
+                        {calculateHitFactor(
+                          Math.max(0, (Number.parseFloat(entry.points) || 0) - (Number.parseFloat(entry.penalties) || 0)),
+                          Number.parseFloat(entry.timeSeconds)
+                        ).toFixed(4)}
+                      </p>
+                    </div>
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>Set Notes</label>
+                    <textarea
+                      rows={2}
+                      value={entry.notes}
+                      onChange={(e) => updateSessionDrillEntry(entry.id, { notes: e.target.value })}
+                      className={`${INPUT_CLASS} resize-none`}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
             <div>
               <label className={LABEL_CLASS}>Notes</label>
               <textarea
@@ -847,6 +1037,9 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
               <div>
                 <label className={LABEL_CLASS}>Drill Name <span className="text-[#E53935]">*</span></label>
                 <input required value={drillName} onChange={(e) => setDrillName(e.target.value)} className={INPUT_CLASS} placeholder="e.g. Bill Drill" />
+                {selectedSessionId && drillName.trim() && (
+                  <p className="mt-1 text-xs text-vault-text-faint">This will be saved as set {nextSetNumberForSelectedDrill} for this drill in the selected session.</p>
+                )}
               </div>
               <div>
                 <label className={LABEL_CLASS}>Time (seconds) <span className="text-[#E53935]">*</span></label>
@@ -1062,7 +1255,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
                 {sessionDrills.map((drill) => (
                   <div key={drill.id} className="bg-vault-bg border border-vault-border rounded-md p-3">
                     <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-semibold text-vault-text">{drill.name}</p>
+                      <p className="text-sm font-semibold text-vault-text">{drill.name} · Set {drill.setNumber}</p>
                       <p className="text-xs font-mono text-[#00C2FF]">HF {drill.hitFactor.toFixed(4)}</p>
                     </div>
                     <div className="mt-1 text-xs text-vault-text-muted flex flex-wrap gap-3">
@@ -1104,13 +1297,27 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
                   <p className="text-xs text-vault-text-muted mt-1">
                     {session.firearm.name}{session.build ? ` · ${session.build.name}` : ""} · {session.ammoLinks.map((link) => `${link.ammoStock.brand} (${link.roundsUsed})`).join(", ")}
                   </p>
+                  {session.sessionDrills.length > 0 && (
+                    <div className="mt-2 space-y-1.5">
+                      {session.sessionDrills.map((drill) => (
+                        <div key={drill.id} className="text-[11px] text-vault-text-muted flex flex-wrap gap-2">
+                          <span className="font-medium text-vault-text">{drill.name}</span>
+                          <span>Set {drill.setNumber}</span>
+                          <span>·</span>
+                          <span>{drill.points} pts</span>
+                          <span>in {drill.timeSeconds}s</span>
+                          <span className="font-mono text-[#00C2FF]">HF {drill.hitFactor.toFixed(4)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </button>
               ))}
             </div>
           )}
 
           {selectedSession?.sessionDrills?.length ? (
-            <p className="text-xs text-vault-text-faint">Session has {selectedSession.sessionDrills.length} drill entr{selectedSession.sessionDrills.length === 1 ? "y" : "ies"}.</p>
+            <p className="text-xs text-vault-text-faint">Selected session has {selectedSession.sessionDrills.length} drill set{selectedSession.sessionDrills.length === 1 ? "" : "s"} logged.</p>
           ) : null}
         </fieldset>
         )}

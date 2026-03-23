@@ -415,7 +415,7 @@ export async function GET(request: NextRequest) {
       queries.push(
         prisma.rangeSession.findMany({
           include: {
-            sessionDrills: { orderBy: { sortOrder: "asc" } },
+            sessionDrills: { orderBy: [{ sortOrder: "asc" }, { name: "asc" }, { setNumber: "asc" }] },
             ammoLinks: true,
           },
           orderBy: { sessionDate: "desc" },
