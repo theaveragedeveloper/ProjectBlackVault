@@ -34,10 +34,13 @@ export function MobileHeader({ passwordModeEnabled = false }: MobileHeaderProps)
       <header className="md:hidden flex items-center gap-3 h-14 px-4 border-b border-vault-border bg-vault-surface shrink-0">
         <button
           onClick={() => setOpen(true)}
-          className="p-1.5 text-vault-text-faint hover:text-vault-text-muted transition-colors"
+          className="inline-flex items-center gap-1.5 px-2 py-1.5 rounded-md border border-vault-border text-vault-text-faint hover:text-vault-text-muted hover:bg-vault-border/60 transition-colors"
           aria-label="Open navigation"
         >
           <Menu className="w-5 h-5" />
+          <span className="text-[11px] font-medium tracking-wider uppercase">
+            Menu
+          </span>
         </button>
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded bg-[#00C2FF]/10 border border-[#00C2FF]/30 flex items-center justify-center">
@@ -51,10 +54,13 @@ export function MobileHeader({ passwordModeEnabled = false }: MobileHeaderProps)
           <button
             onClick={handleLogout}
             disabled={loggingOut}
-            className="ml-auto p-1.5 text-vault-text-faint hover:text-vault-text-muted transition-colors disabled:opacity-60"
+            className="ml-auto inline-flex items-center gap-1.5 px-2 py-1.5 rounded-md border border-red-500/25 bg-red-500/10 text-red-200 hover:text-red-100 hover:bg-red-500/15 transition-colors disabled:opacity-60"
             aria-label="Logout"
           >
             <LogOut className="w-4 h-4" />
+            <span className="text-[11px] font-medium tracking-wider uppercase">
+              {loggingOut ? "Exit..." : "Logout"}
+            </span>
           </button>
         )}
       </header>
