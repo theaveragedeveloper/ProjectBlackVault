@@ -8,6 +8,10 @@ const mocks = vi.hoisted(() => ({
   findAmmoStocks: vi.fn(),
 }));
 
+vi.mock("@/lib/server/auth", () => ({
+  requireAuth: vi.fn().mockResolvedValue(null),
+}));
+
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     appSettings: {
@@ -80,18 +84,17 @@ describe("GET /api/exports/full-armory", () => {
         fileUrl: "/api/files/documents/receipt-1.jpg",
         createdAt: new Date("2025-02-01T10:00:00.000Z"),
       },
+    ]);
+
+    mocks.findAmmoStocks.mockResolvedValue([
       {
-        id: "doc-2",
-        type: "RECEIPT",
-        name: "Accessory Receipt PDF",
-        firearmId: null,
-        accessoryId: "accessory-1",
-        firearm: null,
-        accessory: { id: "accessory-1", name: "Red Dot" },
-        mimeType: "application/pdf",
-        fileSize: 4096,
-        fileUrl: "/api/files/documents/receipt-2.pdf",
-        createdAt: new Date("2025-02-03T10:00:00.000Z"),
+        id: "ammo-1",
+        brand: "Federal",
+        caliber: "5.56",
+        quantity: 300,
+        lowStockAlert: 100,
+        purchasePrice: 120,
+        notes: "Training stash",
       },
     ]);
 
@@ -102,61 +105,57 @@ describe("GET /api/exports/full-armory", () => {
     ]);
   });
 
-  it("keeps claims semantics and includes image/doc rows", async () => {
-    const request = new NextRequest("http://localhost/api/exports/full-armory?preset=CLAIMS");
-    const response = await GET(request);
-    const json = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(json.meta.preset).toBe("CLAIMS");
-    expect(json.items[0].serialNumber).toBe("ABC123456");
-    expect(json.items[0].imageUrl).toBe("/api/files/images/firearms/firearm-1.jpg");
-    expect(json.summary.totalItems).toBe(2);
-    expect(json.summary.totalReceipts).toBe(2);
-    expect(json.csv.inventoryItems).toContain("imageUrl");
-    expect(json.csv.attachmentsIndex).toContain("Accessory Receipt PDF");
-    expect(json.ammoSummary).toEqual([
-      { caliber: "5.56", totalRounds: 500, stockEntries: 2 },
-      { caliber: "9mm", totalRounds: 120, stockEntries: 1 },
-    ]);
-  });
-
-  it("parses include options and creates backup file references", async () => {
+  it("returns JSON payload aligned with new include toggles", async () => {
     const request = new NextRequest(
-      "http://localhost/api/exports/full-armory?preset=BACKUP&includeSerialNumbers=false&includeDocuments=false&includeImages=false&includeAmmo=false&includeValue=false&imageMode=ALL_IMAGES"
+      "http://localhost/api/exports/full-armory?preset=BACKUP&includeSerialNumbers=false&includeAmmo=true&includeValue=false&includeImages=false&includeDocuments=false"
     );
     const response = await GET(request);
     const json = await response.json();
 
     expect(response.status).toBe(200);
-    expect(json.meta.preset).toBe("BACKUP");
     expect(json.meta.exportOptions).toEqual({
       preset: "BACKUP",
       includeSerialNumbers: false,
-      includeAmmo: false,
+      includeAmmo: true,
       includeValue: false,
       includeImages: false,
       includeDocuments: false,
-      includePhotos: false,
-      includeReceipts: false,
-      imageMode: "ALL_IMAGES",
     });
     expect(json.items[0].serialNumber).toBe("");
-    expect(json.items[0].purchasePrice).toBeNull();
     expect(json.items[0].imageUrl).toBe("");
-    expect(json.attachments).toEqual([]);
-    expect(json.ammoSummary).toEqual([]);
-    expect(json.backupFiles).toEqual([]);
+    expect(json.items[0].purchasePrice).toBeNull();
+    expect(json.attachments).toHaveLength(0);
+    expect(json.ammo).toHaveLength(1);
   });
 
-  it("includes backup manifest rows for safe file URLs", async () => {
-    const request = new NextRequest("http://localhost/api/exports/full-armory?preset=BACKUP");
+  it("returns 400 for unsupported format values", async () => {
+    const request = new NextRequest("http://localhost/api/exports/full-armory?format=json");
     const response = await GET(request);
     const json = await response.json();
 
+    expect(response.status).toBe(400);
+    expect(json.error).toContain("Supported values: csv, pdf");
+  });
+
+  it("returns downloadable CSV with structured section rows", async () => {
+    const request = new NextRequest("http://localhost/api/exports/full-armory?format=csv");
+    const response = await GET(request);
+    const csv = await response.text();
+
     expect(response.status).toBe(200);
-    expect(json.backupFiles.length).toBe(3);
-    expect(json.backupFiles[0].storagePath).toContain("storage/uploads/documents/");
-    expect(json.backupFiles.some((row: { category: string; storagePath: string }) => row.category === "IMAGE" && row.storagePath.includes("storage/uploads/images/firearms"))).toBe(true);
+    expect(response.headers.get("Content-Type")).toContain("text/csv");
+    expect(csv).toContain("section");
+    expect(csv).toContain("attachments");
+    expect(csv).toContain("/api/files/documents/receipt-1.jpg");
+  });
+
+  it("returns PDF bytes for download format", async () => {
+    const request = new NextRequest("http://localhost/api/exports/full-armory?format=pdf&includeDocuments=false");
+    const response = await GET(request);
+    const pdf = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Content-Type")).toContain("application/pdf");
+    expect(pdf.startsWith("%PDF-")).toBe(true);
   });
 });
