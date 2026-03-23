@@ -43,6 +43,9 @@ export async function PUT(request: NextRequest) {
       googleCseApiKey,
       googleCseSearchEngineId,
       enableImageSearch,
+      includeUploadsInBackup,
+      autoBackupEnabled,
+      autoBackupCadence,
       defaultCurrency,
       appPassword,
     } = body;
@@ -63,6 +66,26 @@ export async function PUT(request: NextRequest) {
 
     if (enableImageSearch !== undefined) {
       updateData.enableImageSearch = Boolean(enableImageSearch);
+    }
+
+    if (includeUploadsInBackup !== undefined) {
+      updateData.includeUploadsInBackup = Boolean(includeUploadsInBackup);
+    }
+
+    if (autoBackupEnabled !== undefined) {
+      updateData.autoBackupEnabled = Boolean(autoBackupEnabled);
+    }
+
+    if (autoBackupCadence !== undefined) {
+      const cadence = String(autoBackupCadence).trim().toLowerCase();
+      const allowed = new Set(["daily", "weekly", "monthly"]);
+      if (!allowed.has(cadence)) {
+        return NextResponse.json(
+          { error: "Invalid auto backup cadence. Use daily, weekly, or monthly." },
+          { status: 400 }
+        );
+      }
+      updateData.autoBackupCadence = cadence;
     }
 
     if (defaultCurrency !== undefined) {
