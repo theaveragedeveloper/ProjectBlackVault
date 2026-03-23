@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth } from "@/lib/server/auth";
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const { id } = await params;
     const body = await request.json();
@@ -88,7 +92,9 @@ export async function POST(
           .filter((accessoryId): accessoryId is string => Boolean(accessoryId))
       );
 
-      const accessoryIdsToProcess = selectedAccessoryIds.filter((accessoryId) => allowedAccessoryIds.has(accessoryId));
+      const accessoryIdsToProcess = selectedAccessoryIds.length > 0
+        ? selectedAccessoryIds.filter((accessoryId) => allowedAccessoryIds.has(accessoryId))
+        : Array.from(allowedAccessoryIds);
 
       for (const accessoryId of accessoryIdsToProcess) {
         const alreadyLogged = await tx.roundCountLog.findFirst({

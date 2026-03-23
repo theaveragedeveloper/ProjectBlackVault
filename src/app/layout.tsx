@@ -39,9 +39,9 @@ export default async function RootLayout({
             <UnlockScreen />
           ) : (
             <div className="flex h-screen overflow-hidden">
-              <Sidebar passwordModeEnabled={passwordModeEnabled} />
+              <Sidebar passwordModeEnabled={passwordModeEnabled} sessionUnlocked={hasValidSession} />
               <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-                <MobileHeader passwordModeEnabled={passwordModeEnabled} />
+                <MobileHeader passwordModeEnabled={passwordModeEnabled} sessionUnlocked={hasValidSession} />
                 <main className="flex-1 overflow-y-auto min-w-0">
                   {children}
                 </main>
