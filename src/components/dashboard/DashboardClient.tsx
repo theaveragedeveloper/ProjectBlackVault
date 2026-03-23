@@ -606,7 +606,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
   // Before hydration, render default order without drag to avoid mismatch
   if (!mounted) {
     return (
-      <div className="p-6 space-y-8">
+      <div className="mx-auto max-w-6xl p-4 sm:p-6 space-y-6 sm:space-y-8">
         {DEFAULT_ORDER.map((id) => (
           <div key={id}>{renderWidget(id)}</div>
         ))}
@@ -615,9 +615,9 @@ export function DashboardClient({ data }: { data: DashboardData }) {
   }
 
   return (
-    <div className="p-6">
+    <div className="mx-auto max-w-6xl p-4 sm:p-6">
       {/* Customize bar */}
-      <div className="flex items-center justify-end mb-6">
+      <div className="mb-6 flex items-center justify-end">
         {editMode ? (
           <div className="flex items-center gap-3">
             <p className="text-xs text-vault-text-muted">Drag widgets to reorder</p>
