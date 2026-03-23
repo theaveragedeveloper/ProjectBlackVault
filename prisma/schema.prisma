@@ -206,6 +206,7 @@ model SessionDrill {
   rangeSessionId String
   rangeSession   RangeSession @relation(fields: [rangeSessionId], references: [id], onDelete: Cascade)
   name           String
+  setNumber      Int          @default(1)
   timeSeconds    Float
   points         Float
   penalties      Float?
