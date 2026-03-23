@@ -13,6 +13,7 @@ import {
   ChevronRight,
   Zap,
   X,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
@@ -66,20 +67,40 @@ interface SidebarProps {
   mobileOnly?: boolean;
   mobileOpen?: boolean;
   onMobileClose?: () => void;
+  passwordModeEnabled?: boolean;
 }
 
 export function Sidebar({
   mobileOnly = false,
   mobileOpen = false,
   onMobileClose,
+  passwordModeEnabled = false,
 }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   // Close mobile menu on route change
   useEffect(() => {
     onMobileClose?.();
   }, [pathname, onMobileClose]);
+
+  async function handleLogout() {
+    if (loggingOut) return;
+    setLoggingOut(true);
+
+    try {
+      await fetch("/api/session/logout", {
+        method: "POST",
+        cache: "no-store",
+      });
+    } finally {
+      sessionStorage.clear();
+      sessionStorage.removeItem("blackvault-unlocked");
+      localStorage.removeItem("blackvault-unlocked");
+      window.location.href = "/";
+    }
+  }
 
   const navContent = (
     <>
@@ -149,11 +170,27 @@ export function Sidebar({
         })}
       </nav>
 
-      {/* Collapse toggle — desktop only */}
-      <div className="hidden md:block px-2 pb-3 shrink-0 border-t border-vault-border pt-2">
+      <div className="px-2 pb-3 shrink-0 border-t border-vault-border pt-2 space-y-1.5">
+        {passwordModeEnabled && (
+          <button
+            onClick={handleLogout}
+            disabled={loggingOut}
+            className="w-full flex items-center gap-2 px-2.5 py-2 rounded-md text-vault-text-faint hover:text-vault-text-muted hover:bg-vault-border transition-colors disabled:opacity-60"
+            title={collapsed ? "Logout" : undefined}
+          >
+            <LogOut className="w-4 h-4 shrink-0" />
+            {!collapsed && (
+              <span className="text-xs tracking-wider uppercase">
+                {loggingOut ? "Logging Out..." : "Logout"}
+              </span>
+            )}
+          </button>
+        )}
+
+        {/* Collapse toggle — desktop only */}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="w-full flex items-center justify-center gap-2 px-2.5 py-2 rounded-md text-vault-text-faint hover:text-vault-text-muted hover:bg-vault-border transition-colors"
+          className="hidden md:flex w-full items-center justify-center gap-2 px-2.5 py-2 rounded-md text-vault-text-faint hover:text-vault-text-muted hover:bg-vault-border transition-colors"
         >
           {collapsed ? (
             <ChevronRight className="w-4 h-4" />
