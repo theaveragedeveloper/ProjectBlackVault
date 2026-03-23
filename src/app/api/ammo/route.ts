@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { revalidateDashboardData } from "@/lib/dashboard/revalidate-dashboard";
 
 // GET /api/ammo - List all AmmoStock grouped by caliber
 export async function GET() {
@@ -100,6 +101,8 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+
+    revalidateDashboardData();
 
     return NextResponse.json(stock, { status: 201 });
   } catch (error) {
