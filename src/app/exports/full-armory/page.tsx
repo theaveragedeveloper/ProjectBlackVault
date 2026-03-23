@@ -36,7 +36,8 @@ export default function FullArmoryExportPage() {
     try {
       const query = buildExportQueryString(options, format);
       const response = await fetch(`/api/exports/full-armory?${query}`, {
-        credentials: "same-origin",
+        credentials: "include",
+        cache: "no-store",
       });
       if (!response.ok) {
         let errorMessage = `Failed to export ${format.toUpperCase()}`;
