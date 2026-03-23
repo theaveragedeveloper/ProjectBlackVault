@@ -8,7 +8,7 @@ export async function POST(
   try {
     const { id } = await params;
     const body = await request.json();
-    const selectedAccessoryIdsRaw = Array.isArray(body?.selectedAccessoryIds) ? body.selectedAccessoryIds : [];
+    const selectedAccessoryIdsRaw: unknown[] = Array.isArray(body?.selectedAccessoryIds) ? body.selectedAccessoryIds : [];
     const selectedAccessoryIds = selectedAccessoryIdsRaw.filter(
       (value): value is string => typeof value === "string" && value.length > 0
     );
