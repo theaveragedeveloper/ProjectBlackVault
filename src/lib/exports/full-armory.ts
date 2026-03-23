@@ -1,11 +1,13 @@
 export type ExportPreset = "CLAIMS" | "BACKUP";
-export type ExportImageMode = "PRIMARY_ONLY" | "ALL_IMAGES";
+export type ExportFormat = "csv" | "pdf";
 
 export interface FullArmoryExportOptions {
   preset: ExportPreset;
-  includePhotos: boolean;
-  includeReceipts: boolean;
-  imageMode: ExportImageMode;
+  includeSerialNumbers: boolean;
+  includeAmmo: boolean;
+  includeValue: boolean;
+  includeImages: boolean;
+  includeDocuments: boolean;
 }
 
 export interface FullArmoryItemRow {
@@ -44,6 +46,16 @@ export interface FullArmoryAttachmentRow {
   uploadedAt: string;
 }
 
+export interface FullArmoryAmmoRow {
+  ammoId: string;
+  brand: string;
+  caliber: string;
+  quantity: number;
+  lowStockAlert: number | null;
+  purchasePrice: number | null;
+  notes: string;
+}
+
 export interface FullArmoryExportResponse {
   meta: {
     generatedAt: string;
@@ -57,6 +69,7 @@ export interface FullArmoryExportResponse {
     totalAccessories: number;
     totalDocuments: number;
     totalReceipts: number;
+    totalAmmoStocks: number;
     totalPurchaseValue: number;
     totalReplacementValue: number;
     missingEvidence: {
@@ -68,11 +81,7 @@ export interface FullArmoryExportResponse {
   };
   items: FullArmoryItemRow[];
   attachments: FullArmoryAttachmentRow[];
-  csv: {
-    inventoryItems: string;
-    attachmentsIndex: string;
-    valuationSummary: string;
-  };
+  ammo: FullArmoryAmmoRow[];
 }
 
 export interface VisualEvidenceImage {
@@ -99,22 +108,32 @@ function parseBool(raw: string | null, fallback: boolean): boolean {
 
 export function parseExportOptionsFromSearchParams(searchParams: URLSearchParams): FullArmoryExportOptions {
   const presetRaw = searchParams.get("preset");
-  const imageModeRaw = searchParams.get("imageMode");
 
   return {
     preset: presetRaw === "BACKUP" ? "BACKUP" : "CLAIMS",
-    includePhotos: parseBool(searchParams.get("includePhotos"), true),
-    includeReceipts: parseBool(searchParams.get("includeReceipts"), true),
-    imageMode: imageModeRaw === "ALL_IMAGES" ? "ALL_IMAGES" : "PRIMARY_ONLY",
+    includeSerialNumbers: parseBool(searchParams.get("includeSerialNumbers"), true),
+    includeAmmo: parseBool(searchParams.get("includeAmmo"), true),
+    includeValue: parseBool(searchParams.get("includeValue"), true),
+    includeImages: parseBool(searchParams.get("includeImages"), true),
+    includeDocuments: parseBool(searchParams.get("includeDocuments"), true),
   };
 }
 
-export function buildExportQueryString(options: FullArmoryExportOptions): string {
+export function parseExportFormatFromSearchParams(searchParams: URLSearchParams): ExportFormat | null {
+  const raw = (searchParams.get("format") ?? "").toLowerCase();
+  if (raw === "") return null;
+  return raw === "csv" || raw === "pdf" ? raw : null;
+}
+
+export function buildExportQueryString(options: FullArmoryExportOptions, format?: ExportFormat): string {
   const query = new URLSearchParams();
+  if (format) query.set("format", format);
   query.set("preset", options.preset);
-  query.set("includePhotos", String(options.includePhotos));
-  query.set("includeReceipts", String(options.includeReceipts));
-  query.set("imageMode", options.imageMode);
+  query.set("includeSerialNumbers", String(options.includeSerialNumbers));
+  query.set("includeAmmo", String(options.includeAmmo));
+  query.set("includeValue", String(options.includeValue));
+  query.set("includeImages", String(options.includeImages));
+  query.set("includeDocuments", String(options.includeDocuments));
   return query.toString();
 }
 
@@ -132,7 +151,7 @@ export function selectVisualEvidence(
 ): VisualEvidenceImage[] {
   const images: VisualEvidenceImage[] = [];
 
-  if (options.includePhotos) {
+  if (options.includeImages) {
     for (const item of payload.items) {
       if (!item.imageUrl) continue;
       images.push({
@@ -146,7 +165,7 @@ export function selectVisualEvidence(
     }
   }
 
-  if (options.includeReceipts) {
+  if (options.includeDocuments && options.includeImages) {
     for (const row of payload.attachments) {
       if (row.type !== "RECEIPT") continue;
       if (!row.fileUrl || !isImageAttachment(row)) continue;
@@ -163,17 +182,5 @@ export function selectVisualEvidence(
     }
   }
 
-  if (options.imageMode === "ALL_IMAGES") {
-    return images;
-  }
-
-  const deduped: VisualEvidenceImage[] = [];
-  const seen = new Set<string>();
-  for (const image of images) {
-    const key = `${image.source}:${image.linkedItemId}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    deduped.push(image);
-  }
-  return deduped;
+  return images;
 }
