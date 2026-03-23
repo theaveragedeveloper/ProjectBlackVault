@@ -29,12 +29,10 @@ export default function DocumentLibraryPage() {
   useEffect(() => {
     fetch("/api/documents", { credentials: "include", cache: "no-store" })
       .then(async (r) => ({ ok: r.ok, status: r.status, data: await r.json().catch(() => null) }))
-      .then(({ ok, status, data }) => {
+      .then(({ ok, data }) => {
         if (ok && Array.isArray(data)) {
           setDocuments(data);
           setLoadError(null);
-        } else if (status === 401) {
-          setLoadError("Document library is locked. Unlock the vault to view and upload documents.");
         } else {
           setLoadError((data as { error?: string } | null)?.error ?? "Failed to load documents.");
         }
