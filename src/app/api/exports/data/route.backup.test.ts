@@ -28,7 +28,7 @@ vi.mock("@/lib/prisma", () => ({
 import { GET } from "./route";
 
 const BASE_QUERY =
-  "format=json&firearms=true&accessories=true&builds=false&ammo=false&rangeSessions=false&documents=true&settings=false";
+  "format=csv&firearms=true&accessories=true&builds=false&ammo=false&rangeSessions=false&documents=true&settings=false";
 
 describe("/api/exports/data backup metadata", () => {
   beforeEach(() => {
@@ -60,36 +60,38 @@ describe("/api/exports/data backup metadata", () => {
     ]);
   });
 
-  it("includes upload references and storage guidance when enabled", async () => {
+  it("includes upload references and storage guidance in CSV when enabled", async () => {
     mocks.appSettingsFindUnique.mockResolvedValue({
       id: "singleton",
       includeUploadsInBackup: true,
     });
 
     const response = await GET(new NextRequest(`http://localhost/api/exports/data?${BASE_QUERY}`));
-    const json = await response.json();
+    const csv = await response.text();
 
     expect(response.status).toBe(200);
-    expect(json.meta.includeUploadReferences).toBe(true);
-    expect(Array.isArray(json.uploadedAssetReferences)).toBe(true);
-    expect(json.uploadedAssetReferences.length).toBe(3);
-    expect(json.backupStorageGuidance.summary).toMatch(/storage\/uploads/i);
-    expect(json.backupStorageGuidance.volumeHint).toMatch(/\/app\/storage/i);
+    expect(csv).toContain("includeUploadReferences");
+    expect(csv).toContain("true");
+    expect(csv).toContain("uploadedAssetReferences");
+    expect(csv).toContain("backupStorageGuidance");
+    expect(csv).toMatch(/storage\/uploads/i);
+    expect(csv).toMatch(/\/app\/storage/i);
   });
 
-  it("omits upload references and guidance when disabled", async () => {
+  it("omits upload references and guidance in CSV when disabled", async () => {
     mocks.appSettingsFindUnique.mockResolvedValue({
       id: "singleton",
       includeUploadsInBackup: false,
     });
 
     const response = await GET(new NextRequest(`http://localhost/api/exports/data?${BASE_QUERY}`));
-    const json = await response.json();
+    const csv = await response.text();
 
     expect(response.status).toBe(200);
-    expect(json.meta.includeUploadReferences).toBe(false);
-    expect(json.uploadedAssetReferences).toBeUndefined();
-    expect(json.backupStorageGuidance).toBeUndefined();
+    expect(csv).toContain("includeUploadReferences");
+    expect(csv).toContain("false");
+    expect(csv).not.toContain("uploadedAssetReferences");
+    expect(csv).not.toContain("backupStorageGuidance");
   });
 
   it("writes uploaded reference sections to CSV only when enabled", async () => {
@@ -99,7 +101,7 @@ describe("/api/exports/data backup metadata", () => {
     });
 
     const enabledCsv = await GET(
-      new NextRequest(`http://localhost/api/exports/data?${BASE_QUERY.replace("format=json", "format=csv")}`)
+      new NextRequest(`http://localhost/api/exports/data?${BASE_QUERY}`)
     );
 
     const enabledText = await enabledCsv.text();
@@ -112,11 +114,26 @@ describe("/api/exports/data backup metadata", () => {
     });
 
     const disabledCsv = await GET(
-      new NextRequest(`http://localhost/api/exports/data?${BASE_QUERY.replace("format=json", "format=csv")}`)
+      new NextRequest(`http://localhost/api/exports/data?${BASE_QUERY}`)
     );
 
     const disabledText = await disabledCsv.text();
     expect(disabledText).not.toContain("uploadedAssetReferences");
     expect(disabledText).not.toContain("backupStorageGuidance");
+  });
+
+  it("rejects unsupported formats", async () => {
+    mocks.appSettingsFindUnique.mockResolvedValue({
+      id: "singleton",
+      includeUploadsInBackup: true,
+    });
+
+    const response = await GET(
+      new NextRequest(`http://localhost/api/exports/data?${BASE_QUERY.replace("format=csv", "format=json")}`)
+    );
+    const json = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(json.error).toMatch(/Supported values: csv, pdf/);
   });
 });

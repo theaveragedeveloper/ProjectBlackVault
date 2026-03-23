@@ -18,11 +18,15 @@ export async function GET() {
       });
     }
 
-    // Mask the API key in the response — return only whether it's set
+    const {
+      googleCseApiKey: _googleCseApiKey,
+      googleCseSearchEngineId: _googleCseSearchEngineId,
+      enableImageSearch: _enableImageSearch,
+      ...v1Settings
+    } = settings;
+
     return NextResponse.json({
-      ...settings,
-      googleCseApiKey: settings.googleCseApiKey ? "***configured***" : null,
-      _googleCseApiKeyIsSet: !!settings.googleCseApiKey,
+      ...v1Settings,
       encryptionEnabled: !!process.env.VAULT_ENCRYPTION_KEY,
     });
   } catch (error) {
@@ -40,9 +44,6 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
 
     const {
-      googleCseApiKey,
-      googleCseSearchEngineId,
-      enableImageSearch,
       includeUploadsInBackup,
       autoBackupEnabled,
       autoBackupCadence,
@@ -52,21 +53,6 @@ export async function PUT(request: NextRequest) {
 
     // Build update data, only including fields that were provided
     const updateData: Record<string, unknown> = {};
-
-    if (googleCseApiKey !== undefined) {
-      // Allow clearing the key by passing null or empty string
-      updateData.googleCseApiKey =
-        googleCseApiKey === "" ? null : googleCseApiKey;
-    }
-
-    if (googleCseSearchEngineId !== undefined) {
-      updateData.googleCseSearchEngineId =
-        googleCseSearchEngineId === "" ? null : googleCseSearchEngineId;
-    }
-
-    if (enableImageSearch !== undefined) {
-      updateData.enableImageSearch = Boolean(enableImageSearch);
-    }
 
     if (includeUploadsInBackup !== undefined) {
       updateData.includeUploadsInBackup = Boolean(includeUploadsInBackup);
@@ -106,11 +92,14 @@ export async function PUT(request: NextRequest) {
       update: updateData,
     });
 
-    return NextResponse.json({
-      ...settings,
-      googleCseApiKey: settings.googleCseApiKey ? "***configured***" : null,
-      _googleCseApiKeyIsSet: !!settings.googleCseApiKey,
-    });
+    const {
+      googleCseApiKey: _googleCseApiKey,
+      googleCseSearchEngineId: _googleCseSearchEngineId,
+      enableImageSearch: _enableImageSearch,
+      ...v1Settings
+    } = settings;
+
+    return NextResponse.json(v1Settings);
   } catch (error) {
     console.error("PUT /api/settings error:", error);
     return NextResponse.json(
