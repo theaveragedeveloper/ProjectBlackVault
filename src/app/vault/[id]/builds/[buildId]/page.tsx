@@ -16,7 +16,6 @@ import {
   Crosshair,
 } from "lucide-react";
 import { SLOTS_BY_FIREARM_TYPE, SLOT_TYPE_LABELS, FirearmType, SlotType } from "@/lib/types";
-import { SLOT_POSITIONS } from "@/lib/configurator/slot-positions";
 import { SLOT_ICONS } from "@/lib/configurator/slot-icons";
 
 // ─── Types ────────────────────────────────────────────────────
@@ -465,7 +464,6 @@ interface WeaponCanvasProps {
 
 function WeaponCanvas({ build, onSlotClick, onRemoveSlot }: WeaponCanvasProps) {
   const firearmType = build.firearm.type as FirearmType;
-  const positions = SLOT_POSITIONS[firearmType] ?? {};
   const availableSlots = SLOTS_BY_FIREARM_TYPE[firearmType] ?? [];
 
   const slotMap: Partial<Record<SlotType, BuildSlot>> = {};
@@ -474,141 +472,92 @@ function WeaponCanvas({ build, onSlotClick, onRemoveSlot }: WeaponCanvasProps) {
   }
 
   return (
-    <div className="relative w-full h-full bg-vault-canvas overflow-hidden">
-      {/* Tactical grid */}
-      <div className="absolute inset-0 tactical-grid opacity-60" />
-
-      {/* Corner brackets */}
-      <div className="absolute top-4 left-4 w-8 h-8 border-t-2 border-l-2 border-[#00C2FF]/20" />
-      <div className="absolute top-4 right-4 w-8 h-8 border-t-2 border-r-2 border-[#00C2FF]/20" />
-      <div className="absolute bottom-4 left-4 w-8 h-8 border-b-2 border-l-2 border-[#00C2FF]/20" />
-      <div className="absolute bottom-4 right-4 w-8 h-8 border-b-2 border-r-2 border-[#00C2FF]/20" />
-
-      {/* Firearm image or placeholder */}
-      <div className="absolute inset-0 flex items-center justify-center p-16">
-        {build.firearm.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={build.firearm.imageUrl}
-            alt={build.firearm.name}
-            className="w-full h-full object-contain"
-            style={{ filter: "drop-shadow(0 0 24px rgba(0,194,255,0.12))" }}
-          />
-        ) : (
-          <div className="flex flex-col items-center gap-4 text-center select-none">
-            <Shield className="w-20 h-20 text-vault-border" />
-            <div>
-              <p className="text-lg font-bold text-vault-border">{build.firearm.name}</p>
-              <p className="text-xs text-vault-surface-2 font-mono mt-1 uppercase tracking-widest">
-                {build.firearm.type}
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Slot overlays */}
-      {availableSlots.map((slotType) => {
-        const pos = positions[slotType];
-        if (!pos) return null;
-
-        const slot = slotMap[slotType];
-        const hasAccessory = !!slot?.accessory;
-        const slotIconConfig = SLOT_ICONS[slotType];
-        const SlotIcon = slotIconConfig?.icon ?? Shield;
-
-        if (hasAccessory && slot?.accessory) {
-          const acc = slot.accessory;
-          return (
-            <div
-              key={slotType}
-              className="absolute z-10 group"
-              style={{
-                left: `${pos.x}%`,
-                top: `${pos.y}%`,
-                transform: "translate(-50%, -50%)",
-              }}
-            >
-              {/* Accessory badge */}
-              <div className="relative">
-                <div
-                  className="flex items-center gap-1.5 px-2 py-1 rounded-md border text-[10px] font-medium cursor-default whitespace-nowrap max-w-[140px]"
-                  style={{
-                    backgroundColor: "var(--vault-canvas)",
-                    borderColor: `${slotIconConfig?.color ?? "#00C2FF"}40`,
-                    color: slotIconConfig?.color ?? "#00C2FF",
-                    boxShadow: `0 0 10px ${slotIconConfig?.color ?? "#00C2FF"}20`,
-                  }}
-                >
-                  <SlotIcon className="w-2.5 h-2.5 shrink-0" />
-                  <span className="truncate">{acc.name}</span>
-                </div>
-
-                {/* Round count sub-badge */}
-                <div
-                  className="absolute -bottom-3.5 left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded text-[9px] font-mono whitespace-nowrap"
-                  style={{ backgroundColor: "var(--vault-canvas)", color: "#F5A623", border: "1px solid rgba(245,166,35,0.3)" }}
-                >
-                  {acc.roundCount.toLocaleString()}r
-                </div>
-
-                {/* Remove button (on hover) */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRemoveSlot(slotType);
-                  }}
-                  className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-[#E53935] text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                  title="Remove"
-                >
-                  <X className="w-2.5 h-2.5" />
-                </button>
-              </div>
-            </div>
-          );
-        }
-
-        // Empty slot — pulsing indicator
-        return (
-          <button
-            key={slotType}
-            onClick={() => onSlotClick(slotType)}
-            className="absolute z-10 group"
-            style={{
-              left: `${pos.x}%`,
-              top: `${pos.y}%`,
-              transform: "translate(-50%, -50%)",
-            }}
-            title={`Add ${SLOT_TYPE_LABELS[slotType]}`}
-          >
-            <div className="relative flex items-center justify-center w-5 h-5">
-              {/* Outer ring */}
-              <div
-                className="absolute w-5 h-5 rounded-full animate-pulse-ring"
-                style={{
-                  backgroundColor: `${slotIconConfig?.color ?? "#8B9DB0"}18`,
-                  border: `1px solid ${slotIconConfig?.color ?? "#8B9DB0"}50`,
-                }}
-              />
-              {/* Center dot */}
-              <div
-                className="w-2 h-2 rounded-full"
-                style={{ backgroundColor: `${slotIconConfig?.color ?? "#8B9DB0"}80` }}
-              />
-              {/* Hover tooltip */}
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-vault-canvas border border-vault-border rounded text-[10px] text-vault-text-muted whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                {SLOT_TYPE_LABELS[slotType]}
-              </div>
-            </div>
-          </button>
-        );
-      })}
-
-      {/* Build name watermark */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-center pointer-events-none">
-        <p className="text-[10px] font-mono text-vault-border uppercase tracking-[0.3em]">
-          {build.name}
+    <div className="h-full overflow-y-auto p-4 md:p-5 bg-vault-canvas">
+      <div className="bg-vault-surface border border-vault-border rounded-xl p-4 md:p-5">
+        <p className="text-[10px] text-vault-text-faint uppercase tracking-widest font-mono mb-1">
+          Build Configurator
         </p>
+        <h2 className="text-base font-semibold text-vault-text">{build.name}</h2>
+        <p className="text-xs text-vault-text-muted mt-1">
+          Select a tile to add or change an attachment. Empty slots are clearly marked.
+        </p>
+
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+          {availableSlots.map((slotType) => {
+            const slot = slotMap[slotType];
+            const hasAccessory = !!slot?.accessory;
+            const slotIconConfig = SLOT_ICONS[slotType];
+            const SlotIcon = slotIconConfig?.icon ?? Shield;
+
+            return (
+              <div
+                key={slotType}
+                className={`rounded-lg border p-3 md:p-4 ${
+                  hasAccessory
+                    ? "border-vault-border bg-vault-bg"
+                    : "border-vault-border/80 bg-vault-surface"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[10px] uppercase tracking-widest font-mono text-vault-text-faint">
+                      {SLOT_TYPE_LABELS[slotType]}
+                    </p>
+                    <span
+                      className={`inline-flex mt-1 text-[9px] font-mono uppercase tracking-wide px-1.5 py-0.5 rounded border ${
+                        hasAccessory
+                          ? "text-[#00C853] border-[#00C853]/35 bg-[#00C853]/10"
+                          : "text-vault-text-faint border-vault-border bg-vault-bg/60"
+                      }`}
+                    >
+                      {hasAccessory ? "Configured" : "Empty"}
+                    </span>
+                    {hasAccessory && slot?.accessory ? (
+                      <>
+                        <p className="text-sm font-medium text-vault-text mt-1.5 truncate">
+                          {slot.accessory.name}
+                        </p>
+                        <p className="text-[11px] text-vault-text-faint mt-0.5 truncate">
+                          {slot.accessory.manufacturer}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-xs text-vault-text-faint mt-1">No accessory assigned</p>
+                    )}
+                  </div>
+
+                  <div
+                    className="w-8 h-8 rounded-md flex items-center justify-center shrink-0"
+                    style={{ backgroundColor: `${slotIconConfig?.color ?? "#8B9DB0"}18` }}
+                  >
+                    <SlotIcon
+                      className="w-4 h-4"
+                      style={{ color: slotIconConfig?.color ?? "#8B9DB0" }}
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-3 flex items-center gap-2">
+                  <button
+                    onClick={() => onSlotClick(slotType)}
+                    className="flex-1 min-h-9 px-3 py-2 text-xs font-medium rounded-md border border-[#00C2FF]/35 text-[#00C2FF] hover:bg-[#00C2FF]/10 transition-colors"
+                  >
+                    {hasAccessory ? "Change" : "Add Attachment"}
+                  </button>
+
+                  {hasAccessory && (
+                    <button
+                      onClick={() => onRemoveSlot(slotType)}
+                      className="min-h-9 px-3 py-2 text-xs font-medium rounded-md border border-[#E53935]/30 text-[#E53935] hover:bg-[#E53935]/10 transition-colors"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -619,16 +568,12 @@ function WeaponCanvas({ build, onSlotClick, onRemoveSlot }: WeaponCanvasProps) {
 interface SlotPanelProps {
   build: Build;
   allBuilds: Build[];
-  onSlotClick: (slotType: SlotType) => void;
-  onRemoveSlot: (slotType: SlotType) => void;
   onSwitchBuild: (buildId: string) => void;
 }
 
 function SlotPanel({
   build,
   allBuilds,
-  onSlotClick,
-  onRemoveSlot,
   onSwitchBuild,
 }: SlotPanelProps) {
   const [switchOpen, setSwitchOpen] = useState(false);
@@ -730,9 +675,7 @@ function SlotPanel({
           return (
             <div
               key={slotType}
-              className={`flex items-center gap-3 px-4 py-3 border-b border-[#1C2530]/50 transition-colors ${
-                hasAccessory ? "hover:bg-vault-bg" : "hover:bg-vault-bg"
-              }`}
+              className="flex items-center gap-3 px-4 py-3 border-b border-[#1C2530]/50"
             >
               {/* Icon */}
               <div
@@ -776,33 +719,15 @@ function SlotPanel({
                 )}
               </div>
 
-              {/* Action */}
-              <div className="shrink-0">
-                {hasAccessory ? (
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => onSlotClick(slotType)}
-                      className="text-[10px] text-vault-text-muted hover:text-[#00C2FF] border border-vault-border hover:border-[#00C2FF]/40 px-2 py-1 rounded transition-colors"
-                    >
-                      Change
-                    </button>
-                    <button
-                      onClick={() => onRemoveSlot(slotType)}
-                      className="w-6 h-6 flex items-center justify-center text-vault-text-muted hover:text-[#E53935] hover:bg-[#E53935]/10 rounded transition-colors"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => onSlotClick(slotType)}
-                    className="flex items-center gap-1 text-[10px] text-vault-text-faint hover:text-[#00C2FF] border border-[#1C2530]/60 hover:border-[#00C2FF]/40 px-2 py-1 rounded transition-colors"
-                  >
-                    <Plus className="w-2.5 h-2.5" />
-                    Attach
-                  </button>
-                )}
-              </div>
+              <span
+                className={`shrink-0 text-[9px] font-mono uppercase tracking-wide px-1.5 py-0.5 rounded border ${
+                  hasAccessory
+                    ? "text-[#00C853] border-[#00C853]/35 bg-[#00C853]/10"
+                    : "text-vault-text-faint border-vault-border"
+                }`}
+              >
+                {hasAccessory ? "Configured" : "Empty"}
+              </span>
             </div>
           );
         })}
@@ -970,8 +895,8 @@ export default function BuildConfiguratorPage() {
 
       {/* Main split layout — vertical on mobile, side-by-side on md+ */}
       <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
-        {/* Canvas — fixed height on mobile, flex on desktop */}
-        <div className="relative h-64 md:h-auto shrink-0 md:shrink md:[flex:0_0_65%]">
+        {/* Config tiles */}
+        <div className="min-h-0 md:[flex:0_0_65%] border-b md:border-b-0 border-vault-border">
           <WeaponCanvas
             build={build}
             onSlotClick={(slotType) => setBrowserSlot(slotType)}
@@ -984,8 +909,6 @@ export default function BuildConfiguratorPage() {
           <SlotPanel
             build={build}
             allBuilds={allBuilds}
-            onSlotClick={(slotType) => setBrowserSlot(slotType)}
-            onRemoveSlot={handleRemoveSlot}
             onSwitchBuild={handleSwitchBuild}
           />
         </div>
