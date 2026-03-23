@@ -32,12 +32,12 @@ const PRIMARY_NAV_ITEMS = [
 ] as const;
 
 const RANGE_CHILD_ITEMS = [
-  { label: "Log Range Session", href: "/range#log-range-session", icon: Target },
-  { label: "Range Session History", href: "/range#range-session-history", icon: History },
-  { label: "Log a Drill", href: "/range#log-a-drill", icon: Timer },
-  { label: "Drill Performance", href: "/range#drill-performance", icon: Timer },
-  { label: "Drill Library", href: "/range#drill-library", icon: Library },
-  { label: "Hit Factor Calculator", href: "/range#hit-factor-calculator", icon: Calculator },
+  { label: "Log Range Session", href: "/range/log-session", icon: Target },
+  { label: "Range Session History", href: "/range/session-history", icon: History },
+  { label: "Log a Drill", href: "/range/log-drill", icon: Timer },
+  { label: "Drill Performance", href: "/range/drill-performance", icon: Timer },
+  { label: "Drill Library", href: "/range/drill-library", icon: Library },
+  { label: "Hit Factor Calculator", href: "/range/hit-factor", icon: Calculator },
 ] as const;
 
 const BOTTOM_NAV_ITEMS = [
