@@ -1,11 +1,33 @@
 "use client";
 
 import { useState } from "react";
-import { Shield, Menu } from "lucide-react";
+import { Shield, Menu, LogOut } from "lucide-react";
 import { Sidebar } from "./Sidebar";
 
-export function MobileHeader() {
+interface MobileHeaderProps {
+  passwordModeEnabled?: boolean;
+}
+
+export function MobileHeader({ passwordModeEnabled = false }: MobileHeaderProps) {
   const [open, setOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  async function handleLogout() {
+    if (loggingOut) return;
+    setLoggingOut(true);
+
+    try {
+      await fetch("/api/session/logout", {
+        method: "POST",
+        cache: "no-store",
+      });
+    } finally {
+      sessionStorage.clear();
+      sessionStorage.removeItem("blackvault-unlocked");
+      localStorage.removeItem("blackvault-unlocked");
+      window.location.href = "/";
+    }
+  }
 
   return (
     <>
@@ -25,8 +47,23 @@ export function MobileHeader() {
             BlackVault
           </p>
         </div>
+        {passwordModeEnabled && (
+          <button
+            onClick={handleLogout}
+            disabled={loggingOut}
+            className="ml-auto p-1.5 text-vault-text-faint hover:text-vault-text-muted transition-colors disabled:opacity-60"
+            aria-label="Logout"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
+        )}
       </header>
-      <Sidebar mobileOnly mobileOpen={open} onMobileClose={() => setOpen(false)} />
+      <Sidebar
+        mobileOnly
+        mobileOpen={open}
+        onMobileClose={() => setOpen(false)}
+        passwordModeEnabled={passwordModeEnabled}
+      />
     </>
   );
 }

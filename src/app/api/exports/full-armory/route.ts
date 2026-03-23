@@ -9,7 +9,6 @@ import {
 } from "@/lib/exports/full-armory";
 import { requireAuth } from "@/lib/server/auth";
 
-
 type FirearmExportRecord = {
   id: string;
   name: string;
@@ -104,22 +103,24 @@ function csvEscape(value: unknown): string {
 function flattenRecord(input: Record<string, unknown>, prefix = ""): Record<string, unknown> {
   const output: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(input)) {
-    const path = prefix ? `${prefix}.${key}` : key;
+    const nextPath = prefix ? `${prefix}.${key}` : key;
     if (value && typeof value === "object" && !Array.isArray(value) && !(value instanceof Date)) {
-      Object.assign(output, flattenRecord(value as Record<string, unknown>, path));
+      Object.assign(output, flattenRecord(value as Record<string, unknown>, nextPath));
       continue;
     }
-    output[path] = value;
+    output[nextPath] = value;
   }
   return output;
 }
 
 function rowsToCsv(rows: Record<string, unknown>[]): string {
   if (rows.length === 0) return "";
-  const headers = Array.from(rows.reduce((set, row) => {
-    Object.keys(row).forEach((key) => set.add(key));
-    return set;
-  }, new Set<string>()));
+  const headers = Array.from(
+    rows.reduce((set, row) => {
+      Object.keys(row).forEach((key) => set.add(key));
+      return set;
+    }, new Set<string>())
+  );
 
   const lines = [headers.join(",")];
   for (const row of rows) {
@@ -142,9 +143,18 @@ function buildExportCsv(payload: FullArmoryExportResponse): string {
     { section: "summary", key: "totalReplacementValue", value: payload.summary.totalReplacementValue },
   ];
 
-  const itemRows = payload.items.map((item) => ({ section: "inventory", ...flattenRecord(item as unknown as Record<string, unknown>) }));
-  const ammoRows = payload.ammo.map((row) => ({ section: "ammo", ...flattenRecord(row as unknown as Record<string, unknown>) }));
-  const attachmentRows = payload.attachments.map((row) => ({ section: "attachments", ...flattenRecord(row as unknown as Record<string, unknown>) }));
+  const itemRows = payload.items.map((item) => ({
+    section: "inventory",
+    ...flattenRecord(item as unknown as Record<string, unknown>),
+  }));
+  const ammoRows = payload.ammo.map((row) => ({
+    section: "ammo",
+    ...flattenRecord(row as unknown as Record<string, unknown>),
+  }));
+  const attachmentRows = payload.attachments.map((row) => ({
+    section: "attachments",
+    ...flattenRecord(row as unknown as Record<string, unknown>),
+  }));
 
   return rowsToCsv([...metaRows, ...itemRows, ...ammoRows, ...attachmentRows]);
 }
@@ -465,6 +475,7 @@ export async function GET(request: NextRequest) {
     const totalPurchaseValue = exportOptions.includeValue
       ? itemRows.reduce((sum, item) => sum + (typeof item.purchasePrice === "number" ? item.purchasePrice : 0), 0)
       : 0;
+
     const totalReplacementValue = exportOptions.includeValue
       ? itemRows.reduce((sum, item) => sum + (typeof item.replacementValue === "number" ? item.replacementValue : 0), 0)
       : 0;
@@ -502,7 +513,7 @@ export async function GET(request: NextRequest) {
       return new NextResponse(csv, {
         headers: {
           "Content-Type": "text/csv; charset=utf-8",
-          "Content-Disposition": `attachment; filename=\"${buildFileName("csv")}\"`,
+          "Content-Disposition": `attachment; filename="${buildFileName("csv")}"`,
           "Cache-Control": "no-store",
         },
       });
@@ -513,7 +524,7 @@ export async function GET(request: NextRequest) {
       return new NextResponse(pdf, {
         headers: {
           "Content-Type": "application/pdf",
-          "Content-Disposition": `attachment; filename=\"${buildFileName("pdf")}\"`,
+          "Content-Disposition": `attachment; filename="${buildFileName("pdf")}"`,
           "Cache-Control": "no-store",
         },
       });
