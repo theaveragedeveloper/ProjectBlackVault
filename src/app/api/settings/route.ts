@@ -16,8 +16,15 @@ export async function GET() {
       });
     }
 
+    const {
+      googleCseApiKey: _googleCseApiKey,
+      googleCseSearchEngineId: _googleCseSearchEngineId,
+      enableImageSearch: _enableImageSearch,
+      ...v1Settings
+    } = settings;
+
     return NextResponse.json({
-      ...settings,
+      ...v1Settings,
       encryptionEnabled: !!process.env.VAULT_ENCRYPTION_KEY,
     });
   } catch (error) {
@@ -35,11 +42,34 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
 
     const {
+      includeUploadsInBackup,
+      autoBackupEnabled,
+      autoBackupCadence,
       defaultCurrency,
       appPassword,
     } = body;
 
     const updateData: Record<string, unknown> = {};
+
+    if (includeUploadsInBackup !== undefined) {
+      updateData.includeUploadsInBackup = Boolean(includeUploadsInBackup);
+    }
+
+    if (autoBackupEnabled !== undefined) {
+      updateData.autoBackupEnabled = Boolean(autoBackupEnabled);
+    }
+
+    if (autoBackupCadence !== undefined) {
+      const cadence = String(autoBackupCadence).trim().toLowerCase();
+      const allowed = new Set(["daily", "weekly", "monthly"]);
+      if (!allowed.has(cadence)) {
+        return NextResponse.json(
+          { error: "Invalid auto backup cadence. Use daily, weekly, or monthly." },
+          { status: 400 }
+        );
+      }
+      updateData.autoBackupCadence = cadence;
+    }
 
     if (defaultCurrency !== undefined) {
       updateData.defaultCurrency = defaultCurrency;
@@ -58,7 +88,14 @@ export async function PUT(request: NextRequest) {
       update: updateData,
     });
 
-    return NextResponse.json(settings);
+    const {
+      googleCseApiKey: _googleCseApiKey,
+      googleCseSearchEngineId: _googleCseSearchEngineId,
+      enableImageSearch: _enableImageSearch,
+      ...v1Settings
+    } = settings;
+
+    return NextResponse.json(v1Settings);
   } catch (error) {
     console.error("PUT /api/settings error:", error);
     return NextResponse.json(

@@ -259,6 +259,9 @@ model AppSettings {
   googleCseApiKey         String?
   googleCseSearchEngineId String?
   enableImageSearch       Boolean  @default(false)
+  includeUploadsInBackup  Boolean  @default(true)
+  autoBackupEnabled       Boolean  @default(false)
+  autoBackupCadence       String   @default("weekly")
   defaultCurrency         String   @default("USD")
   appPassword             String?
   createdAt               DateTime @default(now())
