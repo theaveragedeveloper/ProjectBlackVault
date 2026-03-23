@@ -266,16 +266,28 @@ export async function generateFullArmoryPdf(
     }
   }
 
-  if (options.includeAmmo && payload.ammoSummary.length > 0) {
+  const ammoSummary = payload.ammo.reduce(
+    (acc, row) => {
+      const key = row.caliber || "Unknown";
+      const current = acc.get(key) ?? { totalRounds: 0, stockEntries: 0 };
+      current.totalRounds += row.quantity;
+      current.stockEntries += 1;
+      acc.set(key, current);
+      return acc;
+    },
+    new Map<string, { totalRounds: number; stockEntries: number }>()
+  );
+
+  if (options.includeAmmo && ammoSummary.size > 0) {
     addLine(10);
     doc.setFont("helvetica", "bold");
     doc.text("Ammo Summary", PAGE_MARGIN, y);
     addLine(12);
 
     doc.setFont("helvetica", "normal");
-    for (const row of payload.ammoSummary) {
+    for (const [caliber, row] of ammoSummary) {
       ensureSpace(12);
-      doc.text(`${row.caliber}: ${row.totalRounds.toLocaleString()} rounds (${row.stockEntries} entries)`, PAGE_MARGIN, y);
+      doc.text(`${caliber}: ${row.totalRounds.toLocaleString()} rounds (${row.stockEntries} entries)`, PAGE_MARGIN, y);
       addLine(10);
     }
   }
