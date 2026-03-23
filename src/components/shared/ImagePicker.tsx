@@ -1,14 +1,12 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
-import { isAllowedImageUrlForStorage, IMAGE_URL_ALLOWLIST_ERROR } from "@/lib/image-url-validation";
-import { allowExternalImageUrls } from "@/lib/network-policy";
 import {
   ALLOWED_IMAGE_MIME_TYPES,
   SUPPORTED_IMAGE_FORMATS_LABEL,
   IMAGE_PICKER_ACCEPT,
 } from "@/lib/image-formats";
-import { Camera, Link, Loader2, X, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { Camera, Loader2, X, AlertCircle } from "lucide-react";
 
 interface ImagePickerProps {
   entityType: "firearm" | "accessory" | "ammo" | "build";
@@ -36,9 +34,6 @@ export default function ImagePicker({
   const [preview, setPreview] = useState<string | null>(value ?? currentUrl ?? null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showUrl, setShowUrl] = useState(false);
-  const [urlInput, setUrlInput] = useState("");
-  const externalUrlEntryAllowed = allowExternalImageUrls();
 
   useEffect(() => {
     setPreview(value ?? currentUrl ?? null);
@@ -97,24 +92,7 @@ export default function ImagePicker({
   function handleRemove() {
     setError(null);
     setPreview(null);
-    setUrlInput("");
     onChange(null, null);
-  }
-
-  function handleUrlApply() {
-    setError(null);
-    const url = urlInput.trim();
-    if (!url) return;
-
-    if (!isAllowedImageUrlForStorage(url)) {
-      setError(IMAGE_URL_ALLOWLIST_ERROR);
-      return;
-    }
-
-    setError(null);
-    setPreview(url);
-    onChange(url, "url");
-    setShowUrl(false);
   }
 
   return (
@@ -128,7 +106,7 @@ export default function ImagePicker({
             loading="lazy"
             className="w-full max-h-48 h-auto object-contain"
             onError={() => {
-              setError("Could not load this image URL. Please check the link.");
+              setError("Could not load this image. Please upload another image.");
             }}
           />
           <button
@@ -196,45 +174,6 @@ export default function ImagePicker({
           <Camera className="w-3.5 h-3.5" />
           Change Photo
         </button>
-      )}
-
-      {/* URL fallback (collapsible) */}
-      {externalUrlEntryAllowed ? (
-        <div>
-          <button
-            type="button"
-            onClick={() => setShowUrl((v) => !v)}
-            className="flex items-center gap-1 text-xs text-vault-text-faint hover:text-vault-text-muted transition-colors"
-          >
-            <Link className="w-3 h-3" />
-            Or enter a URL
-            {showUrl ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-          </button>
-
-          {showUrl && (
-            <div className="mt-2 flex gap-2">
-              <input
-                type="url"
-                value={urlInput}
-                onChange={(e) => setUrlInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleUrlApply())}
-                placeholder="https://example.com/image.jpg"
-                className="flex-1 bg-vault-surface border border-vault-border text-vault-text rounded-md px-3 py-1.5 text-xs focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
-              />
-              <button
-                type="button"
-                onClick={handleUrlApply}
-                className="px-3 py-1.5 bg-vault-surface border border-vault-border text-vault-text-muted hover:text-vault-text rounded-md text-xs transition-colors"
-              >
-                Use
-              </button>
-            </div>
-          )}
-        </div>
-      ) : (
-        <p className="text-[11px] text-vault-text-faint">
-          External image URLs are disabled by policy. Upload local image files only.
-        </p>
       )}
     </div>
   );
