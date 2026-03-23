@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { revalidateDashboardData } from "@/lib/dashboard/revalidate-dashboard";
 
 
 function normalizeString(value: unknown) {
@@ -116,6 +117,8 @@ export async function POST(request: NextRequest) {
         replacementIntervalDays: replacementIntervalDays ?? null,
       },
     });
+
+    revalidateDashboardData();
 
     return NextResponse.json(accessory, { status: 201 });
   } catch (error) {

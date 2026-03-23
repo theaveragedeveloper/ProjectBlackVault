@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { revalidateDashboardData } from "@/lib/dashboard/revalidate-dashboard";
 
 
 function normalizeString(value: unknown) {
@@ -156,6 +157,8 @@ export async function PUT(
       },
     });
 
+    revalidateDashboardData();
+
     return NextResponse.json(updated);
   } catch (error) {
     console.error("PUT /api/accessories/[id] error:", error);
@@ -183,6 +186,7 @@ export async function DELETE(
     }
 
     await prisma.accessory.delete({ where: { id } });
+    revalidateDashboardData();
 
     return NextResponse.json({ success: true, id });
   } catch (error) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { revalidateDashboardData } from "@/lib/dashboard/revalidate-dashboard";
 
 // Types that subtract from quantity
 const SUBTRACT_TYPES = new Set(["RANGE_USE", "TRANSFER_OUT", "EXPENDED"]);
@@ -99,6 +100,8 @@ export async function POST(
         },
       }),
     ]);
+
+    revalidateDashboardData();
 
     return NextResponse.json(
       {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { encryptField, decryptField } from "@/lib/crypto";
+import { revalidateDashboardData } from "@/lib/dashboard/revalidate-dashboard";
 
 
 function normalizeString(value: unknown) {
@@ -107,6 +108,8 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+
+    revalidateDashboardData();
 
     return NextResponse.json(
       { ...firearm, buildCount: firearm._count.builds, _count: undefined },

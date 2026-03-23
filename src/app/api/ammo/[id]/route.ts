@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { revalidateDashboardData } from "@/lib/dashboard/revalidate-dashboard";
 
 // GET /api/ammo/[id] - Get a single AmmoStock entry
 export async function GET(
@@ -89,6 +90,8 @@ export async function PUT(
       },
     });
 
+    revalidateDashboardData();
+
     return NextResponse.json(updated);
   } catch (error) {
     console.error("PUT /api/ammo/[id] error:", error);
@@ -116,6 +119,7 @@ export async function DELETE(
     }
 
     await prisma.ammoStock.delete({ where: { id } });
+    revalidateDashboardData();
 
     return NextResponse.json({ success: true, id });
   } catch (error) {
