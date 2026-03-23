@@ -31,7 +31,7 @@ export async function GET(
 
     const drills = await prisma.sessionDrill.findMany({
       where: { rangeSessionId: id },
-      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }, { setNumber: "asc" }, { createdAt: "asc" }],
     });
 
     return NextResponse.json(drills);
@@ -52,7 +52,7 @@ export async function POST(
     const { id } = await params;
     const body = await request.json();
 
-    const { name, timeSeconds, points, penalties, hits, notes, sortOrder } = body;
+    const { name, timeSeconds, points, penalties, hits, notes, sortOrder, setNumber } = body;
 
     if (!name || timeSeconds === undefined || points === undefined) {
       return NextResponse.json(
@@ -85,18 +85,34 @@ export async function POST(
       return NextResponse.json({ error: "hits must be a non-negative integer" }, { status: 400 });
     }
 
+    if (
+      setNumber !== undefined &&
+      setNumber !== null &&
+      (typeof setNumber !== "number" || !Number.isInteger(setNumber) || setNumber < 1)
+    ) {
+      return NextResponse.json({ error: "setNumber must be an integer greater than 0" }, { status: 400 });
+    }
+
     const session = await prisma.rangeSession.findUnique({ where: { id }, select: { id: true } });
     if (!session) {
       return NextResponse.json({ error: "Range session not found" }, { status: 404 });
     }
 
+    const normalizedName = name.trim();
     const adjustedPoints = Math.max(0, points - (typeof penalties === "number" ? penalties : 0));
     const hitFactor = calculateHitFactor(adjustedPoints, timeSeconds);
+    const fallbackSetNumber = await prisma.sessionDrill.count({
+      where: {
+        rangeSessionId: id,
+        name: normalizedName,
+      },
+    }) + 1;
 
     const drill = await prisma.sessionDrill.create({
       data: {
         rangeSessionId: id,
-        name: name.trim(),
+        name: normalizedName,
+        setNumber: typeof setNumber === "number" ? setNumber : fallbackSetNumber,
         timeSeconds,
         points,
         penalties: typeof penalties === "number" ? penalties : null,

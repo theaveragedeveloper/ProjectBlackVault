@@ -2,6 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/server/auth";
 
+function calculateHitFactor(points: number, timeSeconds: number): number {
+  if (!Number.isFinite(timeSeconds) || timeSeconds <= 0) {
+    return 0;
+  }
+
+  if (!Number.isFinite(points) || points < 0) {
+    return 0;
+  }
+
+  return Number((points / timeSeconds).toFixed(4));
+}
+
 export async function GET() {
   const auth = await requireAuth();
   if (auth) return auth;
@@ -37,7 +49,7 @@ export async function GET() {
           orderBy: { createdAt: "asc" },
         },
         sessionDrills: {
-          orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+          orderBy: [{ sortOrder: "asc" }, { name: "asc" }, { setNumber: "asc" }, { createdAt: "asc" }],
         },
       },
       orderBy: [{ sessionDate: "desc" }, { createdAt: "desc" }],
@@ -56,7 +68,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { sessionDate, location, firearmId, buildId, roundsFired, notes, ammoLinks } = body;
+    const { sessionDate, location, firearmId, buildId, roundsFired, notes, ammoLinks, sessionDrills } = body;
 
     const normalizedAmmoLinks = (Array.isArray(ammoLinks) ? ammoLinks : [])
       .map((link) => ({
@@ -83,6 +95,56 @@ export async function POST(request: NextRequest) {
     const resolvedRoundsFired = typeof roundsFired === "number" && Number.isInteger(roundsFired) && roundsFired >= 0
       ? roundsFired
       : totalAmmoRounds;
+    const normalizedSessionDrills = Array.isArray(sessionDrills)
+      ? sessionDrills.flatMap((entry, index) => {
+        const name = typeof entry?.name === "string" ? entry.name.trim() : "";
+        const timeSeconds = typeof entry?.timeSeconds === "number" ? entry.timeSeconds : NaN;
+        const points = typeof entry?.points === "number" ? entry.points : NaN;
+        const penaltiesValue = entry?.penalties;
+        const hitsValue = entry?.hits;
+        const sortOrderValue = entry?.sortOrder;
+        const setNumberValue = entry?.setNumber;
+
+        if (!name || !Number.isFinite(timeSeconds) || timeSeconds <= 0 || !Number.isFinite(points) || points < 0) {
+          return [];
+        }
+
+        const penalties = typeof penaltiesValue === "number" && Number.isFinite(penaltiesValue) && penaltiesValue >= 0
+          ? penaltiesValue
+          : null;
+        const hits = typeof hitsValue === "number" && Number.isInteger(hitsValue) && hitsValue >= 0
+          ? hitsValue
+          : null;
+        const sortOrder = typeof sortOrderValue === "number" && Number.isInteger(sortOrderValue)
+          ? sortOrderValue
+          : index;
+        const setNumber = typeof setNumberValue === "number" && Number.isInteger(setNumberValue) && setNumberValue > 0
+          ? setNumberValue
+          : null;
+        const adjustedPoints = Math.max(0, points - (penalties ?? 0));
+
+        return [{
+          name,
+          timeSeconds,
+          points,
+          penalties,
+          hits,
+          notes: typeof entry?.notes === "string" ? entry.notes.trim() || null : null,
+          sortOrder,
+          setNumber,
+          hitFactor: calculateHitFactor(adjustedPoints, timeSeconds),
+        }];
+      })
+      : [];
+
+    const setCounterByDrillName = new Map<string, number>();
+    for (const drillEntry of normalizedSessionDrills) {
+      const nextCounter = (setCounterByDrillName.get(drillEntry.name) ?? 0) + 1;
+      setCounterByDrillName.set(drillEntry.name, nextCounter);
+      if (drillEntry.setNumber == null) {
+        drillEntry.setNumber = nextCounter;
+      }
+    }
 
     const parsedDate = (() => {
       if (typeof sessionDate !== "string" || sessionDate.trim().length === 0) return new Date();
@@ -169,6 +231,19 @@ export async function POST(request: NextRequest) {
         ammoLinks: {
           create: normalizedAmmoLinks,
         },
+        sessionDrills: {
+          create: normalizedSessionDrills.map((entry) => ({
+            name: entry.name,
+            setNumber: entry.setNumber ?? 1,
+            timeSeconds: entry.timeSeconds,
+            points: entry.points,
+            penalties: entry.penalties,
+            hits: entry.hits,
+            notes: entry.notes,
+            hitFactor: entry.hitFactor,
+            sortOrder: entry.sortOrder,
+          })),
+        },
       },
       include: {
         firearm: { select: { id: true, name: true, caliber: true } },
@@ -186,6 +261,9 @@ export async function POST(request: NextRequest) {
             },
           },
           orderBy: { createdAt: "asc" },
+        },
+        sessionDrills: {
+          orderBy: [{ sortOrder: "asc" }, { name: "asc" }, { setNumber: "asc" }, { createdAt: "asc" }],
         },
       },
     });
