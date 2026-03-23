@@ -445,19 +445,27 @@ export async function GET(request: NextRequest) {
       }),
     ];
 
-    const attachmentsRows = exportOptions.includeDocuments
-      ? documents.map((doc) => ({
-          documentId: doc.id,
-          type: doc.type,
-          name: doc.name,
-          linkedItemId: doc.firearmId || doc.accessoryId || "",
-          linkedItemType: doc.firearmId ? "FIREARM" : doc.accessoryId ? "ACCESSORY" : "UNATTACHED",
-          linkedItemName: doc.firearm?.name || doc.accessory?.name || "",
-          mimeType: doc.mimeType ?? "",
-          fileSize: doc.fileSize ?? "",
-          fileUrl: doc.fileUrl,
-          uploadedAt: doc.createdAt.toISOString(),
-        }))
+    const attachmentsRows: FullArmoryExportResponse["attachments"] = exportOptions.includeDocuments
+      ? documents.map((doc) => {
+          const linkedItemType: "FIREARM" | "ACCESSORY" | "UNATTACHED" = doc.firearmId
+            ? "FIREARM"
+            : doc.accessoryId
+              ? "ACCESSORY"
+              : "UNATTACHED";
+
+          return {
+            documentId: doc.id,
+            type: doc.type,
+            name: doc.name,
+            linkedItemId: doc.firearmId || doc.accessoryId || "",
+            linkedItemType,
+            linkedItemName: doc.firearm?.name || doc.accessory?.name || "",
+            mimeType: doc.mimeType ?? "",
+            fileSize: doc.fileSize ?? "",
+            fileUrl: doc.fileUrl,
+            uploadedAt: doc.createdAt.toISOString(),
+          };
+        })
       : [];
 
     const ammoRows = exportOptions.includeAmmo
