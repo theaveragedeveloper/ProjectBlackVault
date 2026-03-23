@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { encryptField, decryptField } from "@/lib/crypto";
 import { revalidateDashboardData } from "@/lib/dashboard/revalidate-dashboard";
 
 
@@ -47,8 +46,8 @@ export async function GET(
 
     return NextResponse.json({
       ...firearm,
-      serialNumber: decryptField(firearm.serialNumber) ?? firearm.serialNumber,
-      notes: decryptField(firearm.notes),
+      serialNumber: firearm.serialNumber,
+      notes: firearm.notes,
       buildCount: firearm._count.builds,
       activeBuild,
       _count: undefined,
@@ -100,14 +99,14 @@ export async function PUT(
         ...(manufacturer !== undefined && { manufacturer: normalizeString(manufacturer) || "Unknown" }),
         ...(model !== undefined && { model: normalizeString(model) || "Unknown" }),
         ...(caliber !== undefined && { caliber: normalizeString(caliber) || "Unknown" }),
-        ...(serialNumber !== undefined && { serialNumber: encryptField(normalizeString(serialNumber) || fallbackSerialNumber()) }),
+        ...(serialNumber !== undefined && { serialNumber: normalizeString(serialNumber) || fallbackSerialNumber() }),
         ...(type !== undefined && { type: normalizeString(type) || "UNSPECIFIED" }),
         ...(acquisitionDate !== undefined && {
           acquisitionDate: acquisitionDate ? new Date(acquisitionDate) : existing.acquisitionDate,
         }),
         ...(purchasePrice !== undefined && { purchasePrice }),
         ...(currentValue !== undefined && { currentValue }),
-        ...(notes !== undefined && { notes: notes ? encryptField(notes) : null }),
+        ...(notes !== undefined && { notes: notes ? normalizeString(notes) : null }),
         ...(imageUrl !== undefined && { imageUrl }),
         ...(imageSource !== undefined && { imageSource }),
         ...(lastMaintenanceDate !== undefined && {

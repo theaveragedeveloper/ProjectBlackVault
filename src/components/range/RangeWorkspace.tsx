@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { formatNumber } from "@/lib/utils";
 import { Target, ChevronDown, Loader2, AlertCircle, CheckCircle2, Shield, Timer, BookPlus, Plus, Minus, Calculator } from "lucide-react";
+import Link from "next/link";
+import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 const INPUT_CLASS =
   "w-full bg-vault-surface border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint transition-colors";
@@ -95,6 +97,16 @@ interface DrillEntryDraft {
   notes: string;
 }
 
+type DrillPerformanceMode = "time" | "accuracy" | "both";
+
+interface DrillTemplate {
+  id: string;
+  name: string;
+  notes: string | null;
+  mode: DrillPerformanceMode;
+  createdAt: string;
+}
+
 const SLOT_TYPE_LABELS: Record<string, string> = {
   BARREL: "Barrel",
   SUPPRESSOR: "Suppressor",
@@ -127,6 +139,12 @@ interface RangeWorkspaceProps {
 
 type PowerFactorMode = "minor" | "major";
 
+const DEFAULT_DRILL_LIBRARY: DrillTemplate[] = [
+  { id: "bill-drill", name: "Bill Drill", notes: "6 shots from holster at 7 yards", mode: "both", createdAt: "2026-01-01T00:00:00.000Z" },
+  { id: "draw-to-first-shot", name: "Draw to First Shot", notes: "Pure speed drill", mode: "time", createdAt: "2026-01-01T00:00:00.000Z" },
+  { id: "dot-torture", name: "Dot Torture", notes: "Accuracy-focused control drill", mode: "accuracy", createdAt: "2026-01-01T00:00:00.000Z" },
+];
+
 export function RangeWorkspace({ view }: RangeWorkspaceProps) {
   const isDrillPage = view === "log-drill" || view === "drill-performance" || view === "drill-library" || view === "hit-factor";
   const [firearms, setFirearms] = useState<Firearm[]>([]);
@@ -156,7 +174,8 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
   const [drillNotes, setDrillNotes] = useState<string>("");
   const [customDrillName, setCustomDrillName] = useState("");
   const [customDrillNotes, setCustomDrillNotes] = useState("");
-  const [customDrills, setCustomDrills] = useState<Array<{ id: string; name: string; notes: string | null; createdAt: string }>>([]);
+  const [customDrillMode, setCustomDrillMode] = useState<DrillPerformanceMode>("both");
+  const [drillLibrary, setDrillLibrary] = useState<DrillTemplate[]>(DEFAULT_DRILL_LIBRARY);
   const [calculatorPoints, setCalculatorPoints] = useState("");
   const [calculatorPenalties, setCalculatorPenalties] = useState("");
   const [calculatorTime, setCalculatorTime] = useState("");
@@ -168,6 +187,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
   const [penaltyCounts, setPenaltyCounts] = useState({ miss: 0, noShoot: 0, procedural: 0 });
   const [performanceMetric, setPerformanceMetric] = useState<"time" | "score" | "hitFactor">("hitFactor");
   const [performanceDrillName, setPerformanceDrillName] = useState("");
+  const [selectedPerformanceDrillId, setSelectedPerformanceDrillId] = useState<string>("");
 
   const [loadingFirearms, setLoadingFirearms] = useState(true);
   const [loadingBuilds, setLoadingBuilds] = useState(false);
@@ -298,11 +318,16 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
-      const raw = window.localStorage.getItem("blackvault-custom-drills");
+      const raw = window.localStorage.getItem("blackvault-drill-library");
       if (!raw) return;
-      const parsed = JSON.parse(raw) as Array<{ id: string; name: string; notes: string | null; createdAt: string }>;
+      const parsed = JSON.parse(raw) as DrillTemplate[];
       if (Array.isArray(parsed)) {
-        setCustomDrills(parsed.filter((item) => typeof item.id === "string" && typeof item.name === "string"));
+        const valid = parsed.filter((item) =>
+          typeof item.id === "string" &&
+          typeof item.name === "string" &&
+          (item.mode === "time" || item.mode === "accuracy" || item.mode === "both")
+        );
+        if (valid.length > 0) setDrillLibrary(valid);
       }
     } catch {
       // ignore invalid localStorage payload
@@ -311,8 +336,8 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    window.localStorage.setItem("blackvault-custom-drills", JSON.stringify(customDrills));
-  }, [customDrills]);
+    window.localStorage.setItem("blackvault-drill-library", JSON.stringify(drillLibrary));
+  }, [drillLibrary]);
 
   const selectedFirearmData = firearms.find((f) => f.id === selectedFirearm);
   const selectedBuildData = builds.find((b) => b.id === selectedBuild);
@@ -324,13 +349,18 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
 
   const selectedSession = sessions.find((session) => session.id === selectedSessionId) ?? null;
 
+  const selectedDrillTemplate = useMemo(
+    () => drillLibrary.find((template) => template.name === drillName) ?? null,
+    [drillLibrary, drillName]
+  );
+
   const drillHitFactorPreview = useMemo(() => {
-    const time = Number.parseFloat(drillTime);
-    const points = Number.parseFloat(drillPoints);
+    const time = selectedDrillTemplate?.mode === "accuracy" ? 1 : Number.parseFloat(drillTime);
+    const points = selectedDrillTemplate?.mode === "time" ? 0 : Number.parseFloat(drillPoints);
     const penalties = Number.parseFloat(drillPenalties || "0");
     const adjustedPoints = Number.isFinite(points) ? Math.max(0, points - (Number.isFinite(penalties) ? penalties : 0)) : 0;
     return calculateHitFactor(adjustedPoints, time);
-  }, [drillTime, drillPoints, drillPenalties]);
+  }, [drillTime, drillPoints, drillPenalties, selectedDrillTemplate]);
 
   const nextSetNumberForSelectedDrill = useMemo(() => {
     const normalizedName = drillName.trim().toLowerCase();
@@ -529,13 +559,30 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
     setSubmittingDrill(true);
 
     try {
+      if (!selectedDrillTemplate) {
+        throw new Error("Select a drill template from the Drill Library.");
+      }
+
+      const parsedTime = Number.parseFloat(drillTime);
+      const parsedPoints = Number.parseFloat(drillPoints);
+      const resolvedTime = selectedDrillTemplate.mode === "accuracy" ? 1 : parsedTime;
+      const resolvedPoints = selectedDrillTemplate.mode === "time" ? 0 : parsedPoints;
+
+      if (!Number.isFinite(resolvedTime) || resolvedTime <= 0) {
+        throw new Error("Enter a valid drill time.");
+      }
+
+      if (!Number.isFinite(resolvedPoints) || resolvedPoints < 0) {
+        throw new Error("Enter a valid points value.");
+      }
+
       const payload = {
         name: drillName,
         setNumber: nextSetNumberForSelectedDrill,
-        timeSeconds: Number.parseFloat(drillTime),
-        points: Number.parseFloat(drillPoints),
-        penalties: drillPenalties ? Number.parseFloat(drillPenalties) : undefined,
-        hits: drillHits ? Number.parseInt(drillHits, 10) : undefined,
+        timeSeconds: resolvedTime,
+        points: resolvedPoints,
+        penalties: selectedDrillTemplate.mode === "time" ? undefined : (drillPenalties ? Number.parseFloat(drillPenalties) : undefined),
+        hits: selectedDrillTemplate.mode === "time" ? undefined : (drillHits ? Number.parseInt(drillHits, 10) : undefined),
         notes: drillNotes,
       };
 
@@ -606,6 +653,12 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
     }
   }, [drillNameLibrary, performanceDrillName]);
 
+  useEffect(() => {
+    if (!drillName && drillLibrary.length > 0) {
+      setDrillName(drillLibrary[0].name);
+    }
+  }, [drillLibrary, drillName]);
+
   const performanceRows = useMemo(() => {
     const filtered = performanceDrillName
       ? allLoggedDrills.filter((drill) => drill.name.trim() === performanceDrillName)
@@ -621,14 +674,18 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
       return drill.hitFactor;
     };
 
-    const maxMetricValue = sorted.reduce((max, drill) => Math.max(max, metricValueFor(drill)), 0);
-
-    return sorted.map((drill) => ({
+    return sorted.map((drill, index) => ({
       ...drill,
+      index: index + 1,
+      displayDate: new Date(drill.sessionDate).toLocaleDateString(),
       metricValue: metricValueFor(drill),
-      barWidth: maxMetricValue > 0 ? Math.max(6, Math.round((metricValueFor(drill) / maxMetricValue) * 100)) : 0,
     }));
   }, [allLoggedDrills, performanceDrillName, performanceMetric]);
+
+  const selectedPerformanceRow = useMemo(
+    () => performanceRows.find((row) => row.id === selectedPerformanceDrillId) ?? null,
+    [performanceRows, selectedPerformanceDrillId]
+  );
 
   const pointsPerHit = powerFactor === "major"
     ? { alpha: 5, charlie: 4, delta: 2, steel: 5 }
@@ -681,17 +738,19 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
     const name = customDrillName.trim();
     if (!name) return;
 
-    setCustomDrills((prev) => [
+    setDrillLibrary((prev) => [
       {
         id: crypto.randomUUID(),
         name,
         notes: customDrillNotes.trim() || null,
+        mode: customDrillMode,
         createdAt: new Date().toISOString(),
       },
       ...prev,
     ]);
     setCustomDrillName("");
     setCustomDrillNotes("");
+    setCustomDrillMode("both");
   }
 
   const pageTitle = ({
@@ -1090,31 +1149,58 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
           <form onSubmit={handleAddDrill} className="space-y-4">
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <label className={LABEL_CLASS}>Drill Name <span className="text-[#E53935]">*</span></label>
-                <input required value={drillName} onChange={(e) => setDrillName(e.target.value)} className={INPUT_CLASS} placeholder="e.g. Bill Drill" />
+                <label className={LABEL_CLASS}>Drill Template <span className="text-[#E53935]">*</span></label>
+                <div className="relative">
+                  <select
+                    required
+                    value={drillName}
+                    onChange={(e) => setDrillName(e.target.value)}
+                    className={INPUT_CLASS}
+                    disabled={drillLibrary.length === 0}
+                  >
+                    <option value="">Select drill template...</option>
+                    {drillLibrary.map((template) => (
+                      <option key={template.id} value={template.name}>
+                        {template.name} ({template.mode})
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-vault-text-faint pointer-events-none" />
+                </div>
                 {selectedSessionId && drillName.trim() && (
                   <p className="mt-1 text-xs text-vault-text-faint">This will be saved as set {nextSetNumberForSelectedDrill} for this drill in the selected session.</p>
                 )}
+                {selectedDrillTemplate?.notes && (
+                  <p className="mt-1 text-xs text-vault-text-faint">{selectedDrillTemplate.notes}</p>
+                )}
               </div>
+              {selectedDrillTemplate?.mode !== "accuracy" && (
               <div>
                 <label className={LABEL_CLASS}>Time (seconds) <span className="text-[#E53935]">*</span></label>
                 <input type="number" step="0.01" min="0.01" required value={drillTime} onChange={(e) => setDrillTime(e.target.value)} className={INPUT_CLASS} placeholder="2.45" />
               </div>
+              )}
             </div>
 
             <div id="hit-factor-calculator" className="grid sm:grid-cols-2 md:grid-cols-4 gap-4 scroll-mt-20">
+              {selectedDrillTemplate?.mode !== "time" && (
               <div>
                 <label className={LABEL_CLASS}>Points <span className="text-[#E53935]">*</span></label>
                 <input type="number" step="0.01" min="0" required value={drillPoints} onChange={(e) => setDrillPoints(e.target.value)} className={INPUT_CLASS} placeholder="90" />
               </div>
+              )}
+              {selectedDrillTemplate?.mode !== "time" && (
               <div>
                 <label className={LABEL_CLASS}>Penalties</label>
                 <input type="number" step="0.01" min="0" value={drillPenalties} onChange={(e) => setDrillPenalties(e.target.value)} className={INPUT_CLASS} placeholder="10" />
               </div>
+              )}
+              {selectedDrillTemplate?.mode !== "time" && (
               <div>
                 <label className={LABEL_CLASS}>Hits</label>
                 <input type="number" min="0" value={drillHits} onChange={(e) => setDrillHits(e.target.value)} className={INPUT_CLASS} placeholder="6" />
               </div>
+              )}
               <div className="bg-vault-bg border border-vault-border rounded-md px-3 py-2">
                 <p className="text-[11px] text-vault-text-faint uppercase tracking-widest">Hit Factor</p>
                 <p className="text-lg font-mono text-[#00C2FF]">{drillHitFactorPreview.toFixed(4)}</p>
@@ -1184,27 +1270,69 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
           {performanceRows.length === 0 ? (
             <p className="text-sm text-vault-text-faint">No historical data for the selected drill yet.</p>
           ) : (
-            <div className="space-y-2">
-              {performanceRows.map((drill) => (
-                <div key={drill.id} className="bg-vault-bg border border-vault-border rounded-md p-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                    <p className="text-vault-text font-medium">{drill.name}</p>
-                    <p className="font-mono text-[#00C2FF]">
-                      {performanceMetric === "time"
-                        ? `${drill.metricValue.toFixed(2)}s`
-                        : performanceMetric === "score"
-                          ? `${drill.metricValue.toFixed(2)} pts`
-                          : `HF ${drill.metricValue.toFixed(4)}`}
-                    </p>
-                  </div>
-                  <div className="mt-2 h-2 rounded bg-vault-border overflow-hidden">
-                    <div className="h-full rounded bg-[#00C2FF]" style={{ width: `${drill.barWidth}%` }} />
-                  </div>
-                  <p className="mt-1 text-[11px] text-vault-text-faint">
-                    {new Date(drill.sessionDate).toLocaleDateString()} · {drill.location} · {drill.points} pts in {drill.timeSeconds}s
+            <div className="space-y-3">
+              <div className="h-64 w-full rounded-md border border-vault-border bg-vault-bg p-2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={performanceRows} margin={{ top: 8, right: 12, left: 8, bottom: 8 }}>
+                    <XAxis dataKey="displayDate" tick={{ fill: "#9CA3AF", fontSize: 11 }} interval="preserveStartEnd" minTickGap={24} />
+                    <YAxis tick={{ fill: "#9CA3AF", fontSize: 11 }} width={52} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: "#101114", border: "1px solid #2C2F36", borderRadius: 8 }}
+                      labelStyle={{ color: "#E5E7EB" }}
+                      formatter={(value) => {
+                        const numericValue = typeof value === "number" ? value : Number(value ?? 0);
+                        if (performanceMetric === "time") return [`${numericValue.toFixed(2)}s`, "Time"];
+                        if (performanceMetric === "score") return [`${numericValue.toFixed(2)} pts`, "Score"];
+                        return [`${numericValue.toFixed(4)}`, "Hit Factor"];
+                      }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="metricValue"
+                      stroke="#00C2FF"
+                      strokeWidth={2}
+                      dot={(props: { cx?: number; cy?: number; payload?: { id?: string; sessionId?: string } }) => (
+                        <circle
+                          cx={props.cx}
+                          cy={props.cy}
+                          r={4}
+                          fill="#00C2FF"
+                          stroke="#00C2FF"
+                          strokeWidth={1}
+                          style={{ cursor: "pointer" }}
+                          onClick={() => {
+                            const pointId = props.payload?.id;
+                            const sessionId = props.payload?.sessionId;
+                            if (pointId) setSelectedPerformanceDrillId(pointId);
+                            if (sessionId) setSelectedSessionId(sessionId);
+                          }}
+                        />
+                      )}
+                      activeDot={{ r: 6, stroke: "#00C2FF", fill: "#101114" }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              <p className="text-xs text-vault-text-faint">
+                Tap a point to open that specific drill result context.
+              </p>
+
+              {selectedPerformanceRow && (
+                <div className="bg-vault-bg border border-[#00C2FF]/30 rounded-md p-3">
+                  <p className="text-sm font-medium text-vault-text">{selectedPerformanceRow.name} · Set {selectedPerformanceRow.setNumber}</p>
+                  <p className="text-xs text-vault-text-faint mt-1">
+                    {selectedPerformanceRow.displayDate} · {selectedPerformanceRow.location} · {selectedPerformanceRow.points} pts in {selectedPerformanceRow.timeSeconds}s
                   </p>
+                  <div className="mt-2">
+                    <Link
+                      href={`/range/log-drill?sessionId=${selectedPerformanceRow.sessionId}#logged-drills`}
+                      className="text-xs text-[#00C2FF] hover:underline"
+                    >
+                      Open this drill entry
+                    </Link>
+                  </div>
                 </div>
-              ))}
+              )}
             </div>
           )}
         </fieldset>
@@ -1213,7 +1341,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
         {showDrillLibrary && (
         <fieldset id="drill-library" className={`${SECTION_CARD_CLASS} scroll-mt-20`}>
           <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">Drill Library</legend>
-          <form onSubmit={addCustomDrill} className="grid gap-3 md:grid-cols-[1fr_1fr_auto] items-end">
+          <form onSubmit={addCustomDrill} className="grid gap-3 md:grid-cols-[1fr_1fr_160px_auto] items-end">
             <div>
               <label className={LABEL_CLASS}>Custom Drill Name</label>
               <input
@@ -1232,6 +1360,14 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
                 className={INPUT_CLASS}
               />
             </div>
+            <div>
+              <label className={LABEL_CLASS}>Mode</label>
+              <select value={customDrillMode} onChange={(e) => setCustomDrillMode(e.target.value as DrillPerformanceMode)} className={INPUT_CLASS}>
+                <option value="both">Time + Accuracy</option>
+                <option value="time">Time only</option>
+                <option value="accuracy">Accuracy only</option>
+              </select>
+            </div>
             <button
               type="submit"
               className="h-10 px-4 rounded-md text-sm bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20"
@@ -1242,28 +1378,30 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
 
           <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <p className="text-xs uppercase tracking-widest text-vault-text-muted">Logged Drill Names</p>
-              {drillNameLibrary.length === 0 ? (
-                <p className="text-sm text-vault-text-faint">No logged drill names yet.</p>
+              <p className="text-xs uppercase tracking-widest text-vault-text-muted">Template Library</p>
+              {drillLibrary.length === 0 ? (
+                <p className="text-sm text-vault-text-faint">No drill templates yet.</p>
               ) : (
                 <div className="space-y-1.5">
-                  {drillNameLibrary.map((name) => (
-                    <div key={name} className="text-sm text-vault-text bg-vault-bg border border-vault-border rounded px-3 py-2">{name}</div>
+                  {drillLibrary.map((template) => (
+                    <div key={template.id} className="text-sm text-vault-text bg-vault-bg border border-vault-border rounded px-3 py-2">
+                      <p>{template.name}</p>
+                      <p className="text-xs text-vault-text-faint mt-1 uppercase tracking-widest">{template.mode}</p>
+                    </div>
                   ))}
                 </div>
               )}
             </div>
 
             <div className="space-y-2">
-              <p className="text-xs uppercase tracking-widest text-vault-text-muted">Custom Drills</p>
-              {customDrills.length === 0 ? (
-                <p className="text-sm text-vault-text-faint">No custom drills added yet.</p>
+              <p className="text-xs uppercase tracking-widest text-vault-text-muted">Logged Drill Names</p>
+              {drillNameLibrary.length === 0 ? (
+                <p className="text-sm text-vault-text-faint">No drills logged yet.</p>
               ) : (
                 <div className="space-y-1.5">
-                  {customDrills.map((drill) => (
-                    <div key={drill.id} className="bg-vault-bg border border-vault-border rounded px-3 py-2">
-                      <p className="text-sm text-vault-text">{drill.name}</p>
-                      {drill.notes && <p className="text-xs text-vault-text-faint mt-1">{drill.notes}</p>}
+                  {drillNameLibrary.map((name) => (
+                    <div key={name} className="bg-vault-bg border border-vault-border rounded px-3 py-2">
+                      <p className="text-sm text-vault-text">{name}</p>
                     </div>
                   ))}
                 </div>
