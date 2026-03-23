@@ -48,6 +48,7 @@ export async function GET() {
 
     return NextResponse.json({
       ...v1Settings,
+      appPassword: null,
       encryptionEnabled: !!process.env.VAULT_ENCRYPTION_KEY,
     });
   } catch (error) {
@@ -75,7 +76,6 @@ export async function PUT(request: NextRequest) {
       autoBackupEnabled,
       autoBackupCadence,
       defaultCurrency,
-      appPassword,
     } = body;
 
     const updateData: Record<string, unknown> = {};
@@ -130,16 +130,6 @@ export async function PUT(request: NextRequest) {
       updateData.defaultCurrency = normalized;
     }
 
-    if (appPassword !== undefined) {
-      if (appPassword !== null && typeof appPassword !== "string") {
-        return NextResponse.json(
-          { error: "appPassword must be a string or null." },
-          { status: 400 }
-        );
-      }
-      updateData.appPassword = appPassword === "" ? null : appPassword;
-    }
-
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(
         { error: "No valid settings fields provided." },
@@ -163,7 +153,10 @@ export async function PUT(request: NextRequest) {
       ...v1Settings
     } = settings;
 
-    return NextResponse.json(v1Settings);
+    return NextResponse.json({
+      ...v1Settings,
+      appPassword: null,
+    });
   } catch (error) {
     console.error("PUT /api/settings error:", error);
     return NextResponse.json(

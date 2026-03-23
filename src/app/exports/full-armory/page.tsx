@@ -51,10 +51,6 @@ export default function FullArmoryExportPage() {
           if (text) errorMessage = text.slice(0, 240);
         }
 
-        if (response.status === 401) {
-          errorMessage = "Export is locked. Please unlock the vault and try again.";
-        }
-
         throw new Error(errorMessage);
       }
 

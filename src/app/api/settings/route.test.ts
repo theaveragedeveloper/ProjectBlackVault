@@ -85,7 +85,7 @@ describe("/api/settings backup fields", () => {
     expect(json.autoBackupCadence).toBe("weekly");
   });
 
-  it("does not clear app password when backup-only settings are saved", async () => {
+  it("returns appPassword as null in responses for v1", async () => {
     mocks.upsert.mockResolvedValue({
       id: "singleton",
       includeUploadsInBackup: false,
@@ -115,7 +115,7 @@ describe("/api/settings backup fields", () => {
     expect(upsertArgs.update.autoBackupEnabled).toBe(true);
     expect(upsertArgs.update.autoBackupCadence).toBe("daily");
     expect("appPassword" in upsertArgs.update).toBe(false);
-    expect(json.appPassword).toBe("existing-secret");
+    expect(json.appPassword).toBeNull();
   });
 
   it("rejects invalid cadence values", async () => {

@@ -450,7 +450,6 @@ export async function GET(request: NextRequest) {
           payload.settings = {
             id: settingsRecord.id,
             defaultCurrency: settingsRecord.defaultCurrency,
-            hasAppPassword: !!settingsRecord.appPassword,
             hasEncryptionKey: !!settingsRecord.encryptionKey,
             dataStoragePath: settingsRecord.dataStoragePath,
             createdAt: settingsRecord.createdAt,
