@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   firearmFindMany: vi.fn(),
   accessoryFindMany: vi.fn(),
   documentFindMany: vi.fn(),
+  requireAuth: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -25,6 +26,10 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
+vi.mock("@/lib/server/auth", () => ({
+  requireAuth: mocks.requireAuth,
+}));
+
 import { GET } from "./route";
 
 const BASE_QUERY =
@@ -33,6 +38,7 @@ const BASE_QUERY =
 describe("/api/exports/data backup metadata", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.requireAuth.mockResolvedValue(null);
 
     mocks.firearmFindMany.mockResolvedValue([
       {
@@ -189,5 +195,17 @@ describe("/api/exports/data backup metadata", () => {
     expect(csv).toContain("includeUploadReferences");
     expect(csv).toContain("true");
     expect(csv).toContain("uploadedAssetReferences");
+  });
+
+  it("returns auth error response when vault is locked", async () => {
+    mocks.requireAuth.mockResolvedValue(
+      new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 })
+    );
+
+    const response = await GET(new NextRequest(`http://localhost/api/exports/data?${BASE_QUERY}`));
+    const json = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(json.error).toBe("Unauthorized");
   });
 });

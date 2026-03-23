@@ -125,7 +125,7 @@ describe("GET /api/exports/full-armory", () => {
     expect(json.items[0].imageUrl).toBe("");
     expect(json.items[0].purchasePrice).toBeNull();
     expect(json.attachments).toHaveLength(0);
-    expect(json.ammo).toHaveLength(1);
+    expect(json.ammo).toHaveLength(3);
   });
 
   it("returns 400 for unsupported format values", async () => {
@@ -157,5 +157,21 @@ describe("GET /api/exports/full-armory", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("Content-Type")).toContain("application/pdf");
     expect(pdf.startsWith("%PDF-")).toBe(true);
+  });
+
+  it("returns non-empty CSV output when there is no export data", async () => {
+    mocks.findFirearms.mockResolvedValue([]);
+    mocks.findAccessories.mockResolvedValue([]);
+    mocks.findDocuments.mockResolvedValue([]);
+    mocks.findAmmoStocks.mockResolvedValue([]);
+
+    const request = new NextRequest("http://localhost/api/exports/full-armory?format=csv");
+    const response = await GET(request);
+    const csv = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(csv.length).toBeGreaterThan(0);
+    expect(csv).toContain("summary");
+    expect(csv).toContain("generatedAt");
   });
 });

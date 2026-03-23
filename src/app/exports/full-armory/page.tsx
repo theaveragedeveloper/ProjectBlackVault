@@ -17,6 +17,7 @@ const DEFAULT_OPTIONS: FullArmoryExportOptions = {
 export default function FullArmoryExportPage() {
   const [options, setOptions] = useState<FullArmoryExportOptions>(DEFAULT_OPTIONS);
   const [loadingFormat, setLoadingFormat] = useState<"csv" | "pdf" | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const previewHref = useMemo(
     () => `/exports/full-armory/preview?${buildExportQueryString(options)}`,
@@ -31,18 +32,47 @@ export default function FullArmoryExportPage() {
 
   async function runExport(format: "csv" | "pdf") {
     setLoadingFormat(format);
+    setError(null);
     try {
       const query = buildExportQueryString(options, format);
-      const response = await fetch(`/api/exports/full-armory?${query}`);
-      if (!response.ok) return;
+      const response = await fetch(`/api/exports/full-armory?${query}`, {
+        credentials: "same-origin",
+      });
+      if (!response.ok) {
+        let errorMessage = `Failed to export ${format.toUpperCase()}`;
+        const responseType = response.headers.get("content-type") ?? "";
+
+        if (responseType.includes("application/json")) {
+          const payload = (await response.json()) as { error?: string };
+          if (payload.error) errorMessage = payload.error;
+        } else {
+          const text = await response.text();
+          if (text) errorMessage = text.slice(0, 240);
+        }
+
+        if (response.status === 401) {
+          errorMessage = "Export is locked. Please unlock the vault and try again.";
+        }
+
+        throw new Error(errorMessage);
+      }
 
       const blob = await response.blob();
+      if (!blob.size) {
+        throw new Error(`No ${format.toUpperCase()} content was generated. Try adjusting export options and retry.`);
+      }
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
       link.download = format === "csv" ? "full-armory-export.csv" : "full-armory-export.pdf";
+      document.body.append(link);
       link.click();
-      URL.revokeObjectURL(url);
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (exportError) {
+      const message = exportError instanceof Error ? exportError.message : "Export failed";
+      setError(message);
+      console.error(`Full armory ${format} export failed`, exportError);
     } finally {
       setLoadingFormat(null);
     }
@@ -114,6 +144,12 @@ export default function FullArmoryExportPage() {
               Open Preview
             </Link>
           </div>
+
+          {error && (
+            <p className="rounded border border-[#E53935]/30 bg-[#E53935]/10 px-3 py-2 text-sm text-[#E53935]">
+              {error}
+            </p>
+          )}
         </div>
       </div>
     </div>
