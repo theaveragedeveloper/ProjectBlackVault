@@ -4,12 +4,7 @@ import { useState } from "react";
 import { Shield, Menu } from "lucide-react";
 import { Sidebar } from "./Sidebar";
 
-interface MobileHeaderProps {
-  passwordModeEnabled?: boolean;
-  sessionUnlocked?: boolean;
-}
-
-export function MobileHeader({ passwordModeEnabled = false, sessionUnlocked = false }: MobileHeaderProps) {
+export function MobileHeader() {
   const [open, setOpen] = useState(false);
 
   return (
@@ -38,8 +33,6 @@ export function MobileHeader({ passwordModeEnabled = false, sessionUnlocked = fa
         mobileOnly
         mobileOpen={open}
         onMobileClose={() => setOpen(false)}
-        passwordModeEnabled={passwordModeEnabled}
-        sessionUnlocked={sessionUnlocked}
       />
     </>
   );

@@ -106,9 +106,6 @@ export function DocumentUploader({
 
       if (!res.ok) {
         const json = await res.json().catch(() => ({} as { error?: string }));
-        if (res.status === 401) {
-          throw new Error("Upload blocked: vault is locked. Unlock and try again.");
-        }
         throw new Error(json.error ?? "Upload failed");
       }
 
