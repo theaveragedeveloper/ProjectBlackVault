@@ -432,9 +432,6 @@ export async function GET(request: NextRequest) {
           payload.settings = {
             id: settingsAny.id,
             defaultCurrency: settingsAny.defaultCurrency,
-            enableImageSearch: settingsAny.enableImageSearch,
-            googleCseSearchEngineId: settingsAny.googleCseSearchEngineId,
-            hasGoogleCseApiKey: !!settingsAny.googleCseApiKey,
             hasAppPassword: !!settingsAny.appPassword,
             hasEncryptionKey: !!settingsAny.encryptionKey,
             dataStoragePath: settingsAny.dataStoragePath,
