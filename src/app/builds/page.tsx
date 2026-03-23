@@ -61,7 +61,7 @@ export default async function BuildsPage() {
   return (
     <div className="min-h-full">
       <PageHeader
-        title="ALL LOADOUTS"
+        title="ALL BUILDS"
         subtitle={`${totalBuilds} build${totalBuilds !== 1 ? "s" : ""} across ${firearms.length} firearm${firearms.length !== 1 ? "s" : ""}`}
       />
 
@@ -96,7 +96,7 @@ export default async function BuildsPage() {
             <div className="w-16 h-16 rounded-full bg-[#00C2FF]/10 border border-[#00C2FF]/20 flex items-center justify-center mb-4">
               <Layers className="w-8 h-8 text-[#00C2FF]" />
             </div>
-            <h3 className="text-lg font-semibold text-vault-text mb-2">No loadouts yet</h3>
+            <h3 className="text-lg font-semibold text-vault-text mb-2">No builds yet</h3>
             <p className="text-sm text-vault-text-muted mb-6 max-w-sm">
               Open a firearm from the Vault and create your first build configuration.
             </p>

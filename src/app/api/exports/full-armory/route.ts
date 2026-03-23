@@ -304,8 +304,8 @@ function buildExportPdfLines(payload: FullArmoryExportResponse): string[] {
 }
 
 function buildFileName(extension: ExportFormat): string {
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-  return `full-armory-export-${timestamp}.${extension}`;
+  const date = new Date().toISOString().slice(0, 10);
+  return `blackvault-export-${date}.${extension}`;
 }
 
 export async function GET(request: NextRequest) {

@@ -25,6 +25,7 @@ export default function DocumentLibraryPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
     fetch("/api/documents", { credentials: "include", cache: "no-store" })
@@ -59,12 +60,16 @@ export default function DocumentLibraryPage() {
       const res = await fetch(`/api/documents/${id}`, { method: "DELETE" });
       if (!res.ok) {
         const json = await res.json().catch(() => null);
-        alert(json?.error ?? "Failed to delete document");
+        setActionMessage({
+          type: "error",
+          text: json?.error ?? "Could not delete document.",
+        });
         return;
       }
       setDocuments((prev) => prev.filter((d) => d.id !== id));
+      setActionMessage({ type: "success", text: "Document deleted." });
     } catch {
-      alert("Network error — could not delete document");
+      setActionMessage({ type: "error", text: "Network error — could not delete document." });
     } finally {
       setDeletingId(null);
     }
@@ -99,6 +104,17 @@ export default function DocumentLibraryPage() {
         {uploadSuccess && (
           <div className="rounded-lg border border-[#00C853]/30 bg-[#00C853]/10 px-4 py-3 text-sm text-[#00C853]">
             {uploadSuccess}
+          </div>
+        )}
+        {actionMessage && (
+          <div
+            className={`rounded-lg px-4 py-3 text-sm border ${
+              actionMessage.type === "success"
+                ? "border-[#00C853]/30 bg-[#00C853]/10 text-[#00C853]"
+                : "border-[#E53935]/30 bg-[#E53935]/10 text-[#E53935]"
+            }`}
+          >
+            {actionMessage.text}
           </div>
         )}
 
@@ -269,7 +285,14 @@ export default function DocumentLibraryPage() {
                       className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs border border-vault-border text-vault-text-muted hover:text-[#00C2FF] hover:border-[#00C2FF]/30 transition-colors"
                     >
                       <ExternalLink className="w-3.5 h-3.5" />
-                      Open
+                      View
+                    </a>
+                    <a
+                      href={doc.fileUrl}
+                      download={doc.name}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs border border-vault-border text-vault-text-muted hover:text-[#00C2FF] hover:border-[#00C2FF]/30 transition-colors"
+                    >
+                      Download
                     </a>
                     <button
                       onClick={() => handleDelete(doc.id)}

@@ -18,6 +18,7 @@ export default function FullArmoryExportPage() {
   const [options, setOptions] = useState<FullArmoryExportOptions>(DEFAULT_OPTIONS);
   const [loadingFormat, setLoadingFormat] = useState<"csv" | "pdf" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const previewHref = useMemo(
     () => `/exports/full-armory/preview?${buildExportQueryString(options)}`,
@@ -33,6 +34,7 @@ export default function FullArmoryExportPage() {
   async function runExport(format: "csv" | "pdf") {
     setLoadingFormat(format);
     setError(null);
+    setSuccess(null);
     try {
       const query = buildExportQueryString(options, format);
       const response = await fetch(`/api/exports/full-armory?${query}`, {
@@ -58,14 +60,22 @@ export default function FullArmoryExportPage() {
       if (!blob.size) {
         throw new Error(`No ${format.toUpperCase()} content was generated. Try adjusting export options and retry.`);
       }
+
+      const exportDate = new Date().toISOString().slice(0, 10);
+      const preferredName = `blackvault-export-${exportDate}.${format}`;
+      const disposition = response.headers.get("content-disposition") ?? "";
+      const nameMatch = disposition.match(/filename="?([^"]+)"?/i);
+      const serverName = nameMatch?.[1];
+
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = format === "csv" ? "full-armory-export.csv" : "full-armory-export.pdf";
+      link.download = serverName || preferredName;
       document.body.append(link);
       link.click();
       link.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setSuccess(`${format.toUpperCase()} export downloaded.`);
     } catch (exportError) {
       const message = exportError instanceof Error ? exportError.message : "Export failed";
       setError(message);
@@ -145,6 +155,11 @@ export default function FullArmoryExportPage() {
           {error && (
             <p className="rounded border border-[#E53935]/30 bg-[#E53935]/10 px-3 py-2 text-sm text-[#E53935]">
               {error}
+            </p>
+          )}
+          {success && (
+            <p className="rounded border border-[#00C853]/30 bg-[#00C853]/10 px-3 py-2 text-sm text-[#00C853]">
+              {success}
             </p>
           )}
         </div>
