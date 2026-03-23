@@ -507,6 +507,7 @@ function AmmoSummaryWidget({ ammoStocks }: { ammoStocks: AmmoStockItem[] }) {
 // ── Main client component ─────────────────────────────────────
 export function DashboardClient({ data }: { data: DashboardData }) {
   const [liveData, setLiveData] = useState<DashboardData>(data);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [order, setOrder] = useState<string[]>(() => {
     if (typeof window === "undefined") return DEFAULT_ORDER;
     try {
@@ -523,6 +524,8 @@ export function DashboardClient({ data }: { data: DashboardData }) {
   });
   const [editMode, setEditMode] = useState(false);
   const [mounted] = useState(() => typeof window !== "undefined");
+  const isFirstRun =
+    liveData.firearmCount === 0 && liveData.accessoryCount === 0 && liveData.totalAmmoRounds === 0;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -542,6 +545,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
         recentFirearms: stats.recent?.firearms ?? [],
         ammoStocks: stats.ammo?.stocks ?? [],
       });
+      setLastUpdated(new Date());
     } catch {
       // Keep server-provided data when refresh fails.
     }
@@ -617,7 +621,10 @@ export function DashboardClient({ data }: { data: DashboardData }) {
   return (
     <div className="p-6">
       {/* Customize bar */}
-      <div className="flex items-center justify-end mb-6">
+      <div className="flex items-center justify-between mb-6">
+        <p className="text-xs text-vault-text-faint">
+          Last updated {lastUpdated.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+        </p>
         {editMode ? (
           <div className="flex items-center gap-3">
             <p className="text-xs text-vault-text-muted">Drag widgets to reorder</p>
@@ -639,6 +646,20 @@ export function DashboardClient({ data }: { data: DashboardData }) {
           </button>
         )}
       </div>
+
+      {isFirstRun && (
+        <section className="mb-6 rounded-lg border border-[#00C2FF]/25 bg-[#00C2FF]/5 p-4">
+          <h2 className="text-sm font-semibold text-vault-text mb-1">Welcome to BlackVault</h2>
+          <p className="text-xs text-vault-text-muted mb-3">
+            Start by adding a firearm, then attach accessories, upload receipts or tax stamps, and track ammo and range sessions.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/vault/new" className="text-xs px-3 py-1.5 rounded border border-[#00C2FF]/30 text-[#00C2FF] bg-[#00C2FF]/10 hover:bg-[#00C2FF]/20 transition-colors">Add Firearm</Link>
+            <Link href="/documents" className="text-xs px-3 py-1.5 rounded border border-vault-border text-vault-text-muted hover:text-vault-text hover:border-vault-text-muted/30 transition-colors">Upload Documents</Link>
+            <Link href="/range/log-session" className="text-xs px-3 py-1.5 rounded border border-vault-border text-vault-text-muted hover:text-vault-text hover:border-vault-text-muted/30 transition-colors">Log Range Session</Link>
+          </div>
+        </section>
+      )}
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={order} strategy={verticalListSortingStrategy}>
