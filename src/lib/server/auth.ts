@@ -62,19 +62,23 @@ export async function hasValidSessionCookie() {
   const appPassword = await getAppPassword();
   if (!appPassword) return true;
 
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-  if (!sessionCookie) return false;
+  try {
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+    if (!sessionCookie) return false;
 
-  const expected = createSessionCookieValue(appPassword);
-  const expectedBuffer = Buffer.from(expected);
-  const actualBuffer = Buffer.from(sessionCookie);
+    const expected = createSessionCookieValue(appPassword);
+    const expectedBuffer = Buffer.from(expected);
+    const actualBuffer = Buffer.from(sessionCookie);
 
-  if (expectedBuffer.length !== actualBuffer.length) {
+    if (expectedBuffer.length !== actualBuffer.length) {
+      return false;
+    }
+
+    return timingSafeEqual(expectedBuffer, actualBuffer);
+  } catch {
     return false;
   }
-
-  return timingSafeEqual(expectedBuffer, actualBuffer);
 }
 
 export async function requireAuth(): Promise<NextResponse | null> {
