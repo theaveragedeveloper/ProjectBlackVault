@@ -23,15 +23,27 @@ export default function DocumentLibraryPage() {
   const [typeFilter, setTypeFilter] = useState<DocTypeFilter>("ALL");
   const [entityFilter, setEntityFilter] = useState<EntityFilter>("ALL");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/documents")
-      .then((r) => r.json())
-      .then((data) => {
-        if (Array.isArray(data)) setDocuments(data);
+    fetch("/api/documents", { credentials: "include", cache: "no-store" })
+      .then(async (r) => ({ ok: r.ok, status: r.status, data: await r.json().catch(() => null) }))
+      .then(({ ok, status, data }) => {
+        if (ok && Array.isArray(data)) {
+          setDocuments(data);
+          setLoadError(null);
+        } else if (status === 401) {
+          setLoadError("Document library is locked. Unlock the vault to view and upload documents.");
+        } else {
+          setLoadError((data as { error?: string } | null)?.error ?? "Failed to load documents.");
+        }
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {
+        setLoadError("Network error while loading documents.");
+        setLoading(false);
+      });
   }, []);
 
   const filtered = documents.filter((doc) => {
@@ -80,6 +92,18 @@ export default function DocumentLibraryPage() {
       />
 
       <div className="p-6 space-y-5 max-w-4xl mx-auto">
+        {loadError && (
+          <div className="rounded-lg border border-[#E53935]/30 bg-[#E53935]/10 px-4 py-3 text-sm text-[#E53935]">
+            {loadError}
+          </div>
+        )}
+
+        {uploadSuccess && (
+          <div className="rounded-lg border border-[#00C853]/30 bg-[#00C853]/10 px-4 py-3 text-sm text-[#00C853]">
+            {uploadSuccess}
+          </div>
+        )}
+
         {/* Upload panel */}
         {showUploader && (
           <div className="rounded-xl border border-vault-border bg-vault-surface p-5">
@@ -95,6 +119,8 @@ export default function DocumentLibraryPage() {
               onUploadComplete={(doc) => {
                 setDocuments((prev) => [doc, ...prev]);
                 setShowUploader(false);
+                setUploadSuccess(`Uploaded "${doc.name}" successfully.`);
+                setTimeout(() => setUploadSuccess(null), 3000);
               }}
               onCancel={() => setShowUploader(false)}
             />
