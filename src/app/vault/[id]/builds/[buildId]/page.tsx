@@ -18,6 +18,19 @@ import {
 import { SLOTS_BY_FIREARM_TYPE, SLOT_TYPE_LABELS, FirearmType, SlotType } from "@/lib/types";
 import { SLOT_ICONS } from "@/lib/configurator/slot-icons";
 
+const CUSTOM_SLOT_PREFIX = "CUSTOM:";
+
+function getSlotLabel(slotType: string) {
+  if (slotType.startsWith(CUSTOM_SLOT_PREFIX)) {
+    return slotType.slice(CUSTOM_SLOT_PREFIX.length) || "Custom Slot";
+  }
+  return SLOT_TYPE_LABELS[slotType as SlotType] ?? slotType;
+}
+
+function getSlotIconConfig(slotType: string) {
+  return SLOT_ICONS[slotType as SlotType];
+}
+
 // ─── Types ────────────────────────────────────────────────────
 
 interface Accessory {
@@ -59,7 +72,7 @@ interface Build {
 // ─── Accessory Browser Modal ───────────────────────────────────
 
 interface AccessoryBrowserModalProps {
-  slotType: SlotType;
+  slotType: string;
   buildId: string;
   onClose: () => void;
   onAssigned: () => void;
@@ -79,7 +92,17 @@ function AccessoryBrowserModal({
   const [assignError, setAssignError] = useState<string | null>(null);
 
   const [view, setView] = useState<"browse" | "create">("browse");
-  const [form, setForm] = useState({ name: "", manufacturer: "", model: "", caliber: "", purchasePrice: "" });
+  const [form, setForm] = useState({
+    name: "",
+    manufacturer: "",
+    model: "",
+    caliber: "",
+    purchasePrice: "",
+    hasBattery: false,
+    batteryType: "",
+    replacementIntervalDays: "",
+    lastBatteryChangeDate: "",
+  });
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -151,6 +174,12 @@ function AccessoryBrowserModal({
           type: slotType,
           caliber: form.caliber.trim() || undefined,
           purchasePrice: form.purchasePrice ? parseFloat(form.purchasePrice) : undefined,
+          hasBattery: form.hasBattery,
+          batteryType: form.batteryType.trim() || undefined,
+          replacementIntervalDays: form.replacementIntervalDays
+            ? parseInt(form.replacementIntervalDays, 10)
+            : undefined,
+          lastBatteryChangeDate: form.lastBatteryChangeDate || undefined,
         }),
       });
       const created = await createRes.json();
@@ -178,7 +207,7 @@ function AccessoryBrowserModal({
     }
   }
 
-  const slotIconConfig = SLOT_ICONS[slotType as SlotType];
+  const slotIconConfig = getSlotIconConfig(slotType);
   const SlotIcon = slotIconConfig?.icon ?? Shield;
 
   return (
@@ -204,7 +233,7 @@ function AccessoryBrowserModal({
                 Assign Attachment
               </p>
               <h2 className="text-sm font-semibold text-vault-text">
-                {SLOT_TYPE_LABELS[slotType]}
+                {getSlotLabel(slotType)}
               </h2>
             </div>
           </div>
@@ -249,7 +278,7 @@ function AccessoryBrowserModal({
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder={`Search ${SLOT_TYPE_LABELS[slotType]} accessories...`}
+                placeholder={`Search ${getSlotLabel(slotType)} accessories...`}
                 className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
                 autoFocus
               />
@@ -285,7 +314,7 @@ function AccessoryBrowserModal({
                 <p className="text-sm text-vault-text-muted">
                   {search
                     ? "No accessories match your search"
-                    : `No ${SLOT_TYPE_LABELS[slotType]} accessories in your collection`}
+                    : `No ${getSlotLabel(slotType)} accessories in your collection`}
                 </p>
                 {!search && (
                   <button
@@ -369,7 +398,7 @@ function AccessoryBrowserModal({
               <div>
                 <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Type</label>
                 <div className="bg-vault-bg border border-vault-border rounded-md px-3 py-2 text-sm text-vault-text-muted font-mono">
-                  {SLOT_TYPE_LABELS[slotType]}
+                  {getSlotLabel(slotType)}
                 </div>
               </div>
               {/* Name */}
@@ -406,6 +435,37 @@ function AccessoryBrowserModal({
                 <input type="number" value={form.purchasePrice} onChange={e => setForm(f => ({...f, purchasePrice: e.target.value}))}
                   className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
                   placeholder="0.00" />
+              </div>
+
+              <div className="rounded-md border border-vault-border p-3 space-y-3">
+                <label className="flex items-center gap-2 text-xs text-vault-text-muted">
+                  <input
+                    type="checkbox"
+                    checked={form.hasBattery}
+                    onChange={(e) => setForm((f) => ({ ...f, hasBattery: e.target.checked }))}
+                    className="rounded border-vault-border"
+                  />
+                  This accessory uses a battery
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Battery Type</label>
+                    <input value={form.batteryType} onChange={e => setForm(f => ({...f, batteryType: e.target.value}))}
+                      className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
+                      placeholder="e.g. CR2032" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Replacement Interval (days)</label>
+                    <input type="number" min="1" step="1" value={form.replacementIntervalDays} onChange={e => setForm(f => ({...f, replacementIntervalDays: e.target.value}))}
+                      className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
+                      placeholder="180" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Last Battery Change</label>
+                  <input type="date" value={form.lastBatteryChangeDate} onChange={e => setForm(f => ({...f, lastBatteryChangeDate: e.target.value}))}
+                    className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint" />
+                </div>
               </div>
             </div>
           </div>
@@ -458,17 +518,21 @@ function AccessoryBrowserModal({
 
 interface WeaponCanvasProps {
   build: Build;
-  onSlotClick: (slotType: SlotType) => void;
-  onRemoveSlot: (slotType: SlotType) => void;
+  onSlotClick: (slotType: string) => void;
+  onRemoveSlot: (slotType: string) => void;
 }
 
 function WeaponCanvas({ build, onSlotClick, onRemoveSlot }: WeaponCanvasProps) {
   const firearmType = build.firearm.type as FirearmType;
-  const availableSlots = SLOTS_BY_FIREARM_TYPE[firearmType] ?? [];
+  const baseSlots = SLOTS_BY_FIREARM_TYPE[firearmType] ?? [];
+  const customSlots = build.slots
+    .map((slot) => slot.slotType)
+    .filter((slotType) => slotType.startsWith(CUSTOM_SLOT_PREFIX));
+  const availableSlots = [...baseSlots, ...customSlots];
 
-  const slotMap: Partial<Record<SlotType, BuildSlot>> = {};
+  const slotMap: Record<string, BuildSlot> = {};
   for (const slot of build.slots) {
-    slotMap[slot.slotType as SlotType] = slot;
+    slotMap[slot.slotType] = slot;
   }
 
   return (
@@ -486,7 +550,7 @@ function WeaponCanvas({ build, onSlotClick, onRemoveSlot }: WeaponCanvasProps) {
           {availableSlots.map((slotType) => {
             const slot = slotMap[slotType];
             const hasAccessory = !!slot?.accessory;
-            const slotIconConfig = SLOT_ICONS[slotType];
+            const slotIconConfig = getSlotIconConfig(slotType);
             const SlotIcon = slotIconConfig?.icon ?? Shield;
 
             return (
@@ -500,9 +564,7 @@ function WeaponCanvas({ build, onSlotClick, onRemoveSlot }: WeaponCanvasProps) {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-[10px] uppercase tracking-widest font-mono text-vault-text-faint">
-                      {SLOT_TYPE_LABELS[slotType]}
-                    </p>
+                    <p className="text-[10px] uppercase tracking-widest font-mono text-vault-text-faint">{getSlotLabel(slotType)}</p>
                     <span
                       className={`inline-flex mt-1 text-[9px] font-mono uppercase tracking-wide px-1.5 py-0.5 rounded border ${
                         hasAccessory
@@ -569,24 +631,58 @@ interface SlotPanelProps {
   build: Build;
   allBuilds: Build[];
   onSwitchBuild: (buildId: string) => void;
+  onAddCustomSlot: (label: string) => Promise<void>;
 }
 
 function SlotPanel({
   build,
   allBuilds,
   onSwitchBuild,
+  onAddCustomSlot,
 }: SlotPanelProps) {
   const [switchOpen, setSwitchOpen] = useState(false);
+  const [newCustomSlot, setNewCustomSlot] = useState("");
+  const [addingCustomSlot, setAddingCustomSlot] = useState(false);
+  const [customSlotError, setCustomSlotError] = useState<string | null>(null);
   const firearmType = build.firearm.type as FirearmType;
-  const availableSlots = SLOTS_BY_FIREARM_TYPE[firearmType] ?? [];
+  const baseSlots = SLOTS_BY_FIREARM_TYPE[firearmType] ?? [];
+  const customSlots = build.slots
+    .map((slot) => slot.slotType)
+    .filter((slotType) => slotType.startsWith(CUSTOM_SLOT_PREFIX));
+  const availableSlots = [...baseSlots, ...customSlots];
 
-  const slotMap: Partial<Record<SlotType, BuildSlot>> = {};
+  const slotMap: Record<string, BuildSlot> = {};
   for (const slot of build.slots) {
-    slotMap[slot.slotType as SlotType] = slot;
+    slotMap[slot.slotType] = slot;
   }
 
   const otherBuilds = allBuilds.filter((b) => b.id !== build.id);
   const filledCount = build.slots.filter((s) => s.accessoryId).length;
+
+  async function handleAddCustomSlot() {
+    const trimmed = newCustomSlot.trim();
+    if (!trimmed) {
+      setCustomSlotError("Enter a custom slot name first.");
+      return;
+    }
+    const slotType = `${CUSTOM_SLOT_PREFIX}${trimmed}`;
+    if (availableSlots.includes(slotType)) {
+      setCustomSlotError("That custom slot already exists.");
+      return;
+    }
+    setAddingCustomSlot(true);
+    setCustomSlotError(null);
+    try {
+      await onAddCustomSlot(trimmed);
+      setNewCustomSlot("");
+    } catch {
+      setCustomSlotError("Could not create custom slot.");
+    } finally {
+      setAddingCustomSlot(false);
+    }
+  }
+
+  const customSlotCount = customSlots.length;
 
   return (
     <div className="h-full flex flex-col bg-vault-surface border-t md:border-t-0 border-l-0 md:border-l border-vault-border">
@@ -662,6 +758,29 @@ function SlotPanel({
             )}
           </div>
         )}
+
+        <div className="mt-3 p-2.5 border border-vault-border rounded-md bg-vault-bg/50 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] uppercase tracking-widest text-vault-text-faint">Custom Slot</p>
+            <span className="text-[10px] text-vault-text-faint">{customSlotCount} added</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              value={newCustomSlot}
+              onChange={(e) => setNewCustomSlot(e.target.value)}
+              placeholder="e.g. Data Card"
+              className="flex-1 bg-vault-surface border border-vault-border rounded-md px-2.5 py-1.5 text-xs text-vault-text focus:outline-none focus:border-[#00C2FF]"
+            />
+            <button
+              onClick={handleAddCustomSlot}
+              disabled={addingCustomSlot}
+              className="px-2.5 py-1.5 rounded-md text-xs border border-[#00C2FF]/35 text-[#00C2FF] hover:bg-[#00C2FF]/10 disabled:opacity-60"
+            >
+              {addingCustomSlot ? "Adding..." : "Add"}
+            </button>
+          </div>
+          {customSlotError && <p className="text-[10px] text-[#E53935]">{customSlotError}</p>}
+        </div>
       </div>
 
       {/* Slot list */}
@@ -669,7 +788,7 @@ function SlotPanel({
         {availableSlots.map((slotType) => {
           const slot = slotMap[slotType];
           const hasAccessory = !!slot?.accessory;
-          const slotIconConfig = SLOT_ICONS[slotType];
+          const slotIconConfig = getSlotIconConfig(slotType);
           const SlotIcon = slotIconConfig?.icon ?? Shield;
 
           return (
@@ -703,7 +822,7 @@ function SlotPanel({
                     hasAccessory ? "text-vault-text-faint" : "text-vault-border"
                   }`}
                 >
-                  {SLOT_TYPE_LABELS[slotType]}
+                  {getSlotLabel(slotType)}
                 </p>
                 {hasAccessory && slot?.accessory ? (
                   <div className="flex items-center gap-2 mt-0.5">
@@ -752,7 +871,7 @@ export default function BuildConfiguratorPage() {
   const [activatingBuild, setActivatingBuild] = useState(false);
 
   // Modal state
-  const [browserSlot, setBrowserSlot] = useState<SlotType | null>(null);
+  const [browserSlot, setBrowserSlot] = useState<string | null>(null);
 
   const fetchBuild = useCallback(async () => {
     try {
@@ -782,7 +901,7 @@ export default function BuildConfiguratorPage() {
     fetchBuild();
   }, [fetchBuild]);
 
-  async function handleRemoveSlot(slotType: SlotType) {
+  async function handleRemoveSlot(slotType: string) {
     if (!build) return;
     try {
       await fetch(`/api/builds/${buildId}/slots`, {
@@ -815,6 +934,18 @@ export default function BuildConfiguratorPage() {
 
   function handleSwitchBuild(newBuildId: string) {
     router.push(`/vault/${firearmId}/builds/${newBuildId}`);
+  }
+
+  async function handleAddCustomSlot(label: string) {
+    await fetch(`/api/builds/${buildId}/slots`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        slotType: `${CUSTOM_SLOT_PREFIX}${label.trim()}`,
+        accessoryId: null,
+      }),
+    });
+    await fetchBuild();
   }
 
   // ── Loading/error screens ──────────────────────────────────
@@ -910,6 +1041,7 @@ export default function BuildConfiguratorPage() {
             build={build}
             allBuilds={allBuilds}
             onSwitchBuild={handleSwitchBuild}
+            onAddCustomSlot={handleAddCustomSlot}
           />
         </div>
       </div>
