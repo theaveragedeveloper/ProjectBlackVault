@@ -136,4 +136,58 @@ describe("/api/exports/data backup metadata", () => {
     expect(response.status).toBe(400);
     expect(json.error).toMatch(/Supported values: csv, pdf/);
   });
+
+  it("filters unsafe upload URLs and deduplicates references", async () => {
+    mocks.appSettingsFindUnique.mockResolvedValue({
+      id: "singleton",
+      includeUploadsInBackup: true,
+    });
+    mocks.firearmFindMany.mockResolvedValue([
+      {
+        id: "f1",
+        name: "Duty Rifle",
+        imageUrl: " /api/files/images/firearms/f1_1.webp ",
+        serialNumber: "SER123",
+      },
+      {
+        id: "f1",
+        name: "Duty Rifle Copy",
+        imageUrl: "/api/files/images/firearms/f1_1.webp",
+        serialNumber: "SER123",
+      },
+      {
+        id: "f2",
+        name: "Unsafe Rifle",
+        imageUrl: "/api/files/../../etc/passwd",
+      },
+    ]);
+
+    const response = await GET(new NextRequest(`http://localhost/api/exports/data?${BASE_QUERY}`));
+    const csv = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(csv).toContain("uploadedAssetReferences");
+    expect(csv).toContain("/api/files/images/firearms/f1_1.webp");
+    const uploadedReferenceLines = csv
+      .split("\n")
+      .filter((line) => line.startsWith("uploadedAssetReferences,"));
+    expect(uploadedReferenceLines.some((line) => line.includes("../../etc/passwd"))).toBe(false);
+    const firearmReferenceMatches = csv.match(/firearmImage/g) ?? [];
+    expect(firearmReferenceMatches.length).toBe(1);
+  });
+
+  it("defaults includeUploadReferences to true when settings value is malformed", async () => {
+    mocks.appSettingsFindUnique.mockResolvedValue({
+      id: "singleton",
+      includeUploadsInBackup: "nope",
+    });
+
+    const response = await GET(new NextRequest(`http://localhost/api/exports/data?${BASE_QUERY}`));
+    const csv = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(csv).toContain("includeUploadReferences");
+    expect(csv).toContain("true");
+    expect(csv).toContain("uploadedAssetReferences");
+  });
 });
