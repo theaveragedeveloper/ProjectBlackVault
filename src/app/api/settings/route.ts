@@ -39,17 +39,19 @@ export async function GET() {
       });
     }
 
-    const {
-      googleCseApiKey: _googleCseApiKey,
-      googleCseSearchEngineId: _googleCseSearchEngineId,
-      enableImageSearch: _enableImageSearch,
-      ...v1Settings
-    } = settings;
+    const v1Settings = {
+      id: settings.id,
+      includeUploadsInBackup: settings.includeUploadsInBackup,
+      autoBackupEnabled: settings.autoBackupEnabled,
+      autoBackupCadence: settings.autoBackupCadence,
+      defaultCurrency: settings.defaultCurrency,
+      createdAt: settings.createdAt,
+      updatedAt: settings.updatedAt,
+    };
 
     return NextResponse.json({
       ...v1Settings,
       appPassword: null,
-      encryptionEnabled: !!process.env.VAULT_ENCRYPTION_KEY,
     });
   } catch (error) {
     console.error("GET /api/settings error:", error);
@@ -146,12 +148,15 @@ export async function PUT(request: NextRequest) {
       update: updateData,
     });
 
-    const {
-      googleCseApiKey: _googleCseApiKey,
-      googleCseSearchEngineId: _googleCseSearchEngineId,
-      enableImageSearch: _enableImageSearch,
-      ...v1Settings
-    } = settings;
+    const v1Settings = {
+      id: settings.id,
+      includeUploadsInBackup: settings.includeUploadsInBackup,
+      autoBackupEnabled: settings.autoBackupEnabled,
+      autoBackupCadence: settings.autoBackupCadence,
+      defaultCurrency: settings.defaultCurrency,
+      createdAt: settings.createdAt,
+      updatedAt: settings.updatedAt,
+    };
 
     return NextResponse.json({
       ...v1Settings,

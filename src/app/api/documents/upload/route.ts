@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
+import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { detectFileSignature } from "@/lib/server/file-signatures";
 import { enforceRateLimit } from "@/lib/rate-limit";
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate a unique ID for the file
-    const fileId = crypto.randomUUID().replace(/-/g, "");
+    const fileId = randomUUID().replace(/-/g, "");
 
     const fileName = `${fileId}.${detected.extension}`;
     const relativeUrl = `/api/files/documents/${fileName}`;
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest) {
 
     await fs.writeFile(filePath, buffer);
 
-    const doc = await (prisma as any).document.create({
+    const doc = await prisma.document.create({
       data: {
         name,
         type,
