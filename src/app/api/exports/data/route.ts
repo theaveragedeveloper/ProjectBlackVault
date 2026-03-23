@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-type ExportFormat = "json" | "csv" | "pdf";
+type ExportFormat = "csv" | "pdf";
 
 type SectionFlags = {
   firearms: boolean;
@@ -37,8 +37,8 @@ function parseFlags(searchParams: URLSearchParams): SectionFlags {
 }
 
 function parseFormat(searchParams: URLSearchParams): ExportFormat {
-  const format = (searchParams.get("format") ?? "json").trim().toLowerCase();
-  if (format === "json" || format === "csv" || format === "pdf") return format;
+  const format = (searchParams.get("format") ?? "csv").trim().toLowerCase();
+  if (format === "csv" || format === "pdf") return format;
   throw new Error("INVALID_FORMAT");
 }
 
@@ -328,12 +328,15 @@ export async function GET(request: NextRequest) {
     const flags = parseFlags(searchParams);
     const format = parseFormat(searchParams);
     const includeSerialNumbers = parseBool(searchParams.get("includeSerialNumbers"), false);
+    const appSettings = await prisma.appSettings.findUnique({ where: { id: "singleton" } });
+    const includeUploadReferences = appSettings?.includeUploadsInBackup ?? true;
 
     const payload: Record<string, unknown> = {
       meta: {
         exportedAt: new Date().toISOString(),
         format,
         includeSerialNumbers,
+        includeUploadReferences,
         sections: flags,
       },
     };
@@ -423,26 +426,76 @@ export async function GET(request: NextRequest) {
 
     if (flags.settings) {
       queries.push(
-        prisma.appSettings.findUnique({ where: { id: "singleton" } }).then((settings) => {
-          if (!settings) {
+        Promise.resolve().then(() => {
+          if (!appSettings) {
             payload.settings = null;
             return;
           }
-          const settingsAny = settings as any;
+          const settingsRecord = appSettings as Record<string, unknown>;
           payload.settings = {
-            id: settingsAny.id,
-            defaultCurrency: settingsAny.defaultCurrency,
-            hasAppPassword: !!settingsAny.appPassword,
-            hasEncryptionKey: !!settingsAny.encryptionKey,
-            dataStoragePath: settingsAny.dataStoragePath,
-            createdAt: settingsAny.createdAt,
-            updatedAt: settingsAny.updatedAt,
+payload.settings = {
+  id: settingsRecord.id,
+  defaultCurrency: settingsRecord.defaultCurrency,
+  hasAppPassword: !!settingsRecord.appPassword,
+  hasEncryptionKey: !!settingsRecord.encryptionKey,
+  dataStoragePath: settingsRecord.dataStoragePath,
+  createdAt: settingsRecord.createdAt,
+  updatedAt: settingsRecord.updatedAt,
+  includeUploadsInBackup: settingsRecord.includeUploadsInBackup,
+  autoBackupEnabled: settingsRecord.autoBackupEnabled,
+  autoBackupCadence: settingsRecord.autoBackupCadence,
+};
           };
         })
       );
     }
 
     await Promise.all(queries);
+
+    if (includeUploadReferences) {
+      const uploadReferences: Array<Record<string, string>> = [];
+      const addReference = (kind: string, sourceId: string, url: string) => {
+        if (!url.startsWith("/api/files/")) return;
+        uploadReferences.push({
+          kind,
+          sourceId,
+          url,
+          storagePath: url.replace("/api/files/", "storage/uploads/"),
+        });
+      };
+
+      if (flags.firearms) {
+        (payload.firearms as Array<Record<string, unknown>> | undefined)?.forEach((row) => {
+          const id = String(row.id ?? "");
+          const imageUrl = typeof row.imageUrl === "string" ? row.imageUrl : "";
+          addReference("firearmImage", id, imageUrl);
+        });
+      }
+
+      if (flags.accessories) {
+        (payload.accessories as Array<Record<string, unknown>> | undefined)?.forEach((row) => {
+          const id = String(row.id ?? "");
+          const imageUrl = typeof row.imageUrl === "string" ? row.imageUrl : "";
+          addReference("accessoryImage", id, imageUrl);
+        });
+      }
+
+      if (flags.documents) {
+        (payload.documents as Array<Record<string, unknown>> | undefined)?.forEach((row) => {
+          const id = String(row.id ?? "");
+          const fileUrl = typeof row.fileUrl === "string" ? row.fileUrl : "";
+          addReference("document", id, fileUrl);
+        });
+      }
+
+      payload.uploadedAssetReferences = uploadReferences;
+      payload.backupStorageGuidance = {
+        summary:
+          "Uploaded files live under storage/uploads. Copy that folder together with this export JSON/CSV file.",
+        volumeHint:
+          "Docker hint: mount a persistent host path to /app/storage (example: ./storage:/app/storage) so uploads and backups survive container rebuilds.",
+      };
+    }
 
     if (format === "pdf") {
       const pdfLines = buildPdfLines(payload, flags, includeSerialNumbers);
@@ -466,6 +519,7 @@ export async function GET(request: NextRequest) {
             exportedAt: (payload.meta as { exportedAt: string }).exportedAt,
             format,
             includeSerialNumbers,
+            includeUploadReferences,
             sections: flags,
           },
         },
@@ -478,6 +532,10 @@ export async function GET(request: NextRequest) {
       if (flags.rangeSessions) csvSections.push({ section: "rangeSessions", rows: payload.rangeSessions ?? [] });
       if (flags.documents) csvSections.push({ section: "documents", rows: payload.documents ?? [] });
       if (flags.settings) csvSections.push({ section: "settings", rows: payload.settings ?? [] });
+      if (includeUploadReferences) {
+        csvSections.push({ section: "uploadedAssetReferences", rows: payload.uploadedAssetReferences ?? [] });
+        csvSections.push({ section: "backupStorageGuidance", rows: payload.backupStorageGuidance ?? {} });
+      }
 
       const csv = buildCsv(csvSections);
       return new NextResponse(csv, {
@@ -489,15 +547,10 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    return NextResponse.json(payload, {
-      headers: {
-        "Cache-Control": "no-store",
-      },
-    });
   } catch (error) {
     if (error instanceof Error && error.message === "INVALID_FORMAT") {
       return NextResponse.json(
-        { error: "Invalid format. Supported values: json, csv, pdf" },
+        { error: "Invalid format. Supported values: csv, pdf" },
         { status: 400 }
       );
     }

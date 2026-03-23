@@ -11,6 +11,8 @@ import {
   EyeOff,
   Settings,
   ShieldCheck,
+  Archive,
+  Database,
 } from "lucide-react";
 
 const INPUT_CLASS =
@@ -21,8 +23,10 @@ const LABEL_CLASS =
 interface AppSettings {
   id: string;
   appPassword: string | null;
-  defaultCurrency: string;
   encryptionEnabled?: boolean;
+  includeUploadsInBackup?: boolean;
+  autoBackupEnabled?: boolean;
+  autoBackupCadence?: "daily" | "weekly" | "monthly";
 }
 
 export default function SettingsPage() {
@@ -31,7 +35,11 @@ export default function SettingsPage() {
   const [dataError, setDataError] = useState<string | null>(null);
 
   const [appPassword, setAppPassword] = useState("");
+  const [appPasswordDirty, setAppPasswordDirty] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [includeUploadsInBackup, setIncludeUploadsInBackup] = useState(true);
+  const [autoBackupEnabled, setAutoBackupEnabled] = useState(false);
+  const [autoBackupCadence, setAutoBackupCadence] = useState<"daily" | "weekly" | "monthly">("weekly");
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -45,6 +53,9 @@ export default function SettingsPage() {
           setDataError(data.error);
         } else {
           setSettings(data);
+          setIncludeUploadsInBackup(data.includeUploadsInBackup ?? true);
+          setAutoBackupEnabled(data.autoBackupEnabled ?? false);
+          setAutoBackupCadence(data.autoBackupCadence ?? "weekly");
         }
         setDataLoading(false);
       })
@@ -61,8 +72,14 @@ export default function SettingsPage() {
     setSaving(true);
 
     const payload: Record<string, unknown> = {
-      appPassword: appPassword || null,
+      includeUploadsInBackup,
+      autoBackupEnabled,
+      autoBackupCadence,
     };
+
+    if (appPasswordDirty) {
+      payload.appPassword = appPassword || null;
+    }
 
     try {
       const res = await fetch("/api/settings", {
@@ -78,6 +95,7 @@ export default function SettingsPage() {
       } else {
         setSettings(json);
         setAppPassword("");
+        setAppPasswordDirty(false);
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 3000);
       }
@@ -151,8 +169,7 @@ export default function SettingsPage() {
             </div>
 
             <p className="text-xs text-vault-text-muted leading-relaxed">
-              Set an optional app password to restrict access to the vault. Leave blank to
-              disable password protection.
+              Set an optional app password to restrict access to the vault. Leave blank to disable password protection.
             </p>
 
             <div>
@@ -164,8 +181,15 @@ export default function SettingsPage() {
                 <input
                   type={showPassword ? "text" : "password"}
                   value={appPassword}
-                  onChange={(e) => setAppPassword(e.target.value)}
-                  placeholder="Leave blank to disable password protection"
+                  onChange={(e) => {
+                    setAppPassword(e.target.value);
+                    setAppPasswordDirty(true);
+                  }}
+                  placeholder={
+                    settings?.appPassword
+                      ? "Leave unchanged to keep current password"
+                      : "Leave blank to disable password protection"
+                  }
                   className={`${INPUT_CLASS} pr-10`}
                   autoComplete="new-password"
                 />
@@ -179,6 +203,108 @@ export default function SettingsPage() {
               </div>
               <p className="text-xs text-vault-text-faint mt-1">
                 Note: This is a simple access restriction, not end-to-end encryption.
+              </p>
+            </div>
+          </fieldset>
+
+          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-5">
+            <div className="flex items-center justify-between">
+              <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
+                <Archive className="w-3.5 h-3.5" />
+                Backup
+              </legend>
+              <span
+                className={`text-[10px] font-mono px-2 py-0.5 rounded border uppercase ${
+                  autoBackupEnabled
+                    ? "text-[#00C853] border-[#00C853]/40"
+                    : "text-vault-text-faint border-vault-border"
+                }`}
+              >
+                {autoBackupEnabled ? "Backup Plan Saved" : "Manual Export Only"}
+              </span>
+            </div>
+
+            <p className="text-xs text-vault-text-muted leading-relaxed">
+              Backup exports use the existing self-hosted storage layout. Data export files include
+              database records, and can also include references to uploaded media in{" "}
+              <code className="text-vault-text-faint font-mono">storage/uploads</code> so you can
+              copy those files with your backup.
+            </p>
+
+            <button
+              type="button"
+              onClick={() => setIncludeUploadsInBackup((v) => !v)}
+              className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-md border transition-all ${
+                includeUploadsInBackup
+                  ? "border-[#00C2FF]/40 bg-[#00C2FF]/5"
+                  : "border-vault-border hover:border-vault-text-muted/20"
+              }`}
+            >
+              <div
+                className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${
+                  includeUploadsInBackup ? "bg-[#00C2FF]" : "bg-vault-border"
+                }`}
+              >
+                <div
+                  className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${
+                    includeUploadsInBackup ? "left-4" : "left-0.5"
+                  }`}
+                />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-vault-text">Include Upload References</p>
+                <p className="text-xs text-vault-text-faint mt-0.5">
+                  Adds uploaded image/document paths to backup exports so storage files can be copied.
+                </p>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setAutoBackupEnabled((v) => !v)}
+              className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-md border transition-all ${
+                autoBackupEnabled
+                  ? "border-[#00C2FF]/40 bg-[#00C2FF]/5"
+                  : "border-vault-border hover:border-vault-text-muted/20"
+              }`}
+            >
+              <div
+                className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${
+                  autoBackupEnabled ? "bg-[#00C2FF]" : "bg-vault-border"
+                }`}
+              >
+                <div
+                  className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${
+                    autoBackupEnabled ? "left-4" : "left-0.5"
+                  }`}
+                />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-vault-text">Enable Basic Auto Backup</p>
+                <p className="text-xs text-vault-text-faint mt-0.5">
+                  Saves your preferred cadence. This app does not run scheduled jobs by itself.
+                </p>
+              </div>
+            </button>
+
+            <div>
+              <label htmlFor="autoBackupCadence" className={LABEL_CLASS}>
+                <Database className="w-3 h-3 inline mr-1" />
+                Auto Backup Cadence
+              </label>
+              <select
+                id="autoBackupCadence"
+                value={autoBackupCadence}
+                onChange={(e) => setAutoBackupCadence(e.target.value as "daily" | "weekly" | "monthly")}
+                disabled={!autoBackupEnabled}
+                className={`${INPUT_CLASS} disabled:opacity-60`}
+              >
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+              <p className="text-xs text-vault-text-faint mt-1">
+                Use this with a cron job, compose schedule, or host script that calls the export endpoint.
               </p>
             </div>
           </fieldset>
@@ -201,9 +327,11 @@ export default function SettingsPage() {
             </div>
 
             <p className="text-xs text-vault-text-muted leading-relaxed">
-              When a <code className="text-vault-text-faint font-mono">VAULT_ENCRYPTION_KEY</code> is
-              set, sensitive fields are encrypted in the database using AES-256-GCM. The key is
-              set via the installer or manually in your <code className="text-vault-text-faint font-mono">.blackvault.env</code> file.
+              Encryption protects sensitive values before they are written to your database files.
+              If someone copies the raw DB without your key, those encrypted values stay unreadable.
+              Set <code className="text-vault-text-faint font-mono">VAULT_ENCRYPTION_KEY</code> in{" "}
+              <code className="text-vault-text-faint font-mono">.blackvault.env</code> (or your
+              Docker environment), then restart the app so the key is loaded.
             </p>
 
             {settings?.encryptionEnabled ? (
@@ -243,7 +371,16 @@ export default function SettingsPage() {
                 label="App Password"
                 value={settings?.appPassword ? "Enabled" : "Disabled"}
                 ok={!!settings?.appPassword}
-                neutralIfFalse
+              />
+              <StatusRow
+                label="Include Upload References"
+                value={includeUploadsInBackup ? "Enabled" : "Disabled"}
+                ok={includeUploadsInBackup}
+              />
+              <StatusRow
+                label="Auto Backup"
+                value={autoBackupEnabled ? `Plan saved (${autoBackupCadence})` : "No backup plan saved"}
+                ok={autoBackupEnabled}
               />
               <StatusRow
                 label="Encryption at Rest"
@@ -259,11 +396,7 @@ export default function SettingsPage() {
               disabled={saving}
               className="flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-2.5 rounded-md text-sm font-medium transition-colors"
             >
-              {saving ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Save className="w-4 h-4" />
-              )}
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               {saving ? "Saving..." : "Save Settings"}
             </button>
           </div>
@@ -281,10 +414,8 @@ function StatusRow({
   label: string;
   value: string;
   ok: boolean;
-  neutralIfFalse?: boolean;
 }) {
   const color = ok ? "text-[#00C853]" : "text-vault-text-faint";
-
   const dotColor = ok ? "bg-[#00C853]" : "bg-vault-border";
 
   return (
