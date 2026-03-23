@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth } from "@/lib/server/auth";
 
 export async function GET() {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const sessions = await prisma.rangeSession.findMany({
       include: {
@@ -47,54 +51,23 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const body = await request.json();
     const { sessionDate, location, firearmId, buildId, roundsFired, notes, ammoLinks } = body;
 
-    if (!sessionDate || !location || !firearmId || roundsFired === undefined || roundsFired === null) {
-      return NextResponse.json(
-        { error: "Missing required fields: sessionDate, location, firearmId, roundsFired" },
-        { status: 400 }
-      );
-    }
-
-    if (typeof location !== "string" || location.trim().length === 0) {
-      return NextResponse.json({ error: "location must be a non-empty string" }, { status: 400 });
-    }
-
-    if (typeof roundsFired !== "number" || !Number.isInteger(roundsFired) || roundsFired <= 0) {
-      return NextResponse.json({ error: "roundsFired must be a positive integer" }, { status: 400 });
-    }
-
-    const parsedDate = new Date(sessionDate);
-    if (Number.isNaN(parsedDate.getTime())) {
-      return NextResponse.json({ error: "sessionDate must be a valid date" }, { status: 400 });
-    }
-
-    if (!Array.isArray(ammoLinks) || ammoLinks.length === 0) {
-      return NextResponse.json(
-        { error: "At least one ammo selection is required" },
-        { status: 400 }
-      );
-    }
-
-    const normalizedAmmoLinks = ammoLinks
+    const normalizedAmmoLinks = (Array.isArray(ammoLinks) ? ammoLinks : [])
       .map((link) => ({
         ammoStockId: typeof link?.ammoStockId === "string" ? link.ammoStockId : "",
         roundsUsed: link?.roundsUsed,
       }))
-      .filter((link) => link.ammoStockId);
-
-    if (normalizedAmmoLinks.length === 0) {
-      return NextResponse.json({ error: "ammoLinks contain no valid ammoStockId values" }, { status: 400 });
-    }
+      .filter((link) => link.ammoStockId && typeof link.roundsUsed === "number" && Number.isInteger(link.roundsUsed) && link.roundsUsed > 0);
 
     for (const link of normalizedAmmoLinks) {
-      if (typeof link.roundsUsed !== "number" || !Number.isInteger(link.roundsUsed) || link.roundsUsed <= 0) {
-        return NextResponse.json(
-          { error: "Each ammo link must include a positive integer roundsUsed value" },
-          { status: 400 }
-        );
+      if (typeof link.roundsUsed !== "number" || !Number.isInteger(link.roundsUsed) || link.roundsUsed < 0) {
+        return NextResponse.json({ error: "Each ammo link must include a non-negative integer roundsUsed value" }, { status: 400 });
       }
     }
 
@@ -107,19 +80,36 @@ export async function POST(request: NextRequest) {
     }
 
     const totalAmmoRounds = normalizedAmmoLinks.reduce((sum, item) => sum + item.roundsUsed, 0);
-    if (totalAmmoRounds !== roundsFired) {
-      return NextResponse.json(
-        { error: "Ammo rounds selected must match rounds fired" },
-        { status: 400 }
-      );
+    const resolvedRoundsFired = typeof roundsFired === "number" && Number.isInteger(roundsFired) && roundsFired >= 0
+      ? roundsFired
+      : totalAmmoRounds;
+
+    const parsedDate = (() => {
+      if (typeof sessionDate !== "string" || sessionDate.trim().length === 0) return new Date();
+      const parsed = new Date(sessionDate);
+      return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+    })();
+
+    const resolvedLocation = typeof location === "string" && location.trim().length > 0
+      ? location.trim()
+      : "Unspecified location";
+
+    const resolvedFirearmId = typeof firearmId === "string" && firearmId
+      ? firearmId
+      : (await prisma.firearm.findFirst({ select: { id: true }, orderBy: { createdAt: "asc" } }))?.id;
+
+    if (!resolvedFirearmId) {
+      return NextResponse.json({ error: "No firearm available to log this session" }, { status: 400 });
     }
 
+    const resolvedBuildId = typeof buildId === "string" && buildId ? buildId : null;
+
     const firearm = await prisma.firearm.findUnique({
-      where: { id: firearmId },
+      where: { id: resolvedFirearmId },
       select: { id: true, caliber: true },
     });
-    const build = buildId
-      ? await prisma.build.findUnique({ where: { id: buildId }, select: { id: true, firearmId: true } })
+    const build = resolvedBuildId
+      ? await prisma.build.findUnique({ where: { id: resolvedBuildId }, select: { id: true, firearmId: true } })
       : null;
     const ammoStocks = await prisma.ammoStock.findMany({
       where: {
@@ -132,11 +122,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Firearm not found" }, { status: 404 });
     }
 
-    if (buildId && !build) {
+    if (resolvedBuildId && !build) {
       return NextResponse.json({ error: "Build not found" }, { status: 404 });
     }
 
-    if (build && build.firearmId !== firearmId) {
+    if (build && build.firearmId !== resolvedFirearmId) {
       return NextResponse.json(
         { error: "Selected build does not belong to the selected firearm" },
         { status: 400 }
@@ -171,10 +161,10 @@ export async function POST(request: NextRequest) {
     const created = await prisma.rangeSession.create({
       data: {
         sessionDate: parsedDate,
-        location: location.trim(),
-        firearmId,
-        buildId: buildId ?? null,
-        roundsFired,
+        location: resolvedLocation,
+        firearmId: resolvedFirearmId,
+        buildId: resolvedBuildId,
+        roundsFired: resolvedRoundsFired,
         notes: typeof notes === "string" ? notes.trim() || null : null,
         ammoLinks: {
           create: normalizedAmmoLinks,

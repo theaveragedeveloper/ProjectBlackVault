@@ -50,9 +50,10 @@ interface SidebarProps {
   mobileOpen?: boolean;
   onMobileClose?: () => void;
   passwordModeEnabled?: boolean;
+  sessionUnlocked?: boolean;
 }
 
-export function Sidebar({ mobileOnly = false, mobileOpen = false, onMobileClose, passwordModeEnabled = false }: SidebarProps) {
+export function Sidebar({ mobileOnly = false, mobileOpen = false, onMobileClose, passwordModeEnabled = false, sessionUnlocked = false }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -178,7 +179,7 @@ export function Sidebar({ mobileOnly = false, mobileOpen = false, onMobileClose,
       </nav>
 
       <div className="px-2 pb-3 shrink-0 border-t border-vault-border pt-2 space-y-1.5">
-        {passwordModeEnabled && (
+        {passwordModeEnabled && sessionUnlocked && (
           <button onClick={handleLogout} disabled={loggingOut} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-md border border-red-500/25 bg-red-500/10 text-red-200 hover:text-red-100 hover:bg-red-500/15 transition-colors disabled:opacity-60" title={collapsed ? "Logout" : undefined}>
             <LogOut className="w-4 h-4 shrink-0" />
             {!collapsed && <span className="text-xs tracking-wider uppercase">{loggingOut ? "Logging Out..." : "Logout"}</span>}
