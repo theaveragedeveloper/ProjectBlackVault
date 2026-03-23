@@ -867,6 +867,7 @@ export default function BuildConfiguratorPage() {
   const [allBuilds, setAllBuilds] = useState<Build[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionFeedback, setActionFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const [activatingBuild, setActivatingBuild] = useState(false);
 
@@ -904,14 +905,22 @@ export default function BuildConfiguratorPage() {
   async function handleRemoveSlot(slotType: string) {
     if (!build) return;
     try {
-      await fetch(`/api/builds/${buildId}/slots`, {
+      const res = await fetch(`/api/builds/${buildId}/slots`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ slotType, accessoryId: null }),
       });
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null);
+        throw new Error(payload?.error ?? "Could not remove accessory from slot.");
+      }
+      setActionFeedback({ type: "success", text: "Accessory removed from slot." });
       fetchBuild();
-    } catch {
-      // silently fail
+    } catch (err) {
+      setActionFeedback({
+        type: "error",
+        text: err instanceof Error ? err.message : "Could not remove accessory from slot.",
+      });
     }
   }
 
@@ -919,14 +928,22 @@ export default function BuildConfiguratorPage() {
     if (!build || build.isActive) return;
     setActivatingBuild(true);
     try {
-      await fetch(`/api/builds/${buildId}`, {
+      const res = await fetch(`/api/builds/${buildId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive: true }),
       });
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null);
+        throw new Error(payload?.error ?? "Could not activate build.");
+      }
+      setActionFeedback({ type: "success", text: "Build set as active." });
       fetchBuild();
-    } catch {
-      // silently fail
+    } catch (err) {
+      setActionFeedback({
+        type: "error",
+        text: err instanceof Error ? err.message : "Could not activate build.",
+      });
     } finally {
       setActivatingBuild(false);
     }
@@ -1023,6 +1040,17 @@ export default function BuildConfiguratorPage() {
           )}
         </div>
       </div>
+      {actionFeedback && (
+        <div
+          className={`mx-4 mt-3 rounded-md border px-3 py-2 text-xs ${
+            actionFeedback.type === "success"
+              ? "border-[#00C853]/30 bg-[#00C853]/10 text-[#00C853]"
+              : "border-[#E53935]/30 bg-[#E53935]/10 text-[#E53935]"
+          }`}
+        >
+          {actionFeedback.text}
+        </div>
+      )}
 
       {/* Main split layout — vertical on mobile, side-by-side on md+ */}
       <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
