@@ -7,9 +7,6 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle2,
-  Lock,
-  Eye,
-  EyeOff,
   Settings,
   ShieldCheck,
   Archive,
@@ -27,7 +24,6 @@ const LABEL_CLASS =
 
 interface AppSettings {
   id: string;
-  appPassword: string | null;
   encryptionEnabled?: boolean;
   includeUploadsInBackup?: boolean;
   autoBackupEnabled?: boolean;
@@ -39,9 +35,6 @@ export default function SettingsPage() {
   const [dataLoading, setDataLoading] = useState(true);
   const [dataError, setDataError] = useState<string | null>(null);
 
-  const [appPassword, setAppPassword] = useState("");
-  const [appPasswordDirty, setAppPasswordDirty] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [includeUploadsInBackup, setIncludeUploadsInBackup] = useState(true);
   const [autoBackupEnabled, setAutoBackupEnabled] = useState(false);
   const [autoBackupCadence, setAutoBackupCadence] = useState<"daily" | "weekly" | "monthly">("weekly");
@@ -82,10 +75,6 @@ export default function SettingsPage() {
       autoBackupCadence,
     };
 
-    if (appPasswordDirty) {
-      payload.appPassword = appPassword || null;
-    }
-
     try {
       const res = await fetch("/api/settings", {
         method: "PUT",
@@ -99,8 +88,6 @@ export default function SettingsPage() {
         setSaveError(json.error ?? "Failed to save settings");
       } else {
         setSettings(json);
-        setAppPassword("");
-        setAppPasswordDirty(false);
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 3000);
       }
@@ -156,62 +143,6 @@ export default function SettingsPage() {
         )}
 
         <form onSubmit={handleSave} className="space-y-6">
-          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-5">
-            <div className="flex items-center justify-between">
-              <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
-                <Lock className="w-3.5 h-3.5" />
-                Security
-              </legend>
-              <span
-                className={`text-[10px] font-mono px-2 py-0.5 rounded border uppercase ${
-                  settings?.appPassword
-                    ? "text-[#F5A623] border-[#F5A623]/40"
-                    : "text-vault-text-faint border-vault-border"
-                }`}
-              >
-                {settings?.appPassword ? "Password Set" : "No Password"}
-              </span>
-            </div>
-
-            <p className="text-xs text-vault-text-muted leading-relaxed">
-              Set an optional app password to restrict access to the vault. Leave blank to disable password protection.
-            </p>
-
-            <div>
-              <label className={LABEL_CLASS}>
-                <Lock className="w-3 h-3 inline mr-1" />
-                App Password
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={appPassword}
-                  onChange={(e) => {
-                    setAppPassword(e.target.value);
-                    setAppPasswordDirty(true);
-                  }}
-                  placeholder={
-                    settings?.appPassword
-                      ? "Leave unchanged to keep current password"
-                      : "Leave blank to disable password protection"
-                  }
-                  className={`${INPUT_CLASS} pr-10`}
-                  autoComplete="new-password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-vault-text-faint hover:text-vault-text-muted"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-              <p className="text-xs text-vault-text-faint mt-1">
-                Note: This is a simple access restriction, not end-to-end encryption.
-              </p>
-            </div>
-          </fieldset>
-
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-5">
             <div className="flex items-center justify-between">
               <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
@@ -359,11 +290,6 @@ export default function SettingsPage() {
               Current Configuration Status
             </p>
             <div className="space-y-2">
-              <StatusRow
-                label="App Password"
-                value={settings?.appPassword ? "Enabled" : "Disabled"}
-                ok={!!settings?.appPassword}
-              />
               <StatusRow
                 label="Include Upload References"
                 value={includeUploadsInBackup ? "Enabled" : "Disabled"}
