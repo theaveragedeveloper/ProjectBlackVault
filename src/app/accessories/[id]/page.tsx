@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/utils";
+import { ItemDocumentPanel } from "@/components/shared/ItemDocumentPanel";
 import {
   ArrowLeft,
   Shield,
@@ -363,6 +364,12 @@ export default function AccessoryDetailPage() {
             </p>
           </div>
         )}
+
+        <ItemDocumentPanel
+          entityType="accessory"
+          entityId={accessory.id}
+          title="Accessory Documents"
+        />
 
         {/* Round Count History */}
         <div>

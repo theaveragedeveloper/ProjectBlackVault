@@ -4,12 +4,10 @@ import { prisma } from "@/lib/prisma";
 // GET /api/settings - Get the singleton AppSettings
 export async function GET() {
   try {
-    // Try to find the singleton settings record
     let settings = await prisma.appSettings.findUnique({
       where: { id: "singleton" },
     });
 
-    // If no settings exist yet, create the default singleton
     if (!settings) {
       settings = await prisma.appSettings.create({
         data: {
@@ -51,7 +49,6 @@ export async function PUT(request: NextRequest) {
       appPassword,
     } = body;
 
-    // Build update data, only including fields that were provided
     const updateData: Record<string, unknown> = {};
 
     if (includeUploadsInBackup !== undefined) {
@@ -82,7 +79,6 @@ export async function PUT(request: NextRequest) {
       updateData.appPassword = appPassword === "" ? null : appPassword;
     }
 
-    // Upsert: create the singleton if it doesn't exist, update if it does
     const settings = await prisma.appSettings.upsert({
       where: { id: "singleton" },
       create: {
