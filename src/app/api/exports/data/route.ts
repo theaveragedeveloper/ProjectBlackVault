@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth } from "@/lib/server/auth";
 
 type ExportFormat = "csv" | "pdf";
 type UploadReferenceKind = "firearmImage" | "accessoryImage" | "document";
@@ -334,6 +335,9 @@ function buildSimplePdf(lines: string[]): string {
 }
 
 export async function GET(request: NextRequest) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
   try {
     const searchParams = request.nextUrl.searchParams;
     const flags = parseFlags(searchParams);
