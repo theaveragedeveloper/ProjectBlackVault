@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { formatCurrency, formatDate, formatNumber } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
+import { ItemDocumentPanel } from "@/components/shared/ItemDocumentPanel";
 import {
   ArrowLeft,
   Edit,
@@ -93,7 +94,6 @@ export default async function FirearmDetailPage({
     notFound();
   }
 
-  const activeBuild = firearm.builds.find((b) => b.isActive) ?? null;
   const typeBadge = TYPE_BADGE_COLORS[firearm.type] ?? "border-vault-border text-vault-text-muted";
   const typeLabel = FIREARM_TYPE_LABELS[firearm.type] ?? firearm.type;
 
@@ -224,6 +224,12 @@ export default async function FirearmDetailPage({
             <p className="text-sm text-vault-text leading-relaxed whitespace-pre-wrap">{firearm.notes}</p>
           </div>
         )}
+
+        <ItemDocumentPanel
+          entityType="firearm"
+          entityId={firearm.id}
+          title="Firearm Documents"
+        />
 
         {/* Builds Section */}
         <div>

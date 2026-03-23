@@ -21,13 +21,14 @@ export interface UploadedDocument {
 interface DocumentUploaderProps {
   entityType?: "firearm" | "accessory" | null;
   entityId?: string | null;
-  defaultDocType?: "RECEIPT" | "NFA_TAX_STAMP" | "OTHER";
+  defaultDocType?: "RECEIPT" | "PHOTO" | "NFA_TAX_STAMP" | "OTHER";
   onUploadComplete: (doc: UploadedDocument) => void;
   onCancel?: () => void;
 }
 
 const DOC_TYPES = [
   { value: "RECEIPT", label: "Receipt" },
+  { value: "PHOTO", label: "Photo" },
   { value: "NFA_TAX_STAMP", label: "NFA Tax Stamp" },
   { value: "OTHER", label: "Other" },
 ] as const;
@@ -51,7 +52,7 @@ export function DocumentUploader({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [docName, setDocName] = useState("");
-  const [docType, setDocType] = useState<"RECEIPT" | "NFA_TAX_STAMP" | "OTHER">(defaultDocType);
+  const [docType, setDocType] = useState<"RECEIPT" | "PHOTO" | "NFA_TAX_STAMP" | "OTHER">(defaultDocType);
   const [notes, setNotes] = useState("");
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);

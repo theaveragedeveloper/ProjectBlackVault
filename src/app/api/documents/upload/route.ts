@@ -6,6 +6,7 @@ import { detectFileSignature } from "@/lib/server/file-signatures";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/server/client-ip";
 import { requireAuth } from "@/lib/server/auth";
+import { getCanonicalUploadsRoot } from "@/lib/upload-security";
 
 const ALLOWED_EXTENSIONS = new Set(["pdf", "jpg", "png", "webp"]);
 
@@ -67,8 +68,7 @@ export async function POST(request: NextRequest) {
     const fileName = `${fileId}.${detected.extension}`;
     const relativeUrl = `/api/files/documents/${fileName}`;
 
-    const projectRoot = process.cwd();
-    const uploadDir = path.join(projectRoot, "storage", "uploads", "documents");
+    const uploadDir = path.join(getCanonicalUploadsRoot(), "documents");
     const filePath = path.join(uploadDir, fileName);
 
     await fs.mkdir(uploadDir, { recursive: true });
