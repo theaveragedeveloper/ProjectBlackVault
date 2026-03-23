@@ -136,4 +136,65 @@ describe("/api/settings backup fields", () => {
     expect(json.error).toMatch(/Invalid auto backup cadence/i);
     expect(mocks.upsert).not.toHaveBeenCalled();
   });
+
+  it("rejects string booleans for backup flags", async () => {
+    const request = new NextRequest("http://localhost/api/settings", {
+      method: "PUT",
+      body: JSON.stringify({
+        includeUploadsInBackup: "yes",
+      }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    const response = await PUT(request);
+    const json = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(json.error).toMatch(/includeUploadsInBackup must be a boolean/i);
+    expect(mocks.upsert).not.toHaveBeenCalled();
+  });
+
+  it("normalizes and validates defaultCurrency", async () => {
+    mocks.upsert.mockResolvedValue({
+      id: "singleton",
+      defaultCurrency: "EUR",
+      googleCseApiKey: null,
+      enableImageSearch: false,
+    });
+
+    const request = new NextRequest("http://localhost/api/settings", {
+      method: "PUT",
+      body: JSON.stringify({
+        defaultCurrency: " eur ",
+      }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    const response = await PUT(request);
+
+    expect(response.status).toBe(200);
+    const upsertArgs = mocks.upsert.mock.calls[0][0];
+    expect(upsertArgs.update.defaultCurrency).toBe("EUR");
+  });
+
+  it("rejects empty update payloads", async () => {
+    const request = new NextRequest("http://localhost/api/settings", {
+      method: "PUT",
+      body: JSON.stringify({}),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    const response = await PUT(request);
+    const json = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(json.error).toMatch(/No valid settings fields provided/i);
+    expect(mocks.upsert).not.toHaveBeenCalled();
+  });
 });
