@@ -15,7 +15,10 @@ import {
   Archive,
   Database,
   Download,
+  Clock3,
+  Files,
 } from "lucide-react";
+import { SettingToggleCard } from "@/components/settings/SettingToggleCard";
 
 const INPUT_CLASS =
   "w-full bg-vault-surface border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint transition-colors";
@@ -233,61 +236,25 @@ export default function SettingsPage() {
               copy those files with your backup.
             </p>
 
-            <button
-              type="button"
-              onClick={() => setIncludeUploadsInBackup((v) => !v)}
-              className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-md border transition-all ${
-                includeUploadsInBackup
-                  ? "border-[#00C2FF]/40 bg-[#00C2FF]/5"
-                  : "border-vault-border hover:border-vault-text-muted/20"
-              }`}
-            >
-              <div
-                className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${
-                  includeUploadsInBackup ? "bg-[#00C2FF]" : "bg-vault-border"
-                }`}
-              >
-                <div
-                  className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${
-                    includeUploadsInBackup ? "left-4" : "left-0.5"
-                  }`}
-                />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-vault-text">Include Upload References</p>
-                <p className="text-xs text-vault-text-faint mt-0.5">
-                  Adds uploaded image/document paths to backup exports so storage files can be copied.
-                </p>
-              </div>
-            </button>
+            <SettingToggleCard
+              enabled={includeUploadsInBackup}
+              onToggle={() => setIncludeUploadsInBackup((v) => !v)}
+              title="Include Upload References"
+              description="Adds uploaded image/document paths to backup exports so storage files can be copied."
+              enabledStateText="Included"
+              disabledStateText="Skipped"
+              icon={<Files className="w-3.5 h-3.5 text-vault-text-faint" />}
+            />
 
-            <button
-              type="button"
-              onClick={() => setAutoBackupEnabled((v) => !v)}
-              className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-md border transition-all ${
-                autoBackupEnabled
-                  ? "border-[#00C2FF]/40 bg-[#00C2FF]/5"
-                  : "border-vault-border hover:border-vault-text-muted/20"
-              }`}
-            >
-              <div
-                className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${
-                  autoBackupEnabled ? "bg-[#00C2FF]" : "bg-vault-border"
-                }`}
-              >
-                <div
-                  className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${
-                    autoBackupEnabled ? "left-4" : "left-0.5"
-                  }`}
-                />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-vault-text">Enable Basic Auto Backup</p>
-                <p className="text-xs text-vault-text-faint mt-0.5">
-                  Saves your preferred cadence. This app does not run scheduled jobs by itself.
-                </p>
-              </div>
-            </button>
+            <SettingToggleCard
+              enabled={autoBackupEnabled}
+              onToggle={() => setAutoBackupEnabled((v) => !v)}
+              title="Enable Basic Auto Backup"
+              description="Saves your preferred cadence. This app does not run scheduled jobs by itself."
+              enabledStateText="Cadence saved"
+              disabledStateText="Manual only"
+              icon={<Clock3 className="w-3.5 h-3.5 text-vault-text-faint" />}
+            />
 
             <div>
               <label htmlFor="autoBackupCadence" className={LABEL_CLASS}>
@@ -306,7 +273,9 @@ export default function SettingsPage() {
                 <option value="monthly">Monthly</option>
               </select>
               <p className="text-xs text-vault-text-faint mt-1">
-                Use this with a cron job, compose schedule, or host script that calls the export endpoint.
+                {autoBackupEnabled
+                  ? "Use this with a cron job, compose schedule, or host script that calls the export endpoint."
+                  : "Turn on Basic Auto Backup above to pick a cadence."}
               </p>
             </div>
           </fieldset>
