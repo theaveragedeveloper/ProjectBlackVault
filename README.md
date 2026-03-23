@@ -2,6 +2,8 @@
 
 A self-hosted tactical firearms management application built with Next.js 16, Prisma, and SQLite.
 
+> BlackVault is designed for local/self-managed deployment. No cloud account or external managed service is required for core usage.
+
 ```
 [ screenshot placeholder ]
 ```
@@ -73,9 +75,9 @@ docker-compose down
 
 The container automatically runs `prisma migrate deploy` on startup before serving traffic.
 
-Data is persisted in named Docker volumes:
-- `blackvault-db` — SQLite database at `/app/data/vault.db`
-- `blackvault-uploads` — User-uploaded images at `/app/uploads`
+Data is persisted in host-mounted paths configured by `DATA_DIR`:
+- `${DATA_DIR}/db` — SQLite database at `/app/data/vault.db`
+- `${DATA_DIR}/uploads` — User-uploaded images at `/app/uploads`
 
 ---
 
@@ -131,3 +133,20 @@ ProjectBlackVault/
 ├── docker-compose.yml
 └── .env.example
 ```
+
+---
+
+## V1 Release Readiness
+
+Use the release checklist before tagging a V1 release:
+
+- [docs/release-checklist.md](docs/release-checklist.md)
+
+Minimum validation commands:
+
+```bash
+npm run lint
+npm run build
+docker compose config
+```
+
