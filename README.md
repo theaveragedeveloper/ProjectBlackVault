@@ -15,7 +15,7 @@ A self-hosted tactical firearms management application built with Next.js 16, Pr
 - **Accessories** - Manage optics, suppressors, handguards, triggers, and all other parts with per-accessory round count tracking
 - **Ammo Inventory** - Track ammunition stocks by caliber, brand, bullet type, and grain weight with low-stock alerts
 - **Round Count Logs** - Log range sessions and maintain a full history of rounds through each part
-- **Image Search** - Optional Google Custom Search integration to automatically fetch firearm and accessory images
+- **Image Uploads** - Add firearm and accessory photos with direct file uploads and local storage
 - **All Loadouts View** - Cross-firearm build overview grouped by platform
 - **Dark Tactical UI** - Optimized dark theme built for desktop and mobile
 
@@ -86,8 +86,6 @@ Data is persisted in named Docker volumes:
 | `DATABASE_URL` | Yes | `file:./prisma/dev.db` | SQLite connection string |
 | `NODE_ENV` | No | `development` | Set to `production` in deployed environments |
 | `PORT` | No | `3000` | Port exposed by Docker Compose |
-| `GOOGLE_CSE_API_KEY` | No | — | Google Custom Search API key for image lookup |
-| `GOOGLE_CSE_SEARCH_ENGINE_ID` | No | — | Google CSE search engine ID |
 | `APP_PASSWORD` | No | — | Optional app-level password protection |
 
 ---
