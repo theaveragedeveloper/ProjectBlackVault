@@ -8,6 +8,7 @@ import { Target, ChevronDown, Loader2, AlertCircle, CheckCircle2, Shield, Timer 
 const INPUT_CLASS =
   "w-full bg-vault-surface border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint transition-colors";
 const LABEL_CLASS = "block text-xs font-medium uppercase tracking-widest text-vault-text-muted mb-1.5";
+const SECTION_CARD_CLASS = "bg-vault-surface border border-vault-border rounded-lg p-4 sm:p-5 space-y-4";
 
 interface Firearm {
   id: string;
@@ -260,6 +261,7 @@ export default function RangeSessionPage() {
     : ammoStocks;
 
   const selectedSession = sessions.find((session) => session.id === selectedSessionId) ?? null;
+  const isSessionReadyToLog = Boolean(selectedFirearm && roundsFired && selectedAmmoStock && sessionDate && sessionLocation);
 
   const drillHitFactorPreview = useMemo(() => {
     const time = Number.parseFloat(drillTime);
@@ -434,7 +436,22 @@ export default function RangeSessionPage() {
         subtitle="Log rounds, persist sessions, and track drill performance history"
       />
 
-      <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="bg-vault-surface border border-vault-border rounded-lg px-3 py-2.5">
+            <p className="text-[11px] uppercase tracking-widest text-vault-text-faint">1) Setup</p>
+            <p className="text-sm text-vault-text-muted mt-1">Choose firearm, build, and ammo.</p>
+          </div>
+          <div className="bg-vault-surface border border-vault-border rounded-lg px-3 py-2.5">
+            <p className="text-[11px] uppercase tracking-widest text-vault-text-faint">2) Log session</p>
+            <p className="text-sm text-vault-text-muted mt-1">Save date, location, and rounds fired.</p>
+          </div>
+          <div className="bg-vault-surface border border-vault-border rounded-lg px-3 py-2.5">
+            <p className="text-[11px] uppercase tracking-widest text-vault-text-faint">3) Add drills</p>
+            <p className="text-sm text-vault-text-muted mt-1">Record drill metrics to compare sessions.</p>
+          </div>
+        </div>
+
         {error && (
           <div className="flex items-center gap-3 bg-[#E53935]/10 border border-[#E53935]/30 rounded-lg px-4 py-3">
             <AlertCircle className="w-4 h-4 text-[#E53935] shrink-0" />
@@ -475,8 +492,9 @@ export default function RangeSessionPage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
+          <fieldset className={SECTION_CARD_CLASS}>
             <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">Session Details</legend>
+            <p className="text-xs text-vault-text-faint -mt-1">Required fields are marked with <span className="text-[#E53935]">*</span>.</p>
 
             <div className="grid md:grid-cols-2 gap-4">
               <div>
@@ -598,7 +616,7 @@ export default function RangeSessionPage() {
           </fieldset>
 
           {selectedBuildData && buildAccessories.length > 0 && (
-            <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-3">
+            <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-4 sm:p-5 space-y-3">
               <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">Attribute Rounds To Accessories</legend>
               <div className="space-y-2">
                 {buildAccessories.map((slot) => {
@@ -633,7 +651,7 @@ export default function RangeSessionPage() {
           )}
 
           {selectedBuild && buildAccessories.length === 0 && (
-            <div className="bg-vault-surface border border-vault-border rounded-lg p-5">
+            <div className="bg-vault-surface border border-vault-border rounded-lg p-4 sm:p-5">
               <div className="flex items-center gap-3">
                 <Shield className="w-4 h-4 text-vault-text-faint" />
                 <p className="text-sm text-vault-text-muted">This build has no accessories installed.</p>
@@ -641,11 +659,14 @@ export default function RangeSessionPage() {
             </div>
           )}
 
-          <div className="flex items-center justify-end gap-3">
+          <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-3">
+            {!isSessionReadyToLog && (
+              <p className="text-xs text-vault-text-faint sm:mr-auto">Complete required fields to enable session logging.</p>
+            )}
             <button
               type="submit"
-              disabled={submitting || !selectedFirearm || !roundsFired || !selectedAmmoStock || !sessionDate || !sessionLocation}
-              className="flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-2 rounded-md text-sm font-medium transition-colors"
+              disabled={submitting || !isSessionReadyToLog}
+              className="w-full sm:w-auto justify-center flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-2 rounded-md text-sm font-medium transition-colors"
             >
               {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Target className="w-4 h-4" />}
               {submitting ? "Logging..." : "Log Session"}
@@ -653,7 +674,7 @@ export default function RangeSessionPage() {
           </div>
         </form>
 
-        <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
+        <fieldset className={SECTION_CARD_CLASS}>
           <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">Drills</legend>
 
           <div>
@@ -688,7 +709,7 @@ export default function RangeSessionPage() {
               </div>
             </div>
 
-            <div className="grid md:grid-cols-4 gap-4">
+            <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <label className={LABEL_CLASS}>Points <span className="text-[#E53935]">*</span></label>
                 <input type="number" step="0.01" min="0" required value={drillPoints} onChange={(e) => setDrillPoints(e.target.value)} className={INPUT_CLASS} placeholder="90" />
@@ -716,7 +737,7 @@ export default function RangeSessionPage() {
               <button
                 type="submit"
                 disabled={submittingDrill || !selectedSessionId}
-                className="flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                className="w-full sm:w-auto justify-center flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 rounded-md text-sm font-medium transition-colors"
               >
                 {submittingDrill ? <Loader2 className="w-4 h-4 animate-spin" /> : <Timer className="w-4 h-4" />}
                 {submittingDrill ? "Saving..." : "Add Drill"}
@@ -752,7 +773,7 @@ export default function RangeSessionPage() {
           </div>
         </fieldset>
 
-        <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
+        <fieldset className={SECTION_CARD_CLASS}>
           <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">Session History</legend>
 
           {loadingSessions ? (
