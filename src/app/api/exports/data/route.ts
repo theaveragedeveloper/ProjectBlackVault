@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-type ExportFormat = "json" | "csv" | "pdf";
+type ExportFormat = "csv" | "pdf";
 
 type SectionFlags = {
   firearms: boolean;
@@ -37,8 +37,8 @@ function parseFlags(searchParams: URLSearchParams): SectionFlags {
 }
 
 function parseFormat(searchParams: URLSearchParams): ExportFormat {
-  const format = (searchParams.get("format") ?? "json").trim().toLowerCase();
-  if (format === "json" || format === "csv" || format === "pdf") return format;
+  const format = (searchParams.get("format") ?? "csv").trim().toLowerCase();
+  if (format === "csv" || format === "pdf") return format;
   throw new Error("INVALID_FORMAT");
 }
 
@@ -548,15 +548,10 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    return NextResponse.json(payload, {
-      headers: {
-        "Cache-Control": "no-store",
-      },
-    });
   } catch (error) {
     if (error instanceof Error && error.message === "INVALID_FORMAT") {
       return NextResponse.json(
-        { error: "Invalid format. Supported values: json, csv, pdf" },
+        { error: "Invalid format. Supported values: csv, pdf" },
         { status: 400 }
       );
     }
