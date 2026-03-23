@@ -93,7 +93,7 @@ export async function requireAuth(): Promise<NextResponse | null> {
   }
 
   const response = NextResponse.json(
-    { error: "Unauthorized" },
+    { error: "Vault is locked. Unlock the vault and retry.", code: "VAULT_LOCKED" },
     { status: 401 }
   );
   clearSessionCookie(response);
