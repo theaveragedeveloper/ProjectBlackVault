@@ -2,11 +2,17 @@ import { NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
 
-const IMAGE_FOLDERS = ["firearms", "accessories", "ammo"];
+const IMAGE_FOLDERS = ["firearms", "accessories", "ammo", "builds"];
+
+function resolveUploadRoot(): string {
+  return process.env.IMAGE_UPLOAD_DIR
+    ? path.resolve(process.env.IMAGE_UPLOAD_DIR)
+    : path.join(process.cwd(), "uploads");
+}
 
 export async function GET() {
   try {
-    const root = path.join(process.cwd(), "public", "uploads");
+    const root = path.join(resolveUploadRoot(), "images");
     const images = [] as Array<{ id: string; url: string; folder: string; updatedAt: string }>;
 
     for (const folder of IMAGE_FOLDERS) {
@@ -19,7 +25,7 @@ export async function GET() {
         const stat = await fs.stat(filePath);
         images.push({
           id: `${folder}/${entry.name}`,
-          url: `/uploads/${folder}/${entry.name}`,
+          url: `/uploads/images/${folder}/${entry.name}`,
           folder,
           updatedAt: stat.mtime.toISOString(),
         });
