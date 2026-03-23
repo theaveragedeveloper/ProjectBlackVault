@@ -395,13 +395,13 @@ export async function GET(request: NextRequest) {
 
     if (flags.rangeSessions) {
       queries.push(
-        (prisma as any).rangeSession.findMany({
+        prisma.rangeSession.findMany({
           include: {
             sessionDrills: { orderBy: { sortOrder: "asc" } },
             ammoLinks: true,
           },
-          orderBy: { date: "desc" },
-        }).then((rows: any) => {
+          orderBy: { sessionDate: "desc" },
+        }).then((rows) => {
           payload.rangeSessions = rows;
         })
       );
