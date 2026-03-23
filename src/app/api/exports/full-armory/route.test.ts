@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
   findFirearms: vi.fn(),
   findAccessories: vi.fn(),
   findDocuments: vi.fn(),
-  findAmmo: vi.fn(),
+  findAmmoStocks: vi.fn(),
 }));
 
 vi.mock("@/lib/server/auth", () => ({
@@ -14,10 +14,13 @@ vi.mock("@/lib/server/auth", () => ({
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
+    appSettings: {
+      findUnique: vi.fn().mockResolvedValue(null),
+    },
     firearm: { findMany: mocks.findFirearms },
     accessory: { findMany: mocks.findAccessories },
     document: { findMany: mocks.findDocuments },
-    ammoStock: { findMany: mocks.findAmmo },
+    ammoStock: { findMany: mocks.findAmmoStocks },
   },
 }));
 
@@ -75,7 +78,7 @@ describe("GET /api/exports/full-armory", () => {
       },
     ]);
 
-    mocks.findAmmo.mockResolvedValue([
+    mocks.findAmmoStocks.mockResolvedValue([
       {
         id: "ammo-1",
         brand: "Federal",
