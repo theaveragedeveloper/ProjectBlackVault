@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -H 0.0.0.0",
     "build": "DATABASE_URL=${DATABASE_URL:-file:${PWD}/prisma/prisma/dev.db} prisma generate && DATABASE_URL=${DATABASE_URL:-file:${PWD}/prisma/prisma/dev.db} prisma migrate deploy && DATABASE_URL=${DATABASE_URL:-file:${PWD}/prisma/prisma/dev.db} next build",
-    "start": "next start",
+    "start": "next start -H 0.0.0.0",
     "lint": "eslint"
   },
   "dependencies": {
