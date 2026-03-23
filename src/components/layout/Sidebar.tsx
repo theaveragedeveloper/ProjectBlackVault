@@ -14,6 +14,7 @@ import {
   Zap,
   X,
   LogOut,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
@@ -30,6 +31,12 @@ const NAV_ITEMS = [
     href: "/vault",
     icon: Shield,
     description: "Firearms inventory",
+  },
+  {
+    label: "Documents",
+    href: "/documents",
+    icon: FileText,
+    description: "Document library",
   },
   {
     label: "Loadouts",
