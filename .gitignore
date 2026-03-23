@@ -48,3 +48,12 @@ prisma/dev.db-journal
 
 # User uploads
 /uploads/
+
+# PR hygiene for runtime/binary artifacts
+uploads/
+prisma/*.db
+prisma/prisma/*.db
+prisma/prisma/*.db-journal
+*.db
+.next/
+node_modules/

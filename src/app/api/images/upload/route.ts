@@ -19,9 +19,15 @@ const ALLOWED_ENTITY_TYPES = new Set([
 const MAX_SIZE = 10 * 1024 * 1024;
 const SAFE_ENTITY_ID = /^[a-zA-Z0-9_-]{1,64}$/;
 
+function resolveUploadRoot(): string {
+  return process.env.IMAGE_UPLOAD_DIR
+    ? path.resolve(process.env.IMAGE_UPLOAD_DIR)
+    : path.join(process.cwd(), "uploads");
+}
+
 // POST /api/images/upload - Upload an image for an entity
 // Accepts multipart form data: file, entityType, entityId
-// Saves to /storage/uploads/images/{entityType}s/{entityId}.{ext}
+// Saves to /uploads/images/{entityType}s/{entityId}.{ext}
 // Returns the URL path.
 export async function POST(request: NextRequest) {
   const auth = await requireAuth();
@@ -100,7 +106,7 @@ export async function POST(request: NextRequest) {
       if (isHeicFamilySignature(buffer) || ["image/heic", "image/heif"].includes(file.type)) {
         return NextResponse.json(
           {
-            error: "HEIC/HEIF photos must be converted before upload. Please try again from a supported browser to auto-convert, or export as JPG/WebP.",
+            error: `HEIC/HEIF photos are not supported for Wave 3 uploads. Please export as ${SUPPORTED_IMAGE_FORMATS_LABEL}.`,
           },
           { status: 400 }
         );
@@ -118,11 +124,11 @@ export async function POST(request: NextRequest) {
     // entityType = "firearm" -> directory = "firearms"
     const entityTypeDir = `${entityType}s`;
     const fileName = `${sanitizedEntityId}_${Date.now()}.${detected.extension}`;
-    const relativeUrl = `/api/files/images/${entityTypeDir}/${fileName}`;
+    const relativeUrl = `/uploads/images/${entityTypeDir}/${fileName}`;
 
     // Resolve the absolute path outside the web root
-    const projectRoot = process.cwd();
-    const uploadDir = path.join(projectRoot, "storage", "uploads", "images", entityTypeDir);
+    const uploadRoot = resolveUploadRoot();
+    const uploadDir = path.join(uploadRoot, "images", entityTypeDir);
     const filePath = path.join(uploadDir, fileName);
 
     // Ensure the directory exists

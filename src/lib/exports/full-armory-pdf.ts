@@ -192,10 +192,12 @@ export async function generateFullArmoryPdf(
     addLine(10);
   }
 
-  addLine(12);
-  doc.setFont("helvetica", "bold");
-  doc.text("Document Index", PAGE_MARGIN, y);
-  addLine(12);
+  if (options.includeDocuments) {
+    addLine(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("Document Index", PAGE_MARGIN, y);
+    addLine(12);
+  }
 
   const docColumns = [
     { label: "Type", width: 52, maxChars: 8 },
@@ -220,46 +222,62 @@ export async function generateFullArmoryPdf(
     addLine(6);
   };
 
-  drawDocHeader();
-  doc.setFont("helvetica", "normal");
-  for (const row of payload.attachments) {
-    ensureSpace(14);
-    if (y === PAGE_MARGIN) {
-      drawDocHeader();
+  if (options.includeDocuments) {
+    drawDocHeader();
+    doc.setFont("helvetica", "normal");
+    for (const row of payload.attachments) {
+      ensureSpace(14);
+      if (y === PAGE_MARGIN) {
+        drawDocHeader();
+        doc.setFont("helvetica", "normal");
+      }
+
+      const values = [
+        row.type,
+        row.name,
+        row.linkedItemName || row.linkedItemType,
+        row.mimeType || "—",
+        formatDate(row.uploadedAt),
+      ];
+
+      let x = PAGE_MARGIN;
+      for (let index = 0; index < docColumns.length; index += 1) {
+        const column = docColumns[index];
+        doc.text(truncate(values[index], column.maxChars), x + 2, y);
+        x += column.width;
+      }
+      addLine(10);
+    }
+
+    const pdfReceiptCount = payload.attachments.filter((row) => isPdfReceipt(row)).length;
+    if (pdfReceiptCount > 0) {
+      ensureSpace(24);
+      addLine(8);
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(FONT_SIZE_SMALL);
+      doc.text(
+        `${pdfReceiptCount} receipt PDF file(s) are referenced in the index and not embedded as page images.`,
+        PAGE_MARGIN,
+        y
+      );
       doc.setFont("helvetica", "normal");
+      doc.setFontSize(FONT_SIZE_BODY);
+      addLine(14);
     }
-
-    const values = [
-      row.type,
-      row.name,
-      row.linkedItemName || row.linkedItemType,
-      row.mimeType || "—",
-      formatDate(row.uploadedAt),
-    ];
-
-    let x = PAGE_MARGIN;
-    for (let index = 0; index < docColumns.length; index += 1) {
-      const column = docColumns[index];
-      doc.text(truncate(values[index], column.maxChars), x + 2, y);
-      x += column.width;
-    }
-    addLine(10);
   }
 
-  const pdfReceiptCount = payload.attachments.filter((row) => isPdfReceipt(row)).length;
-  if (pdfReceiptCount > 0) {
-    ensureSpace(24);
-    addLine(8);
-    doc.setFont("helvetica", "italic");
-    doc.setFontSize(FONT_SIZE_SMALL);
-    doc.text(
-      `${pdfReceiptCount} receipt PDF file(s) are referenced in the index and not embedded as page images.`,
-      PAGE_MARGIN,
-      y
-    );
+  if (options.includeAmmo && payload.ammoSummary.length > 0) {
+    addLine(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("Ammo Summary", PAGE_MARGIN, y);
+    addLine(12);
+
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(FONT_SIZE_BODY);
-    addLine(14);
+    for (const row of payload.ammoSummary) {
+      ensureSpace(12);
+      doc.text(`${row.caliber}: ${row.totalRounds.toLocaleString()} rounds (${row.stockEntries} entries)`, PAGE_MARGIN, y);
+      addLine(10);
+    }
   }
 
   const evidence = selectVisualEvidence(payload, options);

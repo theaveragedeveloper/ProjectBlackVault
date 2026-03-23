@@ -17,10 +17,18 @@ vi.mock("@/lib/prisma", () => ({
     appSettings: {
       findUnique: vi.fn().mockResolvedValue(null),
     },
-    firearm: { findMany: mocks.findFirearms },
-    accessory: { findMany: mocks.findAccessories },
-    document: { findMany: mocks.findDocuments },
-    ammoStock: { findMany: mocks.findAmmoStocks },
+    firearm: {
+      findMany: mocks.findFirearms,
+    },
+    accessory: {
+      findMany: mocks.findAccessories,
+    },
+    ammoStock: {
+      findMany: mocks.findAmmoStocks,
+    },
+    document: {
+      findMany: mocks.findDocuments,
+    },
   },
 }));
 
@@ -43,7 +51,7 @@ describe("GET /api/exports/full-armory", () => {
         purchasePrice: 1200,
         currentValue: 1450,
         notes: "Primary",
-        imageUrl: "/api/files/documents/firearm-photo.jpg",
+        imageUrl: "/api/files/images/firearms/firearm-1.jpg",
       },
     ]);
 
@@ -88,6 +96,12 @@ describe("GET /api/exports/full-armory", () => {
         purchasePrice: 120,
         notes: "Training stash",
       },
+    ]);
+
+    mocks.findAmmoStocks.mockResolvedValue([
+      { id: "ammo-1", caliber: "5.56", quantity: 300 },
+      { id: "ammo-2", caliber: "5.56", quantity: 200 },
+      { id: "ammo-3", caliber: "9mm", quantity: 120 },
     ]);
   });
 

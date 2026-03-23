@@ -395,13 +395,13 @@ export async function GET(request: NextRequest) {
 
     if (flags.rangeSessions) {
       queries.push(
-        (prisma as any).rangeSession.findMany({
+        prisma.rangeSession.findMany({
           include: {
             sessionDrills: { orderBy: { sortOrder: "asc" } },
             ammoLinks: true,
           },
-          orderBy: { date: "desc" },
-        }).then((rows: any) => {
+          orderBy: { sessionDate: "desc" },
+        }).then((rows) => {
           payload.rangeSessions = rows;
         })
       );
@@ -432,9 +432,6 @@ export async function GET(request: NextRequest) {
           payload.settings = {
             id: settingsAny.id,
             defaultCurrency: settingsAny.defaultCurrency,
-            enableImageSearch: settingsAny.enableImageSearch,
-            googleCseSearchEngineId: settingsAny.googleCseSearchEngineId,
-            hasGoogleCseApiKey: !!settingsAny.googleCseApiKey,
             hasAppPassword: !!settingsAny.appPassword,
             hasEncryptionKey: !!settingsAny.encryptionKey,
             dataStoragePath: settingsAny.dataStoragePath,

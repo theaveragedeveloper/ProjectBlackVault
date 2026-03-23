@@ -6,7 +6,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { DocumentUploader, type UploadedDocument } from "@/components/shared/DocumentUploader";
 
-type DocTypeFilter = "ALL" | "RECEIPT" | "NFA_TAX_STAMP" | "OTHER";
+type DocTypeFilter = "ALL" | "RECEIPT" | "PHOTO" | "NFA_TAX_STAMP" | "OTHER";
 type EntityFilter = "ALL" | "FIREARM" | "ACCESSORY" | "UNATTACHED";
 
 function formatBytes(bytes: number | null) {
@@ -107,7 +107,7 @@ export default function DocumentLibraryPage() {
 
           {/* Type filter */}
           <div className="flex gap-1.5 flex-wrap">
-            {(["ALL", "RECEIPT", "NFA_TAX_STAMP", "OTHER"] as DocTypeFilter[]).map((t) => (
+            {(["ALL", "RECEIPT", "PHOTO", "NFA_TAX_STAMP", "OTHER"] as DocTypeFilter[]).map((t) => (
               <button
                 key={t}
                 onClick={() => setTypeFilter(t)}
@@ -117,7 +117,7 @@ export default function DocumentLibraryPage() {
                     : "border-vault-border text-vault-text-faint hover:text-vault-text-muted hover:bg-vault-border"
                 }`}
               >
-                {t === "ALL" ? "All Types" : t === "NFA_TAX_STAMP" ? "NFA Stamps" : t === "RECEIPT" ? "Receipts" : "Other"}
+                {t === "ALL" ? "All Types" : t === "NFA_TAX_STAMP" ? "NFA Stamps" : t === "RECEIPT" ? "Receipts" : t === "PHOTO" ? "Photos" : "Other"}
               </button>
             ))}
           </div>
@@ -195,9 +195,11 @@ export default function DocumentLibraryPage() {
                           ? "border-[#F5A623]/30 text-[#F5A623]"
                           : doc.type === "RECEIPT"
                           ? "border-[#00C2FF]/30 text-[#00C2FF]"
+                          : doc.type === "PHOTO" || doc.mimeType?.startsWith("image/")
+                          ? "border-[#00C853]/30 text-[#00C853]"
                           : "border-vault-border text-vault-text-faint"
                       }`}>
-                        {doc.type === "NFA_TAX_STAMP" ? "NFA Tax Stamp" : doc.type === "RECEIPT" ? "Receipt" : "Other"}
+                        {doc.type === "NFA_TAX_STAMP" ? "NFA Tax Stamp" : doc.type === "RECEIPT" ? "Receipt" : doc.type === "PHOTO" || doc.mimeType?.startsWith("image/") ? "Photo" : "Other"}
                       </span>
                     </div>
                     <div className="flex items-center gap-3 mt-0.5 flex-wrap">
