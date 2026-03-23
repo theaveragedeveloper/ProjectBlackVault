@@ -100,11 +100,15 @@ export function DocumentUploader({
 
       const res = await fetch("/api/documents/upload", {
         method: "POST",
+        credentials: "include",
         body: formData,
       });
 
       if (!res.ok) {
-        const json = await res.json();
+        const json = await res.json().catch(() => ({} as { error?: string }));
+        if (res.status === 401) {
+          throw new Error("Upload blocked: vault is locked. Unlock and try again.");
+        }
         throw new Error(json.error ?? "Upload failed");
       }
 
