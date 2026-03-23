@@ -3,6 +3,11 @@ export type ExportImageMode = "PRIMARY_ONLY" | "ALL_IMAGES";
 
 export interface FullArmoryExportOptions {
   preset: ExportPreset;
+  includeSerialNumbers: boolean;
+  includeAmmo: boolean;
+  includeValue: boolean;
+  includeImages: boolean;
+  includeDocuments: boolean;
   includePhotos: boolean;
   includeReceipts: boolean;
   imageMode: ExportImageMode;
@@ -44,6 +49,22 @@ export interface FullArmoryAttachmentRow {
   uploadedAt: string;
 }
 
+export interface FullArmoryBackupFileRow {
+  category: "DOCUMENT" | "IMAGE";
+  fileUrl: string;
+  storagePath: string;
+  fileName: string;
+  linkedItemId: string;
+  linkedItemType: "FIREARM" | "ACCESSORY" | "UNATTACHED";
+  linkedItemName: string;
+}
+
+export interface FullArmoryAmmoSummaryRow {
+  caliber: string;
+  totalRounds: number;
+  stockEntries: number;
+}
+
 export interface FullArmoryExportResponse {
   meta: {
     generatedAt: string;
@@ -68,10 +89,14 @@ export interface FullArmoryExportResponse {
   };
   items: FullArmoryItemRow[];
   attachments: FullArmoryAttachmentRow[];
+  ammoSummary: FullArmoryAmmoSummaryRow[];
+  backupFiles: FullArmoryBackupFileRow[];
   csv: {
     inventoryItems: string;
     attachmentsIndex: string;
     valuationSummary: string;
+    ammoSummary: string;
+    backupFiles: string;
   };
 }
 
@@ -101,10 +126,21 @@ export function parseExportOptionsFromSearchParams(searchParams: URLSearchParams
   const presetRaw = searchParams.get("preset");
   const imageModeRaw = searchParams.get("imageMode");
 
+  const includeImages = parseBool(searchParams.get("includeImages"), true);
+  const includeDocuments = parseBool(searchParams.get("includeDocuments"), true);
+
+  const includePhotos = parseBool(searchParams.get("includePhotos"), includeImages) && includeImages;
+  const includeReceipts = parseBool(searchParams.get("includeReceipts"), includeDocuments) && includeDocuments;
+
   return {
     preset: presetRaw === "BACKUP" ? "BACKUP" : "CLAIMS",
-    includePhotos: parseBool(searchParams.get("includePhotos"), true),
-    includeReceipts: parseBool(searchParams.get("includeReceipts"), true),
+    includeSerialNumbers: parseBool(searchParams.get("includeSerialNumbers"), true),
+    includeAmmo: parseBool(searchParams.get("includeAmmo"), true),
+    includeValue: parseBool(searchParams.get("includeValue"), true),
+    includeImages,
+    includeDocuments,
+    includePhotos,
+    includeReceipts,
     imageMode: imageModeRaw === "ALL_IMAGES" ? "ALL_IMAGES" : "PRIMARY_ONLY",
   };
 }
@@ -112,6 +148,11 @@ export function parseExportOptionsFromSearchParams(searchParams: URLSearchParams
 export function buildExportQueryString(options: FullArmoryExportOptions): string {
   const query = new URLSearchParams();
   query.set("preset", options.preset);
+  query.set("includeSerialNumbers", String(options.includeSerialNumbers));
+  query.set("includeAmmo", String(options.includeAmmo));
+  query.set("includeValue", String(options.includeValue));
+  query.set("includeImages", String(options.includeImages));
+  query.set("includeDocuments", String(options.includeDocuments));
   query.set("includePhotos", String(options.includePhotos));
   query.set("includeReceipts", String(options.includeReceipts));
   query.set("imageMode", options.imageMode);
@@ -131,6 +172,10 @@ export function selectVisualEvidence(
   options: FullArmoryExportOptions
 ): VisualEvidenceImage[] {
   const images: VisualEvidenceImage[] = [];
+
+  if (!options.includeImages) {
+    return images;
+  }
 
   if (options.includePhotos) {
     for (const item of payload.items) {
