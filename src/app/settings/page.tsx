@@ -10,9 +10,11 @@ import {
   Lock,
   Eye,
   EyeOff,
-  Image,
+  Image as ImageIcon,
   Settings,
   ShieldCheck,
+  Archive,
+  Database,
 } from "lucide-react";
 
 const INPUT_CLASS =
@@ -29,6 +31,9 @@ interface AppSettings {
   appPassword: string | null;
   defaultCurrency: string;
   encryptionEnabled?: boolean;
+  includeUploadsInBackup?: boolean;
+  autoBackupEnabled?: boolean;
+  autoBackupCadence?: "daily" | "weekly" | "monthly";
 }
 
 export default function SettingsPage() {
@@ -42,6 +47,9 @@ export default function SettingsPage() {
   const [appPassword, setAppPassword] = useState("");
   const [showApiKey, setShowApiKey] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [includeUploadsInBackup, setIncludeUploadsInBackup] = useState(true);
+  const [autoBackupEnabled, setAutoBackupEnabled] = useState(false);
+  const [autoBackupCadence, setAutoBackupCadence] = useState<"daily" | "weekly" | "monthly">("weekly");
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -56,6 +64,9 @@ export default function SettingsPage() {
         } else {
           setSettings(data);
           setEnableImageSearch(data.enableImageSearch ?? false);
+          setIncludeUploadsInBackup(data.includeUploadsInBackup ?? true);
+          setAutoBackupEnabled(data.autoBackupEnabled ?? false);
+          setAutoBackupCadence(data.autoBackupCadence ?? "weekly");
           // Don't pre-fill the masked key — show placeholder instead
           setSearchEngineId(data.googleCseSearchEngineId ?? "");
         }
@@ -75,6 +86,9 @@ export default function SettingsPage() {
 
     const payload: Record<string, unknown> = {
       enableImageSearch,
+      includeUploadsInBackup,
+      autoBackupEnabled,
+      autoBackupCadence,
       googleCseSearchEngineId: searchEngineId || null,
     };
 
@@ -165,7 +179,7 @@ export default function SettingsPage() {
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-5">
             <div className="flex items-center justify-between">
               <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
-                <Image className="w-3.5 h-3.5" />
+                <ImageIcon className="w-3.5 h-3.5" />
                 Image Search
               </legend>
               {/* Status badge */}
@@ -323,6 +337,109 @@ export default function SettingsPage() {
             </div>
           </fieldset>
 
+          {/* ── Backup ─────────────────────────────────────── */}
+          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-5">
+            <div className="flex items-center justify-between">
+              <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
+                <Archive className="w-3.5 h-3.5" />
+                Backup
+              </legend>
+              <span
+                className={`text-[10px] font-mono px-2 py-0.5 rounded border uppercase ${
+                  autoBackupEnabled
+                    ? "text-[#00C853] border-[#00C853]/40"
+                    : "text-vault-text-faint border-vault-border"
+                }`}
+              >
+                {autoBackupEnabled ? "Backup Plan Saved" : "Manual Export Only"}
+              </span>
+            </div>
+
+            <p className="text-xs text-vault-text-muted leading-relaxed">
+              Backup exports use the existing self-hosted storage layout. Data export files include
+              database records, and can also include references to uploaded media in{" "}
+              <code className="text-vault-text-faint font-mono">storage/uploads</code> so you can
+              copy those files with your backup.
+            </p>
+
+            <button
+              type="button"
+              onClick={() => setIncludeUploadsInBackup((v) => !v)}
+              className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-md border transition-all ${
+                includeUploadsInBackup
+                  ? "border-[#00C2FF]/40 bg-[#00C2FF]/5"
+                  : "border-vault-border hover:border-vault-text-muted/20"
+              }`}
+            >
+              <div
+                className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${
+                  includeUploadsInBackup ? "bg-[#00C2FF]" : "bg-vault-border"
+                }`}
+              >
+                <div
+                  className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${
+                    includeUploadsInBackup ? "left-4" : "left-0.5"
+                  }`}
+                />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-vault-text">Include Upload References</p>
+                <p className="text-xs text-vault-text-faint mt-0.5">
+                  Adds uploaded image/document paths to backup exports so storage files can be copied.
+                </p>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setAutoBackupEnabled((v) => !v)}
+              className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-md border transition-all ${
+                autoBackupEnabled
+                  ? "border-[#00C2FF]/40 bg-[#00C2FF]/5"
+                  : "border-vault-border hover:border-vault-text-muted/20"
+              }`}
+            >
+              <div
+                className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${
+                  autoBackupEnabled ? "bg-[#00C2FF]" : "bg-vault-border"
+                }`}
+              >
+                <div
+                  className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${
+                    autoBackupEnabled ? "left-4" : "left-0.5"
+                  }`}
+                />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-vault-text">Enable Basic Auto Backup</p>
+                <p className="text-xs text-vault-text-faint mt-0.5">
+                  Saves your preferred cadence. This app does not run scheduled jobs by itself.
+                </p>
+              </div>
+            </button>
+
+            <div>
+              <label htmlFor="autoBackupCadence" className={LABEL_CLASS}>
+                <Database className="w-3 h-3 inline mr-1" />
+                Auto Backup Cadence
+              </label>
+              <select
+                id="autoBackupCadence"
+                value={autoBackupCadence}
+                onChange={(e) => setAutoBackupCadence(e.target.value as "daily" | "weekly" | "monthly")}
+                disabled={!autoBackupEnabled}
+                className={`${INPUT_CLASS} disabled:opacity-60`}
+              >
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+              <p className="text-xs text-vault-text-faint mt-1">
+                Use this with a cron job, compose schedule, or host script that calls the export endpoint.
+              </p>
+            </div>
+          </fieldset>
+
           {/* ── Encryption at Rest ──────────────────────────── */}
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
             <div className="flex items-center justify-between">
@@ -342,9 +459,11 @@ export default function SettingsPage() {
             </div>
 
             <p className="text-xs text-vault-text-muted leading-relaxed">
-              When a <code className="text-vault-text-faint font-mono">VAULT_ENCRYPTION_KEY</code> is
-              set, sensitive fields are encrypted in the database using AES-256-GCM. The key is
-              set via the installer or manually in your <code className="text-vault-text-faint font-mono">.blackvault.env</code> file.
+              Encryption protects sensitive values before they are written to your database files.
+              If someone copies the raw DB without your key, those encrypted values stay unreadable.
+              Set <code className="text-vault-text-faint font-mono">VAULT_ENCRYPTION_KEY</code> in{" "}
+              <code className="text-vault-text-faint font-mono">.blackvault.env</code> (or your
+              Docker environment), then restart the app so the key is loaded.
             </p>
 
             {settings?.encryptionEnabled ? (
@@ -400,6 +519,22 @@ export default function SettingsPage() {
                 label="App Password"
                 value={settings?.appPassword ? "Enabled" : "Disabled"}
                 ok={!!settings?.appPassword}
+                neutralIfFalse
+              />
+              <StatusRow
+                label="Include Upload References"
+                value={includeUploadsInBackup ? "Enabled" : "Disabled"}
+                ok={includeUploadsInBackup}
+                neutralIfFalse
+              />
+              <StatusRow
+                label="Auto Backup"
+                value={
+                  autoBackupEnabled
+                    ? `Plan saved (${autoBackupCadence})`
+                    : "No backup plan saved"
+                }
+                ok={autoBackupEnabled}
                 neutralIfFalse
               />
               <StatusRow
