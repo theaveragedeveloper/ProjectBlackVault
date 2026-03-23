@@ -126,6 +126,13 @@ export default function FullArmoryPreviewPage() {
               <p className="font-semibold text-vault-text">{formatCurrency(data.summary.totalReplacementValue)}</p>
             </div>
           </div>
+          <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+            <span className="px-2 py-1 rounded border border-vault-border">Serials: {options.includeSerialNumbers ? "Included" : "Hidden"}</span>
+            <span className="px-2 py-1 rounded border border-vault-border">Ammo: {options.includeAmmo ? "Included" : "Excluded"}</span>
+            <span className="px-2 py-1 rounded border border-vault-border">Value: {options.includeValue ? "Included" : "Excluded"}</span>
+            <span className="px-2 py-1 rounded border border-vault-border">Images: {options.includeImages ? "Included" : "Excluded"}</span>
+            <span className="px-2 py-1 rounded border border-vault-border">Documents: {options.includeDocuments ? "Included" : "Excluded"}</span>
+          </div>
         </section>
 
         <section className="rounded-lg border border-vault-border bg-vault-surface p-5">
@@ -182,33 +189,61 @@ export default function FullArmoryPreviewPage() {
           </div>
         </section>
 
-        <section className="rounded-lg border border-vault-border bg-vault-surface p-5">
-          <h2 className="text-sm font-semibold uppercase tracking-widest text-vault-text-muted">Document Index</h2>
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-vault-border text-vault-text-faint">
-                  <th className="py-2 text-left">Type</th>
-                  <th className="py-2 text-left">Name</th>
-                  <th className="py-2 text-left">Linked Item</th>
-                  <th className="py-2 text-left">Mime</th>
-                  <th className="py-2 text-left">Uploaded</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.attachments.map((row) => (
-                  <tr key={row.documentId} className="border-b border-vault-border/60">
-                    <td className="py-2">{row.type}</td>
-                    <td className="py-2">{row.name}</td>
-                    <td className="py-2">{row.linkedItemName || row.linkedItemType}</td>
-                    <td className="py-2">{row.mimeType || "—"}</td>
-                    <td className="py-2">{formatDate(row.uploadedAt)}</td>
+        {options.includeDocuments && (
+          <section className="rounded-lg border border-vault-border bg-vault-surface p-5">
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-vault-text-muted">Document Index</h2>
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-vault-border text-vault-text-faint">
+                    <th className="py-2 text-left">Type</th>
+                    <th className="py-2 text-left">Name</th>
+                    <th className="py-2 text-left">Linked Item</th>
+                    <th className="py-2 text-left">Mime</th>
+                    <th className="py-2 text-left">Uploaded</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+                </thead>
+                <tbody>
+                  {data.attachments.map((row) => (
+                    <tr key={row.documentId} className="border-b border-vault-border/60">
+                      <td className="py-2">{row.type}</td>
+                      <td className="py-2">{row.name}</td>
+                      <td className="py-2">{row.linkedItemName || row.linkedItemType}</td>
+                      <td className="py-2">{row.mimeType || "—"}</td>
+                      <td className="py-2">{formatDate(row.uploadedAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {options.includeAmmo && data.ammoSummary.length > 0 && (
+          <section className="rounded-lg border border-vault-border bg-vault-surface p-5">
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-vault-text-muted">Ammo Summary</h2>
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-vault-border text-vault-text-faint">
+                    <th className="py-2 text-left">Caliber</th>
+                    <th className="py-2 text-right">Rounds</th>
+                    <th className="py-2 text-right">Entries</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.ammoSummary.map((row) => (
+                    <tr key={row.caliber} className="border-b border-vault-border/60">
+                      <td className="py-2">{row.caliber}</td>
+                      <td className="py-2 text-right">{row.totalRounds.toLocaleString()}</td>
+                      <td className="py-2 text-right">{row.stockEntries}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
 
         {visuals.length > 0 && (
           <section className="rounded-lg border border-vault-border bg-vault-surface p-5 armory-page-break">
