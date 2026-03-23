@@ -54,16 +54,13 @@ export function Sidebar({ mobileOnly = false, mobileOpen = false, onMobileClose 
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [rangeOpen, setRangeOpen] = useState(pathname.startsWith("/range"));
+  const isRangeRoute = pathname.startsWith("/range");
+  const rangeSectionOpen = isRangeRoute || rangeOpen;
 
   useEffect(() => {
     onMobileClose?.();
   }, [pathname, onMobileClose]);
 
-  useEffect(() => {
-    if (pathname.startsWith("/range")) {
-      setRangeOpen(true);
-    }
-  }, [pathname]);
 
   const navContent = (
     <>
@@ -109,24 +106,24 @@ export function Sidebar({ mobileOnly = false, mobileOpen = false, onMobileClose 
             onClick={() => setRangeOpen((prev) => !prev)}
             className={cn(
               "w-full flex items-center gap-3 px-2.5 py-2 rounded-md text-sm transition-all duration-150 group relative",
-              pathname.startsWith("/range") ? "bg-[#00C2FF]/10 text-[#00C2FF] border border-[#00C2FF]/20" : "text-vault-text-muted hover:text-vault-text hover:bg-vault-border"
+              isRangeRoute ? "bg-[#00C2FF]/10 text-[#00C2FF] border border-[#00C2FF]/20" : "text-vault-text-muted hover:text-vault-text hover:bg-vault-border"
             )}
             title={collapsed ? "Range" : undefined}
           >
-            {pathname.startsWith("/range") && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-[#00C2FF] rounded-r-full" />}
-            <Target className={cn("shrink-0 transition-colors", collapsed ? "w-5 h-5" : "w-4 h-4", pathname.startsWith("/range") ? "text-[#00C2FF]" : "text-vault-text-faint group-hover:text-vault-text-muted")} />
+            {isRangeRoute && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-[#00C2FF] rounded-r-full" />}
+            <Target className={cn("shrink-0 transition-colors", collapsed ? "w-5 h-5" : "w-4 h-4", isRangeRoute ? "text-[#00C2FF]" : "text-vault-text-faint group-hover:text-vault-text-muted")} />
             {!collapsed && (
               <>
                 <span className="min-w-0 text-left">
                   <span className="block font-medium tracking-wide truncate">Range</span>
                   <span className="block text-[11px] text-vault-text-faint truncate">Sessions & drills</span>
                 </span>
-                <ChevronDown className={cn("w-4 h-4 ml-auto transition-transform", rangeOpen ? "rotate-180" : "rotate-0")} />
+                <ChevronDown className={cn("w-4 h-4 ml-auto transition-transform", rangeSectionOpen ? "rotate-180" : "rotate-0")} />
               </>
             )}
           </button>
 
-          {!collapsed && rangeOpen && (
+          {!collapsed && rangeSectionOpen && (
             <div className="mt-1 ml-4 border-l border-vault-border pl-2 space-y-0.5">
               {RANGE_CHILD_ITEMS.map((item) => {
                 const Icon = item.icon;

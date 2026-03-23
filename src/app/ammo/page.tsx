@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { VaultButton, VaultInput } from "@/components/shared/ui-primitives";
 import { formatCurrency, formatNumber } from "@/lib/utils";
 import {
   Target,
@@ -109,7 +110,7 @@ function AddRoundsModal({
             <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">
               Quantity to Add <span className="text-[#E53935]">*</span>
             </label>
-            <input
+            <VaultInput
               type="number"
               min={1}
               required
@@ -122,7 +123,7 @@ function AddRoundsModal({
           </div>
           <div>
             <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">Note</label>
-            <input
+            <VaultInput
               type="text"
               value={note}
               onChange={(e) => setNote(e.target.value)}
@@ -131,17 +132,17 @@ function AddRoundsModal({
             />
           </div>
           <div className="flex gap-2 justify-end pt-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-vault-text-muted hover:text-vault-text border border-vault-border rounded-md transition-colors">
+            <VaultButton type="button" onClick={onClose} variant="ghost">
               Cancel
-            </button>
-            <button
+            </VaultButton>
+            <VaultButton
               type="submit"
               disabled={submitting}
-              className="flex items-center gap-2 bg-[#00C853]/10 border border-[#00C853]/30 text-[#00C853] hover:bg-[#00C853]/20 disabled:opacity-50 px-4 py-2 rounded-md text-sm font-medium transition-colors"
+              variant="success"
             >
               {submitting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
               Add
-            </button>
+            </VaultButton>
           </div>
         </form>
       </div>
@@ -200,7 +201,7 @@ function LogUseModal({
             <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">
               Rounds Used <span className="text-[#E53935]">*</span>
             </label>
-            <input
+            <VaultInput
               type="number"
               min={1}
               max={stock.quantity}
@@ -213,7 +214,7 @@ function LogUseModal({
           </div>
           <div>
             <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">Note</label>
-            <input
+            <VaultInput
               type="text"
               value={note}
               onChange={(e) => setNote(e.target.value)}
@@ -222,17 +223,17 @@ function LogUseModal({
             />
           </div>
           <div className="flex gap-2 justify-end pt-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-vault-text-muted hover:text-vault-text border border-vault-border rounded-md transition-colors">
+            <VaultButton type="button" onClick={onClose} variant="ghost">
               Cancel
-            </button>
-            <button
+            </VaultButton>
+            <VaultButton
               type="submit"
               disabled={submitting}
-              className="flex items-center gap-2 bg-[#F5A623]/10 border border-[#F5A623]/30 text-[#F5A623] hover:bg-[#F5A623]/20 disabled:opacity-50 px-4 py-2 rounded-md text-sm font-medium transition-colors"
+              variant="warning"
             >
               {submitting ? <Loader2 className="w-3 h-3 animate-spin" /> : <TrendingDown className="w-3 h-3" />}
               Log Use
-            </button>
+            </VaultButton>
           </div>
         </form>
       </div>
@@ -247,16 +248,25 @@ export default function AmmoPage() {
   const [addModal, setAddModal] = useState<AmmoStock | null>(null);
   const [logModal, setLogModal] = useState<AmmoStock | null>(null);
 
-  const fetchAmmo = useCallback(async () => {
-    const res = await fetch("/api/ammo");
-    const data = await res.json();
-    setGroups(data.grouped ?? []);
-    setLoading(false);
-  }, []);
-
   useEffect(() => {
-    fetchAmmo();
-  }, [fetchAmmo]);
+    let isMounted = true;
+
+    void fetch("/api/ammo")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!isMounted) return;
+        setGroups(data.grouped ?? []);
+      })
+      .finally(() => {
+        if (isMounted) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   function handleQtyUpdate(stockId: string, newQty: number) {
     setGroups((prev) =>

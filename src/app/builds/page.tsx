@@ -139,7 +139,8 @@ export default async function BuildsPage() {
 
               {/* Builds table */}
               <div className="bg-vault-surface border border-vault-border rounded-lg overflow-hidden">
-                <table className="w-full text-sm">
+                <div className="overflow-x-auto">
+                <table className="w-full min-w-[760px] text-sm">
                   <thead>
                     <tr className="border-b border-vault-border">
                       <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium">
@@ -225,6 +226,7 @@ export default async function BuildsPage() {
                     })}
                   </tbody>
                 </table>
+                </div>
               </div>
             </section>
           );

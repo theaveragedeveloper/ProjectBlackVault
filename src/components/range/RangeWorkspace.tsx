@@ -2,15 +2,13 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { VaultInput, VaultSelect, VaultTextArea, vaultCardClass, vaultLabelClass, VaultButton } from "@/components/shared/ui-primitives";
 import { formatNumber } from "@/lib/utils";
 import { Target, ChevronDown, Loader2, AlertCircle, CheckCircle2, Shield, Timer, BookPlus, Plus, Minus, Calculator } from "lucide-react";
 import Link from "next/link";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
-const INPUT_CLASS =
-  "w-full bg-vault-surface border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint transition-colors";
-const LABEL_CLASS = "block text-xs font-medium uppercase tracking-widest text-vault-text-muted mb-1.5";
-const SECTION_CARD_CLASS = "bg-vault-surface border border-vault-border rounded-lg p-4 sm:p-5 space-y-4";
+const SECTION_CARD_CLASS = `${vaultCardClass} space-y-4`;
 
 interface Firearm {
   id: string;
@@ -816,46 +814,46 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
 
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <label className={LABEL_CLASS}>Session Date</label>
-                <input
+                <label className={vaultLabelClass}>Session Date</label>
+                <VaultInput
                   type="date"
                   value={sessionDate}
                   onChange={(e) => setSessionDate(e.target.value)}
-                  className={INPUT_CLASS}
+                  
                 />
               </div>
 
               <div>
-                <label className={LABEL_CLASS}>Location</label>
-                <input
+                <label className={vaultLabelClass}>Location</label>
+                <VaultInput
                   type="text"
                   value={sessionLocation}
                   onChange={(e) => setSessionLocation(e.target.value)}
                   placeholder="e.g. Oak Ridge Sportsmen Club"
-                  className={INPUT_CLASS}
+                  
                 />
               </div>
             </div>
 
             <div>
-              <label className={LABEL_CLASS}>Firearm</label>
+              <label className={vaultLabelClass}>Firearm</label>
               {loadingFirearms ? (
                 <div className="flex items-center gap-2 h-10"><Loader2 className="w-4 h-4 text-[#00C2FF] animate-spin" /></div>
               ) : (
                 <div className="relative">
-                  <select
+                  <VaultSelect
                     value={selectedFirearm}
                     onChange={(e) => {
                       setSelectedFirearm(e.target.value);
                       setSelectedBuild("");
                     }}
-                    className={INPUT_CLASS}
+                    
                   >
                     <option value="">Auto-select first firearm</option>
                     {firearms.map((f) => (
                       <option key={f.id} value={f.id}>{f.name} ({f.caliber})</option>
                     ))}
-                  </select>
+                  </VaultSelect>
                   <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-vault-text-faint pointer-events-none" />
                 </div>
               )}
@@ -863,19 +861,19 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
 
             {selectedFirearm && (
               <div>
-                <label className={LABEL_CLASS}>Build</label>
+                <label className={vaultLabelClass}>Build</label>
                 {loadingBuilds ? (
                   <div className="flex items-center gap-2 h-10"><Loader2 className="w-4 h-4 text-[#00C2FF] animate-spin" /></div>
                 ) : builds.length === 0 ? (
                   <p className="text-sm text-vault-text-faint py-2">No builds for this firearm.</p>
                 ) : (
                   <div className="relative">
-                    <select value={selectedBuild} onChange={(e) => setSelectedBuild(e.target.value)} className={INPUT_CLASS}>
+                    <VaultSelect value={selectedBuild} onChange={(e) => setSelectedBuild(e.target.value)} >
                       <option value="">No build selected</option>
                       {builds.map((b) => (
                         <option key={b.id} value={b.id}>{b.name}{b.isActive ? " (Active)" : ""}</option>
                       ))}
-                    </select>
+                    </VaultSelect>
                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-vault-text-faint pointer-events-none" />
                   </div>
                 )}
@@ -884,28 +882,28 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
 
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <label className={LABEL_CLASS}>Rounds Fired</label>
-                <input
+                <label className={vaultLabelClass}>Rounds Fired</label>
+                <VaultInput
                   type="number"
                   min={0}
                   value={roundsFired}
                   onChange={(e) => setRoundsFired(e.target.value)}
                   placeholder="Optional (auto-sums ammo rows)"
-                  className={INPUT_CLASS}
+                  
                 />
               </div>
             </div>
 
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-3">
-                <label className={LABEL_CLASS}>Ammo Used (multiple types supported)</label>
-                <button
+                <label className={vaultLabelClass}>Ammo Used (multiple types supported)</label>
+                <VaultButton
                   type="button"
                   onClick={addAmmoSelection}
-                  className="px-2.5 py-1.5 rounded-md text-xs border border-[#00C2FF]/30 text-[#00C2FF] bg-[#00C2FF]/10 hover:bg-[#00C2FF]/20"
+                  className="px-2.5 py-1.5 text-xs"
                 >
                   Add Ammo Type
-                </button>
+                </VaultButton>
               </div>
               {loadingAmmo ? (
                 <div className="flex items-center gap-2 h-10"><Loader2 className="w-4 h-4 text-[#F5A623] animate-spin" /></div>
@@ -913,10 +911,10 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
                 ammoSelections.map((selection, index) => (
                   <div key={`ammo-selection-${index}`} className="grid sm:grid-cols-[1fr_160px_auto] gap-2">
                     <div className="relative">
-                      <select
+                      <VaultSelect
                         value={selection.ammoStockId}
                         onChange={(e) => updateAmmoSelection(index, { ammoStockId: e.target.value })}
-                        className={INPUT_CLASS}
+                        
                       >
                         <option value="">No ammo selected</option>
                         {compatibleAmmo.map((a) => (
@@ -924,16 +922,16 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
                             {a.caliber} · {a.brand}{a.grainWeight ? ` ${a.grainWeight}gr` : ""}{a.bulletType ? ` ${a.bulletType}` : ""} — {formatNumber(a.quantity)} rds
                           </option>
                         ))}
-                      </select>
+                      </VaultSelect>
                       <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-vault-text-faint pointer-events-none" />
                     </div>
-                    <input
+                    <VaultInput
                       type="number"
                       min={0}
                       value={selection.roundsUsed}
                       onChange={(e) => updateAmmoSelection(index, { roundsUsed: e.target.value })}
                       placeholder="Rounds"
-                      className={INPUT_CLASS}
+                      
                     />
                     <button
                       type="button"
@@ -951,14 +949,14 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
 
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-3">
-                <label className={LABEL_CLASS}>Drills Completed During This Session</label>
-                <button
+                <label className={vaultLabelClass}>Drills Completed During This Session</label>
+                <VaultButton
                   type="button"
                   onClick={addSessionDrillEntry}
-                  className="px-2.5 py-1.5 rounded-md text-xs border border-[#00C2FF]/30 text-[#00C2FF] bg-[#00C2FF]/10 hover:bg-[#00C2FF]/20"
+                  className="px-2.5 py-1.5 text-xs"
                 >
                   Add Drill Set
-                </button>
+                </VaultButton>
               </div>
               <p className="text-xs text-vault-text-faint">Add zero, one, or many drill sets. Repeat the same drill name for multiple attempts (Set 1, Set 2, Set 3...).</p>
               {sessionDrillEntries.map((entry, index) => (
@@ -975,60 +973,60 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
                   </div>
                   <div className="grid md:grid-cols-2 gap-3">
                     <div>
-                      <label className={LABEL_CLASS}>Drill Name</label>
-                      <input
+                      <label className={vaultLabelClass}>Drill Name</label>
+                      <VaultInput
                         value={entry.name}
                         onChange={(e) => updateSessionDrillEntry(entry.id, { name: e.target.value })}
-                        className={INPUT_CLASS}
+                        
                         placeholder="e.g. Bill Drill"
                       />
                     </div>
                     <div>
-                      <label className={LABEL_CLASS}>Time (seconds)</label>
-                      <input
+                      <label className={vaultLabelClass}>Time (seconds)</label>
+                      <VaultInput
                         type="number"
                         step="0.01"
                         min="0.01"
                         value={entry.timeSeconds}
                         onChange={(e) => updateSessionDrillEntry(entry.id, { timeSeconds: e.target.value })}
-                        className={INPUT_CLASS}
+                        
                         placeholder="2.45"
                       />
                     </div>
                   </div>
                   <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-3">
                     <div>
-                      <label className={LABEL_CLASS}>Points</label>
-                      <input
+                      <label className={vaultLabelClass}>Points</label>
+                      <VaultInput
                         type="number"
                         step="0.01"
                         min="0"
                         value={entry.points}
                         onChange={(e) => updateSessionDrillEntry(entry.id, { points: e.target.value })}
-                        className={INPUT_CLASS}
+                        
                         placeholder="90"
                       />
                     </div>
                     <div>
-                      <label className={LABEL_CLASS}>Penalties</label>
-                      <input
+                      <label className={vaultLabelClass}>Penalties</label>
+                      <VaultInput
                         type="number"
                         step="0.01"
                         min="0"
                         value={entry.penalties}
                         onChange={(e) => updateSessionDrillEntry(entry.id, { penalties: e.target.value })}
-                        className={INPUT_CLASS}
+                        
                         placeholder="0"
                       />
                     </div>
                     <div>
-                      <label className={LABEL_CLASS}>Hits</label>
-                      <input
+                      <label className={vaultLabelClass}>Hits</label>
+                      <VaultInput
                         type="number"
                         min="0"
                         value={entry.hits}
                         onChange={(e) => updateSessionDrillEntry(entry.id, { hits: e.target.value })}
-                        className={INPUT_CLASS}
+                        
                         placeholder="6"
                       />
                     </div>
@@ -1043,12 +1041,12 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
                     </div>
                   </div>
                   <div>
-                    <label className={LABEL_CLASS}>Set Notes</label>
-                    <textarea
+                    <label className={vaultLabelClass}>Set Notes</label>
+                    <VaultTextArea
                       rows={2}
                       value={entry.notes}
                       onChange={(e) => updateSessionDrillEntry(entry.id, { notes: e.target.value })}
-                      className={`${INPUT_CLASS} resize-none`}
+                      className={`resize-none`}
                     />
                   </div>
                 </div>
@@ -1056,13 +1054,13 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
             </div>
 
             <div>
-              <label className={LABEL_CLASS}>Notes</label>
-              <textarea
+              <label className={vaultLabelClass}>Notes</label>
+              <VaultTextArea
                 rows={3}
                 value={sessionNote}
                 onChange={(e) => setSessionNote(e.target.value)}
                 placeholder="e.g. Match prep and transition work"
-                className={`${INPUT_CLASS} resize-none`}
+                className={`resize-none`}
               />
             </div>
           </fieldset>
@@ -1121,12 +1119,12 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
         <fieldset className={SECTION_CARD_CLASS}>
           <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">Session Selector</legend>
           <div>
-            <label className={LABEL_CLASS}>Session</label>
+            <label className={vaultLabelClass}>Session</label>
             <div className="relative">
-              <select
+              <VaultSelect
                 value={selectedSessionId}
                 onChange={(e) => setSelectedSessionId(e.target.value)}
-                className={INPUT_CLASS}
+                
                 disabled={loadingSessions || sessions.length === 0}
               >
                 <option value="">Select session...</option>
@@ -1135,7 +1133,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
                     {new Date(session.sessionDate).toLocaleDateString()} · {session.location} · {session.firearm.name}
                   </option>
                 ))}
-              </select>
+              </VaultSelect>
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-vault-text-faint pointer-events-none" />
             </div>
           </div>
@@ -1149,13 +1147,13 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
           <form onSubmit={handleAddDrill} className="space-y-4">
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <label className={LABEL_CLASS}>Drill Template <span className="text-[#E53935]">*</span></label>
+                <label className={vaultLabelClass}>Drill Template <span className="text-[#E53935]">*</span></label>
                 <div className="relative">
-                  <select
+                  <VaultSelect
                     required
                     value={drillName}
                     onChange={(e) => setDrillName(e.target.value)}
-                    className={INPUT_CLASS}
+                    
                     disabled={drillLibrary.length === 0}
                   >
                     <option value="">Select drill template...</option>
@@ -1164,7 +1162,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
                         {template.name} ({template.mode})
                       </option>
                     ))}
-                  </select>
+                  </VaultSelect>
                   <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-vault-text-faint pointer-events-none" />
                 </div>
                 {selectedSessionId && drillName.trim() && (
@@ -1176,8 +1174,8 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
               </div>
               {selectedDrillTemplate?.mode !== "accuracy" && (
               <div>
-                <label className={LABEL_CLASS}>Time (seconds) <span className="text-[#E53935]">*</span></label>
-                <input type="number" step="0.01" min="0.01" required value={drillTime} onChange={(e) => setDrillTime(e.target.value)} className={INPUT_CLASS} placeholder="2.45" />
+                <label className={vaultLabelClass}>Time (seconds) <span className="text-[#E53935]">*</span></label>
+                <VaultInput type="number" step="0.01" min="0.01" required value={drillTime} onChange={(e) => setDrillTime(e.target.value)}  placeholder="2.45" />
               </div>
               )}
             </div>
@@ -1185,20 +1183,20 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
             <div id="hit-factor-calculator" className="grid sm:grid-cols-2 md:grid-cols-4 gap-4 scroll-mt-20">
               {selectedDrillTemplate?.mode !== "time" && (
               <div>
-                <label className={LABEL_CLASS}>Points <span className="text-[#E53935]">*</span></label>
-                <input type="number" step="0.01" min="0" required value={drillPoints} onChange={(e) => setDrillPoints(e.target.value)} className={INPUT_CLASS} placeholder="90" />
+                <label className={vaultLabelClass}>Points <span className="text-[#E53935]">*</span></label>
+                <VaultInput type="number" step="0.01" min="0" required value={drillPoints} onChange={(e) => setDrillPoints(e.target.value)}  placeholder="90" />
               </div>
               )}
               {selectedDrillTemplate?.mode !== "time" && (
               <div>
-                <label className={LABEL_CLASS}>Penalties</label>
-                <input type="number" step="0.01" min="0" value={drillPenalties} onChange={(e) => setDrillPenalties(e.target.value)} className={INPUT_CLASS} placeholder="10" />
+                <label className={vaultLabelClass}>Penalties</label>
+                <VaultInput type="number" step="0.01" min="0" value={drillPenalties} onChange={(e) => setDrillPenalties(e.target.value)}  placeholder="10" />
               </div>
               )}
               {selectedDrillTemplate?.mode !== "time" && (
               <div>
-                <label className={LABEL_CLASS}>Hits</label>
-                <input type="number" min="0" value={drillHits} onChange={(e) => setDrillHits(e.target.value)} className={INPUT_CLASS} placeholder="6" />
+                <label className={vaultLabelClass}>Hits</label>
+                <VaultInput type="number" min="0" value={drillHits} onChange={(e) => setDrillHits(e.target.value)}  placeholder="6" />
               </div>
               )}
               <div className="bg-vault-bg border border-vault-border rounded-md px-3 py-2">
@@ -1208,8 +1206,8 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
             </div>
 
             <div>
-              <label className={LABEL_CLASS}>Drill Notes</label>
-              <textarea rows={2} value={drillNotes} onChange={(e) => setDrillNotes(e.target.value)} className={`${INPUT_CLASS} resize-none`} />
+              <label className={vaultLabelClass}>Drill Notes</label>
+              <VaultTextArea rows={2} value={drillNotes} onChange={(e) => setDrillNotes(e.target.value)} className={`resize-none`} />
             </div>
 
             <div className="flex justify-end">
@@ -1231,12 +1229,12 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
           <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">Drill Performance Graph</legend>
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
-              <label className={LABEL_CLASS}>Drill</label>
+              <label className={vaultLabelClass}>Drill</label>
               <div className="relative">
-                <select
+                <VaultSelect
                   value={performanceDrillName}
                   onChange={(e) => setPerformanceDrillName(e.target.value)}
-                  className={INPUT_CLASS}
+                  
                   disabled={drillNameLibrary.length === 0}
                 >
                   {drillNameLibrary.length === 0 ? (
@@ -1246,22 +1244,22 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
                       <option key={name} value={name}>{name}</option>
                     ))
                   )}
-                </select>
+                </VaultSelect>
                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-vault-text-faint pointer-events-none" />
               </div>
             </div>
             <div>
-              <label className={LABEL_CLASS}>History Metric</label>
+              <label className={vaultLabelClass}>History Metric</label>
               <div className="relative">
-                <select
+                <VaultSelect
                   value={performanceMetric}
                   onChange={(e) => setPerformanceMetric(e.target.value as "time" | "score" | "hitFactor")}
-                  className={INPUT_CLASS}
+                  
                 >
                   <option value="time">Time (sec)</option>
                   <option value="score">Score (points - penalties)</option>
                   <option value="hitFactor">Hit Factor</option>
-                </select>
+                </VaultSelect>
                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-vault-text-faint pointer-events-none" />
               </div>
             </div>
@@ -1343,30 +1341,30 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
           <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">Drill Library</legend>
           <form onSubmit={addCustomDrill} className="grid gap-3 md:grid-cols-[1fr_1fr_160px_auto] items-end">
             <div>
-              <label className={LABEL_CLASS}>Custom Drill Name</label>
-              <input
+              <label className={vaultLabelClass}>Custom Drill Name</label>
+              <VaultInput
                 value={customDrillName}
                 onChange={(e) => setCustomDrillName(e.target.value)}
                 placeholder="e.g. El Prez"
-                className={INPUT_CLASS}
+                
               />
             </div>
             <div>
-              <label className={LABEL_CLASS}>Notes</label>
-              <input
+              <label className={vaultLabelClass}>Notes</label>
+              <VaultInput
                 value={customDrillNotes}
                 onChange={(e) => setCustomDrillNotes(e.target.value)}
                 placeholder="Optional setup notes"
-                className={INPUT_CLASS}
+                
               />
             </div>
             <div>
-              <label className={LABEL_CLASS}>Mode</label>
-              <select value={customDrillMode} onChange={(e) => setCustomDrillMode(e.target.value as DrillPerformanceMode)} className={INPUT_CLASS}>
+              <label className={vaultLabelClass}>Mode</label>
+              <VaultSelect value={customDrillMode} onChange={(e) => setCustomDrillMode(e.target.value as DrillPerformanceMode)} >
                 <option value="both">Time + Accuracy</option>
                 <option value="time">Time only</option>
                 <option value="accuracy">Accuracy only</option>
-              </select>
+              </VaultSelect>
             </div>
             <button
               type="submit"
@@ -1447,23 +1445,23 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
               </div>
 
               <div className="grid grid-cols-[1fr_1fr_auto] gap-2 w-full sm:w-auto sm:min-w-[320px]">
-                <input
+                <VaultInput
                   type="number"
                   min="0"
                   step="0.1"
                   value={bulletWeight}
                   onChange={(e) => setBulletWeight(e.target.value)}
                   placeholder="gr"
-                  className={INPUT_CLASS}
+                  
                 />
-                <input
+                <VaultInput
                   type="number"
                   min="0"
                   step="1"
                   value={muzzleVelocity}
                   onChange={(e) => setMuzzleVelocity(e.target.value)}
                   placeholder="fps"
-                  className={INPUT_CLASS}
+                  
                 />
                 <button
                   type="button"
@@ -1579,16 +1577,16 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
 
             <div className="grid sm:grid-cols-3 gap-3">
               <div>
-                <label className={LABEL_CLASS}>Extra Points</label>
-                <input type="number" step="0.01" min="0" value={calculatorPoints} onChange={(e) => setCalculatorPoints(e.target.value)} className={INPUT_CLASS} placeholder="0" />
+                <label className={vaultLabelClass}>Extra Points</label>
+                <VaultInput type="number" step="0.01" min="0" value={calculatorPoints} onChange={(e) => setCalculatorPoints(e.target.value)}  placeholder="0" />
               </div>
               <div>
-                <label className={LABEL_CLASS}>Other Penalties</label>
-                <input type="number" step="0.01" min="0" value={calculatorPenalties} onChange={(e) => setCalculatorPenalties(e.target.value)} className={INPUT_CLASS} placeholder="0" />
+                <label className={vaultLabelClass}>Other Penalties</label>
+                <VaultInput type="number" step="0.01" min="0" value={calculatorPenalties} onChange={(e) => setCalculatorPenalties(e.target.value)}  placeholder="0" />
               </div>
               <div>
-                <label className={LABEL_CLASS}>Time (sec)</label>
-                <input type="number" step="0.01" min="0.01" value={calculatorTime} onChange={(e) => setCalculatorTime(e.target.value)} className={INPUT_CLASS} placeholder="2.45" />
+                <label className={vaultLabelClass}>Time (sec)</label>
+                <VaultInput type="number" step="0.01" min="0.01" value={calculatorTime} onChange={(e) => setCalculatorTime(e.target.value)}  placeholder="2.45" />
               </div>
             </div>
           </div>
