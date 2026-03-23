@@ -35,6 +35,7 @@ export default function SettingsPage() {
   const [dataError, setDataError] = useState<string | null>(null);
 
   const [appPassword, setAppPassword] = useState("");
+  const [appPasswordDirty, setAppPasswordDirty] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [includeUploadsInBackup, setIncludeUploadsInBackup] = useState(true);
   const [autoBackupEnabled, setAutoBackupEnabled] = useState(false);
@@ -76,8 +77,10 @@ export default function SettingsPage() {
       autoBackupCadence,
     };
 
-    // App password: if blank send null (disable), if typed send the value
-    payload.appPassword = appPassword || null;
+    // Only send appPassword when user intentionally changed it.
+    if (appPasswordDirty) {
+      payload.appPassword = appPassword || null;
+    }
 
     try {
       const res = await fetch("/api/settings", {
@@ -92,6 +95,8 @@ export default function SettingsPage() {
         setSaveError(json.error ?? "Failed to save settings");
       } else {
         setSettings(json);
+        setAppPassword("");
+        setAppPasswordDirty(false);
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 3000);
       }
@@ -182,8 +187,15 @@ export default function SettingsPage() {
                 <input
                   type={showPassword ? "text" : "password"}
                   value={appPassword}
-                  onChange={(e) => setAppPassword(e.target.value)}
-                  placeholder="Leave blank to disable password protection"
+                  onChange={(e) => {
+                    setAppPassword(e.target.value);
+                    setAppPasswordDirty(true);
+                  }}
+                  placeholder={
+                    settings?.appPassword
+                      ? "Leave unchanged to keep current password"
+                      : "Leave blank to disable password protection"
+                  }
                   className={`${INPUT_CLASS} pr-10`}
                   autoComplete="new-password"
                 />
