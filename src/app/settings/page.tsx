@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   Save,
@@ -13,6 +14,7 @@ import {
   ShieldCheck,
   Archive,
   Database,
+  Download,
 } from "lucide-react";
 
 const INPUT_CLASS =
@@ -307,6 +309,27 @@ export default function SettingsPage() {
                 Use this with a cron job, compose schedule, or host script that calls the export endpoint.
               </p>
             </div>
+          </fieldset>
+
+          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
+                <Download className="w-3.5 h-3.5" />
+                Exports
+              </legend>
+            </div>
+
+            <p className="text-xs text-vault-text-muted leading-relaxed">
+              Generate full armory exports for backups, insurance records, or offline sharing.
+            </p>
+
+            <Link
+              href="/exports/full-armory"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/10 transition-colors text-sm font-medium"
+            >
+              <Download className="w-4 h-4" />
+              Open Full Armory Exports
+            </Link>
           </fieldset>
 
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
