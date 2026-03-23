@@ -101,7 +101,7 @@ function MaintenanceDueWidget() {
   const [items, setItems] = useState<MaintenanceDueItem[]>([]);
 
   useEffect(() => {
-    fetch("/api/firearms")
+    fetch("/api/firearms", { cache: "no-store" })
       .then((r) => r.json())
       .then((firearms) => {
         const now = new Date();
@@ -163,6 +163,24 @@ interface DashboardData {
   lowStockItems: AmmoStockItem[];
   recentFirearms: RecentFirearm[];
   ammoStocks: AmmoStockItem[];
+}
+
+interface StatsResponse {
+  totals?: {
+    firearms?: number;
+    accessories?: number;
+    ammoRounds?: number;
+  };
+  investment?: {
+    totalCost?: number;
+  };
+  ammo?: {
+    stocks?: AmmoStockItem[];
+    lowStockItems?: AmmoStockItem[];
+  };
+  recent?: {
+    firearms?: RecentFirearm[];
+  };
 }
 
 // ── Sortable wrapper ──────────────────────────────────────────
@@ -488,6 +506,7 @@ function AmmoSummaryWidget({ ammoStocks }: { ammoStocks: AmmoStockItem[] }) {
 
 // ── Main client component ─────────────────────────────────────
 export function DashboardClient({ data }: { data: DashboardData }) {
+  const [liveData, setLiveData] = useState<DashboardData>(data);
   const [order, setOrder] = useState<string[]>(() => {
     if (typeof window === "undefined") return DEFAULT_ORDER;
     try {
@@ -509,6 +528,50 @@ export function DashboardClient({ data }: { data: DashboardData }) {
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
 
+  const refreshDashboardData = useCallback(async () => {
+    try {
+      const response = await fetch("/api/stats", { cache: "no-store" });
+      if (!response.ok) return;
+      const stats: StatsResponse = await response.json();
+      setLiveData({
+        firearmCount: stats.totals?.firearms ?? 0,
+        accessoryCount: stats.totals?.accessories ?? 0,
+        totalAmmoRounds: stats.totals?.ammoRounds ?? 0,
+        totalInvestment: stats.investment?.totalCost ?? 0,
+        lowStockItems: stats.ammo?.lowStockItems ?? [],
+        recentFirearms: stats.recent?.firearms ?? [],
+        ammoStocks: stats.ammo?.stocks ?? [],
+      });
+    } catch {
+      // Keep server-provided data when refresh fails.
+    }
+  }, []);
+
+  useEffect(() => {
+    setLiveData(data);
+  }, [data]);
+
+  useEffect(() => {
+    refreshDashboardData();
+
+    const handleFocus = () => {
+      refreshDashboardData();
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshDashboardData();
+      }
+    };
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [refreshDashboardData]);
+
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { active, over } = event;
@@ -526,15 +589,15 @@ export function DashboardClient({ data }: { data: DashboardData }) {
   function renderWidget(id: string) {
     switch (id) {
       case "stats":
-        return <StatsWidget data={data} />;
+        return <StatsWidget data={liveData} />;
       case "maintenance-due":
         return <MaintenanceDueWidget />;
       case "low-ammo":
-        return <LowAmmoWidget items={data.lowStockItems} />;
+        return <LowAmmoWidget items={liveData.lowStockItems} />;
       case "recent":
-        return <RecentWidget firearms={data.recentFirearms} />;
+        return <RecentWidget firearms={liveData.recentFirearms} />;
       case "ammo-summary":
-        return <AmmoSummaryWidget ammoStocks={data.ammoStocks} />;
+        return <AmmoSummaryWidget ammoStocks={liveData.ammoStocks} />;
       default:
         return null;
     }
