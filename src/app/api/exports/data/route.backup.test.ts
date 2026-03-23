@@ -199,13 +199,14 @@ describe("/api/exports/data backup metadata", () => {
 
   it("returns auth error response when vault is locked", async () => {
     mocks.requireAuth.mockResolvedValue(
-      new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 })
+      new Response(JSON.stringify({ error: "Vault is locked. Unlock the vault and retry.", code: "VAULT_LOCKED" }), { status: 401 })
     );
 
     const response = await GET(new NextRequest(`http://localhost/api/exports/data?${BASE_QUERY}`));
     const json = await response.json();
 
     expect(response.status).toBe(401);
-    expect(json.error).toBe("Unauthorized");
+    expect(json.error).toContain("Vault is locked");
+    expect(json.code).toBe("VAULT_LOCKED");
   });
 });
