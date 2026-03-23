@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 type ExportFormat = "csv" | "pdf";
+type UploadReferenceKind = "firearmImage" | "accessoryImage" | "document";
 
 type SectionFlags = {
   firearms: boolean;
@@ -40,6 +41,16 @@ function parseFormat(searchParams: URLSearchParams): ExportFormat {
   const format = (searchParams.get("format") ?? "csv").trim().toLowerCase();
   if (format === "csv" || format === "pdf") return format;
   throw new Error("INVALID_FORMAT");
+}
+
+function normalizeIncludeUploadReferences(value: unknown): boolean {
+  return typeof value === "boolean" ? value : true;
+}
+
+function isLocalUploadUrl(url: string): boolean {
+  if (!url.startsWith("/api/files/")) return false;
+  if (url.includes("..")) return false;
+  return true;
 }
 
 function toSerializable(value: unknown): string {
@@ -329,7 +340,7 @@ export async function GET(request: NextRequest) {
     const format = parseFormat(searchParams);
     const includeSerialNumbers = parseBool(searchParams.get("includeSerialNumbers"), false);
     const appSettings = await prisma.appSettings.findUnique({ where: { id: "singleton" } });
-    const includeUploadReferences = appSettings?.includeUploadsInBackup ?? true;
+    const includeUploadReferences = normalizeIncludeUploadReferences(appSettings?.includeUploadsInBackup);
 
     const payload: Record<string, unknown> = {
       meta: {
@@ -452,13 +463,21 @@ export async function GET(request: NextRequest) {
 
     if (includeUploadReferences) {
       const uploadReferences: Array<Record<string, string>> = [];
-      const addReference = (kind: string, sourceId: string, url: string) => {
-        if (!url.startsWith("/api/files/")) return;
+      const seenReferenceKeys = new Set<string>();
+
+      const addReference = (kind: UploadReferenceKind, sourceId: string, url: string) => {
+        const normalizedSourceId = sourceId.trim();
+        const normalizedUrl = url.trim();
+        if (!normalizedSourceId) return;
+        if (!isLocalUploadUrl(normalizedUrl)) return;
+        const dedupeKey = `${kind}:${normalizedSourceId}:${normalizedUrl}`;
+        if (seenReferenceKeys.has(dedupeKey)) return;
+        seenReferenceKeys.add(dedupeKey);
         uploadReferences.push({
           kind,
-          sourceId,
-          url,
-          storagePath: url.replace("/api/files/", "storage/uploads/"),
+          sourceId: normalizedSourceId,
+          url: normalizedUrl,
+          storagePath: normalizedUrl.replace("/api/files/", "storage/uploads/"),
         });
       };
 
