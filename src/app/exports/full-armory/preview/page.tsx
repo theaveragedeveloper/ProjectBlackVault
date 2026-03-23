@@ -126,6 +126,13 @@ export default function FullArmoryPreviewPage() {
               <p className="font-semibold text-vault-text">{formatCurrency(data.summary.totalReplacementValue)}</p>
             </div>
           </div>
+          <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+            <span className="px-2 py-1 rounded border border-vault-border">Serials: {options.includeSerialNumbers ? "Included" : "Hidden"}</span>
+            <span className="px-2 py-1 rounded border border-vault-border">Ammo: {options.includeAmmo ? "Included" : "Excluded"}</span>
+            <span className="px-2 py-1 rounded border border-vault-border">Value: {options.includeValue ? "Included" : "Excluded"}</span>
+            <span className="px-2 py-1 rounded border border-vault-border">Images: {options.includeImages ? "Included" : "Excluded"}</span>
+            <span className="px-2 py-1 rounded border border-vault-border">Documents: {options.includeDocuments ? "Included" : "Excluded"}</span>
+          </div>
         </section>
 
         <section className="rounded-lg border border-vault-border bg-vault-surface p-5">
@@ -166,55 +173,109 @@ export default function FullArmoryPreviewPage() {
                 </tr>
               </thead>
               <tbody>
-                {data.items.map((item) => (
-                  <tr key={item.itemId} className="border-b border-vault-border/60">
-                    <td className="py-2">{item.entityType}</td>
-                    <td className="py-2">{item.manufacturer || "—"}</td>
-                    <td className="py-2">{item.model || "—"}</td>
-                    <td className="py-2 font-mono">{item.serialNumber || "—"}</td>
-                    <td className="py-2 text-right">{formatCurrency(item.purchasePrice)}</td>
-                    <td className="py-2 text-right">{formatCurrency(item.replacementValue)}</td>
-                    <td className="py-2 text-right">{item.receiptCount}/{item.documentCount}</td>
+                {data.items.length === 0 ? (
+                  <tr>
+                    <td className="py-3 text-vault-text-faint" colSpan={7}>
+                      No inventory items included for this export.
+                    </td>
                   </tr>
-                ))}
+                ) : (
+                  data.items.map((item) => (
+                    <tr key={item.itemId} className="border-b border-vault-border/60">
+                      <td className="py-2">{item.entityType}</td>
+                      <td className="py-2">{item.manufacturer || "—"}</td>
+                      <td className="py-2">{item.model || "—"}</td>
+                      <td className="py-2 font-mono">{item.serialNumber || "—"}</td>
+                      <td className="py-2 text-right">{formatCurrency(item.purchasePrice)}</td>
+                      <td className="py-2 text-right">{formatCurrency(item.replacementValue)}</td>
+                      <td className="py-2 text-right">{item.receiptCount}/{item.documentCount}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
         </section>
 
-        <section className="rounded-lg border border-vault-border bg-vault-surface p-5">
-          <h2 className="text-sm font-semibold uppercase tracking-widest text-vault-text-muted">Document Index</h2>
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-vault-border text-vault-text-faint">
-                  <th className="py-2 text-left">Type</th>
-                  <th className="py-2 text-left">Name</th>
-                  <th className="py-2 text-left">Linked Item</th>
-                  <th className="py-2 text-left">Mime</th>
-                  <th className="py-2 text-left">Uploaded</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.attachments.map((row) => (
-                  <tr key={row.documentId} className="border-b border-vault-border/60">
-                    <td className="py-2">{row.type}</td>
-                    <td className="py-2">{row.name}</td>
-                    <td className="py-2">{row.linkedItemName || row.linkedItemType}</td>
-                    <td className="py-2">{row.mimeType || "—"}</td>
-                    <td className="py-2">{formatDate(row.uploadedAt)}</td>
+        {options.includeAmmo && (
+          <section className="rounded-lg border border-vault-border bg-vault-surface p-5">
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-vault-text-muted">Ammo Inventory</h2>
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-vault-border text-vault-text-faint">
+                    <th className="py-2 text-left">Brand</th>
+                    <th className="py-2 text-left">Caliber</th>
+                    <th className="py-2 text-right">Quantity</th>
+                    <th className="py-2 text-right">Price</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+                </thead>
+                <tbody>
+                  {data.ammo.length === 0 ? (
+                    <tr>
+                      <td className="py-3 text-vault-text-faint" colSpan={4}>
+                        No ammo records included for this export.
+                      </td>
+                    </tr>
+                  ) : (
+                    data.ammo.map((row) => (
+                      <tr key={row.ammoId} className="border-b border-vault-border/60">
+                        <td className="py-2">{row.brand || "—"}</td>
+                        <td className="py-2">{row.caliber || "—"}</td>
+                        <td className="py-2 text-right">{row.quantity}</td>
+                        <td className="py-2 text-right">{formatCurrency(row.purchasePrice)}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {options.includeDocuments && (
+          <section className="rounded-lg border border-vault-border bg-vault-surface p-5">
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-vault-text-muted">Document Index</h2>
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-vault-border text-vault-text-faint">
+                    <th className="py-2 text-left">Type</th>
+                    <th className="py-2 text-left">Name</th>
+                    <th className="py-2 text-left">Linked Item</th>
+                    <th className="py-2 text-left">Mime</th>
+                    <th className="py-2 text-left">Uploaded</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.attachments.length === 0 ? (
+                    <tr>
+                      <td className="py-3 text-vault-text-faint" colSpan={5}>
+                        No documents included for this export.
+                      </td>
+                    </tr>
+                  ) : (
+                    data.attachments.map((row) => (
+                      <tr key={row.documentId} className="border-b border-vault-border/60">
+                        <td className="py-2">{row.type}</td>
+                        <td className="py-2">{row.name}</td>
+                        <td className="py-2">{row.linkedItemName || row.linkedItemType}</td>
+                        <td className="py-2">{row.mimeType || "—"}</td>
+                        <td className="py-2">{formatDate(row.uploadedAt)}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
 
         {visuals.length > 0 && (
           <section className="rounded-lg border border-vault-border bg-vault-surface p-5 armory-page-break">
             <h2 className="text-sm font-semibold uppercase tracking-widest text-vault-text-muted">Visual Evidence Appendix</h2>
             <p className="text-xs text-vault-text-faint mt-1">
-              Includes {visuals.length} image entries using mode {options.imageMode}.
+              Includes {visuals.length} image entries based on current export toggles.
             </p>
             <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
               {visuals.map((image) => (

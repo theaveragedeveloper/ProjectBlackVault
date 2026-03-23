@@ -77,7 +77,6 @@ export default function SettingsPage() {
       autoBackupCadence,
     };
 
-    // Only send appPassword when user intentionally changed it.
     if (appPasswordDirty) {
       payload.appPassword = appPassword || null;
     }
@@ -126,14 +125,11 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-full">
-      {/* Page header */}
       <div className="flex items-center justify-between px-6 py-5 border-b border-vault-border">
         <div className="flex items-center gap-3">
           <Settings className="w-5 h-5 text-[#00C2FF]" />
           <div>
-            <h1 className="text-lg font-bold tracking-widest text-vault-text uppercase">
-              Settings
-            </h1>
+            <h1 className="text-lg font-bold tracking-widest text-vault-text uppercase">Settings</h1>
             <p className="text-xs text-vault-text-muted mt-0.5">Configure your vault preferences</p>
           </div>
         </div>
@@ -155,7 +151,6 @@ export default function SettingsPage() {
         )}
 
         <form onSubmit={handleSave} className="space-y-6">
-          {/* ── Security ────────────────────────────────────── */}
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-5">
             <div className="flex items-center justify-between">
               <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
@@ -174,8 +169,7 @@ export default function SettingsPage() {
             </div>
 
             <p className="text-xs text-vault-text-muted leading-relaxed">
-              Set an optional app password to restrict access to the vault. Leave blank to
-              disable password protection.
+              Set an optional app password to restrict access to the vault. Leave blank to disable password protection.
             </p>
 
             <div>
@@ -213,7 +207,6 @@ export default function SettingsPage() {
             </div>
           </fieldset>
 
-          {/* ── Backup ─────────────────────────────────────── */}
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-5">
             <div className="flex items-center justify-between">
               <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
@@ -316,7 +309,6 @@ export default function SettingsPage() {
             </div>
           </fieldset>
 
-          {/* ── Encryption at Rest ──────────────────────────── */}
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
             <div className="flex items-center justify-between">
               <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
@@ -370,7 +362,6 @@ export default function SettingsPage() {
             )}
           </fieldset>
 
-          {/* ── Status Summary ──────────────────────────────── */}
           <div className="bg-vault-bg border border-vault-border rounded-lg p-4">
             <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-3 font-mono">
               Current Configuration Status
@@ -380,23 +371,16 @@ export default function SettingsPage() {
                 label="App Password"
                 value={settings?.appPassword ? "Enabled" : "Disabled"}
                 ok={!!settings?.appPassword}
-                neutralIfFalse
               />
               <StatusRow
                 label="Include Upload References"
                 value={includeUploadsInBackup ? "Enabled" : "Disabled"}
                 ok={includeUploadsInBackup}
-                neutralIfFalse
               />
               <StatusRow
                 label="Auto Backup"
-                value={
-                  autoBackupEnabled
-                    ? `Plan saved (${autoBackupCadence})`
-                    : "No backup plan saved"
-                }
+                value={autoBackupEnabled ? `Plan saved (${autoBackupCadence})` : "No backup plan saved"}
                 ok={autoBackupEnabled}
-                neutralIfFalse
               />
               <StatusRow
                 label="Encryption at Rest"
@@ -406,18 +390,13 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Actions */}
           <div className="flex items-center justify-end gap-3 pt-2">
             <button
               type="submit"
               disabled={saving}
               className="flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-2.5 rounded-md text-sm font-medium transition-colors"
             >
-              {saving ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Save className="w-4 h-4" />
-              )}
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               {saving ? "Saving..." : "Save Settings"}
             </button>
           </div>
@@ -431,22 +410,13 @@ function StatusRow({
   label,
   value,
   ok,
-  neutralIfFalse,
 }: {
   label: string;
   value: string;
   ok: boolean;
-  neutralIfFalse?: boolean;
 }) {
-  const color = ok
-    ? "text-[#00C853]"
-    : neutralIfFalse
-    ? "text-vault-text-faint"
-    : "text-vault-text-faint";
-
-  const dotColor = ok
-    ? "bg-[#00C853]"
-    : "bg-vault-border";
+  const color = ok ? "text-[#00C853]" : "text-vault-text-faint";
+  const dotColor = ok ? "bg-[#00C853]" : "bg-vault-border";
 
   return (
     <div className="flex items-center justify-between">

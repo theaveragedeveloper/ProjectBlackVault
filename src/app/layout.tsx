@@ -4,17 +4,25 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { MobileHeader } from "@/components/layout/MobileHeader";
 import { ThemeProvider } from "@/components/layout/ThemeProvider";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { UnlockScreen } from "@/components/auth/UnlockScreen";
+import { hasValidSessionCookie, isPasswordModeEnabled } from "@/lib/server/auth";
 
 export const metadata: Metadata = {
   title: "Project BlackVault",
   description: "Tactical firearm inventory & build management platform",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const [passwordModeEnabled, hasValidSession] = await Promise.all([
+    isPasswordModeEnabled(),
+    hasValidSessionCookie(),
+  ]);
+  const shouldShowUnlock = passwordModeEnabled && !hasValidSession;
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -27,15 +35,19 @@ export default function RootLayout({
       </head>
       <body className="antialiased bg-vault-bg text-vault-text">
         <ThemeProvider>
-          <div className="flex h-screen overflow-hidden">
-            <Sidebar />
-            <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-              <MobileHeader />
-              <main className="flex-1 overflow-y-auto min-w-0">
-                {children}
-              </main>
+          {shouldShowUnlock ? (
+            <UnlockScreen />
+          ) : (
+            <div className="flex h-screen overflow-hidden">
+              <Sidebar passwordModeEnabled={passwordModeEnabled} />
+              <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+                <MobileHeader passwordModeEnabled={passwordModeEnabled} />
+                <main className="flex-1 overflow-y-auto min-w-0">
+                  {children}
+                </main>
+              </div>
             </div>
-          </div>
+          )}
           <ThemeToggle />
         </ThemeProvider>
       </body>

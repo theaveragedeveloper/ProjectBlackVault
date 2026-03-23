@@ -398,13 +398,13 @@ export async function GET(request: NextRequest) {
 
     if (flags.rangeSessions) {
       queries.push(
-        (prisma as any).rangeSession.findMany({
+        prisma.rangeSession.findMany({
           include: {
             sessionDrills: { orderBy: { sortOrder: "asc" } },
             ammoLinks: true,
           },
-          orderBy: { date: "desc" },
-        }).then((rows: any) => {
+          orderBy: { sessionDate: "desc" },
+        }).then((rows) => {
           payload.rangeSessions = rows;
         })
       );
@@ -433,19 +433,18 @@ export async function GET(request: NextRequest) {
           }
           const settingsRecord = appSettings as Record<string, unknown>;
           payload.settings = {
-            id: settingsRecord.id,
-            defaultCurrency: settingsRecord.defaultCurrency,
-            enableImageSearch: settingsRecord.enableImageSearch,
-            includeUploadsInBackup: settingsRecord.includeUploadsInBackup,
-            autoBackupEnabled: settingsRecord.autoBackupEnabled,
-            autoBackupCadence: settingsRecord.autoBackupCadence,
-            googleCseSearchEngineId: settingsRecord.googleCseSearchEngineId,
-            hasGoogleCseApiKey: !!settingsRecord.googleCseApiKey,
-            hasAppPassword: !!settingsRecord.appPassword,
-            hasEncryptionKey: !!settingsRecord.encryptionKey,
-            dataStoragePath: settingsRecord.dataStoragePath,
-            createdAt: settingsRecord.createdAt,
-            updatedAt: settingsRecord.updatedAt,
+payload.settings = {
+  id: settingsRecord.id,
+  defaultCurrency: settingsRecord.defaultCurrency,
+  hasAppPassword: !!settingsRecord.appPassword,
+  hasEncryptionKey: !!settingsRecord.encryptionKey,
+  dataStoragePath: settingsRecord.dataStoragePath,
+  createdAt: settingsRecord.createdAt,
+  updatedAt: settingsRecord.updatedAt,
+  includeUploadsInBackup: settingsRecord.includeUploadsInBackup,
+  autoBackupEnabled: settingsRecord.autoBackupEnabled,
+  autoBackupCadence: settingsRecord.autoBackupCadence,
+};
           };
         })
       );
