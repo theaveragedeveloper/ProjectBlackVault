@@ -274,7 +274,7 @@ export async function generateFullArmoryPdf(
     doc.setFont("helvetica", "normal");
     doc.setFontSize(FONT_SIZE_SMALL);
     doc.text(
-      `Includes ${evidence.length} image(s) based on export options (${options.imageMode}, photos=${options.includePhotos}, receipts=${options.includeReceipts}).`,
+      `Includes ${evidence.length} image(s) based on export options (images=${options.includeImages}, documents=${options.includeDocuments}).`,
       PAGE_MARGIN,
       y
     );
