@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { formatNumber } from "@/lib/utils";
-import { Target, ChevronDown, Loader2, AlertCircle, CheckCircle2, Shield, Timer, BookPlus } from "lucide-react";
+import { Target, ChevronDown, Loader2, AlertCircle, CheckCircle2, Shield, Timer, BookPlus, Plus, Minus, Calculator } from "lucide-react";
 
 const INPUT_CLASS =
   "w-full bg-vault-surface border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint transition-colors";
@@ -95,6 +95,13 @@ const SLOT_TYPE_LABELS: Record<string, string> = {
   GRIP: "Grip",
 };
 
+const HIT_CARD_STYLES: Record<"alpha" | "charlie" | "delta" | "steel", string> = {
+  alpha: "border-[#00C2FF]/40 bg-[#00C2FF]/10",
+  charlie: "border-[#7CFF6B]/35 bg-[#7CFF6B]/10",
+  delta: "border-[#F5A623]/35 bg-[#F5A623]/10",
+  steel: "border-[#D06BFF]/35 bg-[#D06BFF]/10",
+};
+
 function calculateHitFactor(points: number, timeSeconds: number) {
   if (!Number.isFinite(timeSeconds) || timeSeconds <= 0) return 0;
   if (!Number.isFinite(points) || points < 0) return 0;
@@ -106,6 +113,8 @@ export type RangeRouteView = "log-session" | "session-history" | "log-drill" | "
 interface RangeWorkspaceProps {
   view: RangeRouteView;
 }
+
+type PowerFactorMode = "minor" | "major";
 
 export function RangeWorkspace({ view }: RangeWorkspaceProps) {
   const isDrillPage = view === "log-drill" || view === "drill-performance" || view === "drill-library" || view === "hit-factor";
@@ -137,6 +146,12 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
   const [calculatorPoints, setCalculatorPoints] = useState("");
   const [calculatorPenalties, setCalculatorPenalties] = useState("");
   const [calculatorTime, setCalculatorTime] = useState("");
+  const [powerFactor, setPowerFactor] = useState<PowerFactorMode>("minor");
+  const [bulletWeight, setBulletWeight] = useState("");
+  const [muzzleVelocity, setMuzzleVelocity] = useState("");
+  const [pfComputedValue, setPfComputedValue] = useState<number | null>(null);
+  const [hitCounts, setHitCounts] = useState({ alpha: 0, charlie: 0, delta: 0, steel: 0 });
+  const [penaltyCounts, setPenaltyCounts] = useState({ miss: 0, noShoot: 0, procedural: 0 });
   const [performanceMetric, setPerformanceMetric] = useState<"time" | "score" | "hitFactor">("hitFactor");
   const [performanceDrillName, setPerformanceDrillName] = useState("");
 
@@ -531,11 +546,51 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
     }));
   }, [allLoggedDrills, performanceDrillName, performanceMetric]);
 
-  const calculatorAdjustedPoints = Math.max(
-    0,
-    (Number.parseFloat(calculatorPoints) || 0) - (Number.parseFloat(calculatorPenalties) || 0)
-  );
+  const pointsPerHit = powerFactor === "major"
+    ? { alpha: 5, charlie: 4, delta: 2, steel: 5 }
+    : { alpha: 5, charlie: 3, delta: 1, steel: 5 };
+
+  const hitPoints = (hitCounts.alpha * pointsPerHit.alpha)
+    + (hitCounts.charlie * pointsPerHit.charlie)
+    + (hitCounts.delta * pointsPerHit.delta)
+    + (hitCounts.steel * pointsPerHit.steel);
+
+  const penaltyPoints = (penaltyCounts.miss * 10)
+    + (penaltyCounts.noShoot * 10)
+    + (penaltyCounts.procedural * 10);
+
+  const calculatorBasePoints = Number.parseFloat(calculatorPoints) || 0;
+  const calculatorPenaltyInput = Number.parseFloat(calculatorPenalties) || 0;
+  const calculatorTotalPoints = hitPoints + calculatorBasePoints;
+  const calculatorAdjustedPoints = Math.max(0, calculatorTotalPoints - penaltyPoints - calculatorPenaltyInput);
   const calculatorHitFactor = calculateHitFactor(calculatorAdjustedPoints, Number.parseFloat(calculatorTime));
+
+  function updateHitCount(key: keyof typeof hitCounts, delta: number) {
+    setHitCounts((prev) => ({
+      ...prev,
+      [key]: Math.max(0, prev[key] + delta),
+    }));
+  }
+
+  function updatePenaltyCount(key: keyof typeof penaltyCounts, delta: number) {
+    setPenaltyCounts((prev) => ({
+      ...prev,
+      [key]: Math.max(0, prev[key] + delta),
+    }));
+  }
+
+  function calculatePowerFactor() {
+    const grain = Number.parseFloat(bulletWeight);
+    const velocity = Number.parseFloat(muzzleVelocity);
+    if (!Number.isFinite(grain) || !Number.isFinite(velocity) || grain <= 0 || velocity <= 0) {
+      setPfComputedValue(null);
+      return;
+    }
+
+    const computed = Number(((grain * velocity) / 1000).toFixed(2));
+    setPfComputedValue(computed);
+    setPowerFactor(computed >= 165 ? "major" : "minor");
+  }
 
   function addCustomDrill(e: React.FormEvent) {
     e.preventDefault();
@@ -1026,28 +1081,203 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
         )}
 
         {showHitFactor && (
-        <fieldset id="hit-factor-calculator" className={`${SECTION_CARD_CLASS} scroll-mt-20`}>
-          <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">Hit Factor Calculator</legend>
-          <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-              <label className={LABEL_CLASS}>Points</label>
-              <input type="number" step="0.01" min="0" value={calculatorPoints} onChange={(e) => setCalculatorPoints(e.target.value)} className={INPUT_CLASS} placeholder="90" />
+        <section id="hit-factor-calculator" className="space-y-4 scroll-mt-20">
+          <header className="space-y-1 px-1">
+            <h2 className="text-2xl sm:text-3xl font-black tracking-wide text-vault-text">HIT FACTOR CALCULATOR</h2>
+            <p className="text-sm text-vault-text-muted">USPSA / IPSC stage scoring — points per second</p>
+          </header>
+
+          <div className="bg-vault-surface border border-vault-border rounded-xl p-4 space-y-2">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-[#00C2FF] font-mono">Formula</p>
+            <p className="text-sm text-vault-text">Hit Factor = <span className="font-semibold text-vault-text">Adjusted Points</span> ÷ <span className="font-semibold text-vault-text">Time (sec)</span></p>
+            <p className="text-xs text-vault-text-faint">Adjusted Points = Hit Points + Extra Points − Penalties. Minor/Major changes Charlie and Delta values.</p>
+          </div>
+
+          <div className="bg-vault-surface border border-vault-border rounded-xl p-4 space-y-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div className="space-y-2">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-vault-text-muted">Power Factor</p>
+                <div className="inline-flex w-full sm:w-auto rounded-lg border border-vault-border bg-vault-bg p-1">
+                  <button
+                    type="button"
+                    onClick={() => setPowerFactor("minor")}
+                    className={`px-4 py-2 rounded-md text-sm font-semibold transition-colors min-w-24 ${powerFactor === "minor" ? "bg-[#00C2FF]/20 text-[#00C2FF] border border-[#00C2FF]/35" : "text-vault-text-muted"}`}
+                  >
+                    Minor
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPowerFactor("major")}
+                    className={`px-4 py-2 rounded-md text-sm font-semibold transition-colors min-w-24 ${powerFactor === "major" ? "bg-[#F5A623]/20 text-[#F5A623] border border-[#F5A623]/35" : "text-vault-text-muted"}`}
+                  >
+                    Major
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-[1fr_1fr_auto] gap-2 w-full sm:w-auto sm:min-w-[320px]">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={bulletWeight}
+                  onChange={(e) => setBulletWeight(e.target.value)}
+                  placeholder="gr"
+                  className={INPUT_CLASS}
+                />
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={muzzleVelocity}
+                  onChange={(e) => setMuzzleVelocity(e.target.value)}
+                  placeholder="fps"
+                  className={INPUT_CLASS}
+                />
+                <button
+                  type="button"
+                  onClick={calculatePowerFactor}
+                  className="px-3 py-2 rounded-md bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] text-sm font-medium whitespace-nowrap"
+                >
+                  Calculate PF
+                </button>
+              </div>
             </div>
-            <div>
-              <label className={LABEL_CLASS}>Penalties</label>
-              <input type="number" step="0.01" min="0" value={calculatorPenalties} onChange={(e) => setCalculatorPenalties(e.target.value)} className={INPUT_CLASS} placeholder="10" />
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="rounded-lg border border-vault-border bg-vault-bg px-3 py-2 text-center">
+                <p className="text-[11px] uppercase tracking-wider text-vault-text-faint">Alpha</p>
+                <p className="text-sm font-semibold text-vault-text">{pointsPerHit.alpha} pts</p>
+              </div>
+              <div className="rounded-lg border border-vault-border bg-vault-bg px-3 py-2 text-center">
+                <p className="text-[11px] uppercase tracking-wider text-vault-text-faint">Charlie</p>
+                <p className="text-sm font-semibold text-vault-text">{pointsPerHit.charlie} pts</p>
+              </div>
+              <div className="rounded-lg border border-vault-border bg-vault-bg px-3 py-2 text-center">
+                <p className="text-[11px] uppercase tracking-wider text-vault-text-faint">Delta</p>
+                <p className="text-sm font-semibold text-vault-text">{pointsPerHit.delta} pts</p>
+              </div>
+              <div className="rounded-lg border border-vault-border bg-vault-bg px-3 py-2 text-center">
+                <p className="text-[11px] uppercase tracking-wider text-vault-text-faint">Steel</p>
+                <p className="text-sm font-semibold text-vault-text">{pointsPerHit.steel} pts</p>
+              </div>
             </div>
-            <div>
-              <label className={LABEL_CLASS}>Time (sec)</label>
-              <input type="number" step="0.01" min="0.01" value={calculatorTime} onChange={(e) => setCalculatorTime(e.target.value)} className={INPUT_CLASS} placeholder="2.45" />
-            </div>
-            <div className="bg-vault-bg border border-vault-border rounded-md px-3 py-2">
-              <p className="text-[11px] text-vault-text-faint uppercase tracking-widest">Hit Factor</p>
-              <p className="text-lg font-mono text-[#00C2FF]">{calculatorHitFactor.toFixed(4)}</p>
-              <p className="text-[11px] text-vault-text-faint mt-1">Adjusted Points: {calculatorAdjustedPoints.toFixed(2)}</p>
+
+            <p className="text-xs text-vault-text-faint">
+              {pfComputedValue == null
+                ? "Tip: enter grain and velocity to auto-select Minor/Major based on PF."
+                : `Computed PF: ${pfComputedValue.toFixed(2)} (${pfComputedValue >= 165 ? "Major" : "Minor"})`}
+            </p>
+          </div>
+
+          <div className="bg-vault-surface border border-vault-border rounded-xl p-4 space-y-3">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-vault-text-muted">Hits</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {([
+                { key: "alpha", label: "Alpha", points: pointsPerHit.alpha },
+                { key: "charlie", label: "Charlie", points: pointsPerHit.charlie },
+                { key: "delta", label: "Delta", points: pointsPerHit.delta },
+                { key: "steel", label: "Steel", points: pointsPerHit.steel },
+              ] as const).map((hitType) => (
+                <div key={hitType.key} className={`rounded-xl border p-3 space-y-2 ${HIT_CARD_STYLES[hitType.key]}`}>
+                  <div className="flex items-center justify-between">
+                    <p className="text-lg font-semibold text-vault-text">{hitType.label}</p>
+                    <p className="text-xs text-vault-text-faint">{hitType.points} pts / hit</p>
+                  </div>
+                  <div className="grid grid-cols-[56px_1fr_56px] gap-2 items-center">
+                    <button
+                      type="button"
+                      onClick={() => updateHitCount(hitType.key, -1)}
+                      className="h-12 rounded-lg border border-vault-border bg-vault-bg text-vault-text flex items-center justify-center"
+                      aria-label={`Decrease ${hitType.label} hits`}
+                    >
+                      <Minus className="w-5 h-5" />
+                    </button>
+                    <div className="h-12 rounded-lg bg-vault-bg border border-vault-border flex items-center justify-center text-xl font-black text-vault-text">
+                      {hitCounts[hitType.key]}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => updateHitCount(hitType.key, 1)}
+                      className="h-12 rounded-lg border border-vault-border bg-vault-bg text-vault-text flex items-center justify-center"
+                      aria-label={`Increase ${hitType.label} hits`}
+                    >
+                      <Plus className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-        </fieldset>
+
+          <div className="bg-vault-surface border border-vault-border rounded-xl p-4 space-y-3">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-vault-text-muted">Penalties</p>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {([
+                { key: "miss", label: "Miss", amount: 10 },
+                { key: "noShoot", label: "No Shoot", amount: 10 },
+                { key: "procedural", label: "Procedural", amount: 10 },
+              ] as const).map((penalty) => (
+                <div key={penalty.key} className="rounded-xl border border-[#E53935]/30 bg-[#E53935]/10 p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-base font-semibold text-vault-text">{penalty.label}</p>
+                    <p className="text-xs text-vault-text-faint">-{penalty.amount} pts</p>
+                  </div>
+                  <div className="grid grid-cols-[48px_1fr_48px] gap-2 items-center">
+                    <button
+                      type="button"
+                      onClick={() => updatePenaltyCount(penalty.key, -1)}
+                      className="h-11 rounded-lg border border-vault-border bg-vault-bg text-vault-text flex items-center justify-center"
+                    >
+                      <Minus className="w-4 h-4" />
+                    </button>
+                    <div className="h-11 rounded-lg bg-vault-bg border border-vault-border flex items-center justify-center text-lg font-bold text-vault-text">
+                      {penaltyCounts[penalty.key]}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => updatePenaltyCount(penalty.key, 1)}
+                      className="h-11 rounded-lg border border-vault-border bg-vault-bg text-vault-text flex items-center justify-center"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid sm:grid-cols-3 gap-3">
+              <div>
+                <label className={LABEL_CLASS}>Extra Points</label>
+                <input type="number" step="0.01" min="0" value={calculatorPoints} onChange={(e) => setCalculatorPoints(e.target.value)} className={INPUT_CLASS} placeholder="0" />
+              </div>
+              <div>
+                <label className={LABEL_CLASS}>Other Penalties</label>
+                <input type="number" step="0.01" min="0" value={calculatorPenalties} onChange={(e) => setCalculatorPenalties(e.target.value)} className={INPUT_CLASS} placeholder="0" />
+              </div>
+              <div>
+                <label className={LABEL_CLASS}>Time (sec)</label>
+                <input type="number" step="0.01" min="0.01" value={calculatorTime} onChange={(e) => setCalculatorTime(e.target.value)} className={INPUT_CLASS} placeholder="2.45" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-vault-bg border border-[#00C2FF]/35 rounded-xl p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Calculator className="w-5 h-5 text-[#00C2FF]" />
+                <p className="text-sm uppercase tracking-wider text-vault-text-muted">Result</p>
+              </div>
+              <p className="text-3xl font-black font-mono text-[#00C2FF]">{calculatorHitFactor.toFixed(4)}</p>
+            </div>
+            <div className="mt-3 text-xs text-vault-text-faint grid sm:grid-cols-2 gap-2">
+              <p>Hit Points: {hitPoints.toFixed(2)}</p>
+              <p>Total Penalties: -{(penaltyPoints + calculatorPenaltyInput).toFixed(2)}</p>
+              <p>Total Points: {calculatorTotalPoints.toFixed(2)}</p>
+              <p>Adjusted Points: {calculatorAdjustedPoints.toFixed(2)}</p>
+            </div>
+          </div>
+        </section>
         )}
 
         {showLogDrill && (
