@@ -164,12 +164,6 @@ function formatDate(value: Date | null | undefined): string {
   return value.toISOString().slice(0, 10);
 }
 
-function maskSerial(serialNumber: string | null | undefined): string {
-  if (!serialNumber) return "";
-  if (serialNumber.length <= 4) return "****";
-  return `${"*".repeat(Math.max(serialNumber.length - 4, 3))}${serialNumber.slice(-4)}`;
-}
-
 function pdfEscape(value: string): string {
   return value
     .replace(/[^\x20-\x7E]/g, "?")
@@ -385,9 +379,7 @@ export async function GET(request: NextRequest) {
         const receiptCount = itemDocs.filter((doc) => doc.type === "RECEIPT").length;
         const hasPhoto = exportOptions.includeImages && !!firearm.imageUrl;
         const resolvedSerial = exportOptions.includeSerialNumbers
-          ? preset === "BACKUP"
-            ? maskSerial(firearm.serialNumber)
-            : (firearm.serialNumber ?? "")
+          ? (firearm.serialNumber ?? "")
           : "";
 
         return {

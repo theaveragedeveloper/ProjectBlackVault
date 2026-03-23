@@ -8,7 +8,6 @@ import {
   AlertCircle,
   CheckCircle2,
   Settings,
-  ShieldCheck,
   Archive,
   Database,
   Download,
@@ -22,16 +21,7 @@ const INPUT_CLASS =
 const LABEL_CLASS =
   "block text-xs font-medium uppercase tracking-widest text-vault-text-muted mb-1.5";
 
-interface AppSettings {
-  id: string;
-  encryptionEnabled?: boolean;
-  includeUploadsInBackup?: boolean;
-  autoBackupEnabled?: boolean;
-  autoBackupCadence?: "daily" | "weekly" | "monthly";
-}
-
 export default function SettingsPage() {
-  const [settings, setSettings] = useState<AppSettings | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
   const [dataError, setDataError] = useState<string | null>(null);
 
@@ -50,7 +40,6 @@ export default function SettingsPage() {
         if (data.error) {
           setDataError(data.error);
         } else {
-          setSettings(data);
           setIncludeUploadsInBackup(data.includeUploadsInBackup ?? true);
           setAutoBackupEnabled(data.autoBackupEnabled ?? false);
           setAutoBackupCadence(data.autoBackupCadence ?? "weekly");
@@ -87,7 +76,6 @@ export default function SettingsPage() {
       if (!res.ok) {
         setSaveError(json.error ?? "Failed to save settings");
       } else {
-        setSettings(json);
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 3000);
       }
@@ -232,59 +220,6 @@ export default function SettingsPage() {
             </Link>
           </fieldset>
 
-          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                Encryption at Rest
-              </legend>
-              <span
-                className={`text-[10px] font-mono px-2 py-0.5 rounded border uppercase ${
-                  settings?.encryptionEnabled
-                    ? "text-[#00C853] border-[#00C853]/40"
-                    : "text-vault-text-faint border-vault-border"
-                }`}
-              >
-                {settings?.encryptionEnabled ? "Active" : "Not Configured"}
-              </span>
-            </div>
-
-            <p className="text-xs text-vault-text-muted leading-relaxed">
-              Encryption protects sensitive values before they are written to your database files.
-              If someone copies the raw DB without your key, those encrypted values stay unreadable.
-              Set <code className="text-vault-text-faint font-mono">VAULT_ENCRYPTION_KEY</code> in{" "}
-              <code className="text-vault-text-faint font-mono">.blackvault.env</code> (or your
-              Docker environment), then restart the app so the key is loaded.
-            </p>
-
-            {settings?.encryptionEnabled ? (
-              <div className="space-y-2">
-                <p className="text-[10px] uppercase tracking-widest text-vault-text-faint font-mono mb-2">
-                  Encrypted Fields
-                </p>
-                {["Serial Number", "Notes"].map((field) => (
-                  <div key={field} className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#00C853]" />
-                    <span className="text-xs text-vault-text-muted">{field}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="bg-[#F5A623]/5 border border-[#F5A623]/20 rounded-md px-4 py-3">
-                <p className="text-xs text-[#F5A623] font-mono">
-                  To enable encryption, generate a key and add it to your environment:
-                </p>
-                <p className="text-[11px] font-mono text-vault-text-faint mt-1 break-all">
-                  openssl rand -hex 32
-                </p>
-                <p className="text-[11px] text-vault-text-faint mt-1">
-                  Then set <code className="font-mono">VAULT_ENCRYPTION_KEY=&lt;key&gt;</code> in{" "}
-                  <code className="font-mono">.blackvault.env</code> and restart.
-                </p>
-              </div>
-            )}
-          </fieldset>
-
           <div className="bg-vault-bg border border-vault-border rounded-lg p-4">
             <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-3 font-mono">
               Current Configuration Status
@@ -299,11 +234,6 @@ export default function SettingsPage() {
                 label="Auto Backup"
                 value={autoBackupEnabled ? `Plan saved (${autoBackupCadence})` : "No backup plan saved"}
                 ok={autoBackupEnabled}
-              />
-              <StatusRow
-                label="Encryption at Rest"
-                value={settings?.encryptionEnabled ? "Active" : "Not configured"}
-                ok={!!settings?.encryptionEnabled}
               />
             </div>
           </div>

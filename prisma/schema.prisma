@@ -33,6 +33,7 @@ model Firearm {
 
   builds          Build[]
   rangeSessions   RangeSession[]
+  documents       Document[]
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -106,6 +107,7 @@ model Accessory {
   roundCountLogs         RoundCountLog[]
 
   buildSlots             BuildSlot[]
+  documents              Document[]
 
   // Comma-separated compatible values, e.g. "RIFLE,SMG"
   compatibleFirearmTypes String?
@@ -122,6 +124,27 @@ model Accessory {
 
   @@index([type])
   @@index([roundCount])
+}
+
+model Document {
+  id         String    @id @default(cuid())
+  name       String
+  type       String
+  fileUrl    String
+  fileSize   Int?
+  mimeType   String?
+  notes      String?
+  firearmId  String?
+  accessoryId String?
+  firearm    Firearm?  @relation(fields: [firearmId], references: [id], onDelete: SetNull)
+  accessory  Accessory? @relation(fields: [accessoryId], references: [id], onDelete: SetNull)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([firearmId])
+  @@index([accessoryId])
+  @@index([type])
+  @@index([createdAt])
 }
 
 model RoundCountLog {

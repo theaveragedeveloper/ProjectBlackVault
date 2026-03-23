@@ -427,13 +427,13 @@ export async function GET(request: NextRequest) {
 
     if (flags.documents) {
       queries.push(
-        (prisma as any).document.findMany({
+        prisma.document.findMany({
           include: {
             firearm: { select: { id: true, name: true } },
             accessory: { select: { id: true, name: true } },
           },
           orderBy: { createdAt: "desc" },
-        }).then((rows: any) => {
+        }).then((rows) => {
           payload.documents = rows;
         })
       );
@@ -450,7 +450,6 @@ export async function GET(request: NextRequest) {
           payload.settings = {
             id: settingsRecord.id,
             defaultCurrency: settingsRecord.defaultCurrency,
-            hasEncryptionKey: !!settingsRecord.encryptionKey,
             dataStoragePath: settingsRecord.dataStoragePath,
             createdAt: settingsRecord.createdAt,
             updatedAt: settingsRecord.updatedAt,

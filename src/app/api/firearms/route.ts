@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { encryptField, decryptField } from "@/lib/crypto";
 import { revalidateDashboardData } from "@/lib/dashboard/revalidate-dashboard";
 
 
@@ -37,8 +36,8 @@ export async function GET() {
 
     const result = firearms.map((firearm) => ({
       ...firearm,
-      serialNumber: decryptField(firearm.serialNumber) ?? firearm.serialNumber,
-      notes: decryptField(firearm.notes),
+      serialNumber: firearm.serialNumber,
+      notes: firearm.notes,
       buildCount: firearm._count.builds,
       activeBuild: firearm.builds[0] ?? null,
       builds: undefined,
@@ -91,12 +90,12 @@ export async function POST(request: NextRequest) {
         manufacturer: normalizeString(manufacturer) || "Unknown",
         model: normalizeString(model) || "Unknown",
         caliber: normalizeString(caliber) || "Unknown",
-        serialNumber: encryptField(normalizeString(serialNumber) || fallbackSerialNumber()),
+        serialNumber: normalizeString(serialNumber) || fallbackSerialNumber(),
         type: normalizeString(type) || "UNSPECIFIED",
         acquisitionDate: acquisitionDate ? new Date(acquisitionDate) : new Date(),
         purchasePrice: purchasePrice ?? null,
         currentValue: currentValue ?? null,
-        notes: notes ? encryptField(notes) : null,
+        notes: notes ? normalizeString(notes) : null,
         imageUrl: imageUrl ?? null,
         imageSource: imageSource ?? null,
         lastMaintenanceDate: lastMaintenanceDate ? new Date(lastMaintenanceDate) : null,
