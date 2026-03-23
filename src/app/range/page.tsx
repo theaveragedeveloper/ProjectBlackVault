@@ -491,7 +491,7 @@ export default function RangeSessionPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form id="log-range-session" onSubmit={handleSubmit} className="space-y-6 scroll-mt-20">
           <fieldset className={SECTION_CARD_CLASS}>
             <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">Session Details</legend>
             <p className="text-xs text-vault-text-faint -mt-1">Required fields are marked with <span className="text-[#E53935]">*</span>.</p>
@@ -674,7 +674,7 @@ export default function RangeSessionPage() {
           </div>
         </form>
 
-        <fieldset className={SECTION_CARD_CLASS}>
+        <fieldset id="log-a-drill" className={`${SECTION_CARD_CLASS} scroll-mt-20`}>
           <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">Drills</legend>
 
           <div>
@@ -709,7 +709,7 @@ export default function RangeSessionPage() {
               </div>
             </div>
 
-            <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4">
+            <div id="hit-factor-calculator" className="grid sm:grid-cols-2 md:grid-cols-4 gap-4 scroll-mt-20">
               <div>
                 <label className={LABEL_CLASS}>Points <span className="text-[#E53935]">*</span></label>
                 <input type="number" step="0.01" min="0" required value={drillPoints} onChange={(e) => setDrillPoints(e.target.value)} className={INPUT_CLASS} placeholder="90" />
@@ -745,8 +745,9 @@ export default function RangeSessionPage() {
             </div>
           </form>
 
-          <div className="space-y-2">
-            <p className="text-xs uppercase tracking-widest text-vault-text-muted">Drill History</p>
+          <div id="drill-performance" className="space-y-2 scroll-mt-20">
+            <p className="text-xs uppercase tracking-widest text-vault-text-muted">Drill Performance</p>
+            <p id="drill-library" className="text-[11px] text-vault-text-faint">Drill Library: use your saved drill names below as repeatable templates.</p>
             {loadingDrills ? (
               <div className="flex items-center gap-2 text-sm text-vault-text-muted"><Loader2 className="w-4 h-4 animate-spin" />Loading drills...</div>
             ) : sessionDrills.length === 0 ? (
@@ -773,7 +774,7 @@ export default function RangeSessionPage() {
           </div>
         </fieldset>
 
-        <fieldset className={SECTION_CARD_CLASS}>
+        <fieldset id="range-session-history" className={`${SECTION_CARD_CLASS} scroll-mt-20`}>
           <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">Session History</legend>
 
           {loadingSessions ? (

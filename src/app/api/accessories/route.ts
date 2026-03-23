@@ -7,9 +7,13 @@ function normalizeString(value: unknown) {
 }
 
 // GET /api/accessories - List all accessories with current build name
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const type = normalizeString(searchParams.get("type"));
+
     const accessories = await prisma.accessory.findMany({
+      where: type ? { type } : undefined,
       include: {
         buildSlots: {
           include: {
