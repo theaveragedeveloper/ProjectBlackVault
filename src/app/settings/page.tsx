@@ -7,6 +7,7 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle2,
+  Copy,
   Settings,
   Archive,
   Database,
@@ -32,6 +33,11 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [localIp, setLocalIp] = useState<string | null>(null);
+  const [localPort, setLocalPort] = useState("3000");
+  const [localUrl, setLocalUrl] = useState<string | null>(null);
+  const [localAccessMessage, setLocalAccessMessage] = useState<string | null>(null);
+  const [copySuccess, setCopySuccess] = useState(false);
 
   useEffect(() => {
     fetch("/api/settings")
@@ -49,6 +55,23 @@ export default function SettingsPage() {
       .catch(() => {
         setDataError("Failed to load settings");
         setDataLoading(false);
+      });
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/network/local-access")
+      .then((r) => r.json())
+      .then((data) => {
+        setLocalIp(data.ip ?? null);
+        setLocalPort(data.port ?? "3000");
+        setLocalUrl(data.url ?? null);
+        setLocalAccessMessage(data.message ?? null);
+      })
+      .catch(() => {
+        setLocalIp(null);
+        setLocalPort("3000");
+        setLocalUrl(null);
+        setLocalAccessMessage("Unable to detect local network IP");
       });
   }, []);
 
@@ -83,6 +106,17 @@ export default function SettingsPage() {
       setSaveError("Network error. Please try again.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleCopyLocalUrl() {
+    if (!localUrl || !navigator.clipboard) return;
+    try {
+      await navigator.clipboard.writeText(localUrl);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch {
+      setCopySuccess(false);
     }
   }
 
@@ -218,6 +252,56 @@ export default function SettingsPage() {
               <Download className="w-4 h-4" />
               Open Full Armory Exports
             </Link>
+          </fieldset>
+
+          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <legend className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#00C2FF]">
+                <Database className="w-3.5 h-3.5" />
+                Local Network Access
+              </legend>
+            </div>
+
+            <p className="text-xs text-vault-text-muted leading-relaxed">
+              Make sure your phone is on the same WiFi network.
+            </p>
+
+            <div className="space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-vault-text-muted">Device IP</span>
+                <span className="font-mono text-vault-text">{localIp ?? "—"}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-vault-text-muted">Port</span>
+                <span className="font-mono text-vault-text">{localPort}</span>
+              </div>
+            </div>
+
+            {localUrl ? (
+              <div className="space-y-3">
+                <div className="rounded-md border border-vault-border bg-vault-bg px-3 py-2">
+                  <p className="text-[10px] uppercase tracking-widest text-vault-text-faint font-mono">
+                    Access URL
+                  </p>
+                  <p className="font-mono text-sm text-vault-text break-all">{localUrl}</p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleCopyLocalUrl}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/10 transition-colors text-sm font-medium"
+                >
+                  <Copy className="w-4 h-4" />
+                  {copySuccess ? "Copied!" : "Copy URL"}
+                </button>
+              </div>
+            ) : (
+              <div className="rounded-md border border-[#E53935]/30 bg-[#E53935]/10 px-3 py-2">
+                <p className="text-sm text-[#E53935]">
+                  {localAccessMessage ?? "Unable to detect local network IP"}
+                </p>
+              </div>
+            )}
           </fieldset>
 
           <div className="bg-vault-bg border border-vault-border rounded-lg p-4">
