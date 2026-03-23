@@ -503,9 +503,18 @@ function WeaponCanvas({ build, onSlotClick, onRemoveSlot }: WeaponCanvasProps) {
                     <p className="text-[10px] uppercase tracking-widest font-mono text-vault-text-faint">
                       {SLOT_TYPE_LABELS[slotType]}
                     </p>
+                    <span
+                      className={`inline-flex mt-1 text-[9px] font-mono uppercase tracking-wide px-1.5 py-0.5 rounded border ${
+                        hasAccessory
+                          ? "text-[#00C853] border-[#00C853]/35 bg-[#00C853]/10"
+                          : "text-vault-text-faint border-vault-border bg-vault-bg/60"
+                      }`}
+                    >
+                      {hasAccessory ? "Configured" : "Empty"}
+                    </span>
                     {hasAccessory && slot?.accessory ? (
                       <>
-                        <p className="text-sm font-medium text-vault-text mt-1 truncate">
+                        <p className="text-sm font-medium text-vault-text mt-1.5 truncate">
                           {slot.accessory.name}
                         </p>
                         <p className="text-[11px] text-vault-text-faint mt-0.5 truncate">
@@ -559,16 +568,12 @@ function WeaponCanvas({ build, onSlotClick, onRemoveSlot }: WeaponCanvasProps) {
 interface SlotPanelProps {
   build: Build;
   allBuilds: Build[];
-  onSlotClick: (slotType: SlotType) => void;
-  onRemoveSlot: (slotType: SlotType) => void;
   onSwitchBuild: (buildId: string) => void;
 }
 
 function SlotPanel({
   build,
   allBuilds,
-  onSlotClick,
-  onRemoveSlot,
   onSwitchBuild,
 }: SlotPanelProps) {
   const [switchOpen, setSwitchOpen] = useState(false);
@@ -670,9 +675,7 @@ function SlotPanel({
           return (
             <div
               key={slotType}
-              className={`flex items-center gap-3 px-4 py-3 border-b border-[#1C2530]/50 transition-colors ${
-                hasAccessory ? "hover:bg-vault-bg" : "hover:bg-vault-bg"
-              }`}
+              className="flex items-center gap-3 px-4 py-3 border-b border-[#1C2530]/50"
             >
               {/* Icon */}
               <div
@@ -716,33 +719,15 @@ function SlotPanel({
                 )}
               </div>
 
-              {/* Action */}
-              <div className="shrink-0">
-                {hasAccessory ? (
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => onSlotClick(slotType)}
-                      className="text-[10px] text-vault-text-muted hover:text-[#00C2FF] border border-vault-border hover:border-[#00C2FF]/40 px-2 py-1 rounded transition-colors"
-                    >
-                      Change
-                    </button>
-                    <button
-                      onClick={() => onRemoveSlot(slotType)}
-                      className="w-6 h-6 flex items-center justify-center text-vault-text-muted hover:text-[#E53935] hover:bg-[#E53935]/10 rounded transition-colors"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => onSlotClick(slotType)}
-                    className="flex items-center gap-1 text-[10px] text-vault-text-faint hover:text-[#00C2FF] border border-[#1C2530]/60 hover:border-[#00C2FF]/40 px-2 py-1 rounded transition-colors"
-                  >
-                    <Plus className="w-2.5 h-2.5" />
-                    Attach
-                  </button>
-                )}
-              </div>
+              <span
+                className={`shrink-0 text-[9px] font-mono uppercase tracking-wide px-1.5 py-0.5 rounded border ${
+                  hasAccessory
+                    ? "text-[#00C853] border-[#00C853]/35 bg-[#00C853]/10"
+                    : "text-vault-text-faint border-vault-border"
+                }`}
+              >
+                {hasAccessory ? "Configured" : "Empty"}
+              </span>
             </div>
           );
         })}
@@ -924,8 +909,6 @@ export default function BuildConfiguratorPage() {
           <SlotPanel
             build={build}
             allBuilds={allBuilds}
-            onSlotClick={(slotType) => setBrowserSlot(slotType)}
-            onRemoveSlot={handleRemoveSlot}
             onSwitchBuild={handleSwitchBuild}
           />
         </div>
