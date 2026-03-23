@@ -32,6 +32,7 @@ model Firearm {
   maintenanceIntervalDays Int?
 
   builds          Build[]
+  rangeSessions   RangeSession[]
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -52,6 +53,7 @@ model Build {
   firearm     Firearm     @relation(fields: [firearmId], references: [id], onDelete: Cascade)
 
   slots       BuildSlot[]
+  rangeSessions RangeSession[]
 
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
@@ -153,11 +155,67 @@ model AmmoStock {
   notes           String?
 
   transactions    AmmoTransaction[]
+  rangeSessionLinks RangeSessionAmmoLink[]
 
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
   @@index([caliber])
+}
+
+// ─── RANGE SESSIONS ──────────────────────────────────────────
+
+model RangeSession {
+  id            String                 @id @default(cuid())
+  sessionDate   DateTime
+  location      String
+  firearmId     String
+  firearm       Firearm                @relation(fields: [firearmId], references: [id], onDelete: Cascade)
+  buildId       String?
+  build         Build?                 @relation(fields: [buildId], references: [id], onDelete: SetNull)
+  roundsFired   Int
+  notes         String?
+
+  ammoLinks     RangeSessionAmmoLink[]
+  sessionDrills SessionDrill[]
+
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+
+  @@index([sessionDate])
+  @@index([firearmId])
+  @@index([buildId])
+}
+
+model RangeSessionAmmoLink {
+  id             String       @id @default(cuid())
+  rangeSessionId String
+  rangeSession   RangeSession @relation(fields: [rangeSessionId], references: [id], onDelete: Cascade)
+  ammoStockId    String
+  ammoStock      AmmoStock    @relation(fields: [ammoStockId], references: [id], onDelete: Cascade)
+  roundsUsed     Int
+  createdAt      DateTime     @default(now())
+
+  @@unique([rangeSessionId, ammoStockId])
+  @@index([rangeSessionId])
+  @@index([ammoStockId])
+}
+
+model SessionDrill {
+  id             String       @id @default(cuid())
+  rangeSessionId String
+  rangeSession   RangeSession @relation(fields: [rangeSessionId], references: [id], onDelete: Cascade)
+  name           String
+  timeSeconds    Float
+  points         Float
+  penalties      Float?
+  hits           Int?
+  hitFactor      Float
+  notes          String?
+  sortOrder      Int          @default(0)
+  createdAt      DateTime     @default(now())
+
+  @@index([rangeSessionId])
 }
 
 model AmmoTransaction {
