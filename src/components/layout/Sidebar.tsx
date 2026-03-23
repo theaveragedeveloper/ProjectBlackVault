@@ -25,7 +25,7 @@ import { useState, useEffect } from "react";
 const PRIMARY_NAV_ITEMS = [
   { label: "Command", href: "/", icon: Zap, description: "Overview & stats" },
   { label: "Vault", href: "/vault", icon: Shield, description: "Firearms inventory" },
-  { label: "Loadouts", href: "/builds", icon: Layers, description: "Build configurations" },
+  { label: "Builds", href: "/builds", icon: Layers, description: "Build configurations" },
   { label: "Accessories", href: "/accessories", icon: Crosshair, description: "Parts & attachments" },
   { label: "Ammo", href: "/ammo", icon: Target, description: "Ammunition storage" },
 ] as const;

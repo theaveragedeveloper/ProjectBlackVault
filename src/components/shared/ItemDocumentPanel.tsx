@@ -40,6 +40,7 @@ export function ItemDocumentPanel({ entityType, entityId, title = "Documents" }:
   const [loading, setLoading] = useState(true);
   const [showUploader, setShowUploader] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
     const query = entityType === "firearm" ? `firearmId=${entityId}` : `accessoryId=${entityId}`;
@@ -60,12 +61,13 @@ export function ItemDocumentPanel({ entityType, entityId, title = "Documents" }:
       const res = await fetch(`/api/documents/${id}`, { method: "DELETE" });
       if (!res.ok) {
         const json = await res.json().catch(() => null);
-        alert(json?.error ?? "Failed to delete document");
+        setFeedback({ type: "error", text: json?.error ?? "Could not delete document." });
         return;
       }
       setDocuments((prev) => prev.filter((d) => d.id !== id));
+      setFeedback({ type: "success", text: "Document deleted." });
     } catch {
-      alert("Network error — could not delete document");
+      setFeedback({ type: "error", text: "Network error — could not delete document." });
     } finally {
       setDeletingId(null);
     }
@@ -109,6 +111,18 @@ export function ItemDocumentPanel({ entityType, entityId, title = "Documents" }:
         </div>
       )}
 
+      {feedback && (
+        <div
+          className={`mx-4 mt-4 rounded-md border px-3 py-2 text-xs ${
+            feedback.type === "success"
+              ? "border-[#00C853]/30 bg-[#00C853]/10 text-[#00C853]"
+              : "border-[#E53935]/30 bg-[#E53935]/10 text-[#E53935]"
+          }`}
+        >
+          {feedback.text}
+        </div>
+      )}
+
       {loading ? (
         <div className="py-8 flex justify-center">
           <div className="w-5 h-5 border-2 border-[#00C2FF]/30 border-t-[#00C2FF] rounded-full animate-spin" />
@@ -149,7 +163,14 @@ export function ItemDocumentPanel({ entityType, entityId, title = "Documents" }:
                     className="flex items-center gap-1 px-2 py-1 rounded border border-vault-border text-xs text-vault-text-muted hover:text-[#00C2FF] hover:border-[#00C2FF]/30 transition-colors"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
-                    Open
+                    View
+                  </a>
+                  <a
+                    href={doc.fileUrl}
+                    download={doc.name}
+                    className="px-2 py-1 rounded border border-vault-border text-xs text-vault-text-muted hover:text-[#00C2FF] hover:border-[#00C2FF]/30 transition-colors"
+                  >
+                    Download
                   </a>
                   <button
                     onClick={() => handleDelete(doc.id)}
