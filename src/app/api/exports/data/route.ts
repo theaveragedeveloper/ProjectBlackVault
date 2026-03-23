@@ -433,18 +433,16 @@ export async function GET(request: NextRequest) {
           }
           const settingsRecord = appSettings as Record<string, unknown>;
           payload.settings = {
-payload.settings = {
-  id: settingsRecord.id,
-  defaultCurrency: settingsRecord.defaultCurrency,
-  hasAppPassword: !!settingsRecord.appPassword,
-  hasEncryptionKey: !!settingsRecord.encryptionKey,
-  dataStoragePath: settingsRecord.dataStoragePath,
-  createdAt: settingsRecord.createdAt,
-  updatedAt: settingsRecord.updatedAt,
-  includeUploadsInBackup: settingsRecord.includeUploadsInBackup,
-  autoBackupEnabled: settingsRecord.autoBackupEnabled,
-  autoBackupCadence: settingsRecord.autoBackupCadence,
-};
+            id: settingsRecord.id,
+            defaultCurrency: settingsRecord.defaultCurrency,
+            hasAppPassword: !!settingsRecord.appPassword,
+            hasEncryptionKey: !!settingsRecord.encryptionKey,
+            dataStoragePath: settingsRecord.dataStoragePath,
+            createdAt: settingsRecord.createdAt,
+            updatedAt: settingsRecord.updatedAt,
+            includeUploadsInBackup: settingsRecord.includeUploadsInBackup,
+            autoBackupEnabled: settingsRecord.autoBackupEnabled,
+            autoBackupCadence: settingsRecord.autoBackupCadence,
           };
         })
       );
