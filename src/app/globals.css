@@ -65,6 +65,7 @@
 html {
   scrollbar-color: var(--vault-muted) var(--vault-surface);
   scrollbar-width: thin;
+  overflow-x: hidden;
 }
 
 body {
@@ -72,6 +73,7 @@ body {
   color: var(--vault-text);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   min-height: 100vh;
+  overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

@@ -73,12 +73,17 @@ function AddRoundsModal({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const parsedQty = Number.parseInt(qty, 10);
+    if (!Number.isFinite(parsedQty) || parsedQty <= 0) {
+      setError("Enter a valid quantity greater than zero.");
+      return;
+    }
     setSubmitting(true);
     setError(null);
     const res = await fetch(`/api/ammo/${stock.id}/transactions`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "PURCHASE", quantity: parseInt(qty), note: note || undefined }),
+      body: JSON.stringify({ type: "PURCHASE", quantity: parsedQty, note: note || undefined }),
     });
     const json = await res.json();
     if (!res.ok) {
@@ -166,12 +171,17 @@ function LogUseModal({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const parsedQty = Number.parseInt(qty, 10);
+    if (!Number.isFinite(parsedQty) || parsedQty <= 0) {
+      setError("Enter a valid rounds-used value greater than zero.");
+      return;
+    }
     setSubmitting(true);
     setError(null);
     const res = await fetch(`/api/ammo/${stock.id}/transactions`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "RANGE_USE", quantity: parseInt(qty), note: note || undefined }),
+      body: JSON.stringify({ type: "RANGE_USE", quantity: parsedQty, note: note || undefined }),
     });
     const json = await res.json();
     if (!res.ok) {
@@ -255,7 +265,7 @@ export default function AmmoPage() {
       .then((res) => res.json())
       .then((data) => {
         if (!isMounted) return;
-        setGroups(data.grouped ?? []);
+        setGroups(Array.isArray(data.grouped) ? data.grouped : []);
       })
       .finally(() => {
         if (isMounted) {
@@ -313,9 +323,9 @@ export default function AmmoPage() {
         }
       />
 
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         {/* Summary */}
-        <div className="flex items-center gap-6 mb-6 bg-vault-surface border border-vault-border rounded-lg px-5 py-3">
+        <div className="flex flex-wrap items-center gap-4 sm:gap-6 mb-6 bg-vault-surface border border-vault-border rounded-lg px-4 sm:px-5 py-3">
           <div>
             <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-0.5">Calibers</p>
             <p className="text-lg font-bold font-mono text-vault-text">{groups.length}</p>

@@ -98,9 +98,9 @@ export default async function AccessoriesPage() {
         }
       />
 
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         {/* Summary bar */}
-        <div className="flex items-center gap-6 mb-6 bg-vault-surface border border-vault-border rounded-lg px-5 py-3">
+        <div className="flex flex-wrap items-center gap-4 sm:gap-6 mb-6 bg-vault-surface border border-vault-border rounded-lg px-4 sm:px-5 py-3">
           <div>
             <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-0.5">Total Parts</p>
             <p className="text-lg font-bold font-mono text-vault-text">{formatNumber(accessories.length)}</p>
@@ -131,7 +131,49 @@ export default async function AccessoriesPage() {
             </Link>
           </div>
         ) : (
-          <div className="bg-vault-surface border border-vault-border rounded-lg overflow-hidden">
+          <>
+            <div className="space-y-3 md:hidden">
+              {accessories.map((accessory) => (
+                <Link
+                  key={accessory.id}
+                  href={`/accessories/${accessory.id}`}
+                  className="block rounded-lg border border-vault-border bg-vault-surface p-3"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-11 h-11 rounded bg-vault-bg border border-vault-border overflow-hidden flex items-center justify-center shrink-0">
+                      {accessory.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={accessory.imageUrl} alt={accessory.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <Shield className="w-4 h-4 text-vault-text-faint" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-vault-text truncate">{accessory.name}</p>
+                      <p className="text-xs text-vault-text-faint truncate">
+                        {SLOT_TYPE_LABELS[accessory.type] ?? accessory.type}
+                        {accessory.manufacturer ? ` · ${accessory.manufacturer}` : ""}
+                      </p>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <RoundCountBadge roundCount={accessory.roundCount} className="text-xs" />
+                        <span className="text-xs font-mono text-vault-text-muted">
+                          {formatCurrency(accessory.purchasePrice)}
+                        </span>
+                        {accessory.currentBuild ? (
+                          <span className="text-xs text-[#00C853] truncate">
+                            {accessory.currentBuild.firearm.name}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-vault-text-faint">Uninstalled</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+
+            <div className="hidden md:block bg-vault-surface border border-vault-border rounded-lg overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -267,6 +309,7 @@ export default async function AccessoriesPage() {
               </table>
             </div>
           </div>
+          </>
         )}
       </div>
     </div>
