@@ -31,6 +31,13 @@ function normalizeBackupDestinationPath(value: unknown): string | null {
   return normalized.length > 0 ? normalized : "";
 }
 
+function normalizeManualLanHost(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  if (normalized.length > 255) return null;
+  return normalized.length > 0 ? normalized : "";
+}
+
 // GET /api/settings - Get the singleton AppSettings
 export async function GET() {
   try {
@@ -52,6 +59,7 @@ export async function GET() {
       autoBackupEnabled: settings.autoBackupEnabled,
       autoBackupCadence: settings.autoBackupCadence,
       backupDestinationPath: settings.backupDestinationPath,
+      manualLanHost: settings.manualLanHost,
       defaultCurrency: settings.defaultCurrency,
       createdAt: settings.createdAt,
       updatedAt: settings.updatedAt,
@@ -86,6 +94,7 @@ export async function PUT(request: NextRequest) {
       autoBackupEnabled,
       autoBackupCadence,
       backupDestinationPath,
+      manualLanHost,
       defaultCurrency,
     } = body;
 
@@ -152,6 +161,17 @@ export async function PUT(request: NextRequest) {
       updateData.backupDestinationPath = normalized || null;
     }
 
+    if (manualLanHost !== undefined) {
+      const normalized = normalizeManualLanHost(manualLanHost);
+      if (normalized == null) {
+        return NextResponse.json(
+          { error: "manualLanHost must be a string up to 255 characters." },
+          { status: 400 }
+        );
+      }
+      updateData.manualLanHost = normalized || null;
+    }
+
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(
         { error: "No valid settings fields provided." },
@@ -174,6 +194,7 @@ export async function PUT(request: NextRequest) {
       autoBackupEnabled: settings.autoBackupEnabled,
       autoBackupCadence: settings.autoBackupCadence,
       backupDestinationPath: settings.backupDestinationPath,
+      manualLanHost: settings.manualLanHost,
       defaultCurrency: settings.defaultCurrency,
       createdAt: settings.createdAt,
       updatedAt: settings.updatedAt,

@@ -287,6 +287,7 @@ model AppSettings {
   autoBackupEnabled       Boolean  @default(false)
   autoBackupCadence       String   @default("weekly")
   backupDestinationPath   String?
+  manualLanHost           String?
   defaultCurrency         String   @default("USD")
   appPassword             String?
   createdAt               DateTime @default(now())
