@@ -1,21 +1,20 @@
-import os from "node:os";
+import os, { NetworkInterfaceInfo } from "os";
 
 export function getLocalIp(): string | null {
-  const networkInterfaces = os.networkInterfaces();
+  const interfaces = os.networkInterfaces();
 
-  for (const interfaceAddresses of Object.values(networkInterfaces)) {
-    if (!interfaceAddresses) {
-      continue;
-    }
+  for (const name of Object.keys(interfaces)) {
+    const netInterface = interfaces[name];
 
-    for (const address of interfaceAddresses) {
-      const isIpv4 =
-        address.family === "IPv4" ||
-        (typeof address.family === "number" && address.family === 4);
+    if (!netInterface) continue;
 
-      if (!isIpv4 || address.internal || address.address === "127.0.0.1") {
-        continue;
-      }
+    for (const address of netInterface as NetworkInterfaceInfo[]) {
+      const family = address.family as string | number;
+      const isIpv4 = family === "IPv4" || family === 4;
+
+      if (!isIpv4) continue;
+      if (address.internal) continue;
+      if (address.address === "127.0.0.1") continue;
 
       return address.address;
     }
