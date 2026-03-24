@@ -167,13 +167,12 @@ export function selectVisualEvidence(
 
   if (options.includeDocuments && options.includeImages) {
     for (const row of payload.attachments) {
-      if (row.type !== "RECEIPT") continue;
       if (!row.fileUrl || !isImageAttachment(row)) continue;
 
       images.push({
-        id: `receipt:${row.documentId}`,
+        id: `doc:${row.documentId}`,
         source: "RECEIPT_IMAGE",
-        title: `Receipt: ${row.name}`,
+        title: `${row.type}: ${row.name}`,
         imageUrl: row.fileUrl,
         linkedItemId: row.linkedItemId || "UNATTACHED",
         linkedItemName: row.linkedItemName || "Unattached",

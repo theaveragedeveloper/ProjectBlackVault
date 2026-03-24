@@ -204,7 +204,8 @@ export async function generateFullArmoryPdf(
     { label: "Name", width: 180, maxChars: 36 },
     { label: "Linked Item", width: 130, maxChars: 28 },
     { label: "Mime", width: 90, maxChars: 18 },
-    { label: "Uploaded", width: 90, maxChars: 20 },
+    { label: "Uploaded", width: 70, maxChars: 12 },
+    { label: "File Ref", width: 130, maxChars: 28 },
   ];
 
   const drawDocHeader = () => {
@@ -238,6 +239,7 @@ export async function generateFullArmoryPdf(
         row.linkedItemName || row.linkedItemType,
         row.mimeType || "—",
         formatDate(row.uploadedAt),
+        row.fileUrl || "—",
       ];
 
       let x = PAGE_MARGIN;
