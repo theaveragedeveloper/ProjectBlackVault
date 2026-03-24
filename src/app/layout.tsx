@@ -29,9 +29,9 @@ export default function RootLayout({
         <ThemeProvider>
           <div className="flex min-h-svh">
             <Sidebar />
-            <div className="flex flex-col flex-1 min-w-0 min-h-svh">
+            <div className="flex flex-col flex-1 min-w-0 min-h-svh overflow-x-clip">
               <MobileHeader />
-              <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain min-w-0 pb-safe">
+              <main className="flex-1 min-h-0 overflow-y-auto overflow-x-clip overscroll-contain min-w-0 pb-safe">
                 {children}
               </main>
             </div>

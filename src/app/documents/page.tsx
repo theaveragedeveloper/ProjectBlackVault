@@ -50,7 +50,15 @@ export default function DocumentLibraryPage() {
       });
   }, []);
 
-  const filtered = documents.filter((doc) => {
+  const safeDocuments = documents.map((doc) => ({
+    ...doc,
+    name: doc.name || "Untitled document",
+    type: doc.type || "OTHER",
+    createdAt: doc.createdAt || new Date(0).toISOString(),
+    fileUrl: doc.fileUrl || "#",
+  }));
+
+  const filtered = safeDocuments.filter((doc) => {
     if (typeFilter !== "ALL" && doc.type !== typeFilter) return false;
     if (entityFilter === "FIREARM" && !doc.firearmId) return false;
     if (entityFilter === "ACCESSORY" && !doc.accessoryId) return false;
@@ -175,9 +183,9 @@ export default function DocumentLibraryPage() {
         ) : filtered.length === 0 ? (
           <EmptyState
             icon={FileText}
-            title={documents.length === 0 ? "No documents yet" : "No documents match current filters"}
+            title={safeDocuments.length === 0 ? "No documents yet" : "No documents match current filters"}
             description={
-              documents.length === 0
+              safeDocuments.length === 0
                 ? "Upload your first receipt or photo to keep evidence attached to your records."
                 : "Adjust filters to view matching files."
             }
@@ -197,9 +205,9 @@ export default function DocumentLibraryPage() {
 
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="truncate text-sm font-medium text-vault-text">{doc.name}</p>
+                      <p className="truncate break-all text-sm font-medium text-vault-text">{doc.name}</p>
                       <span className="rounded border border-vault-border px-1.5 py-0.5 text-[10px] text-vault-text-muted">
-                        {doc.type.replaceAll("_", " ")}
+                        {(doc.type || "OTHER").replaceAll("_", " ")}
                       </span>
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-vault-text-faint">
@@ -214,7 +222,7 @@ export default function DocumentLibraryPage() {
                         </Link>
                       )}
                       {!doc.firearm && !doc.accessory && <span>Unattached</span>}
-                      <span>{new Date(doc.createdAt).toLocaleDateString()}</span>
+                      <span>{new Date(doc.createdAt || 0).toLocaleDateString()}</span>
                       {doc.fileSize && <span>{formatBytes(doc.fileSize)}</span>}
                     </div>
                   </div>
