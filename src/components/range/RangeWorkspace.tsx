@@ -823,7 +823,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
     } else {
       setDrillLibrary((prev) => [
         {
-          id: crypto.randomUUID(),
+          id: safeId("drill-template"),
           name,
           notes: customDrillNotes.trim() || null,
           mode: customDrillMode,

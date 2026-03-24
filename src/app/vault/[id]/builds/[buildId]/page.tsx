@@ -537,7 +537,7 @@ function WeaponCanvas({ build, onSlotClick, onRemoveSlot }: WeaponCanvasProps) {
   }
 
   return (
-    <div className="h-full overflow-y-auto p-4 md:p-5 bg-vault-canvas">
+    <div className="bg-vault-canvas p-4 md:h-full md:overflow-y-auto md:p-5">
       <div className="bg-vault-surface border border-vault-border rounded-xl p-4 md:p-5">
         <p className="text-[10px] text-vault-text-faint uppercase tracking-widest font-mono mb-1">
           Build Configurator
@@ -686,7 +686,7 @@ function SlotPanel({
   const customSlotCount = customSlots.length;
 
   return (
-    <div className="h-full flex flex-col bg-vault-surface border-t md:border-t-0 border-l-0 md:border-l border-vault-border">
+    <div className="flex flex-col bg-vault-surface border-t md:h-full md:border-t-0 border-l-0 md:border-l border-vault-border">
       {/* Panel header */}
       <div className="px-4 py-4 border-b border-vault-border shrink-0">
         <p className="text-[10px] text-vault-text-faint uppercase tracking-widest font-mono mb-1">
@@ -785,7 +785,7 @@ function SlotPanel({
       </div>
 
       {/* Slot list */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="md:flex-1 md:overflow-y-auto">
         {availableSlots.map((slotType) => {
           const slot = slotMap[slotType];
           const hasAccessory = !!slot?.accessory;
@@ -859,8 +859,8 @@ function SlotPanel({
 export default function BuildConfiguratorPage() {
   const params = useParams<{ id: string; buildId: string }>();
   const router = useRouter();
-  const firearmId = params.id;
-  const buildId = params.buildId;
+  const firearmId = Array.isArray(params.id) ? params.id[0] : params.id;
+  const buildId = Array.isArray(params.buildId) ? params.buildId[0] : params.buildId;
 
   const [build, setBuild] = useState<Build | null>(null);
   const [allBuilds, setAllBuilds] = useState<Build[]>([]);
@@ -874,6 +874,11 @@ export default function BuildConfiguratorPage() {
   const [browserSlot, setBrowserSlot] = useState<string | null>(null);
 
   const fetchBuild = useCallback(async () => {
+    if (!firearmId || !buildId) {
+      setError("Invalid build route.");
+      setLoading(false);
+      return;
+    }
     try {
       const [buildRes, allBuildsRes] = await Promise.all([
         fetch(`/api/builds/${buildId}`),
@@ -990,7 +995,7 @@ export default function BuildConfiguratorPage() {
 
   // ── Main layout ────────────────────────────────────────────
   return (
-    <div className="flex flex-col h-screen bg-vault-canvas overflow-hidden">
+    <div className="flex min-h-full flex-col bg-vault-canvas">
       {/* Thin header bar */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-vault-border bg-vault-bg shrink-0 z-20">
         <div className="flex items-center gap-3">
@@ -1052,9 +1057,9 @@ export default function BuildConfiguratorPage() {
       )}
 
       {/* Main split layout — vertical on mobile, side-by-side on md+ */}
-      <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+      <div className="flex flex-1 flex-col md:min-h-0 md:flex-row">
         {/* Config tiles */}
-        <div className="min-h-0 md:[flex:0_0_65%] border-b md:border-b-0 border-vault-border">
+        <div className="md:min-h-0 md:[flex:0_0_65%] border-b md:border-b-0 border-vault-border">
           <WeaponCanvas
             build={build}
             onSlotClick={(slotType) => setBrowserSlot(slotType)}
@@ -1063,7 +1068,7 @@ export default function BuildConfiguratorPage() {
         </div>
 
         {/* Slot Panel — flex below canvas on mobile, 35% on desktop */}
-        <div className="flex-1 md:[flex:0_0_35%] overflow-hidden">
+        <div className="md:min-h-0 md:[flex:0_0_35%] md:overflow-hidden">
           <SlotPanel
             build={build}
             allBuilds={allBuilds}
