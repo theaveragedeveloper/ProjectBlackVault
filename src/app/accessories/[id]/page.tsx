@@ -89,7 +89,7 @@ function roundCountColor(roundCount: number, slotType: string): string {
 
 export default function AccessoryDetailPage() {
   const params = useParams<{ id: string }>();
-  const id = params.id;
+  const id = Array.isArray(params.id) ? params.id[0] : params.id;
 
   const [accessory, setAccessory] = useState<Accessory | null>(null);
   const [loading, setLoading] = useState(true);
@@ -106,6 +106,12 @@ export default function AccessoryDetailPage() {
   const [historyExpanded, setHistoryExpanded] = useState(false);
 
   useEffect(() => {
+    if (!id) {
+      setError("Invalid accessory route.");
+      setLoading(false);
+      return;
+    }
+
     fetch(`/api/accessories/${id}`)
       .then((r) => r.json())
       .then((data) => {

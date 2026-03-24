@@ -28,10 +28,11 @@ interface Firearm {
 export default function NewBuildPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
-  const firearmId = params.id;
+  const firearmId = Array.isArray(params.id) ? params.id[0] : params.id;
+  const invalidRoute = !firearmId;
 
   const [firearm, setFirearm] = useState<Firearm | null>(null);
-  const [firearmLoading, setFirearmLoading] = useState(true);
+  const [firearmLoading, setFirearmLoading] = useState(!invalidRoute);
   const [firearmError, setFirearmError] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
@@ -39,6 +40,8 @@ export default function NewBuildPage() {
   const [isActive, setIsActive] = useState(false);
 
   useEffect(() => {
+    if (!firearmId) return;
+
     fetch(`/api/firearms/${firearmId}`)
       .then((r) => r.json())
       .then((data) => {
@@ -96,6 +99,18 @@ export default function NewBuildPage() {
     return (
       <div className="flex items-center justify-center min-h-full">
         <Loader2 className="w-8 h-8 text-[#00C2FF] animate-spin" />
+      </div>
+    );
+  }
+
+  if (invalidRoute) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-full gap-4">
+        <AlertCircle className="w-10 h-10 text-[#E53935]" />
+        <p className="text-[#E53935]">Invalid firearm route.</p>
+        <Link href="/vault" className="text-sm text-[#00C2FF] hover:underline">
+          Back to Vault
+        </Link>
       </div>
     );
   }
@@ -227,17 +242,17 @@ export default function NewBuildPage() {
             </button>
           </fieldset>
 
-          <div className="flex items-center justify-end gap-3 pt-2">
+          <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-3 pt-2">
             <Link
               href={`/vault/${firearmId}`}
-              className="px-4 py-2 text-sm text-vault-text-muted hover:text-vault-text border border-vault-border rounded-md hover:border-vault-text-muted/30 transition-colors"
+              className="w-full sm:w-auto text-center px-4 py-2 text-sm text-vault-text-muted hover:text-vault-text border border-vault-border rounded-md hover:border-vault-text-muted/30 transition-colors"
             >
               Cancel
             </Link>
             <button
               type="submit"
               disabled={loading}
-              className="flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-50 disabled:cursor-not-allowed px-5 py-2 rounded-md text-sm font-medium transition-colors"
+              className="w-full sm:w-auto justify-center flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-50 disabled:cursor-not-allowed px-5 py-2 rounded-md text-sm font-medium transition-colors"
             >
               {loading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
