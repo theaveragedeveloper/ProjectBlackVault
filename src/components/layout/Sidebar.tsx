@@ -174,12 +174,12 @@ export function Sidebar({ mobileOnly = false, mobileOpen = false, onMobileClose 
         </aside>
       )}
 
-      <div className={cn("fixed inset-0 z-[130] md:hidden transition-opacity", mobileOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0")}>
+      <div className={cn("fixed inset-0 z-[300] md:hidden transition-opacity", mobileOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0")}>
         <div className="absolute inset-0 bg-black/60" onClick={onMobileClose} />
         <aside
           id="mobile-navigation"
           className={cn(
-            "absolute inset-y-0 left-0 flex h-screen max-h-screen w-72 max-w-[88vw] flex-col border-r border-vault-border bg-vault-surface shadow-2xl transition-transform duration-200",
+            "absolute inset-y-0 left-0 flex h-[100dvh] max-h-[100dvh] w-72 max-w-[88vw] flex-col overflow-hidden border-r border-vault-border bg-vault-surface shadow-2xl transition-transform duration-200",
             mobileOpen ? "translate-x-0" : "-translate-x-full"
           )}
         >

@@ -27,11 +27,11 @@ export default function RootLayout({
       </head>
       <body className="antialiased bg-vault-bg text-vault-text">
         <ThemeProvider>
-          <div className="flex h-screen overflow-hidden">
+          <div className="flex h-dvh min-h-dvh overflow-hidden">
             <Sidebar />
             <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
               <MobileHeader />
-              <main className="flex-1 overflow-y-auto min-w-0 pb-safe">
+              <main className="flex-1 overflow-y-auto overscroll-contain min-w-0 pb-safe">
                 {children}
               </main>
             </div>
