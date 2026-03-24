@@ -19,6 +19,7 @@ export default function SettingsPage() {
   const [autoBackupEnabled, setAutoBackupEnabled] = useState(false);
   const [autoBackupCadence, setAutoBackupCadence] = useState<"daily" | "weekly" | "monthly">("weekly");
   const [backupDestinationPath, setBackupDestinationPath] = useState("");
+  const [manualLanHost, setManualLanHost] = useState("");
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -26,7 +27,6 @@ export default function SettingsPage() {
 
   const [localIp, setLocalIp] = useState<string | null>(null);
   const [localPort, setLocalPort] = useState("3000");
-  const [localUrl, setLocalUrl] = useState<string | null>(null);
   const [localAccessMessage, setLocalAccessMessage] = useState<string | null>(null);
   const [copySuccess, setCopySuccess] = useState(false);
 
@@ -41,6 +41,7 @@ export default function SettingsPage() {
           setAutoBackupEnabled(data.autoBackupEnabled ?? false);
           setAutoBackupCadence(data.autoBackupCadence ?? "weekly");
           setBackupDestinationPath(data.backupDestinationPath ?? "");
+          setManualLanHost(data.manualLanHost ?? "");
         }
         setDataLoading(false);
       })
@@ -56,16 +57,18 @@ export default function SettingsPage() {
       .then((data) => {
         setLocalIp(data.ip ?? null);
         setLocalPort(data.port ?? "3000");
-        setLocalUrl(data.url ?? null);
         setLocalAccessMessage(data.message ?? null);
       })
       .catch(() => {
         setLocalIp(null);
         setLocalPort("3000");
-        setLocalUrl(null);
         setLocalAccessMessage("Unable to detect local network IP");
       });
   }, []);
+
+  const normalizedManualLanHost = manualLanHost.trim();
+  const effectiveLanHost = normalizedManualLanHost || localIp || null;
+  const finalLanUrl = effectiveLanHost ? `http://${effectiveLanHost}:${localPort}` : null;
 
   async function handleSave(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -82,6 +85,7 @@ export default function SettingsPage() {
           autoBackupEnabled,
           autoBackupCadence,
           backupDestinationPath,
+          manualLanHost,
         }),
       });
 
@@ -101,10 +105,10 @@ export default function SettingsPage() {
   }
 
   async function handleCopyLocalUrl() {
-    if (!localUrl || !navigator.clipboard) return;
+    if (!finalLanUrl || !navigator.clipboard) return;
 
     try {
-      await navigator.clipboard.writeText(localUrl);
+      await navigator.clipboard.writeText(finalLanUrl);
       setCopySuccess(true);
       setTimeout(() => setCopySuccess(false), 2000);
     } catch {
@@ -214,7 +218,7 @@ export default function SettingsPage() {
         >
           <div className="space-y-4">
             <div className="rounded-lg border border-vault-border bg-vault-bg p-3">
-              <p className="text-xs uppercase tracking-widest text-vault-text-faint">Device IP</p>
+              <p className="text-xs uppercase tracking-widest text-vault-text-faint">Detected LAN IP (best effort)</p>
               <p className="mt-1 font-mono text-sm text-vault-text">{localIp ?? "Unavailable"}</p>
             </div>
 
@@ -223,18 +227,34 @@ export default function SettingsPage() {
               <p className="mt-1 font-mono text-sm text-vault-text">{localPort}</p>
             </div>
 
+            <FormField
+              label="Mobile Access Host/IP"
+              hint="Enter the LAN IP or hostname other devices on your network should use, for example 192.168.1.74"
+            >
+              <input
+                id="manualLanHost"
+                type="text"
+                value={manualLanHost}
+                onChange={(e) => setManualLanHost(e.target.value)}
+                className={INPUT_CLASS}
+                placeholder="192.168.1.74"
+              />
+            </FormField>
+
             <div className="rounded-lg border border-vault-border bg-vault-bg p-3">
               <p className="text-xs uppercase tracking-widest text-vault-text-faint">Access URL</p>
               <p className="mt-1 break-all font-mono text-sm text-vault-text">
-                {localUrl ?? "Unavailable"}
+                {finalLanUrl ?? "Unavailable"}
               </p>
               <p className="mt-1 text-xs text-vault-text-muted">
-                Make sure your phone is on the same Wi-Fi or LAN. Example:
-                <span className="ml-1 font-mono">http://192.168.1.50:3000</span>
+                {normalizedManualLanHost ? "Using manual Mobile Access Host/IP override." : "Using auto-detected LAN IP when available."}
+              </p>
+              <p className="mt-1 text-xs text-vault-text-muted">
+                Make sure your phone is on the same Wi-Fi or LAN. Manual override is the reliable option when Docker or NAS networking hides the host LAN IP.
               </p>
             </div>
 
-            {localUrl ? (
+            {finalLanUrl ? (
               <div className="flex flex-wrap gap-2">
                 <StandardButton
                   type="button"
@@ -248,7 +268,7 @@ export default function SettingsPage() {
             ) : (
               <StatusMessage
                 tone="error"
-                message={localAccessMessage ?? "Unable to detect local network IP."}
+                message={localAccessMessage ?? "Set Mobile Access Host/IP to your host LAN IP or hostname to enable mobile access."}
               />
             )}
 
@@ -296,8 +316,8 @@ export default function SettingsPage() {
             />
             <StatusRow
               label="LAN URL Available"
-              value={localUrl ? "Yes" : "No"}
-              ok={Boolean(localUrl)}
+              value={finalLanUrl ? "Yes" : "No"}
+              ok={Boolean(finalLanUrl)}
             />
           </div>
         </SectionCard>

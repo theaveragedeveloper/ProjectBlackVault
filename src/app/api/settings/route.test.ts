@@ -33,6 +33,7 @@ describe("/api/settings backup fields", () => {
       autoBackupEnabled: true,
       autoBackupCadence: "monthly",
       backupDestinationPath: "/srv/blackvault/backups",
+      manualLanHost: "192.168.1.74",
       defaultCurrency: "USD",
       appPassword: null,
       createdAt: new Date("2026-03-01T00:00:00.000Z"),
@@ -47,6 +48,7 @@ describe("/api/settings backup fields", () => {
     expect(json.autoBackupEnabled).toBe(true);
     expect(json.autoBackupCadence).toBe("monthly");
     expect(json.backupDestinationPath).toBe("/srv/blackvault/backups");
+    expect(json.manualLanHost).toBe("192.168.1.74");
   });
 
   it("persists backup settings via PUT", async () => {
@@ -58,6 +60,7 @@ describe("/api/settings backup fields", () => {
       autoBackupEnabled: true,
       autoBackupCadence: "weekly",
       backupDestinationPath: "/mnt/blackvault/backups",
+      manualLanHost: null,
       defaultCurrency: "USD",
       appPassword: null,
       createdAt: new Date("2026-03-01T00:00:00.000Z"),
@@ -71,6 +74,7 @@ describe("/api/settings backup fields", () => {
         autoBackupEnabled: true,
         autoBackupCadence: "weekly",
         backupDestinationPath: "/mnt/blackvault/backups",
+        manualLanHost: "192.168.1.74",
       }),
       headers: {
         "Content-Type": "application/json",
@@ -87,6 +91,7 @@ describe("/api/settings backup fields", () => {
     expect(upsertArgs.update.autoBackupEnabled).toBe(true);
     expect(upsertArgs.update.autoBackupCadence).toBe("weekly");
     expect(upsertArgs.update.backupDestinationPath).toBe("/mnt/blackvault/backups");
+    expect(upsertArgs.update.manualLanHost).toBe("192.168.1.74");
     expect(json.autoBackupCadence).toBe("weekly");
   });
 
@@ -186,6 +191,50 @@ describe("/api/settings backup fields", () => {
     expect(upsertArgs.update.defaultCurrency).toBe("EUR");
   });
 
+
+  it("normalizes and validates manualLanHost", async () => {
+    mocks.upsert.mockResolvedValue({
+      id: "singleton",
+      manualLanHost: "192.168.1.74",
+      googleCseApiKey: null,
+      enableImageSearch: false,
+    });
+
+    const request = new NextRequest("http://localhost/api/settings", {
+      method: "PUT",
+      body: JSON.stringify({
+        manualLanHost: " 192.168.1.74 ",
+      }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    const response = await PUT(request);
+
+    expect(response.status).toBe(200);
+    const upsertArgs = mocks.upsert.mock.calls[0][0];
+    expect(upsertArgs.update.manualLanHost).toBe("192.168.1.74");
+  });
+
+  it("rejects invalid manualLanHost payloads", async () => {
+    const request = new NextRequest("http://localhost/api/settings", {
+      method: "PUT",
+      body: JSON.stringify({
+        manualLanHost: 12345,
+      }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    const response = await PUT(request);
+    const json = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(json.error).toMatch(/manualLanHost must be a string/i);
+    expect(mocks.upsert).not.toHaveBeenCalled();
+  });
   it("rejects empty update payloads", async () => {
     const request = new NextRequest("http://localhost/api/settings", {
       method: "PUT",
