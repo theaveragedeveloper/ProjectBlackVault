@@ -1,48 +1,40 @@
 # ProjectBlackVault
 
-**Private, self-hosted firearms and training records—running on your own machine with Docker.**
+**Private, self-hosted firearms and training records on your own hardware.**
 
-ProjectBlackVault gives you one local place to track firearms, accessories, maintenance, training, documents, and photos without relying on a cloud account.
-
----
-
-## What ProjectBlackVault is
-
-ProjectBlackVault is a self-hosted web application for managing firearm-related records at home. You can run it on a local machine, home server, or NAS using Docker.
-
-It is built for users who want practical inventory and performance tracking while keeping ownership of their data.
+ProjectBlackVault helps you keep inventory, maintenance, training, documents, and photos in one local system you control.
 
 ---
 
-## Why it is useful
+## Who this is for
 
-- **Keeps everything in one place:** inventory, parts, records, and training notes.
-- **Improves visibility:** quickly see round counts, maintenance status, and drill history.
-- **Supports better decisions:** use drill-first performance history and logs to review progress over time.
-- **Protects privacy:** runs locally; no cloud dependency is required for core use.
-- **Makes backup and reporting easier:** export records as PDF or CSV when needed.
+ProjectBlackVault is built for people who want a practical, private record system without relying on cloud accounts.
 
----
-
-## Core features
-
-- Firearm and accessory tracking
-- Per-item and session-based round count tracking
-- Drill logging with drill-first performance history
-- Maintenance visibility and status tracking
-- Document and photo uploads stored locally
-- PDF and CSV export tools
-- Local network/mobile access configuration from **Settings**
+- Home server and NAS users
+- Self-hosters who prefer local-only services
+- Anyone tracking inventory, maintenance, and training progress
 
 ---
 
-## Quick start (Docker, easiest V1 path)
+## What you can do
 
-> This is the recommended install path for V1.
+- Track firearms and accessories
+- Log round counts and drill sessions
+- Review maintenance status and history
+- Store local documents and photos
+- Export records as PDF or CSV
+- Configure local-network mobile access from **Settings**
+
+---
+
+## Quick start (Docker)
+
+> Recommended install path for V1.
 
 ### 1) Install prerequisites
 
-- [Docker Engine](https://docs.docker.com/engine/install/) + Docker Compose plugin
+- [Docker Engine](https://docs.docker.com/engine/install/)
+- Docker Compose plugin
 
 ### 2) Clone and start
 
@@ -53,63 +45,32 @@ git checkout V1-pub-release
 docker compose up -d --build
 ```
 
-### 3) Open the app
+### 3) Open ProjectBlackVault
 
-Open your browser to:
+Open:
 
 - `http://localhost:3000`
 
-If your host uses a different port in `docker-compose.yml`, use that port instead.
+If you changed the host port in `docker-compose.yml`, use that port instead.
 
 ---
 
-## Mobile / LAN access
+## Mobile access (local network)
 
-ProjectBlackVault can be used from phones and tablets on your local network.
+Use this when opening ProjectBlackVault from a phone or tablet on the same Wi-Fi/LAN.
 
-1. Open **Settings** in the app.
-2. Set your **Mobile Access Host/IP** (for example: `192.168.1.50`).
+1. Open **Settings** in ProjectBlackVault.
+2. Enter a **Mobile Access Host/IP** (example: `192.168.1.50`).
 3. Save settings.
-4. On mobile, open `http://<your-host-ip>:3000` (or your configured port).
+4. Use the displayed mobile URL (or copy it with the **Copy URL** button).
 
-Tip: Use a static IP or DHCP reservation on your router for more reliable LAN access.
-
----
-
-## What you can track
-
-- Firearms (details, photos, associated records)
-- Accessories and attachments
-- Round count history
-- Drill sessions and performance notes
-- Maintenance-related visibility across your inventory
-- Uploaded documents (receipts, manuals, records) and photos
+Tip: reserve a static/DHCP IP on your router so mobile access stays consistent.
 
 ---
 
-## Export and backup
+## Updating to the latest `V1-pub-release`
 
-ProjectBlackVault supports:
-
-- **PDF exports** for printable/shareable records
-- **CSV exports** for spreadsheet workflows and long-term portability
-
-Because it is self-hosted, your data stays under your control. Standard host-level backups (NAS snapshots, disk backups, etc.) work well alongside app exports.
-
----
-
-## Self-hosting notes
-
-- Designed for local/self-managed use on home infrastructure.
-- No cloud dependency is required for core functionality.
-- Docker-based deployment keeps setup and updates consistent.
-- You are responsible for network exposure and local backup strategy.
-
----
-
-## Updating (V1-pub-release)
-
-Use this exact update flow:
+Run this exact flow from your existing `ProjectBlackVault` folder:
 
 ```bash
 git checkout V1-pub-release
@@ -123,24 +84,30 @@ docker compose up -d
 
 ---
 
-## Who it is for
+## Backup and portability
 
-ProjectBlackVault is for people who want private, local control of their records, especially:
+- Use built-in exports for PDF/CSV backups
+- Keep regular host-level backups of your Docker data folders
 
-- Home server and NAS users
-- Self-hosters who prefer local-only services
-- Individuals tracking inventory, maintenance, and training progress
+Because ProjectBlackVault is self-hosted, your data remains under your control.
 
 ---
 
-## Support / issues
+## Self-hosting notes
 
-- Use GitHub Issues to report bugs or request features.
-- Include your environment details (OS, Docker version, logs) when reporting problems.
-- For setup help, share the exact command you ran and its output so issues can be diagnosed faster.
+- Designed for local/self-managed environments
+- No cloud dependency is required for core use
+- You control network exposure and backup strategy
+
+---
+
+## Support
+
+- Use GitHub Issues for bug reports and feature requests
+- Include OS, Docker version, and command output when reporting setup/runtime issues
 
 ---
 
 ## License
 
-Add your project license here (for example, MIT, Apache-2.0, or a private/internal license), and include a `LICENSE` file in the repository root.
+Add your chosen license (for example MIT or Apache-2.0) and include a `LICENSE` file at the repository root.
