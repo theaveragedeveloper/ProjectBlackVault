@@ -18,6 +18,7 @@ export default function SettingsPage() {
   const [includeUploadsInBackup, setIncludeUploadsInBackup] = useState(true);
   const [autoBackupEnabled, setAutoBackupEnabled] = useState(false);
   const [autoBackupCadence, setAutoBackupCadence] = useState<"daily" | "weekly" | "monthly">("weekly");
+  const [backupDestinationPath, setBackupDestinationPath] = useState("");
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -39,6 +40,7 @@ export default function SettingsPage() {
           setIncludeUploadsInBackup(data.includeUploadsInBackup ?? true);
           setAutoBackupEnabled(data.autoBackupEnabled ?? false);
           setAutoBackupCadence(data.autoBackupCadence ?? "weekly");
+          setBackupDestinationPath(data.backupDestinationPath ?? "");
         }
         setDataLoading(false);
       })
@@ -79,6 +81,7 @@ export default function SettingsPage() {
           includeUploadsInBackup,
           autoBackupEnabled,
           autoBackupCadence,
+          backupDestinationPath,
         }),
       });
 
@@ -188,6 +191,20 @@ export default function SettingsPage() {
                 <option value="monthly">Monthly</option>
               </select>
             </FormField>
+
+            <FormField
+              label="Preferred Backup Destination Path"
+              hint="Saved as a reference path for your backup process. Exports are still downloaded through your browser in V1."
+            >
+              <input
+                id="backupDestinationPath"
+                type="text"
+                value={backupDestinationPath}
+                onChange={(e) => setBackupDestinationPath(e.target.value)}
+                className={INPUT_CLASS}
+                placeholder="/srv/blackvault/backups or D:\\Backups\\BlackVault"
+              />
+            </FormField>
           </div>
         </SectionCard>
 
@@ -271,6 +288,11 @@ export default function SettingsPage() {
               label="Auto Backup"
               value={autoBackupEnabled ? `Enabled (${autoBackupCadence})` : "Disabled"}
               ok={autoBackupEnabled}
+            />
+            <StatusRow
+              label="Backup Destination Preference"
+              value={backupDestinationPath ? "Saved" : "Not set"}
+              ok={Boolean(backupDestinationPath)}
             />
             <StatusRow
               label="LAN URL Available"

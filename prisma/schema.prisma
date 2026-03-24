@@ -286,6 +286,7 @@ model AppSettings {
   includeUploadsInBackup  Boolean  @default(true)
   autoBackupEnabled       Boolean  @default(false)
   autoBackupCadence       String   @default("weekly")
+  backupDestinationPath   String?
   defaultCurrency         String   @default("USD")
   appPassword             String?
   createdAt               DateTime @default(now())

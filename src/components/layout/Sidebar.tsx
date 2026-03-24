@@ -174,14 +174,18 @@ export function Sidebar({ mobileOnly = false, mobileOpen = false, onMobileClose 
         </aside>
       )}
 
-      {mobileOpen && (
-        <>
-          <div className="fixed inset-0 z-[90] bg-black/60 md:hidden" onClick={onMobileClose} />
-          <aside className="fixed inset-y-0 left-0 z-[100] flex h-dvh max-h-dvh flex-col w-72 max-w-[88vw] bg-vault-surface border-r border-vault-border md:hidden">
-            {navContent}
-          </aside>
-        </>
-      )}
+      <div className={cn("fixed inset-0 z-[130] md:hidden transition-opacity", mobileOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0")}>
+        <div className="absolute inset-0 bg-black/60" onClick={onMobileClose} />
+        <aside
+          id="mobile-navigation"
+          className={cn(
+            "absolute inset-y-0 left-0 flex h-screen max-h-screen w-72 max-w-[88vw] flex-col border-r border-vault-border bg-vault-surface shadow-2xl transition-transform duration-200",
+            mobileOpen ? "translate-x-0" : "-translate-x-full"
+          )}
+        >
+          {navContent}
+        </aside>
+      </div>
     </>
   );
 }

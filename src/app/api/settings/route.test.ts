@@ -32,6 +32,7 @@ describe("/api/settings backup fields", () => {
       includeUploadsInBackup: false,
       autoBackupEnabled: true,
       autoBackupCadence: "monthly",
+      backupDestinationPath: "/srv/blackvault/backups",
       defaultCurrency: "USD",
       appPassword: null,
       createdAt: new Date("2026-03-01T00:00:00.000Z"),
@@ -45,6 +46,7 @@ describe("/api/settings backup fields", () => {
     expect(json.includeUploadsInBackup).toBe(false);
     expect(json.autoBackupEnabled).toBe(true);
     expect(json.autoBackupCadence).toBe("monthly");
+    expect(json.backupDestinationPath).toBe("/srv/blackvault/backups");
   });
 
   it("persists backup settings via PUT", async () => {
@@ -55,6 +57,7 @@ describe("/api/settings backup fields", () => {
       includeUploadsInBackup: true,
       autoBackupEnabled: true,
       autoBackupCadence: "weekly",
+      backupDestinationPath: "/mnt/blackvault/backups",
       defaultCurrency: "USD",
       appPassword: null,
       createdAt: new Date("2026-03-01T00:00:00.000Z"),
@@ -67,6 +70,7 @@ describe("/api/settings backup fields", () => {
         includeUploadsInBackup: true,
         autoBackupEnabled: true,
         autoBackupCadence: "weekly",
+        backupDestinationPath: "/mnt/blackvault/backups",
       }),
       headers: {
         "Content-Type": "application/json",
@@ -82,6 +86,7 @@ describe("/api/settings backup fields", () => {
     expect(upsertArgs.update.includeUploadsInBackup).toBe(true);
     expect(upsertArgs.update.autoBackupEnabled).toBe(true);
     expect(upsertArgs.update.autoBackupCadence).toBe("weekly");
+    expect(upsertArgs.update.backupDestinationPath).toBe("/mnt/blackvault/backups");
     expect(json.autoBackupCadence).toBe("weekly");
   });
 

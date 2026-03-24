@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { VaultInput, VaultSelect, VaultTextArea, vaultCardClass, vaultLabelClass, VaultButton } from "@/components/shared/ui-primitives";
 import { formatNumber } from "@/lib/utils";
-import { Target, ChevronDown, Loader2, AlertCircle, CheckCircle2, Shield, Timer, BookPlus, Plus, Minus, Calculator } from "lucide-react";
+import { Target, ChevronDown, Loader2, AlertCircle, CheckCircle2, Shield, Timer, BookPlus, Plus, Minus, Calculator, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { safeId } from "@/lib/client/id";
 import { inferDrillModeFromEntry, resolveDrillMetrics, type DrillPerformanceMode } from "@/lib/range/drill-metrics";
@@ -165,6 +165,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
   ]);
 
   const [selectedSessionId, setSelectedSessionId] = useState<string>("");
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [drillName, setDrillName] = useState<string>("");
   const [drillTime, setDrillTime] = useState<string>("");
   const [drillPoints, setDrillPoints] = useState<string>("");
@@ -175,6 +176,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
   const [customDrillNotes, setCustomDrillNotes] = useState("");
   const [customDrillMode, setCustomDrillMode] = useState<DrillPerformanceMode>("both");
   const [editingDrillId, setEditingDrillId] = useState<string | null>(null);
+  const [deletingDrillId, setDeletingDrillId] = useState<string | null>(null);
   const [drillLibrary, setDrillLibrary] = useState<DrillTemplate[]>(DEFAULT_DRILL_LIBRARY);
   const [calculatorPoints, setCalculatorPoints] = useState("");
   const [calculatorPenalties, setCalculatorPenalties] = useState("");
@@ -188,6 +190,12 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
   const [performanceDrillName, setPerformanceDrillName] = useState("");
   const [selectedPerformanceDrillId, setSelectedPerformanceDrillId] = useState<string>("");
   const router = useRouter();
+  const showLogSession = view === "log-session";
+  const showSessionHistory = view === "session-history";
+  const showLogDrill = view === "log-drill";
+  const showDrillPerformance = view === "drill-performance";
+  const showDrillLibrary = view === "drill-library";
+  const showHitFactor = view === "hit-factor";
 
   const [loadingFirearms, setLoadingFirearms] = useState(true);
   const [loadingBuilds, setLoadingBuilds] = useState(false);
@@ -366,6 +374,35 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
     if (sessionFromQuery && sessionFromQuery !== selectedSessionId) setSelectedSessionId(sessionFromQuery);
   }, [drillName, performanceDrillName, selectedSessionId]);
 
+  useEffect(() => {
+    if (!showLogSession || typeof window === "undefined") return;
+    const editSessionId = new URLSearchParams(window.location.search).get("edit");
+    if (!editSessionId) {
+      setEditingSessionId(null);
+      return;
+    }
+
+    const sessionToEdit = sessions.find((session) => session.id === editSessionId);
+    if (!sessionToEdit) return;
+
+    setEditingSessionId(sessionToEdit.id);
+    setSelectedSessionId(sessionToEdit.id);
+    setSessionDate(new Date(sessionToEdit.sessionDate).toISOString().slice(0, 10));
+    setSessionLocation(sessionToEdit.location);
+    setSelectedFirearm(sessionToEdit.firearm.id);
+    setSelectedBuild(sessionToEdit.build?.id ?? "");
+    setRoundsFired(String(sessionToEdit.roundsFired));
+    setSessionNote(sessionToEdit.notes ?? "");
+    setAmmoSelections(
+      sessionToEdit.ammoLinks.length > 0
+        ? sessionToEdit.ammoLinks.map((link) => ({
+            ammoStockId: link.ammoStock.id,
+            roundsUsed: String(link.roundsUsed),
+          }))
+        : [{ ammoStockId: "", roundsUsed: "" }]
+    );
+  }, [sessions, showLogSession]);
+
   const drillHitFactorPreview = useMemo(() => {
     const time = selectedDrillTemplate?.mode === "accuracy" ? 1 : Number.parseFloat(drillTime);
     const points = selectedDrillTemplate?.mode === "time" ? 0 : Number.parseFloat(drillPoints);
@@ -466,6 +503,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
     const accessoryIdsForFinalize = selectedBuildData?.slots
       .map((slot) => slot.accessory?.id)
       .filter((id): id is string => Boolean(id)) ?? [];
+    const isEditingSession = Boolean(editingSessionId);
 
     if (!selectedFirearmId) {
       setError("Add at least one firearm in the vault before logging a range session.");
@@ -479,7 +517,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
       const hasRequired = Boolean(entry.name.trim() && entry.timeSeconds && entry.points);
       return !hasRequired;
     });
-    if (hasIncompleteDrillRows) {
+    if (!isEditingSession && hasIncompleteDrillRows) {
       setError("Each drill set row must include drill name, time, and points (or leave the row blank).");
       setSubmitting(false);
       return;
@@ -501,8 +539,8 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
     }
 
     try {
-      const sessionRes = await fetch("/api/range/sessions", {
-        method: "POST",
+      const sessionRes = await fetch(isEditingSession ? `/api/range/sessions/${editingSessionId}` : "/api/range/sessions", {
+        method: isEditingSession ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sessionDate: sessionDate || new Date().toISOString().slice(0, 10),
@@ -511,8 +549,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
           buildId: selectedBuild || null,
           roundsFired: resolvedRounds,
           notes: sessionNote,
-          ammoLinks: normalizedAmmoLinks,
-          sessionDrills: normalizedSessionDrills,
+          ...(isEditingSession ? {} : { ammoLinks: normalizedAmmoLinks, sessionDrills: normalizedSessionDrills }),
         }),
       });
 
@@ -523,35 +560,42 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
 
       setSavedSessionId(sessionJson.id);
 
-      const finalizeRes = await fetch(`/api/range/sessions/${sessionJson.id}/finalize`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          selectedAccessoryIds: accessoryIdsForFinalize.length > 0 ? accessoryIdsForFinalize : Array.from(selectedAccessories),
-        }),
-      });
+      if (!isEditingSession) {
+        const finalizeRes = await fetch(`/api/range/sessions/${sessionJson.id}/finalize`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            selectedAccessoryIds: accessoryIdsForFinalize.length > 0 ? accessoryIdsForFinalize : Array.from(selectedAccessories),
+          }),
+        });
 
-      const finalizeJson = await finalizeRes.json();
-      if (!finalizeRes.ok) {
-        setFinalizeState("failed_after_save");
-        setSuccess("Session saved.");
-        setWarning("Finalize failed. Retry save to safely re-run updates.");
-        setError(finalizeJson.error ?? "Finalize failed");
+        const finalizeJson = await finalizeRes.json();
+        if (!finalizeRes.ok) {
+          setFinalizeState("failed_after_save");
+          setSuccess("Session saved.");
+          setWarning("Finalize failed. Retry save to safely re-run updates.");
+          setError(finalizeJson.error ?? "Finalize failed");
+          await loadSessions();
+          setSelectedSessionId(sessionJson.id);
+          setSubmitting(false);
+          return;
+        }
+
         await loadSessions();
         setSelectedSessionId(sessionJson.id);
-        setSubmitting(false);
-        return;
+        setFinalizeState("success");
+        setSuccess("Session saved and finalized.");
+        setWarning(null);
+        setRoundsFired("");
+        setSessionNote("");
+        setAmmoSelections([{ ammoStockId: "", roundsUsed: "" }]);
+        setSessionDrillEntries([{ id: safeId("session-drill"), name: "", timeSeconds: "", points: "", penalties: "", hits: "", notes: "" }]);
+      } else {
+        await loadSessions();
+        setSelectedSessionId(sessionJson.id);
+        setSuccess("Session updated.");
+        setWarning("V1 edit mode updates session details only. Existing ammo links and drill logs are preserved.");
       }
-
-      await loadSessions();
-      setSelectedSessionId(sessionJson.id);
-      setFinalizeState("success");
-      setSuccess("Session saved and finalized.");
-      setWarning(null);
-      setRoundsFired("");
-      setSessionNote("");
-      setAmmoSelections([{ ammoStockId: "", roundsUsed: "" }]);
-      setSessionDrillEntries([{ id: safeId("session-drill"), name: "", timeSeconds: "", points: "", penalties: "", hits: "", notes: "" }]);
     } catch (err) {
       setFinalizeState("idle");
       setError(err instanceof Error ? err.message : "Session log failed");
@@ -626,13 +670,6 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
       setSubmittingDrill(false);
     }
   }
-
-  const showLogSession = view === "log-session";
-  const showSessionHistory = view === "session-history";
-  const showLogDrill = view === "log-drill";
-  const showDrillPerformance = view === "drill-performance";
-  const showDrillLibrary = view === "drill-library";
-  const showHitFactor = view === "hit-factor";
 
   const allLoggedDrills = useMemo(
     () =>
@@ -770,19 +807,55 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
     const name = customDrillName.trim();
     if (!name) return;
 
-    setDrillLibrary((prev) => [
-      {
-        id: crypto.randomUUID(),
-        name,
-        notes: customDrillNotes.trim() || null,
-        mode: customDrillMode,
-        createdAt: new Date().toISOString(),
-      },
-      ...prev,
-    ]);
+    if (editingDrillId) {
+      setDrillLibrary((prev) =>
+        prev.map((item) =>
+          item.id === editingDrillId
+            ? { ...item, name, notes: customDrillNotes.trim() || null, mode: customDrillMode }
+            : item
+        )
+      );
+      setSuccess(`Updated "${name}" drill template.`);
+      if (typeof window !== "undefined") {
+        router.replace("/range/drill-library");
+      }
+      setEditingDrillId(null);
+    } else {
+      setDrillLibrary((prev) => [
+        {
+          id: crypto.randomUUID(),
+          name,
+          notes: customDrillNotes.trim() || null,
+          mode: customDrillMode,
+          createdAt: new Date().toISOString(),
+        },
+        ...prev,
+      ]);
+    }
     setCustomDrillName("");
     setCustomDrillNotes("");
     setCustomDrillMode("both");
+  }
+
+  function handleDeleteDrill(template: DrillTemplate) {
+    if (deletingDrillId) return;
+    const hasHistory = drillNameLibrary.some((name) => name.trim().toLowerCase() === template.name.trim().toLowerCase());
+    if (hasHistory) {
+      setError(`Cannot delete "${template.name}" because it has linked logged history.`);
+      return;
+    }
+
+    if (!window.confirm(`Delete drill template "${template.name}"? This cannot be undone.`)) {
+      return;
+    }
+
+    setDeletingDrillId(template.id);
+    setDrillLibrary((prev) => prev.filter((item) => item.id !== template.id));
+    setSuccess(`Deleted "${template.name}" from drill library.`);
+    if (drillName === template.name) {
+      setDrillName("");
+    }
+    setDeletingDrillId(null);
   }
 
   const pageTitle = ({
@@ -845,6 +918,11 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
         <form id="log-range-session" onSubmit={handleSubmit} className="space-y-6 scroll-mt-20">
           <fieldset className={SECTION_CARD_CLASS}>
             <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">Session Details</legend>
+            {editingSessionId && (
+              <p className="text-xs text-vault-text-muted">
+                Editing session <span className="font-mono">{editingSessionId.slice(0, 12)}</span>. V1 edit mode updates session details only and preserves existing ammo links/drill logs.
+              </p>
+            )}
 
             <div className="grid md:grid-cols-2 gap-4">
               <div>
@@ -928,6 +1006,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
               </div>
             </div>
 
+            {!editingSessionId && (
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <label className={vaultLabelClass}>Ammo Used (multiple types supported)</label>
@@ -980,7 +1059,9 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
               )}
               <p className="text-xs text-vault-text-faint">Leave rows blank to skip ammo deductions. When rounds fired is blank, it auto-calculates from ammo rows.</p>
             </div>
+            )}
 
+            {!editingSessionId && (
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <label className={vaultLabelClass}>Drills Completed During This Session</label>
@@ -1086,6 +1167,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
                 </div>
               ))}
             </div>
+            )}
 
             <div>
               <label className={vaultLabelClass}>Notes</label>
@@ -1143,7 +1225,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
               className="w-full sm:w-auto justify-center flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-2 rounded-md text-sm font-medium transition-colors"
             >
               {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Target className="w-4 h-4" />}
-              {submitting ? "Logging..." : "Log Session"}
+              {submitting ? (editingSessionId ? "Saving..." : "Logging...") : (editingSessionId ? "Save Session Changes" : "Log Session")}
             </button>
           </div>
         </form>
@@ -1360,40 +1442,44 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
         {showDrillLibrary && (
         <fieldset id="drill-library" className={`${SECTION_CARD_CLASS} scroll-mt-20`}>
           <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">Drill Library</legend>
-          <form onSubmit={addCustomDrill} className="grid gap-3 md:grid-cols-[1fr_1fr_160px_auto] items-end">
-            <div>
-              <label className={vaultLabelClass}>Custom Drill Name</label>
-              <VaultInput
-                value={customDrillName}
-                onChange={(e) => setCustomDrillName(e.target.value)}
-                placeholder="e.g. El Prez"
-                
-              />
+          <div className="space-y-4">
+            <div className="rounded-lg border border-vault-border bg-vault-bg p-4 space-y-3">
+              <p className="text-xs uppercase tracking-widest text-vault-text-muted">Create New Drill</p>
+              <p className="text-xs text-vault-text-faint">Choose a name and how the drill is scored so logging screens show the right performance fields.</p>
+              <form onSubmit={addCustomDrill} className="grid gap-3 md:grid-cols-[1fr_1fr_180px_auto] items-end">
+                <div>
+                  <label className={vaultLabelClass}>Basic Info · Drill Name</label>
+                  <VaultInput
+                    value={customDrillName}
+                    onChange={(e) => setCustomDrillName(e.target.value)}
+                    placeholder="e.g. El Prez"
+                  />
+                </div>
+                <div>
+                  <label className={vaultLabelClass}>Notes / Configuration</label>
+                  <VaultInput
+                    value={customDrillNotes}
+                    onChange={(e) => setCustomDrillNotes(e.target.value)}
+                    placeholder="Optional setup notes"
+                  />
+                </div>
+                <div>
+                  <label className={vaultLabelClass}>Performance Tracking</label>
+                  <VaultSelect value={customDrillMode} onChange={(e) => setCustomDrillMode(e.target.value as DrillPerformanceMode)} >
+                    <option value="both">Time + Accuracy</option>
+                    <option value="time">Time only</option>
+                    <option value="accuracy">Accuracy only</option>
+                  </VaultSelect>
+                </div>
+                <button
+                  type="submit"
+                  className="h-10 px-4 rounded-md text-sm bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20"
+                >
+                  <span className="inline-flex items-center gap-2"><BookPlus className="w-4 h-4" />{editingDrillId ? "Save Drill" : "Add Drill"}</span>
+                </button>
+              </form>
             </div>
-            <div>
-              <label className={vaultLabelClass}>Notes</label>
-              <VaultInput
-                value={customDrillNotes}
-                onChange={(e) => setCustomDrillNotes(e.target.value)}
-                placeholder="Optional setup notes"
-                
-              />
-            </div>
-            <div>
-              <label className={vaultLabelClass}>Mode</label>
-              <VaultSelect value={customDrillMode} onChange={(e) => setCustomDrillMode(e.target.value as DrillPerformanceMode)} >
-                <option value="both">Time + Accuracy</option>
-                <option value="time">Time only</option>
-                <option value="accuracy">Accuracy only</option>
-              </VaultSelect>
-            </div>
-            <button
-              type="submit"
-              className="h-10 px-4 rounded-md text-sm bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20"
-            >
-              <span className="inline-flex items-center gap-2"><BookPlus className="w-4 h-4" />{editingDrillId ? "Save Drill" : "Add Drill"}</span>
-            </button>
-          </form>
+          </div>
 
           <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -1403,14 +1489,9 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
               ) : (
                 <div className="space-y-2">
                   {drillLibrary.map((template) => (
-                    <button
+                    <div
                       key={template.id}
-                      type="button"
-                      onClick={() => {
-                        setDrillName(template.name);
-                        router.push(`/range/log-drill?drill=${encodeURIComponent(template.name)}`);
-                      }}
-                      className="w-full text-left bg-vault-bg border border-vault-border rounded px-3 py-2 hover:border-[#00C2FF]/40"
+                      className="w-full text-left bg-vault-bg border border-vault-border rounded px-3 py-2"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div>
@@ -1418,12 +1499,33 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
                           <p className="text-xs text-vault-text-faint mt-1 uppercase tracking-widest">{template.mode}</p>
                           {template.notes && <p className="text-xs text-vault-text-muted mt-1 line-clamp-1">{template.notes}</p>}
                         </div>
-                        <div className="flex gap-1">
+                        <div className="flex flex-wrap justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDrillName(template.name);
+                              router.push(`/range/log-drill?drill=${encodeURIComponent(template.name)}`);
+                            }}
+                            className="text-[11px] px-2 py-1 rounded border border-vault-border text-vault-text-muted"
+                          >
+                            Select
+                          </button>
                           <Link href={`/range/drill-library?edit=${template.id}`} className="text-[11px] px-2 py-1 rounded border border-vault-border text-vault-text-muted">Edit</Link>
                           <Link href={`/range/drill-performance?drill=${encodeURIComponent(template.name)}`} className="text-[11px] px-2 py-1 rounded border border-[#00C2FF]/30 text-[#00C2FF]">History</Link>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteDrill(template)}
+                            disabled={deletingDrillId === template.id}
+                            className="text-[11px] px-2 py-1 rounded border border-[#E53935]/40 text-[#E53935] disabled:opacity-60"
+                          >
+                            <span className="inline-flex items-center gap-1">
+                              <Trash2 className="h-3 w-3" />
+                              {deletingDrillId === template.id ? "Deleting..." : "Delete"}
+                            </span>
+                          </button>
                         </div>
                       </div>
-                    </button>
+                    </div>
                   ))}
                 </div>
               )}
@@ -1687,16 +1789,31 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
           ) : (
             <div className="space-y-2">
               {sessions.slice(0, 8).map((session) => (
-                <button
+                <div
                   key={session.id}
-                  onClick={() => setSelectedSessionId(session.id)}
                   className={`w-full text-left p-3 rounded-md border transition-colors ${
                     session.id === selectedSessionId ? "border-[#00C2FF]/50 bg-[#00C2FF]/10" : "border-vault-border bg-vault-bg hover:border-vault-text-muted/30"
                   }`}
                 >
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-sm font-medium text-vault-text">{new Date(session.sessionDate).toLocaleDateString()} · {session.location}</p>
-                    <p className="text-xs font-mono text-[#F5A623]">{formatNumber(session.roundsFired)} rds</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs font-mono text-[#F5A623]">{formatNumber(session.roundsFired)} rds</p>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedSessionId(session.id)}
+                        className="text-[11px] px-2 py-1 rounded border border-vault-border text-vault-text-muted"
+                      >
+                        View
+                      </button>
+                      <Link
+                        href={`/range/log-session?edit=${session.id}`}
+                        className="text-[11px] px-2 py-1 rounded border border-[#00C2FF]/30 text-[#00C2FF] inline-flex items-center gap-1"
+                      >
+                        <Pencil className="w-3 h-3" />
+                        Edit
+                      </Link>
+                    </div>
                   </div>
                   <p className="text-xs text-vault-text-muted mt-1">
                     {session.firearm.name}{session.build ? ` · ${session.build.name}` : ""} · {session.ammoLinks.map((link) => `${link.ammoStock.brand} (${link.roundsUsed})`).join(", ")}
@@ -1715,13 +1832,24 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
                       ))}
                     </div>
                   )}
-                </button>
+                </div>
               ))}
             </div>
           )}
 
           {selectedSession?.sessionDrills?.length ? (
             <p className="text-xs text-vault-text-faint">Selected session has {selectedSession.sessionDrills.length} drill set{selectedSession.sessionDrills.length === 1 ? "" : "s"} logged.</p>
+          ) : null}
+          {selectedSession ? (
+            <div className="pt-1">
+              <Link
+                href={`/range/log-session?edit=${selectedSession.id}`}
+                className="text-xs text-[#00C2FF] hover:underline inline-flex items-center gap-1"
+              >
+                <Pencil className="w-3 h-3" />
+                Edit selected session
+              </Link>
+            </div>
           ) : null}
         </fieldset>
         )}
