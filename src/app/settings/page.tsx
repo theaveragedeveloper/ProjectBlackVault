@@ -63,13 +63,13 @@ export default function SettingsPage() {
       });
   }, []);
 
-  const savedHost = manualLanHost?.trim() || "";
-  const resolvedHost = savedHost || localIp || "";
-  const finalLanUrl = resolvedHost ? `http://${resolvedHost}:${localPort}` : "";
-  const lanStatusLabel = savedHost
-    ? "Using saved host/IP"
+  const manualHost = manualLanHost.trim();
+  const computedHost = manualHost || localIp || "";
+  const finalLanUrl = computedHost ? `http://${computedHost}:${localPort}` : "";
+  const lanStatusLabel = manualHost
+    ? "Using your saved Mobile Access Host/IP"
     : localIp
-      ? "Using detected network address"
+      ? "Using auto-detected network address"
       : null;
 
   async function handleSave(e: React.FormEvent<HTMLFormElement>) {
@@ -214,12 +214,12 @@ export default function SettingsPage() {
 
         <SectionCard
           title="Mobile Access (Local Network)"
-          description="Use this to open BlackVault on your phone or another device connected to the same Wi-Fi or local network."
+          description="Set a trusted local address so phones and tablets on your network can reliably reach BlackVault."
         >
           <div className="space-y-4">
             <FormField
               label="Mobile Access Host/IP"
-              hint="Enter the local IP address or hostname other devices on your network should use to reach this app."
+              hint="Enter the local IP address or hostname your other devices should always use for this app."
             >
               <input
                 id="manualLanHost"
@@ -229,7 +229,7 @@ export default function SettingsPage() {
                 className={INPUT_CLASS}
                 placeholder="192.168.1.74"
               />
-              <p className="mt-2 text-xs text-vault-text-muted">Example: 192.168.1.74</p>
+              <p className="mt-2 text-xs text-vault-text-muted">Example: 192.168.1.74 (recommended: reserve this IP in your router)</p>
             </FormField>
 
             {finalLanUrl ? (
@@ -237,19 +237,19 @@ export default function SettingsPage() {
                 <p className="text-xs uppercase tracking-widest text-vault-text-faint">Mobile URL</p>
                 <p className="mt-1 break-all font-mono text-sm text-vault-text">{finalLanUrl}</p>
                 {lanStatusLabel ? <p className="mt-1 text-xs text-vault-text-muted">{lanStatusLabel}</p> : null}
-                {!savedHost && localIp ? (
+                {!manualHost && localIp ? (
                   <p className="mt-1 text-xs text-vault-text-muted">
-                    Detected addresses may be wrong in Docker or some self-hosted environments. If the URL below does not work on your phone, enter your local IP address above.
+                    Auto-detection is a fallback only. If this link does not work, enter and save your preferred local host/IP above.
                   </p>
                 ) : null}
                 <p className="mt-1 text-xs text-vault-text-muted">
-                  Your phone must be connected to the same local network.
+                  Keep devices on the same local network and open this exact address in your mobile browser.
                 </p>
               </div>
             ) : (
               <StatusMessage
                 tone="error"
-                message="No mobile access address is available yet. Enter your local IP address above to generate a working mobile URL."
+                message="No mobile access address is available yet. Enter your preferred local host/IP above to generate a trusted mobile URL."
               />
             )}
 
