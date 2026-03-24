@@ -391,7 +391,8 @@ export default function AccessoryDetailPage() {
               </div>
             ) : (
               <>
-                <table className="w-full text-sm">
+                <div className="overflow-x-auto">
+                <table className="w-full min-w-[520px] text-sm">
                   <thead>
                     <tr className="border-b border-vault-border">
                       <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium">
@@ -427,6 +428,7 @@ export default function AccessoryDetailPage() {
                     ))}
                   </tbody>
                 </table>
+                </div>
 
                 {accessory.roundCountLogs.length > 5 && (
                   <button

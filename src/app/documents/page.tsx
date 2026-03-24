@@ -30,7 +30,7 @@ export default function DocumentLibraryPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
     fetch("/api/documents", { credentials: "include", cache: "no-store" })
@@ -61,17 +61,27 @@ export default function DocumentLibraryPage() {
   async function handleDelete(id: string) {
     if (!window.confirm("Delete this document? This cannot be undone.")) return;
     setDeletingId(id);
-    setActionError(null);
+    setActionMessage(null);
+
     try {
       const res = await fetch(`/api/documents/${id}`, { method: "DELETE" });
+
       if (!res.ok) {
         const json = await res.json().catch(() => null);
-        setActionError(json?.error ?? "Failed to delete document.");
+        setActionMessage({
+          type: "error",
+          text: json?.error ?? "Failed to delete document.",
+        });
         return;
       }
+
       setDocuments((prev) => prev.filter((d) => d.id !== id));
+      setActionMessage({ type: "success", text: "Document deleted." });
     } catch {
-      setActionError("Network error while deleting document.");
+      setActionMessage({
+        type: "error",
+        text: "Network error while deleting document.",
+      });
     } finally {
       setDeletingId(null);
     }
@@ -86,7 +96,11 @@ export default function DocumentLibraryPage() {
         title="Document Library"
         subtitle="Store receipts, tax stamps, and supporting records with clear links to firearms and accessories."
         actions={
-          <StandardButton onClick={() => setShowUploader((v) => !v)} variant="primary" icon={<Upload className="w-4 h-4" />}>
+          <StandardButton
+            onClick={() => setShowUploader((v) => !v)}
+            variant="primary"
+            icon={<Upload className="w-4 h-4" />}
+          >
             {showUploader ? "Close Upload" : "Upload Document"}
           </StandardButton>
         }
@@ -94,7 +108,7 @@ export default function DocumentLibraryPage() {
 
       <div className="mx-auto max-w-5xl space-y-4 p-4 sm:space-y-6 sm:p-6">
         {loadError && <StatusMessage tone="error" message={loadError} />}
-        {actionError && <StatusMessage tone="error" message={actionError} />}
+        {actionMessage && <StatusMessage tone={actionMessage.type} message={actionMessage.text} />}
         {uploadSuccess && <StatusMessage tone="success" message={uploadSuccess} />}
 
         {showUploader && (
@@ -105,7 +119,8 @@ export default function DocumentLibraryPage() {
               onUploadComplete={(doc) => {
                 setDocuments((prev) => [doc, ...prev]);
                 setShowUploader(false);
-                setUploadSuccess(`Uploaded \"${doc.name}\" successfully.`);
+                setUploadSuccess(`Uploaded "${doc.name}" successfully.`);
+                setActionMessage(null);
                 setTimeout(() => setUploadSuccess(null), 3000);
               }}
               onCancel={() => setShowUploader(false)}
@@ -122,7 +137,15 @@ export default function DocumentLibraryPage() {
                 onClick={() => setTypeFilter(t)}
                 className={buttonClassName(typeFilter === t ? "primary" : "ghost", "min-h-8 px-2.5 py-1 text-xs")}
               >
-                {t === "ALL" ? "All Types" : t === "NFA_TAX_STAMP" ? "NFA Stamps" : t === "RECEIPT" ? "Receipts" : t === "PHOTO" ? "Photos" : "Other"}
+                {t === "ALL"
+                  ? "All Types"
+                  : t === "NFA_TAX_STAMP"
+                    ? "NFA Stamps"
+                    : t === "RECEIPT"
+                      ? "Receipts"
+                      : t === "PHOTO"
+                        ? "Photos"
+                        : "Other"}
               </button>
             ))}
             <div className="hidden h-5 w-px bg-vault-border sm:block" />
@@ -132,10 +155,18 @@ export default function DocumentLibraryPage() {
                 onClick={() => setEntityFilter(e)}
                 className={buttonClassName(entityFilter === e ? "primary" : "ghost", "min-h-8 px-2.5 py-1 text-xs")}
               >
-                {e === "ALL" ? "All Items" : e === "FIREARM" ? "Firearms" : e === "ACCESSORY" ? "Accessories" : "Unattached"}
+                {e === "ALL"
+                  ? "All Items"
+                  : e === "FIREARM"
+                    ? "Firearms"
+                    : e === "ACCESSORY"
+                      ? "Accessories"
+                      : "Unattached"}
               </button>
             ))}
-            <span className="ml-auto text-xs text-vault-text-faint">{filtered.length} document{filtered.length !== 1 ? "s" : ""}</span>
+            <span className="ml-auto text-xs text-vault-text-faint">
+              {filtered.length} document{filtered.length !== 1 ? "s" : ""}
+            </span>
           </div>
         </SectionCard>
 
@@ -156,18 +187,32 @@ export default function DocumentLibraryPage() {
             <div className="divide-y divide-vault-border">
               {filtered.map((doc) => (
                 <div key={doc.id} className="flex flex-wrap items-center gap-3 px-4 py-3 sm:flex-nowrap sm:gap-4">
-                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md border ${isPdf(doc) ? "border-[#F5A623]/20 bg-[#F5A623]/5" : "border-[#00C2FF]/20 bg-[#00C2FF]/5"}`}>
+                  <div
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md border ${
+                      isPdf(doc) ? "border-[#F5A623]/20 bg-[#F5A623]/5" : "border-[#00C2FF]/20 bg-[#00C2FF]/5"
+                    }`}
+                  >
                     <FileText className={`h-5 w-5 ${isPdf(doc) ? "text-[#F5A623]" : "text-[#00C2FF]"}`} />
                   </div>
 
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="truncate text-sm font-medium text-vault-text">{doc.name}</p>
-                      <span className="rounded border border-vault-border px-1.5 py-0.5 text-[10px] text-vault-text-muted">{doc.type.replaceAll("_", " ")}</span>
+                      <span className="rounded border border-vault-border px-1.5 py-0.5 text-[10px] text-vault-text-muted">
+                        {doc.type.replaceAll("_", " ")}
+                      </span>
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-vault-text-faint">
-                      {doc.firearm && <Link href={`/vault/${doc.firearm.id}`} className="text-[#00C2FF] hover:underline">{doc.firearm.name}</Link>}
-                      {doc.accessory && <Link href={`/accessories/${doc.accessory.id}`} className="text-[#00C2FF] hover:underline">{doc.accessory.name}</Link>}
+                      {doc.firearm && (
+                        <Link href={`/vault/${doc.firearm.id}`} className="text-[#00C2FF] hover:underline">
+                          {doc.firearm.name}
+                        </Link>
+                      )}
+                      {doc.accessory && (
+                        <Link href={`/accessories/${doc.accessory.id}`} className="text-[#00C2FF] hover:underline">
+                          {doc.accessory.name}
+                        </Link>
+                      )}
                       {!doc.firearm && !doc.accessory && <span>Unattached</span>}
                       <span>{new Date(doc.createdAt).toLocaleDateString()}</span>
                       {doc.fileSize && <span>{formatBytes(doc.fileSize)}</span>}
@@ -175,9 +220,21 @@ export default function DocumentLibraryPage() {
                   </div>
 
                   <div className="ml-auto flex shrink-0 items-center gap-2">
-                    <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className={buttonClassName("secondary", "min-h-8 px-2.5 py-1 text-xs")}>
+                    <a
+                      href={doc.fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={buttonClassName("secondary", "min-h-8 px-2.5 py-1 text-xs")}
+                    >
                       <ExternalLink className="h-3.5 w-3.5" />
                       Open
+                    </a>
+                    <a
+                      href={doc.fileUrl}
+                      download={doc.name}
+                      className={buttonClassName("ghost", "min-h-8 px-2.5 py-1 text-xs")}
+                    >
+                      Download
                     </a>
                     <StandardButton
                       variant="danger"

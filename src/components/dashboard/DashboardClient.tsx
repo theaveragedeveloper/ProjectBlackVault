@@ -81,7 +81,6 @@ interface RecentFirearm {
   createdAt: Date;
 }
 
-
 interface MaintenanceDueItem {
   id: string;
   name: string;
@@ -144,9 +143,7 @@ function MaintenanceDueWidget() {
                   <p className="text-sm font-semibold text-vault-text">{item.name}</p>
                   <p className="text-xs text-vault-text-muted">{item.manufacturer} · {item.model}</p>
                 </div>
-                <span className="text-xs text-[#E53935] font-mono">
-                  Due
-                </span>
+                <span className="text-xs text-[#E53935] font-mono">Due</span>
               </Link>
             ))}
           </div>
@@ -155,6 +152,7 @@ function MaintenanceDueWidget() {
     </section>
   );
 }
+
 interface DashboardData {
   firearmCount: number;
   accessoryCount: number;
@@ -183,7 +181,6 @@ interface StatsResponse {
   };
 }
 
-// ── Sortable wrapper ──────────────────────────────────────────
 function SortableWidget({
   id,
   editMode,
@@ -228,7 +225,6 @@ function SortableWidget({
   );
 }
 
-// ── Widgets ───────────────────────────────────────────────────
 function StatsWidget({ data }: { data: DashboardData }) {
   return (
     <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
@@ -376,7 +372,6 @@ function RecentWidget({ firearms }: { firearms: RecentFirearm[] }) {
               >
                 <div className="w-10 h-10 rounded bg-vault-border border border-vault-border overflow-hidden shrink-0 flex items-center justify-center">
                   {firearm.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={firearm.imageUrl}
                       alt={firearm.name}
@@ -430,7 +425,6 @@ function RecentWidget({ firearms }: { firearms: RecentFirearm[] }) {
 }
 
 function AmmoSummaryWidget({ ammoStocks }: { ammoStocks: AmmoStockItem[] }) {
-  // Group by caliber
   const byCaliber = ammoStocks.reduce<Record<string, number>>((acc, stock) => {
     acc[stock.caliber] = (acc[stock.caliber] ?? 0) + stock.quantity;
     return acc;
@@ -504,9 +498,9 @@ function AmmoSummaryWidget({ ammoStocks }: { ammoStocks: AmmoStockItem[] }) {
   );
 }
 
-// ── Main client component ─────────────────────────────────────
 export function DashboardClient({ data }: { data: DashboardData }) {
   const [liveData, setLiveData] = useState<DashboardData>(data);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [order, setOrder] = useState<string[]>(() => {
     if (typeof window === "undefined") return DEFAULT_ORDER;
     try {
@@ -523,6 +517,8 @@ export function DashboardClient({ data }: { data: DashboardData }) {
   });
   const [editMode, setEditMode] = useState(false);
   const [mounted] = useState(() => typeof window !== "undefined");
+  const isFirstRun =
+    liveData.firearmCount === 0 && liveData.accessoryCount === 0 && liveData.totalAmmoRounds === 0;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -542,6 +538,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
         recentFirearms: stats.recent?.firearms ?? [],
         ammoStocks: stats.ammo?.stocks ?? [],
       });
+      setLastUpdated(new Date());
     } catch {
       // Keep server-provided data when refresh fails.
     }
@@ -603,7 +600,6 @@ export function DashboardClient({ data }: { data: DashboardData }) {
     }
   }
 
-  // Before hydration, render default order without drag to avoid mismatch
   if (!mounted) {
     return (
       <div className="mx-auto max-w-6xl p-4 sm:p-6 space-y-6 sm:space-y-8">
@@ -616,8 +612,11 @@ export function DashboardClient({ data }: { data: DashboardData }) {
 
   return (
     <div className="mx-auto max-w-6xl p-4 sm:p-6">
-      {/* Customize bar */}
-      <div className="mb-6 flex items-center justify-end">
+      <div className="mb-6 flex items-center justify-between">
+        <p className="text-xs text-vault-text-faint">
+          Last updated {lastUpdated.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+        </p>
+
         {editMode ? (
           <div className="flex items-center gap-3">
             <p className="text-xs text-vault-text-muted">Drag widgets to reorder</p>
@@ -639,6 +638,26 @@ export function DashboardClient({ data }: { data: DashboardData }) {
           </button>
         )}
       </div>
+
+      {isFirstRun && (
+        <section className="mb-6 rounded-lg border border-[#00C2FF]/25 bg-[#00C2FF]/5 p-4">
+          <h2 className="text-sm font-semibold text-vault-text mb-1">Welcome to BlackVault</h2>
+          <p className="text-xs text-vault-text-muted mb-3">
+            Start by adding a firearm, then attach accessories, upload receipts or tax stamps, and track ammo and range sessions.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/vault/new" className="text-xs px-3 py-1.5 rounded border border-[#00C2FF]/30 text-[#00C2FF] bg-[#00C2FF]/10 hover:bg-[#00C2FF]/20 transition-colors">
+              Add Firearm
+            </Link>
+            <Link href="/documents" className="text-xs px-3 py-1.5 rounded border border-vault-border text-vault-text-muted hover:text-vault-text hover:border-vault-text-muted/30 transition-colors">
+              Upload Documents
+            </Link>
+            <Link href="/range/log-session" className="text-xs px-3 py-1.5 rounded border border-vault-border text-vault-text-muted hover:text-vault-text hover:border-vault-text-muted/30 transition-colors">
+              Log Range Session
+            </Link>
+          </div>
+        </section>
+      )}
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={order} strategy={verticalListSortingStrategy}>
