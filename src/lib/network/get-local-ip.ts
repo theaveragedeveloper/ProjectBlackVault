@@ -1,6 +1,7 @@
 import os, { NetworkInterfaceInfo } from "os";
 
 function isPrivateLanIpv4(address: string): boolean {
+  if (address.startsWith("169.254.")) return false;
   if (address.startsWith("192.168.")) return true;
   if (address.startsWith("10.")) return true;
   const parts = address.split(".").map((part) => Number.parseInt(part, 10));
@@ -17,15 +18,35 @@ function priorityForAddress(address: string): number {
 
 function isInterfaceCandidate(name: string): boolean {
   const lower = name.toLowerCase();
-  if (lower.includes("docker") || lower.includes("veth") || lower.includes("br-") || lower.includes("lo")) {
+  if (
+    lower.includes("docker") ||
+    lower.includes("veth") ||
+    lower.includes("br-") ||
+    lower.includes("lo") ||
+    lower.includes("cni") ||
+    lower.includes("flannel") ||
+    lower.includes("tailscale") ||
+    lower.includes("utun") ||
+    lower.includes("tap") ||
+    lower.includes("tun") ||
+    lower.includes("vboxnet") ||
+    lower.includes("vmnet")
+  ) {
     return false;
   }
   return true;
 }
 
+function interfacePriority(name: string): number {
+  const lower = name.toLowerCase();
+  if (lower.includes("wlan") || lower.includes("wifi") || lower.includes("wi-fi") || lower === "en0") return 1;
+  if (lower.startsWith("eth") || lower.startsWith("en") || lower.startsWith("eno") || lower.startsWith("ens")) return 2;
+  return 3;
+}
+
 export function getLocalIp(): string | null {
   const interfaces = os.networkInterfaces();
-  const candidates: Array<{ address: string; priority: number }> = [];
+  const candidates: Array<{ address: string; priority: number; interfacePriority: number }> = [];
 
   for (const [name, addresses] of Object.entries(interfaces)) {
     if (!addresses || !isInterfaceCandidate(name)) continue;
@@ -41,10 +62,16 @@ export function getLocalIp(): string | null {
       candidates.push({
         address: address.address,
         priority: priorityForAddress(address.address),
+        interfacePriority: interfacePriority(name),
       });
     }
   }
 
-  candidates.sort((a, b) => a.priority - b.priority || a.address.localeCompare(b.address));
+  candidates.sort(
+    (a, b) =>
+      a.priority - b.priority ||
+      a.interfacePriority - b.interfacePriority ||
+      a.address.localeCompare(b.address)
+  );
   return candidates[0]?.address ?? null;
 }

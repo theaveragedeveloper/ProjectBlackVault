@@ -24,6 +24,13 @@ function normalizeCurrency(value: unknown): string | null {
   return normalized;
 }
 
+function normalizeBackupDestinationPath(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  if (normalized.length > 512) return null;
+  return normalized.length > 0 ? normalized : "";
+}
+
 // GET /api/settings - Get the singleton AppSettings
 export async function GET() {
   try {
@@ -44,6 +51,7 @@ export async function GET() {
       includeUploadsInBackup: settings.includeUploadsInBackup,
       autoBackupEnabled: settings.autoBackupEnabled,
       autoBackupCadence: settings.autoBackupCadence,
+      backupDestinationPath: settings.backupDestinationPath,
       defaultCurrency: settings.defaultCurrency,
       createdAt: settings.createdAt,
       updatedAt: settings.updatedAt,
@@ -77,6 +85,7 @@ export async function PUT(request: NextRequest) {
       includeUploadsInBackup,
       autoBackupEnabled,
       autoBackupCadence,
+      backupDestinationPath,
       defaultCurrency,
     } = body;
 
@@ -132,6 +141,17 @@ export async function PUT(request: NextRequest) {
       updateData.defaultCurrency = normalized;
     }
 
+    if (backupDestinationPath !== undefined) {
+      const normalized = normalizeBackupDestinationPath(backupDestinationPath);
+      if (normalized == null) {
+        return NextResponse.json(
+          { error: "backupDestinationPath must be a string up to 512 characters." },
+          { status: 400 }
+        );
+      }
+      updateData.backupDestinationPath = normalized || null;
+    }
+
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(
         { error: "No valid settings fields provided." },
@@ -153,6 +173,7 @@ export async function PUT(request: NextRequest) {
       includeUploadsInBackup: settings.includeUploadsInBackup,
       autoBackupEnabled: settings.autoBackupEnabled,
       autoBackupCadence: settings.autoBackupCadence,
+      backupDestinationPath: settings.backupDestinationPath,
       defaultCurrency: settings.defaultCurrency,
       createdAt: settings.createdAt,
       updatedAt: settings.updatedAt,
