@@ -61,6 +61,14 @@ export function Sidebar({ mobileOnly = false, mobileOpen = false, onMobileClose 
     onMobileClose?.();
   }, [pathname, onMobileClose]);
 
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onMobileClose?.();
+    };
+    window.addEventListener("keydown", onEscape);
+    return () => window.removeEventListener("keydown", onEscape);
+  }, [mobileOpen, onMobileClose]);
 
   const navContent = (
     <>
@@ -169,12 +177,12 @@ export function Sidebar({ mobileOnly = false, mobileOpen = false, onMobileClose 
   return (
     <>
       {!mobileOnly && (
-        <aside className={cn("hidden md:flex flex-col h-screen border-r border-vault-border bg-vault-surface transition-all duration-300 ease-in-out shrink-0", collapsed ? "w-16" : "w-56")}>
+        <aside className={cn("hidden md:flex flex-col h-svh border-r border-vault-border bg-vault-surface transition-all duration-300 ease-in-out shrink-0", collapsed ? "w-16" : "w-56")}>
           {navContent}
         </aside>
       )}
 
-      <div className={cn("fixed inset-0 z-[300] md:hidden transition-opacity", mobileOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0")}>
+      <div className={cn("fixed inset-0 z-[300] md:hidden transition-opacity", mobileOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0")} aria-hidden={!mobileOpen}>
         <div className="absolute inset-0 bg-black/60" onClick={onMobileClose} />
         <aside
           id="mobile-navigation"
