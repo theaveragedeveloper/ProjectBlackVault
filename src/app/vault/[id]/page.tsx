@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { ItemDocumentPanel } from "@/components/shared/ItemDocumentPanel";
+import { RoundCountBadge } from "@/components/shared/RoundCountBadge";
 import {
   ArrowLeft,
   Edit,
@@ -71,6 +72,12 @@ async function getFirearm(id: string) {
   const firearm = await prisma.firearm.findUnique({
     where: { id },
     include: {
+      rangeSessions: {
+        select: { roundsFired: true },
+      },
+      documents: {
+        select: { id: true, name: true, type: true, notes: true, createdAt: true },
+      },
       builds: {
         include: {
           slots: {
@@ -103,6 +110,16 @@ export default async function FirearmDetailPage({
     firearm.currentValue != null && firearm.purchasePrice != null
       ? firearm.currentValue - firearm.purchasePrice
       : null;
+
+  const maintenanceEntries = firearm.documents
+    .filter((doc) => ["MAINTENANCE", "SERVICE", "CLEANING"].includes(doc.type.toUpperCase()))
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const lastServicedDate = firearm.lastMaintenanceDate ?? maintenanceEntries[0]?.createdAt ?? null;
+  const intervalDays = firearm.maintenanceIntervalDays ?? null;
+  const nextDueDate = lastServicedDate && intervalDays ? new Date(new Date(lastServicedDate).getTime() + intervalDays * 86400000) : null;
+  const now = new Date();
+  const daysUntilDue = nextDueDate ? Math.ceil((nextDueDate.getTime() - now.getTime()) / 86400000) : null;
+  const maintenanceStatus = daysUntilDue == null ? { label: "Neutral", style: "text-vault-text-faint border-vault-border" } : daysUntilDue < 0 ? { label: "Due", style: "text-[#E53935] border-[#E53935]/40" } : daysUntilDue <= 14 ? { label: "Upcoming", style: "text-[#F5A623] border-[#F5A623]/40" } : { label: "On Track", style: "text-[#00C853] border-[#00C853]/40" };
 
   return (
     <div className="min-h-full">
@@ -153,6 +170,7 @@ export default async function FirearmDetailPage({
                 <span className="text-xs px-2 py-0.5 rounded border border-vault-border text-vault-text-muted font-mono">
                   {firearm.caliber}
                 </span>
+                <RoundCountBadge roundCount={firearm.rangeSessions.reduce((sum, session) => sum + session.roundsFired, 0)} />
               </div>
               <h1 className="text-2xl font-bold text-vault-text leading-tight">{firearm.name}</h1>
               <p className="text-sm text-vault-text-muted mt-0.5">
@@ -233,6 +251,8 @@ export default async function FirearmDetailPage({
           title="Firearm Documents"
         />
 
+        <div className="grid lg:grid-cols-[minmax(0,1fr)_320px] gap-6">
+          <div className="space-y-6">
         {/* Builds Section */}
         <div>
           <div className="flex items-center justify-between mb-4">
@@ -339,6 +359,36 @@ export default async function FirearmDetailPage({
               })}
             </div>
           )}
+        </div>
+          </div>
+          <aside className="bg-vault-surface border border-vault-border rounded-lg p-4 h-fit space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-vault-text">Maintenance Log</h3>
+              <span className={`text-[10px] px-2 py-0.5 rounded border font-mono uppercase ${maintenanceStatus.style}`}>{maintenanceStatus.label}</span>
+            </div>
+            <div className="space-y-1 text-xs">
+              <p className="text-vault-text-muted">Last serviced: <span className="text-vault-text">{lastServicedDate ? formatDate(lastServicedDate) : "—"}</span></p>
+              <p className="text-vault-text-muted">Maintenance interval: <span className="text-vault-text">{intervalDays ? `${intervalDays} days` : "—"}</span></p>
+              <p className="text-vault-text-muted">Next due: <span className="text-vault-text">{nextDueDate ? formatDate(nextDueDate) : "—"}</span></p>
+              <p className="text-vault-text-muted">Total entries: <span className="text-vault-text">{maintenanceEntries.length}</span></p>
+            </div>
+            {maintenanceEntries.length === 0 ? (
+              <p className="text-xs text-vault-text-faint">No maintenance logged yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {maintenanceEntries.slice(0, 5).map((entry) => (
+                  <div key={entry.id} className="rounded border border-vault-border bg-vault-bg px-2.5 py-2">
+                    <p className="text-[11px] text-vault-text">{formatDate(entry.createdAt)} · {entry.type}</p>
+                    <p className="text-xs text-vault-text-muted truncate">{entry.name}</p>
+                    {entry.notes && <p className="text-[11px] text-vault-text-faint truncate">{entry.notes}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+            <Link href={`/vault/${id}/edit`} className="inline-flex items-center justify-center w-full text-xs bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 px-3 py-2 rounded transition-colors">
+              Log Maintenance
+            </Link>
+          </aside>
         </div>
       </div>
     </div>

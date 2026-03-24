@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { formatCurrency } from "@/lib/utils";
+import { RoundCountBadge } from "@/components/shared/RoundCountBadge";
 import {
   Shield,
   Plus,
@@ -63,6 +64,7 @@ interface Firearm {
   imageUrl: string | null;
   buildCount: number;
   activeBuild: ActiveBuild | null;
+  firearmRoundCount: number;
 }
 
 interface Build {
@@ -156,6 +158,7 @@ function FirearmCard({ firearm, editMode, editBuilds, onDeleteBuild }: FirearmCa
           <span className="text-xs px-2 py-0.5 rounded border border-vault-border text-vault-text-muted font-mono bg-vault-bg">
             {firearm.caliber}
           </span>
+          <RoundCountBadge roundCount={firearm.firearmRoundCount} />
         </div>
 
         {/* Serial */}
