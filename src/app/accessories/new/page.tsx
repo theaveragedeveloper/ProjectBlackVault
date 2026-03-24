@@ -31,6 +31,8 @@ export default function NewAccessoryPage() {
     const form = e.currentTarget;
     const data = new FormData(form);
 
+    const parsedPurchasePrice = Number(data.get("purchasePrice"));
+    const parsedReplacementInterval = Number(data.get("replacementIntervalDays"));
     const payload = {
       name: data.get("name") as string,
       manufacturer: data.get("manufacturer") as string,
@@ -38,14 +40,17 @@ export default function NewAccessoryPage() {
       type: data.get("type") as string,
       caliber: caliberInput || null,
       acquisitionDate: (data.get("acquisitionDate") as string) || null,
-      purchasePrice: data.get("purchasePrice") ? Number(data.get("purchasePrice")) : null,
+      purchasePrice: Number.isFinite(parsedPurchasePrice) && parsedPurchasePrice >= 0 ? parsedPurchasePrice : null,
       notes: (data.get("notes") as string) || null,
       imageUrl: imageUrl || null,
       imageSource: imageUrl ? "uploaded" : null,
       hasBattery: data.get("hasBattery") === "on",
       batteryType: (data.get("batteryType") as string) || null,
       lastBatteryChangeDate: (data.get("lastBatteryChangeDate") as string) || null,
-      replacementIntervalDays: data.get("replacementIntervalDays") ? Number(data.get("replacementIntervalDays")) : null,
+      replacementIntervalDays:
+        Number.isFinite(parsedReplacementInterval) && parsedReplacementInterval > 0
+          ? parsedReplacementInterval
+          : null,
     };
 
     try {
@@ -73,7 +78,7 @@ export default function NewAccessoryPage() {
   return (
     <div className="min-h-full">
       {/* Breadcrumb header */}
-      <div className="flex items-center gap-4 px-6 py-4 border-b border-vault-border">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-4 px-4 sm:px-6 py-4 border-b border-vault-border">
         <Link
           href="/accessories"
           className="flex items-center gap-1.5 text-vault-text-muted hover:text-vault-text text-sm transition-colors"
@@ -87,7 +92,7 @@ export default function NewAccessoryPage() {
         </h1>
       </div>
 
-      <div className="max-w-2xl mx-auto px-6 py-8">
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         <div className="mb-8">
           <h2 className="text-xl font-bold text-vault-text mb-1">New Accessory Entry</h2>
           <p className="text-sm text-vault-text-muted">Register a new part or attachment in the arsenal.</p>
@@ -297,7 +302,7 @@ export default function NewAccessoryPage() {
           </fieldset>
 
           {/* Actions */}
-          <div className="flex items-center justify-end gap-3 pt-2">
+          <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-3 pt-2">
             <Link
               href="/accessories"
               className="px-4 py-2 text-sm text-vault-text-muted hover:text-vault-text border border-vault-border rounded-md hover:border-vault-text-muted/30 transition-colors"
