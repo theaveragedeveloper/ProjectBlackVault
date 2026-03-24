@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Archive, Copy, Download, Files, Settings, Database } from "lucide-react";
+import { Archive, Copy, Download, Files, Settings } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SectionCard } from "@/components/shared/SectionCard";
 import { StatusMessage } from "@/components/shared/StatusMessage";
@@ -27,7 +27,6 @@ export default function SettingsPage() {
 
   const [localIp, setLocalIp] = useState<string | null>(null);
   const [localPort, setLocalPort] = useState("3000");
-  const [localAccessMessage, setLocalAccessMessage] = useState<string | null>(null);
   const [copySuccess, setCopySuccess] = useState(false);
 
   useEffect(() => {
@@ -57,18 +56,21 @@ export default function SettingsPage() {
       .then((data) => {
         setLocalIp(data.ip ?? null);
         setLocalPort(data.port ?? "3000");
-        setLocalAccessMessage(data.message ?? null);
       })
       .catch(() => {
         setLocalIp(null);
         setLocalPort("3000");
-        setLocalAccessMessage("Unable to detect local network IP");
       });
   }, []);
 
-  const normalizedManualLanHost = manualLanHost.trim();
-  const effectiveLanHost = normalizedManualLanHost || localIp || null;
-  const finalLanUrl = effectiveLanHost ? `http://${effectiveLanHost}:${localPort}` : null;
+  const savedHost = manualLanHost?.trim() || "";
+  const resolvedHost = savedHost || localIp || "";
+  const finalLanUrl = resolvedHost ? `http://${resolvedHost}:${localPort}` : "";
+  const lanStatusLabel = savedHost
+    ? "Using saved host/IP"
+    : localIp
+      ? "Using detected network address"
+      : null;
 
   async function handleSave(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -89,16 +91,14 @@ export default function SettingsPage() {
         }),
       });
 
-      const json = await res.json();
-
       if (!res.ok) {
-        setSaveError(json.error ?? "Failed to save settings");
+        setSaveError("Could not save mobile access settings. Please try again.");
       } else {
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 3000);
       }
     } catch {
-      setSaveError("Network error. Please try again.");
+      setSaveError("Could not save mobile access settings. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -141,7 +141,7 @@ export default function SettingsPage() {
 
       <form onSubmit={handleSave} className="mx-auto grid max-w-4xl gap-4 p-4 sm:gap-6 sm:p-6">
         {saveError && <StatusMessage tone="error" message={saveError} />}
-        {saveSuccess && <StatusMessage tone="success" message="Settings saved successfully." />}
+        {saveSuccess && <StatusMessage tone="success" message="Mobile access settings saved." />}
 
         <SectionCard
           title="Backup"
@@ -213,23 +213,13 @@ export default function SettingsPage() {
         </SectionCard>
 
         <SectionCard
-          title="App access"
-          description="Use this URL to open BlackVault from another device on the same local network."
+          title="Mobile Access (Local Network)"
+          description="Use this to open BlackVault on your phone or another device connected to the same Wi-Fi or local network."
         >
           <div className="space-y-4">
-            <div className="rounded-lg border border-vault-border bg-vault-bg p-3">
-              <p className="text-xs uppercase tracking-widest text-vault-text-faint">Detected LAN IP (best effort)</p>
-              <p className="mt-1 font-mono text-sm text-vault-text">{localIp ?? "Unavailable"}</p>
-            </div>
-
-            <div className="rounded-lg border border-vault-border bg-vault-bg p-3">
-              <p className="text-xs uppercase tracking-widest text-vault-text-faint">Port</p>
-              <p className="mt-1 font-mono text-sm text-vault-text">{localPort}</p>
-            </div>
-
             <FormField
               label="Mobile Access Host/IP"
-              hint="Enter the LAN IP or hostname other devices on your network should use, for example 192.168.1.74"
+              hint="Enter the local IP address or hostname other devices on your network should use to reach this app."
             >
               <input
                 id="manualLanHost"
@@ -239,20 +229,29 @@ export default function SettingsPage() {
                 className={INPUT_CLASS}
                 placeholder="192.168.1.74"
               />
+              <p className="mt-2 text-xs text-vault-text-muted">Example: 192.168.1.74</p>
             </FormField>
 
-            <div className="rounded-lg border border-vault-border bg-vault-bg p-3">
-              <p className="text-xs uppercase tracking-widest text-vault-text-faint">Access URL</p>
-              <p className="mt-1 break-all font-mono text-sm text-vault-text">
-                {finalLanUrl ?? "Unavailable"}
-              </p>
-              <p className="mt-1 text-xs text-vault-text-muted">
-                {normalizedManualLanHost ? "Using manual Mobile Access Host/IP override." : "Using auto-detected LAN IP when available."}
-              </p>
-              <p className="mt-1 text-xs text-vault-text-muted">
-                Make sure your phone is on the same Wi-Fi or LAN. Manual override is the reliable option when Docker or NAS networking hides the host LAN IP.
-              </p>
-            </div>
+            {finalLanUrl ? (
+              <div className="rounded-lg border border-vault-border bg-vault-bg p-3">
+                <p className="text-xs uppercase tracking-widest text-vault-text-faint">Mobile URL</p>
+                <p className="mt-1 break-all font-mono text-sm text-vault-text">{finalLanUrl}</p>
+                {lanStatusLabel ? <p className="mt-1 text-xs text-vault-text-muted">{lanStatusLabel}</p> : null}
+                {!savedHost && localIp ? (
+                  <p className="mt-1 text-xs text-vault-text-muted">
+                    Detected addresses may be wrong in Docker or some self-hosted environments. If the URL below does not work on your phone, enter your local IP address above.
+                  </p>
+                ) : null}
+                <p className="mt-1 text-xs text-vault-text-muted">
+                  Your phone must be connected to the same local network.
+                </p>
+              </div>
+            ) : (
+              <StatusMessage
+                tone="error"
+                message="No mobile access address is available yet. Enter your local IP address above to generate a working mobile URL."
+              />
+            )}
 
             {finalLanUrl ? (
               <div className="flex flex-wrap gap-2">
@@ -265,22 +264,7 @@ export default function SettingsPage() {
                   {copySuccess ? "Copied!" : "Copy URL"}
                 </StandardButton>
               </div>
-            ) : (
-              <StatusMessage
-                tone="error"
-                message={localAccessMessage ?? "Set Mobile Access Host/IP to your host LAN IP or hostname to enable mobile access."}
-              />
-            )}
-
-            <div className="rounded-md border border-vault-border bg-vault-bg px-3 py-2">
-              <div className="flex items-start gap-2">
-                <Database className="mt-0.5 h-4 w-4 text-vault-text-faint" />
-                <div className="text-xs text-vault-text-muted">
-                  For LAN access to work reliably, the app must be bound to <span className="font-mono">0.0.0.0</span>
-                  , not just <span className="font-mono">localhost</span>.
-                </div>
-              </div>
-            </div>
+            ) : null}
           </div>
         </SectionCard>
 
