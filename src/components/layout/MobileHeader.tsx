@@ -10,18 +10,32 @@ export function MobileHeader() {
   useEffect(() => {
     if (!open) return;
     const previous = document.body.style.overflow;
+    const previousOverscroll = document.body.style.overscrollBehavior;
     document.body.style.overflow = "hidden";
+    document.body.style.overscrollBehavior = "none";
     return () => {
       document.body.style.overflow = previous;
+      document.body.style.overscrollBehavior = previousOverscroll;
     };
   }, [open]);
 
+  useEffect(() => {
+    const onResize = () => {
+      if (window.innerWidth >= 768) {
+        setOpen(false);
+      }
+    };
+
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
   return (
     <>
-      <header className="md:hidden sticky top-0 z-[350] flex items-center gap-3 h-14 px-4 border-b border-vault-border bg-vault-surface shrink-0">
+      <header className="md:hidden sticky top-0 z-[450] flex items-center gap-3 h-14 px-4 border-b border-vault-border bg-vault-surface/95 backdrop-blur shrink-0">
         <button
           onClick={() => setOpen((prev) => !prev)}
-          className="inline-flex items-center gap-1.5 px-2 py-1.5 rounded-md border border-vault-border text-vault-text-faint hover:text-vault-text-muted hover:bg-vault-border/60 transition-colors"
+          className="inline-flex min-h-10 items-center gap-1.5 px-2 py-1.5 rounded-md border border-vault-border text-vault-text-faint hover:text-vault-text-muted hover:bg-vault-border/60 transition-colors"
           aria-label="Open navigation"
           aria-expanded={open}
           aria-controls="mobile-navigation"
