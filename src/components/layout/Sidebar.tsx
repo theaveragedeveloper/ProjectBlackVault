@@ -81,7 +81,7 @@ export function Sidebar({ mobileOnly = false, mobileOpen = false, onMobileClose 
         )}
       </div>
 
-      <nav className="flex-1 overflow-y-auto py-3 space-y-0.5 px-2">
+      <nav className="flex-1 overflow-y-auto overscroll-contain py-3 space-y-0.5 px-2 pb-6">
         {!collapsed && <p className="px-2.5 pb-2 text-[10px] tracking-[0.18em] uppercase text-vault-text-faint">Navigation</p>}
 
         {PRIMARY_NAV_ITEMS.map((item) => {
@@ -176,8 +176,8 @@ export function Sidebar({ mobileOnly = false, mobileOpen = false, onMobileClose 
 
       {mobileOpen && (
         <>
-          <div className="fixed inset-0 z-40 bg-black/60 md:hidden" onClick={onMobileClose} />
-          <aside className="fixed inset-y-0 left-0 z-50 flex flex-col w-64 bg-vault-surface border-r border-vault-border md:hidden animate-slide-up">
+          <div className="fixed inset-0 z-[90] bg-black/60 md:hidden" onClick={onMobileClose} />
+          <aside className="fixed inset-y-0 left-0 z-[100] flex h-dvh max-h-dvh flex-col w-72 max-w-[88vw] bg-vault-surface border-r border-vault-border md:hidden">
             {navContent}
           </aside>
         </>

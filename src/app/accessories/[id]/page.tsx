@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/utils";
 import { ItemDocumentPanel } from "@/components/shared/ItemDocumentPanel";
+import { RoundCountBadge } from "@/components/shared/RoundCountBadge";
 import {
   ArrowLeft,
   Shield,
@@ -223,6 +224,7 @@ export default function AccessoryDetailPage() {
           </div>
           <h1 className="text-xl font-bold text-vault-text">{accessory.name}</h1>
           <p className="text-sm text-vault-text-muted">{accessory.manufacturer}</p>
+          <div className="mt-1"><RoundCountBadge roundCount={accessory.roundCount} /></div>
         </div>
       </div>
 
