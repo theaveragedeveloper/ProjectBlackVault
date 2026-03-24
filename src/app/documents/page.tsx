@@ -5,6 +5,11 @@ import { FileText, Upload, ExternalLink, X, Filter } from "lucide-react";
 import Link from "next/link";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { DocumentUploader, type UploadedDocument } from "@/components/shared/DocumentUploader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { LoadingState } from "@/components/shared/LoadingState";
+import { SectionCard } from "@/components/shared/SectionCard";
+import { StandardButton, buttonClassName } from "@/components/shared/StandardButton";
+import { StatusMessage } from "@/components/shared/StatusMessage";
 
 type DocTypeFilter = "ALL" | "RECEIPT" | "PHOTO" | "NFA_TAX_STAMP" | "OTHER";
 type EntityFilter = "ALL" | "FIREARM" | "ACCESSORY" | "UNATTACHED";
@@ -29,7 +34,7 @@ export default function DocumentLibraryPage() {
 
   useEffect(() => {
     fetch("/api/documents", { credentials: "include", cache: "no-store" })
-      .then(async (r) => ({ ok: r.ok, status: r.status, data: await r.json().catch(() => null) }))
+      .then(async (r) => ({ ok: r.ok, data: await r.json().catch(() => null) }))
       .then(({ ok, data }) => {
         if (ok && Array.isArray(data)) {
           setDocuments(data);
@@ -54,22 +59,29 @@ export default function DocumentLibraryPage() {
   });
 
   async function handleDelete(id: string) {
-    if (!confirm("Delete this document?")) return;
+    if (!window.confirm("Delete this document? This cannot be undone.")) return;
     setDeletingId(id);
+    setActionMessage(null);
+
     try {
       const res = await fetch(`/api/documents/${id}`, { method: "DELETE" });
+
       if (!res.ok) {
         const json = await res.json().catch(() => null);
         setActionMessage({
           type: "error",
-          text: json?.error ?? "Could not delete document.",
+          text: json?.error ?? "Failed to delete document.",
         });
         return;
       }
+
       setDocuments((prev) => prev.filter((d) => d.id !== id));
       setActionMessage({ type: "success", text: "Document deleted." });
     } catch {
-      setActionMessage({ type: "error", text: "Network error — could not delete document." });
+      setActionMessage({
+        type: "error",
+        text: "Network error while deleting document.",
+      });
     } finally {
       setDeletingId(null);
     }
@@ -82,51 +94,25 @@ export default function DocumentLibraryPage() {
     <div className="min-h-full">
       <PageHeader
         title="Document Library"
-        subtitle="Store receipts, tax stamps, and other supporting records."
+        subtitle="Store receipts, tax stamps, and supporting records with clear links to firearms and accessories."
         actions={
-          <button
+          <StandardButton
             onClick={() => setShowUploader((v) => !v)}
-            className="flex items-center gap-2 px-3 py-2 rounded-md bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] text-sm hover:bg-[#00C2FF]/20 transition-colors"
+            variant="primary"
+            icon={<Upload className="w-4 h-4" />}
           >
-            <Upload className="w-4 h-4" />
-            Upload Document
-          </button>
+            {showUploader ? "Close Upload" : "Upload Document"}
+          </StandardButton>
         }
       />
 
-      <div className="p-6 space-y-5 max-w-4xl mx-auto">
-        {loadError && (
-          <div className="rounded-lg border border-[#E53935]/30 bg-[#E53935]/10 px-4 py-3 text-sm text-[#E53935]">
-            {loadError}
-          </div>
-        )}
+      <div className="mx-auto max-w-5xl space-y-4 p-4 sm:space-y-6 sm:p-6">
+        {loadError && <StatusMessage tone="error" message={loadError} />}
+        {actionMessage && <StatusMessage tone={actionMessage.type} message={actionMessage.text} />}
+        {uploadSuccess && <StatusMessage tone="success" message={uploadSuccess} />}
 
-        {uploadSuccess && (
-          <div className="rounded-lg border border-[#00C853]/30 bg-[#00C853]/10 px-4 py-3 text-sm text-[#00C853]">
-            {uploadSuccess}
-          </div>
-        )}
-        {actionMessage && (
-          <div
-            className={`rounded-lg px-4 py-3 text-sm border ${
-              actionMessage.type === "success"
-                ? "border-[#00C853]/30 bg-[#00C853]/10 text-[#00C853]"
-                : "border-[#E53935]/30 bg-[#E53935]/10 text-[#E53935]"
-            }`}
-          >
-            {actionMessage.text}
-          </div>
-        )}
-
-        {/* Upload panel */}
         {showUploader && (
-          <div className="rounded-xl border border-vault-border bg-vault-surface p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-vault-text">Upload New Document</h2>
-              <button onClick={() => setShowUploader(false)} className="text-vault-text-faint hover:text-vault-text">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+          <SectionCard title="Upload document" description="Attach receipts, photos, or tax records.">
             <DocumentUploader
               entityType={null}
               entityId={null}
@@ -134,178 +120,137 @@ export default function DocumentLibraryPage() {
                 setDocuments((prev) => [doc, ...prev]);
                 setShowUploader(false);
                 setUploadSuccess(`Uploaded "${doc.name}" successfully.`);
+                setActionMessage(null);
                 setTimeout(() => setUploadSuccess(null), 3000);
               }}
               onCancel={() => setShowUploader(false)}
             />
-          </div>
+          </SectionCard>
         )}
 
-        {/* Filters */}
-        <div className="flex flex-wrap gap-2 items-center">
-          <Filter className="w-3.5 h-3.5 text-vault-text-faint shrink-0" />
-
-          {/* Type filter */}
-          <div className="flex gap-1.5 flex-wrap">
+        <SectionCard title="Filters" description="Refine by document type or linked item.">
+          <div className="flex flex-wrap items-center gap-2">
+            <Filter className="h-4 w-4 text-vault-text-faint" />
             {(["ALL", "RECEIPT", "PHOTO", "NFA_TAX_STAMP", "OTHER"] as DocTypeFilter[]).map((t) => (
               <button
                 key={t}
                 onClick={() => setTypeFilter(t)}
-                className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
-                  typeFilter === t
-                    ? "bg-[#00C2FF]/10 border-[#00C2FF]/30 text-[#00C2FF]"
-                    : "border-vault-border text-vault-text-faint hover:text-vault-text-muted hover:bg-vault-border"
-                }`}
+                className={buttonClassName(typeFilter === t ? "primary" : "ghost", "min-h-8 px-2.5 py-1 text-xs")}
               >
-                {t === "ALL" ? "All Types" : t === "NFA_TAX_STAMP" ? "NFA Stamps" : t === "RECEIPT" ? "Receipts" : t === "PHOTO" ? "Photos" : "Other"}
+                {t === "ALL"
+                  ? "All Types"
+                  : t === "NFA_TAX_STAMP"
+                    ? "NFA Stamps"
+                    : t === "RECEIPT"
+                      ? "Receipts"
+                      : t === "PHOTO"
+                        ? "Photos"
+                        : "Other"}
               </button>
             ))}
-          </div>
-
-          <div className="w-px h-5 bg-vault-border hidden sm:block" />
-
-          {/* Entity filter */}
-          <div className="flex gap-1.5 flex-wrap">
+            <div className="hidden h-5 w-px bg-vault-border sm:block" />
             {(["ALL", "FIREARM", "ACCESSORY", "UNATTACHED"] as EntityFilter[]).map((e) => (
               <button
                 key={e}
                 onClick={() => setEntityFilter(e)}
-                className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
-                  entityFilter === e
-                    ? "bg-[#00C2FF]/10 border-[#00C2FF]/30 text-[#00C2FF]"
-                    : "border-vault-border text-vault-text-faint hover:text-vault-text-muted hover:bg-vault-border"
-                }`}
+                className={buttonClassName(entityFilter === e ? "primary" : "ghost", "min-h-8 px-2.5 py-1 text-xs")}
               >
-                {e === "ALL" ? "All Items" : e === "FIREARM" ? "Firearms" : e === "ACCESSORY" ? "Accessories" : "Unattached"}
+                {e === "ALL"
+                  ? "All Items"
+                  : e === "FIREARM"
+                    ? "Firearms"
+                    : e === "ACCESSORY"
+                      ? "Accessories"
+                      : "Unattached"}
               </button>
             ))}
+            <span className="ml-auto text-xs text-vault-text-faint">
+              {filtered.length} document{filtered.length !== 1 ? "s" : ""}
+            </span>
           </div>
+        </SectionCard>
 
-          <span className="ml-auto text-xs text-vault-text-faint">
-            {filtered.length} document{filtered.length !== 1 ? "s" : ""}
-          </span>
-        </div>
-
-        {/* Document list */}
         {loading ? (
-          <div className="flex justify-center py-16">
-            <div className="w-6 h-6 border-2 border-[#00C2FF]/30 border-t-[#00C2FF] rounded-full animate-spin" />
-          </div>
+          <LoadingState label="Loading documents..." />
         ) : filtered.length === 0 ? (
-          <div className="rounded-xl border border-vault-border bg-vault-surface p-14 text-center">
-            <FileText className="w-10 h-10 text-vault-border mx-auto mb-3" />
-            <h3 className="text-sm font-semibold text-vault-text mb-1">
-              {documents.length === 0 ? "No documents yet" : "No documents match your filters"}
-            </h3>
-            <p className="text-xs text-vault-text-faint mb-4">
-              {documents.length === 0
-                ? "Upload receipts from a firearm or accessory page, or upload a standalone document above."
-                : "Try adjusting your filters."}
-            </p>
-            {documents.length === 0 && (
-              <button
-                onClick={() => setShowUploader(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-md bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] text-sm hover:bg-[#00C2FF]/20 transition-colors mx-auto"
-              >
-                <Upload className="w-4 h-4" />
-                Upload First Document
-              </button>
-            )}
-          </div>
+          <EmptyState
+            icon={FileText}
+            title={documents.length === 0 ? "No documents yet" : "No documents match current filters"}
+            description={
+              documents.length === 0
+                ? "Upload your first receipt or photo to keep evidence attached to your records."
+                : "Adjust filters to view matching files."
+            }
+          />
         ) : (
-          <div className="rounded-xl border border-vault-border bg-vault-surface overflow-hidden">
+          <SectionCard title="Documents" description="Newest uploads are shown first." contentClassName="p-0">
             <div className="divide-y divide-vault-border">
               {filtered.map((doc) => (
-                <div key={doc.id} className="flex items-center gap-4 px-4 py-3 hover:bg-vault-border/20 group transition-colors">
-                  {/* Icon */}
-                  <div className={`w-10 h-10 rounded-md border flex items-center justify-center shrink-0 ${
-                    isPdf(doc)
-                      ? "border-[#F5A623]/20 bg-[#F5A623]/5"
-                      : "border-[#00C2FF]/20 bg-[#00C2FF]/5"
-                  }`}>
-                    <FileText className={`w-5 h-5 ${isPdf(doc) ? "text-[#F5A623]" : "text-[#00C2FF]"}`} />
+                <div key={doc.id} className="flex flex-wrap items-center gap-3 px-4 py-3 sm:flex-nowrap sm:gap-4">
+                  <div
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md border ${
+                      isPdf(doc) ? "border-[#F5A623]/20 bg-[#F5A623]/5" : "border-[#00C2FF]/20 bg-[#00C2FF]/5"
+                    }`}
+                  >
+                    <FileText className={`h-5 w-5 ${isPdf(doc) ? "text-[#F5A623]" : "text-[#00C2FF]"}`} />
                   </div>
 
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-medium text-vault-text truncate">{doc.name}</p>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded border font-mono shrink-0 ${
-                        doc.type === "NFA_TAX_STAMP"
-                          ? "border-[#F5A623]/30 text-[#F5A623]"
-                          : doc.type === "RECEIPT"
-                          ? "border-[#00C2FF]/30 text-[#00C2FF]"
-                          : doc.type === "PHOTO" || doc.mimeType?.startsWith("image/")
-                          ? "border-[#00C853]/30 text-[#00C853]"
-                          : "border-vault-border text-vault-text-faint"
-                      }`}>
-                        {doc.type === "NFA_TAX_STAMP" ? "NFA Tax Stamp" : doc.type === "RECEIPT" ? "Receipt" : doc.type === "PHOTO" || doc.mimeType?.startsWith("image/") ? "Photo" : "Other"}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="truncate text-sm font-medium text-vault-text">{doc.name}</p>
+                      <span className="rounded border border-vault-border px-1.5 py-0.5 text-[10px] text-vault-text-muted">
+                        {doc.type.replaceAll("_", " ")}
                       </span>
                     </div>
-                    <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                    <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-vault-text-faint">
                       {doc.firearm && (
-                        <Link
-                          href={`/vault/${doc.firearm.id}`}
-                          className="text-xs text-[#00C2FF] hover:underline"
-                          onClick={(e) => e.stopPropagation()}
-                        >
+                        <Link href={`/vault/${doc.firearm.id}`} className="text-[#00C2FF] hover:underline">
                           {doc.firearm.name}
                         </Link>
                       )}
                       {doc.accessory && (
-                        <Link
-                          href={`/accessories/${doc.accessory.id}`}
-                          className="text-xs text-[#00C2FF] hover:underline"
-                          onClick={(e) => e.stopPropagation()}
-                        >
+                        <Link href={`/accessories/${doc.accessory.id}`} className="text-[#00C2FF] hover:underline">
                           {doc.accessory.name}
                         </Link>
                       )}
-                      {!doc.firearm && !doc.accessory && (
-                        <span className="text-xs text-vault-text-faint">Unattached</span>
-                      )}
-                      <span className="text-xs text-vault-text-faint">
-                        {new Date(doc.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
-                      </span>
-                      {doc.fileSize && (
-                        <span className="text-xs text-vault-text-faint">{formatBytes(doc.fileSize)}</span>
-                      )}
+                      {!doc.firearm && !doc.accessory && <span>Unattached</span>}
+                      <span>{new Date(doc.createdAt).toLocaleDateString()}</span>
+                      {doc.fileSize && <span>{formatBytes(doc.fileSize)}</span>}
                     </div>
-                    {doc.notes && (
-                      <p className="text-xs text-vault-text-faint mt-0.5 truncate">{doc.notes}</p>
-                    )}
                   </div>
 
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="ml-auto flex shrink-0 items-center gap-2">
                     <a
                       href={doc.fileUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs border border-vault-border text-vault-text-muted hover:text-[#00C2FF] hover:border-[#00C2FF]/30 transition-colors"
+                      className={buttonClassName("secondary", "min-h-8 px-2.5 py-1 text-xs")}
                     >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                      View
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      Open
                     </a>
                     <a
                       href={doc.fileUrl}
                       download={doc.name}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs border border-vault-border text-vault-text-muted hover:text-[#00C2FF] hover:border-[#00C2FF]/30 transition-colors"
+                      className={buttonClassName("ghost", "min-h-8 px-2.5 py-1 text-xs")}
                     >
                       Download
                     </a>
-                    <button
+                    <StandardButton
+                      variant="danger"
                       onClick={() => handleDelete(doc.id)}
-                      disabled={deletingId === doc.id}
-                      className="p-1.5 rounded-md text-vault-text-faint hover:text-red-400 hover:bg-red-400/10 transition-colors disabled:opacity-50 opacity-0 group-hover:opacity-100"
+                      loading={deletingId === doc.id}
+                      loadingLabel="Deleting..."
+                      className="min-h-8 px-2.5 py-1 text-xs"
+                      icon={<X className="h-3.5 w-3.5" />}
                     >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
+                      Delete
+                    </StandardButton>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
+          </SectionCard>
         )}
       </div>
     </div>
