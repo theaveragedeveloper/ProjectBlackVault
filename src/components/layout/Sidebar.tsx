@@ -96,7 +96,7 @@ export function Sidebar({ mobileOnly = false, mobileOpen = false, onMobileClose 
           const Icon = item.icon;
           const isActive = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
           return (
-            <Link key={item.href} href={item.href} title={collapsed ? item.label : undefined} className={cn("flex items-center gap-3 px-2.5 py-2 rounded-md text-sm transition-all duration-150 group relative", isActive ? "bg-[#00C2FF]/10 text-[#00C2FF] border border-[#00C2FF]/20" : "text-vault-text-muted hover:text-vault-text hover:bg-vault-border")}>
+            <Link key={item.href} href={item.href} onClick={() => onMobileClose?.()} title={collapsed ? item.label : undefined} className={cn("flex items-center gap-3 px-2.5 py-2 rounded-md text-sm transition-all duration-150 group relative", isActive ? "bg-[#00C2FF]/10 text-[#00C2FF] border border-[#00C2FF]/20" : "text-vault-text-muted hover:text-vault-text hover:bg-vault-border")}>
               {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-[#00C2FF] rounded-r-full" />}
               <Icon className={cn("shrink-0 transition-colors", collapsed ? "w-5 h-5" : "w-4 h-4", isActive ? "text-[#00C2FF]" : "text-vault-text-faint group-hover:text-vault-text-muted")} />
               {!collapsed && (
@@ -136,7 +136,7 @@ export function Sidebar({ mobileOnly = false, mobileOpen = false, onMobileClose 
               {RANGE_CHILD_ITEMS.map((item) => {
                 const Icon = item.icon;
                 return (
-                  <Link key={item.href} href={item.href} className="flex items-center gap-2 px-2 py-1.5 rounded-md text-xs text-vault-text-muted hover:text-vault-text hover:bg-vault-border transition-colors">
+                  <Link key={item.href} href={item.href} onClick={() => onMobileClose?.()} className="flex items-center gap-2 px-2 py-1.5 rounded-md text-xs text-vault-text-muted hover:text-vault-text hover:bg-vault-border transition-colors">
                     <Icon className="w-3.5 h-3.5 text-vault-text-faint" />
                     <span>{item.label}</span>
                   </Link>
@@ -151,7 +151,7 @@ export function Sidebar({ mobileOnly = false, mobileOpen = false, onMobileClose 
             const Icon = item.icon;
             const isActive = pathname.startsWith(item.href);
             return (
-              <Link key={item.href} href={item.href} title={collapsed ? item.label : undefined} className={cn("flex items-center gap-3 px-2.5 py-2 rounded-md text-sm transition-all duration-150 group relative", isActive ? "bg-[#00C2FF]/10 text-[#00C2FF] border border-[#00C2FF]/20" : "text-vault-text-muted hover:text-vault-text hover:bg-vault-border")}>
+              <Link key={item.href} href={item.href} onClick={() => onMobileClose?.()} title={collapsed ? item.label : undefined} className={cn("flex items-center gap-3 px-2.5 py-2 rounded-md text-sm transition-all duration-150 group relative", isActive ? "bg-[#00C2FF]/10 text-[#00C2FF] border border-[#00C2FF]/20" : "text-vault-text-muted hover:text-vault-text hover:bg-vault-border")}>
                 {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-[#00C2FF] rounded-r-full" />}
                 <Icon className={cn("shrink-0 transition-colors", collapsed ? "w-5 h-5" : "w-4 h-4", isActive ? "text-[#00C2FF]" : "text-vault-text-faint group-hover:text-vault-text-muted")} />
                 {!collapsed && (
@@ -182,7 +182,7 @@ export function Sidebar({ mobileOnly = false, mobileOpen = false, onMobileClose 
         </aside>
       )}
 
-      <div className={cn("fixed inset-0 z-[300] md:hidden transition-opacity", mobileOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0")} aria-hidden={!mobileOpen}>
+      <div className={cn("fixed inset-0 z-[420] md:hidden transition-opacity", mobileOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0")} aria-hidden={!mobileOpen}>
         <div className="absolute inset-0 bg-black/60" onClick={onMobileClose} />
         <aside
           id="mobile-navigation"
