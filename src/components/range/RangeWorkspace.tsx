@@ -215,11 +215,12 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
     setLoadingSessions(true);
     try {
       const res = await fetch("/api/range/sessions");
-      const data = (await res.json()) as RangeSession[];
+      const data = (await res.json()) as RangeSession[] | { error?: string };
       if (res.ok) {
-        setSessions(data);
-        if (!selectedSessionId && data.length > 0) {
-          setSelectedSessionId(data[0].id);
+        const safeSessions = Array.isArray(data) ? data : [];
+        setSessions(safeSessions);
+        if (!selectedSessionId && safeSessions.length > 0) {
+          setSelectedSessionId(safeSessions[0].id);
         }
       }
     } finally {
@@ -231,7 +232,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
     fetch("/api/firearms")
       .then((r) => r.json())
       .then((data) => {
-        setFirearms(data);
+        setFirearms(Array.isArray(data) ? data : []);
         setLoadingFirearms(false);
       })
       .catch(() => setLoadingFirearms(false));
@@ -239,7 +240,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
     fetch("/api/ammo")
       .then((r) => r.json())
       .then((data) => {
-        setAmmoStocks(data.all ?? []);
+        setAmmoStocks(Array.isArray(data?.all) ? data.all : []);
         setLoadingAmmo(false);
       })
       .catch(() => setLoadingAmmo(false));
@@ -257,9 +258,10 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
     try {
       const res = await fetch(`/api/builds?firearmId=${firearmId}`);
       const data = (await res.json()) as Build[];
-      setBuilds(data);
+      const safeBuilds = Array.isArray(data) ? data : [];
+      setBuilds(safeBuilds);
 
-      const active = data.find((b) => b.isActive);
+      const active = safeBuilds.find((b) => b.isActive);
       if (active) {
         setSelectedBuild(active.id);
         const autoSelect = new Set<string>();
@@ -267,8 +269,8 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
           if (slot.accessory) autoSelect.add(slot.accessory.id);
         }
         setSelectedAccessories(autoSelect);
-      } else if (data.length > 0) {
-        setSelectedBuild(data[0].id);
+      } else if (safeBuilds.length > 0) {
+        setSelectedBuild(safeBuilds[0].id);
       } else {
         setSelectedBuild("");
       }
@@ -874,7 +876,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
         subtitle="Range session logging, drill tracking, and practical analysis tools"
       />
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+      <div className="max-w-4xl mx-auto w-full overflow-x-hidden px-4 sm:px-6 py-6 sm:py-8 space-y-6">
         {error && (
           <div className="flex items-center gap-3 bg-[#E53935]/10 border border-[#E53935]/30 rounded-lg px-4 py-3">
             <AlertCircle className="w-4 h-4 text-[#E53935] shrink-0" />
@@ -1022,7 +1024,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
                 <div className="flex items-center gap-2 h-10"><Loader2 className="w-4 h-4 text-[#F5A623] animate-spin" /></div>
               ) : (
                 ammoSelections.map((selection, index) => (
-                  <div key={`ammo-selection-${index}`} className="grid sm:grid-cols-[1fr_160px_auto] gap-2">
+                  <div key={`ammo-selection-${index}`} className="grid grid-cols-1 sm:grid-cols-[1fr_160px_auto] gap-2">
                     <div className="relative">
                       <VaultSelect
                         value={selection.ammoStockId}
@@ -1584,7 +1586,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-[1fr_1fr_auto] gap-2 w-full sm:w-auto sm:min-w-[320px]">
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2 w-full sm:w-auto sm:min-w-[320px]">
                 <VaultInput
                   type="number"
                   min="0"

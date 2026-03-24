@@ -88,7 +88,7 @@ export default function FullArmoryExportPage() {
   return (
     <div className="min-h-full">
       <PageHeader title="FULL ARMORY EXPORT" subtitle="CSV + PDF export with explicit include controls" />
-      <div className="p-6 space-y-6">
+      <div className="p-4 sm:p-6 space-y-6">
         <div className="bg-vault-surface border border-vault-border rounded-lg p-4 space-y-4">
           <div>
             <p className="text-xs uppercase tracking-widest text-vault-text-faint mb-2">Preset</p>

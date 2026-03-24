@@ -73,7 +73,7 @@ export default function NewAmmoStockPage() {
   return (
     <div className="min-h-full">
       {/* Breadcrumb header */}
-      <div className="flex items-center gap-4 px-6 py-4 border-b border-vault-border">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-4 px-4 sm:px-6 py-4 border-b border-vault-border">
         <Link
           href="/ammo"
           className="flex items-center gap-1.5 text-vault-text-muted hover:text-vault-text text-sm transition-colors"
@@ -87,7 +87,7 @@ export default function NewAmmoStockPage() {
         </h1>
       </div>
 
-      <div className="max-w-2xl mx-auto px-6 py-8">
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         <div className="mb-8">
           <h2 className="text-xl font-bold text-vault-text mb-1">New Ammo Stock</h2>
           <p className="text-sm text-vault-text-muted">Add a new ammunition stock to the depot.</p>
@@ -299,7 +299,7 @@ export default function NewAmmoStockPage() {
           </fieldset>
 
           {/* Actions */}
-          <div className="flex items-center justify-end gap-3 pt-2">
+          <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-3 pt-2">
             <Link
               href="/ammo"
               className="px-4 py-2 text-sm text-vault-text-muted hover:text-vault-text border border-vault-border rounded-md hover:border-vault-text-muted/30 transition-colors"
