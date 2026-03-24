@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/utils";
 import { Plus, Crosshair, Shield, ExternalLink } from "lucide-react";
+import { RoundCountBadge } from "@/components/shared/RoundCountBadge";
 
 const SLOT_TYPE_LABELS: Record<string, string> = {
   MUZZLE: "Muzzle",
@@ -220,9 +221,7 @@ export default async function AccessoriesPage() {
                         {/* Round count */}
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
-                            <p className={`text-sm font-mono font-bold ${colors.text} w-14 shrink-0`}>
-                              {formatNumber(accessory.roundCount)}
-                            </p>
+                            <RoundCountBadge roundCount={accessory.roundCount} className="text-xs" />
                             <div className="w-20 bg-vault-border rounded-full h-1 hidden sm:block">
                               <div
                                 className={`h-1 rounded-full ${colors.bar} transition-all`}

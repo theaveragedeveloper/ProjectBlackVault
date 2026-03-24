@@ -30,17 +30,22 @@ export async function GET() {
             },
           },
         },
+        rangeSessions: {
+          select: { roundsFired: true },
+        },
       },
       orderBy: { createdAt: "desc" },
     });
 
     const result = firearms.map((firearm) => ({
       ...firearm,
+      firearmRoundCount: firearm.rangeSessions.reduce((sum, session) => sum + session.roundsFired, 0),
       serialNumber: firearm.serialNumber,
       notes: firearm.notes,
       buildCount: firearm._count.builds,
       activeBuild: firearm.builds[0] ?? null,
       builds: undefined,
+      rangeSessions: undefined,
       _count: undefined,
     }));
 
@@ -104,6 +109,9 @@ export async function POST(request: NextRequest) {
       include: {
         _count: {
           select: { builds: true },
+        },
+        rangeSessions: {
+          select: { roundsFired: true },
         },
       },
     });

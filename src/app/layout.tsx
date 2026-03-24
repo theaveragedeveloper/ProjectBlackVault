@@ -31,7 +31,7 @@ export default function RootLayout({
             <Sidebar />
             <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
               <MobileHeader />
-              <main className="flex-1 overflow-y-auto min-w-0">
+              <main className="flex-1 overflow-y-auto min-w-0 pb-safe">
                 {children}
               </main>
             </div>

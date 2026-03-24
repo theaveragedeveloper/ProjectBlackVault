@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { SLOTS_BY_FIREARM_TYPE, SLOT_TYPE_LABELS, FirearmType, SlotType } from "@/lib/types";
 import { SLOT_ICONS } from "@/lib/configurator/slot-icons";
+import { RoundCountBadge } from "@/components/shared/RoundCountBadge";
 
 const CUSTOM_SLOT_PREFIX = "CUSTOM:";
 
@@ -829,9 +830,7 @@ function SlotPanel({
                     <p className="text-xs font-medium text-vault-text truncate">
                       {slot.accessory.name}
                     </p>
-                    <span className="shrink-0 text-[9px] font-mono text-[#F5A623] bg-[#F5A623]/10 border border-[#F5A623]/20 px-1.5 py-0.5 rounded">
-                      {slot.accessory.roundCount.toLocaleString()}r
-                    </span>
+                    <RoundCountBadge roundCount={slot.accessory.roundCount} className="text-[9px]" />
                   </div>
                 ) : (
                   <p className="text-[10px] text-vault-border mt-0.5">Empty</p>

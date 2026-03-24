@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { VaultInput, VaultSelect, VaultTextArea, vaultCardClass, vaultLabelClass, VaultButton } from "@/components/shared/ui-primitives";
 import { formatNumber } from "@/lib/utils";
 import { Target, ChevronDown, Loader2, AlertCircle, CheckCircle2, Shield, Timer, BookPlus, Plus, Minus, Calculator } from "lucide-react";
 import Link from "next/link";
+import { safeId } from "@/lib/client/id";
+import { inferDrillModeFromEntry, resolveDrillMetrics, type DrillPerformanceMode } from "@/lib/range/drill-metrics";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 const SECTION_CARD_CLASS = `${vaultCardClass} space-y-4`;
@@ -95,7 +98,6 @@ interface DrillEntryDraft {
   notes: string;
 }
 
-type DrillPerformanceMode = "time" | "accuracy" | "both";
 
 interface DrillTemplate {
   id: string;
@@ -144,7 +146,6 @@ const DEFAULT_DRILL_LIBRARY: DrillTemplate[] = [
 ];
 
 export function RangeWorkspace({ view }: RangeWorkspaceProps) {
-  const isDrillPage = view === "log-drill" || view === "drill-performance" || view === "drill-library" || view === "hit-factor";
   const [firearms, setFirearms] = useState<Firearm[]>([]);
   const [builds, setBuilds] = useState<Build[]>([]);
   const [ammoStocks, setAmmoStocks] = useState<AmmoStock[]>([]);
@@ -160,7 +161,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
   const [sessionNote, setSessionNote] = useState<string>("");
   const [selectedAccessories, setSelectedAccessories] = useState<Set<string>>(new Set());
   const [sessionDrillEntries, setSessionDrillEntries] = useState<DrillEntryDraft[]>([
-    { id: crypto.randomUUID(), name: "", timeSeconds: "", points: "", penalties: "", hits: "", notes: "" },
+    { id: safeId("session-drill"), name: "", timeSeconds: "", points: "", penalties: "", hits: "", notes: "" },
   ]);
 
   const [selectedSessionId, setSelectedSessionId] = useState<string>("");
@@ -173,6 +174,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
   const [customDrillName, setCustomDrillName] = useState("");
   const [customDrillNotes, setCustomDrillNotes] = useState("");
   const [customDrillMode, setCustomDrillMode] = useState<DrillPerformanceMode>("both");
+  const [editingDrillId, setEditingDrillId] = useState<string | null>(null);
   const [drillLibrary, setDrillLibrary] = useState<DrillTemplate[]>(DEFAULT_DRILL_LIBRARY);
   const [calculatorPoints, setCalculatorPoints] = useState("");
   const [calculatorPenalties, setCalculatorPenalties] = useState("");
@@ -183,9 +185,9 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
   const [pfComputedValue, setPfComputedValue] = useState<number | null>(null);
   const [hitCounts, setHitCounts] = useState({ alpha: 0, charlie: 0, delta: 0, steel: 0 });
   const [penaltyCounts, setPenaltyCounts] = useState({ miss: 0, noShoot: 0, procedural: 0 });
-  const [performanceMetric, setPerformanceMetric] = useState<"time" | "score" | "hitFactor">("hitFactor");
   const [performanceDrillName, setPerformanceDrillName] = useState("");
   const [selectedPerformanceDrillId, setSelectedPerformanceDrillId] = useState<string>("");
+  const router = useRouter();
 
   const [loadingFirearms, setLoadingFirearms] = useState(true);
   const [loadingBuilds, setLoadingBuilds] = useState(false);
@@ -352,6 +354,18 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
     [drillLibrary, drillName]
   );
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const drillFromQuery = params.get("drill");
+    if (drillFromQuery) {
+      if (drillFromQuery !== drillName) setDrillName(drillFromQuery);
+      if (drillFromQuery !== performanceDrillName) setPerformanceDrillName(drillFromQuery);
+    }
+    const sessionFromQuery = params.get("sessionId");
+    if (sessionFromQuery && sessionFromQuery !== selectedSessionId) setSelectedSessionId(sessionFromQuery);
+  }, [drillName, performanceDrillName, selectedSessionId]);
+
   const drillHitFactorPreview = useMemo(() => {
     const time = selectedDrillTemplate?.mode === "accuracy" ? 1 : Number.parseFloat(drillTime);
     const points = selectedDrillTemplate?.mode === "time" ? 0 : Number.parseFloat(drillPoints);
@@ -386,7 +400,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
   function addSessionDrillEntry() {
     setSessionDrillEntries((prev) => [
       ...prev,
-      { id: crypto.randomUUID(), name: "", timeSeconds: "", points: "", penalties: "", hits: "", notes: "" },
+      { id: safeId("session-drill"), name: "", timeSeconds: "", points: "", penalties: "", hits: "", notes: "" },
     ]);
   }
 
@@ -537,7 +551,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
       setRoundsFired("");
       setSessionNote("");
       setAmmoSelections([{ ammoStockId: "", roundsUsed: "" }]);
-      setSessionDrillEntries([{ id: crypto.randomUUID(), name: "", timeSeconds: "", points: "", penalties: "", hits: "", notes: "" }]);
+      setSessionDrillEntries([{ id: safeId("session-drill"), name: "", timeSeconds: "", points: "", penalties: "", hits: "", notes: "" }]);
     } catch (err) {
       setFinalizeState("idle");
       setError(err instanceof Error ? err.message : "Session log failed");
@@ -549,8 +563,6 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
 
   async function handleAddDrill(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedSessionId) return;
-
     setError(null);
     setSuccess(null);
     setWarning(null);
@@ -584,7 +596,8 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
         notes: drillNotes,
       };
 
-      const res = await fetch(`/api/range/sessions/${selectedSessionId}/drills`, {
+      const endpoint = selectedSessionId ? `/api/range/sessions/${selectedSessionId}/drills` : `/api/range/drills`;
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -595,9 +608,11 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
         throw new Error(json.error ?? "Failed to add drill");
       }
 
-      const drillsRes = await fetch(`/api/range/sessions/${selectedSessionId}/drills`);
-      const drillsJson = await drillsRes.json();
-      setSessionDrills(Array.isArray(drillsJson) ? drillsJson : []);
+      if (selectedSessionId) {
+        const drillsRes = await fetch(`/api/range/sessions/${selectedSessionId}/drills`);
+        const drillsJson = await drillsRes.json();
+        setSessionDrills(Array.isArray(drillsJson) ? drillsJson : []);
+      }
       await loadSessions();
 
       setDrillTime("");
@@ -657,6 +672,26 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
     }
   }, [drillLibrary, drillName]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const editId = new URLSearchParams(window.location.search).get("edit");
+    if (!editId) {
+      setEditingDrillId(null);
+      return;
+    }
+    const found = drillLibrary.find((d) => d.id === editId);
+    if (!found) return;
+    setEditingDrillId(found.id);
+    setCustomDrillName(found.name);
+    setCustomDrillNotes(found.notes ?? "");
+    setCustomDrillMode(found.mode);
+  }, [drillLibrary]);
+
+  const selectedPerformanceTemplate = useMemo(
+    () => drillLibrary.find((template) => template.name === performanceDrillName) ?? null,
+    [drillLibrary, performanceDrillName]
+  );
+
   const performanceRows = useMemo(() => {
     const filtered = performanceDrillName
       ? allLoggedDrills.filter((drill) => drill.name.trim() === performanceDrillName)
@@ -666,19 +701,18 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
       .sort((a, b) => new Date(a.sessionDate).getTime() - new Date(b.sessionDate).getTime())
       .slice(-30);
 
-    const metricValueFor = (drill: (typeof sorted)[number]) => {
-      if (performanceMetric === "time") return drill.timeSeconds;
-      if (performanceMetric === "score") return Math.max(0, drill.points - (drill.penalties ?? 0));
-      return drill.hitFactor;
-    };
-
     return sorted.map((drill, index) => ({
       ...drill,
       index: index + 1,
       displayDate: new Date(drill.sessionDate).toLocaleDateString(),
-      metricValue: metricValueFor(drill),
+      scoreValue: Math.max(0, drill.points - (drill.penalties ?? 0)),
     }));
-  }, [allLoggedDrills, performanceDrillName, performanceMetric]);
+  }, [allLoggedDrills, performanceDrillName]);
+
+  const performanceMetrics = useMemo(() => {
+    const mode = selectedPerformanceTemplate?.mode ?? (performanceRows[0] ? inferDrillModeFromEntry(performanceRows[0]) : "both");
+    return resolveDrillMetrics(mode);
+  }, [selectedPerformanceTemplate, performanceRows]);
 
   const selectedPerformanceRow = useMemo(
     () => performanceRows.find((row) => row.id === selectedPerformanceDrillId) ?? null,
@@ -1115,31 +1149,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
         </form>
         )}
 
-        {isDrillPage && (
-        <fieldset className={SECTION_CARD_CLASS}>
-          <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">Session Selector</legend>
-          <div>
-            <label className={vaultLabelClass}>Session</label>
-            <div className="relative">
-              <VaultSelect
-                value={selectedSessionId}
-                onChange={(e) => setSelectedSessionId(e.target.value)}
-                
-                disabled={loadingSessions || sessions.length === 0}
-              >
-                <option value="">Select session...</option>
-                {sessions.map((session) => (
-                  <option key={session.id} value={session.id}>
-                    {new Date(session.sessionDate).toLocaleDateString()} · {session.location} · {session.firearm.name}
-                  </option>
-                ))}
-              </VaultSelect>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-vault-text-faint pointer-events-none" />
-            </div>
-          </div>
-        </fieldset>
-        )}
-
+        
         {showLogDrill && (
         <fieldset id="log-a-drill" className={`${SECTION_CARD_CLASS} scroll-mt-20`}>
           <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">Log Drill Results</legend>
@@ -1171,6 +1181,17 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
                 {selectedDrillTemplate?.notes && (
                   <p className="mt-1 text-xs text-vault-text-faint">{selectedDrillTemplate.notes}</p>
                 )}
+                <div className="mt-3 relative">
+                  <VaultSelect value={selectedSessionId} onChange={(e) => setSelectedSessionId(e.target.value)} disabled={loadingSessions}>
+                    <option value="">No session (optional)</option>
+                    {sessions.map((session) => (
+                      <option key={session.id} value={session.id}>
+                        {new Date(session.sessionDate).toLocaleDateString()} · {session.location} · {session.firearm.name}
+                      </option>
+                    ))}
+                  </VaultSelect>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-vault-text-faint pointer-events-none" />
+                </div>
               </div>
               {selectedDrillTemplate?.mode !== "accuracy" && (
               <div>
@@ -1199,10 +1220,12 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
                 <VaultInput type="number" min="0" value={drillHits} onChange={(e) => setDrillHits(e.target.value)}  placeholder="6" />
               </div>
               )}
+              {selectedDrillTemplate?.mode !== "time" && (
               <div className="bg-vault-bg border border-vault-border rounded-md px-3 py-2">
                 <p className="text-[11px] text-vault-text-faint uppercase tracking-widest">Hit Factor</p>
                 <p className="text-lg font-mono text-[#00C2FF]">{drillHitFactorPreview.toFixed(4)}</p>
               </div>
+              )}
             </div>
 
             <div>
@@ -1213,7 +1236,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
             <div className="flex justify-end">
               <button
                 type="submit"
-                disabled={submittingDrill || !selectedSessionId}
+                disabled={submittingDrill}
                 className="w-full sm:w-auto justify-center flex items-center gap-2 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 rounded-md text-sm font-medium transition-colors"
               >
                 {submittingDrill ? <Loader2 className="w-4 h-4 animate-spin" /> : <Timer className="w-4 h-4" />}
@@ -1248,20 +1271,9 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-vault-text-faint pointer-events-none" />
               </div>
             </div>
-            <div>
-              <label className={vaultLabelClass}>History Metric</label>
-              <div className="relative">
-                <VaultSelect
-                  value={performanceMetric}
-                  onChange={(e) => setPerformanceMetric(e.target.value as "time" | "score" | "hitFactor")}
-                  
-                >
-                  <option value="time">Time (sec)</option>
-                  <option value="score">Score (points - penalties)</option>
-                  <option value="hitFactor">Hit Factor</option>
-                </VaultSelect>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-vault-text-faint pointer-events-none" />
-              </div>
+<div className="rounded border border-vault-border bg-vault-bg px-3 py-2">
+              <p className="text-xs text-vault-text-faint">Metrics</p>
+              <p className="text-sm text-vault-text">{performanceMetrics.map((m) => m.label).join(" + ")}</p>
             </div>
           </div>
 
@@ -1277,37 +1289,46 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
                     <Tooltip
                       contentStyle={{ backgroundColor: "#101114", border: "1px solid #2C2F36", borderRadius: 8 }}
                       labelStyle={{ color: "#E5E7EB" }}
-                      formatter={(value) => {
+                      formatter={(value, name) => {
                         const numericValue = typeof value === "number" ? value : Number(value ?? 0);
-                        if (performanceMetric === "time") return [`${numericValue.toFixed(2)}s`, "Time"];
-                        if (performanceMetric === "score") return [`${numericValue.toFixed(2)} pts`, "Score"];
-                        return [`${numericValue.toFixed(4)}`, "Hit Factor"];
+                        const metric = performanceMetrics.find((m) => m.key === name) ?? null;
+                        const formatted = metric?.key === "hitFactor" ? numericValue.toFixed(4) : numericValue.toFixed(2);
+                        return [metric?.unit ? `${formatted}${metric.unit}` : formatted, metric?.label ?? name];
                       }}
                     />
-                    <Line
-                      type="monotone"
-                      dataKey="metricValue"
-                      stroke="#00C2FF"
-                      strokeWidth={2}
-                      dot={(props: { cx?: number; cy?: number; payload?: { id?: string; sessionId?: string } }) => (
-                        <circle
-                          cx={props.cx}
-                          cy={props.cy}
-                          r={4}
-                          fill="#00C2FF"
-                          stroke="#00C2FF"
-                          strokeWidth={1}
-                          style={{ cursor: "pointer" }}
-                          onClick={() => {
-                            const pointId = props.payload?.id;
-                            const sessionId = props.payload?.sessionId;
-                            if (pointId) setSelectedPerformanceDrillId(pointId);
-                            if (sessionId) setSelectedSessionId(sessionId);
-                          }}
-                        />
-                      )}
-                      activeDot={{ r: 6, stroke: "#00C2FF", fill: "#101114" }}
-                    />
+                    <YAxis yAxisId="left" tick={{ fill: "#9CA3AF", fontSize: 11 }} width={52} />
+                    {performanceMetrics.some((m) => m.yAxisId === "right") && (
+                      <YAxis yAxisId="right" orientation="right" tick={{ fill: "#9CA3AF", fontSize: 11 }} width={52} />
+                    )}
+                    {performanceMetrics.map((metric) => (
+                      <Line
+                        key={metric.key}
+                        yAxisId={metric.yAxisId ?? "left"}
+                        type="monotone"
+                        dataKey={metric.key === "time" ? "timeSeconds" : metric.key === "score" ? "scoreValue" : "hitFactor"}
+                        name={metric.key}
+                        stroke={metric.color}
+                        strokeWidth={2}
+                        dot={(props: { cx?: number; cy?: number; payload?: { id?: string; sessionId?: string } }) => (
+                          <circle
+                            cx={props.cx}
+                            cy={props.cy}
+                            r={4}
+                            fill={metric.color}
+                            stroke={metric.color}
+                            strokeWidth={1}
+                            style={{ cursor: "pointer" }}
+                            onClick={() => {
+                              const pointId = props.payload?.id;
+                              const sessionId = props.payload?.sessionId;
+                              if (pointId) setSelectedPerformanceDrillId(pointId);
+                              if (sessionId) setSelectedSessionId(sessionId);
+                            }}
+                          />
+                        )}
+                        activeDot={{ r: 6, stroke: metric.color, fill: "#101114" }}
+                      />
+                    ))}
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -1370,7 +1391,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
               type="submit"
               className="h-10 px-4 rounded-md text-sm bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20"
             >
-              <span className="inline-flex items-center gap-2"><BookPlus className="w-4 h-4" />Add Drill</span>
+              <span className="inline-flex items-center gap-2"><BookPlus className="w-4 h-4" />{editingDrillId ? "Save Drill" : "Add Drill"}</span>
             </button>
           </form>
 
@@ -1380,12 +1401,29 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
               {drillLibrary.length === 0 ? (
                 <p className="text-sm text-vault-text-faint">No drill templates yet.</p>
               ) : (
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   {drillLibrary.map((template) => (
-                    <div key={template.id} className="text-sm text-vault-text bg-vault-bg border border-vault-border rounded px-3 py-2">
-                      <p>{template.name}</p>
-                      <p className="text-xs text-vault-text-faint mt-1 uppercase tracking-widest">{template.mode}</p>
-                    </div>
+                    <button
+                      key={template.id}
+                      type="button"
+                      onClick={() => {
+                        setDrillName(template.name);
+                        router.push(`/range/log-drill?drill=${encodeURIComponent(template.name)}`);
+                      }}
+                      className="w-full text-left bg-vault-bg border border-vault-border rounded px-3 py-2 hover:border-[#00C2FF]/40"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-sm text-vault-text font-medium">{template.name}</p>
+                          <p className="text-xs text-vault-text-faint mt-1 uppercase tracking-widest">{template.mode}</p>
+                          {template.notes && <p className="text-xs text-vault-text-muted mt-1 line-clamp-1">{template.notes}</p>}
+                        </div>
+                        <div className="flex gap-1">
+                          <Link href={`/range/drill-library?edit=${template.id}`} className="text-[11px] px-2 py-1 rounded border border-vault-border text-vault-text-muted">Edit</Link>
+                          <Link href={`/range/drill-performance?drill=${encodeURIComponent(template.name)}`} className="text-[11px] px-2 py-1 rounded border border-[#00C2FF]/30 text-[#00C2FF]">History</Link>
+                        </div>
+                      </div>
+                    </button>
                   ))}
                 </div>
               )}

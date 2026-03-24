@@ -9,7 +9,7 @@ export function MobileHeader() {
 
   return (
     <>
-      <header className="md:hidden flex items-center gap-3 h-14 px-4 border-b border-vault-border bg-vault-surface shrink-0">
+      <header className="md:hidden sticky top-0 z-30 flex items-center gap-3 h-14 px-4 border-b border-vault-border bg-vault-surface shrink-0">
         <button
           onClick={() => setOpen(true)}
           className="inline-flex items-center gap-1.5 px-2 py-1.5 rounded-md border border-vault-border text-vault-text-faint hover:text-vault-text-muted hover:bg-vault-border/60 transition-colors"
