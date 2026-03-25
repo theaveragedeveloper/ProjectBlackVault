@@ -216,7 +216,7 @@ function AccessoryBrowserModal({
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ backgroundColor: "var(--vault-overlay)" }}
     >
-      <div className="bg-vault-surface border border-vault-border rounded-xl w-full max-w-2xl max-h-[85vh] flex flex-col animate-slide-up shadow-2xl">
+      <div className="bg-vault-surface border border-vault-border rounded-xl w-full max-w-2xl max-h-[85svh] flex flex-col animate-slide-up shadow-2xl">
         {/* Modal header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-vault-border shrink-0">
           <div className="flex items-center gap-3">
