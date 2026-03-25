@@ -217,7 +217,7 @@ export default async function FirearmDetailPage({
               <p className="text-[10px] uppercase tracking-widest text-vault-text-faint">Paid</p>
             </div>
             <p className="text-sm font-mono text-vault-text">
-              {firearm.purchasePrice != null ? formatCurrency(firearm.purchasePrice) : "—"}
+              {firearm.purchasePrice != null && firearm.purchasePrice !== 0 ? formatCurrency(firearm.purchasePrice) : "—"}
             </p>
           </div>
 
@@ -227,7 +227,7 @@ export default async function FirearmDetailPage({
               <p className="text-[10px] uppercase tracking-widest text-vault-text-faint">Value</p>
             </div>
             <p className="text-sm font-mono text-vault-text">
-              {firearm.currentValue != null ? formatCurrency(firearm.currentValue) : "—"}
+              {firearm.currentValue != null && firearm.currentValue !== 0 ? formatCurrency(firearm.currentValue) : "—"}
             </p>
             {gainLoss != null && (
               <p className={`text-[10px] mt-0.5 font-mono ${gainLoss >= 0 ? "text-[#00C853]" : "text-[#E53935]"}`}>

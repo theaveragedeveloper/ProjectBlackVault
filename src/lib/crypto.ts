@@ -21,7 +21,7 @@ export function decryptField(value: string | null | undefined): string | null {
   if (!hex || hex.length !== 64) return value; // key missing, return raw
 
   try {
-const key = Buffer.from(hex, "hex");
+    const key = Buffer.from(hex, "hex");
     const parts = value.slice(PREFIX.length).split(":");
     if (parts.length !== 3) return value;
     const [ivB64, ciphertextB64, tagB64] = parts;
