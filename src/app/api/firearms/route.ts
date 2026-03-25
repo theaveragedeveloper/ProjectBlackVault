@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { revalidateDashboardData } from "@/lib/dashboard/revalidate-dashboard";
+import { decryptField } from "@/lib/crypto";
 
 
 function normalizeString(value: unknown) {
@@ -40,7 +41,7 @@ export async function GET() {
     const result = firearms.map((firearm) => ({
       ...firearm,
       firearmRoundCount: firearm.rangeSessions.reduce((sum, session) => sum + session.roundsFired, 0),
-      serialNumber: firearm.serialNumber,
+      serialNumber: decryptField(firearm.serialNumber) ?? firearm.serialNumber,
       notes: firearm.notes,
       buildCount: firearm._count.builds,
       activeBuild: firearm.builds[0] ?? null,

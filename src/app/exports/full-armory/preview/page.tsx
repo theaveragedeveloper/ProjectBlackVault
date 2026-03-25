@@ -163,12 +163,12 @@ export default function FullArmoryPreviewPage() {
             <table className="w-full text-xs border-collapse">
               <thead>
                 <tr className="border-b border-vault-border text-vault-text-faint">
-                  <th className="py-2 text-left">Type</th>
-                  <th className="py-2 text-left">Manufacturer</th>
-                  <th className="py-2 text-left">Model</th>
-                  <th className="py-2 text-left">Serial</th>
-                  <th className="py-2 text-right">Purchase</th>
-                  <th className="py-2 text-right">Replacement</th>
+                  <th className="py-2 pr-4 text-left">Type</th>
+                  <th className="py-2 pr-4 text-left">Manufacturer</th>
+                  <th className="py-2 pr-4 text-left">Model</th>
+                  <th className="py-2 pr-4 text-left">Serial</th>
+                  <th className="py-2 pr-4 text-right">Purchase</th>
+                  <th className="py-2 pr-4 text-right">Replacement</th>
                   <th className="py-2 text-right">Docs</th>
                 </tr>
               </thead>
@@ -182,12 +182,12 @@ export default function FullArmoryPreviewPage() {
                 ) : (
                   data.items.map((item) => (
                     <tr key={item.itemId} className="border-b border-vault-border/60">
-                      <td className="py-2">{item.entityType}</td>
-                      <td className="py-2">{item.manufacturer || "—"}</td>
-                      <td className="py-2">{item.model || "—"}</td>
-                      <td className="py-2 font-mono">{item.serialNumber || "—"}</td>
-                      <td className="py-2 text-right">{formatCurrency(item.purchasePrice)}</td>
-                      <td className="py-2 text-right">{formatCurrency(item.replacementValue)}</td>
+                      <td className="py-2 pr-4">{item.entityType}</td>
+                      <td className="py-2 pr-4">{item.manufacturer || "—"}</td>
+                      <td className="py-2 pr-4">{item.model || "—"}</td>
+                      <td className="py-2 pr-4 font-mono">{item.serialNumber || "—"}</td>
+                      <td className="py-2 pr-4 text-right">{formatCurrency(item.purchasePrice)}</td>
+                      <td className="py-2 pr-4 text-right">{formatCurrency(item.replacementValue)}</td>
                       <td className="py-2 text-right">{item.receiptCount}/{item.documentCount}</td>
                     </tr>
                   ))
