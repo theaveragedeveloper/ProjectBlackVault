@@ -79,7 +79,17 @@ async function getAccessories() {
 }
 
 export default async function AccessoriesPage() {
-  const accessories = await getAccessories();
+  let accessories: Awaited<ReturnType<typeof getAccessories>>;
+  try {
+    accessories = await getAccessories();
+  } catch {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <p className="text-vault-text-muted text-sm">Failed to load accessories.</p>
+        <a href="/accessories" className="text-[#00C2FF] text-sm hover:underline">Tap to retry</a>
+      </div>
+    );
+  }
   const totalRounds = accessories.reduce((sum, a) => sum + a.roundCount, 0);
 
   return (

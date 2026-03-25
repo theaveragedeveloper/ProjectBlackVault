@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { decryptField } from "@/lib/crypto";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { ItemDocumentPanel } from "@/components/shared/ItemDocumentPanel";
 import { RoundCountBadge } from "@/components/shared/RoundCountBadge";
@@ -97,7 +98,17 @@ export default async function FirearmDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const firearm = await getFirearm(id);
+  let firearm: Awaited<ReturnType<typeof getFirearm>>;
+  try {
+    firearm = await getFirearm(id);
+  } catch {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <p className="text-vault-text-muted text-sm">Failed to load firearm.</p>
+        <a href="/vault" className="text-[#00C2FF] text-sm hover:underline">Back to vault</a>
+      </div>
+    );
+  }
 
   if (!firearm) {
     notFound();
@@ -189,7 +200,7 @@ export default async function FirearmDetailPage({
               <Hash className="w-3.5 h-3.5 text-vault-text-faint" />
               <p className="text-[10px] uppercase tracking-widest text-vault-text-faint">Serial</p>
             </div>
-            <p className="text-sm font-mono text-vault-text">{firearm.serialNumber}</p>
+            <p className="text-sm font-mono text-vault-text">{decryptField(firearm.serialNumber) ?? "—"}</p>
           </div>
 
           <div className="bg-vault-surface border border-vault-border rounded-lg p-4">
