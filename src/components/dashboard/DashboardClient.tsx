@@ -500,7 +500,7 @@ function AmmoSummaryWidget({ ammoStocks }: { ammoStocks: AmmoStockItem[] }) {
 
 export function DashboardClient({ data }: { data: DashboardData }) {
   const [liveData, setLiveData] = useState<DashboardData>(data);
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [order, setOrder] = useState<string[]>(() => {
     if (typeof window === "undefined") return DEFAULT_ORDER;
     try {
@@ -614,7 +614,9 @@ export function DashboardClient({ data }: { data: DashboardData }) {
     <div className="mx-auto max-w-6xl p-4 sm:p-6">
       <div className="mb-6 flex items-center justify-between">
         <p className="text-xs text-vault-text-faint">
-          Last updated {lastUpdated.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+          {lastUpdated
+            ? `Last updated ${lastUpdated.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
+            : ""}
         </p>
 
         {editMode ? (
