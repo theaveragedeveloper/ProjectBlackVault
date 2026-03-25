@@ -385,6 +385,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
   }, []);
 
   useEffect(() => {
+    if (view !== "drill-library") return;
     if (drillLibrary.length === 0) return;
     Promise.all(
       drillLibrary.map((t) =>
@@ -398,7 +399,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
       results.forEach(({ name, count }) => { counts[name] = count; });
       setSessionCountByDrill(counts);
     });
-  }, [drillLibrary]);
+  }, [drillLibrary, view]);
 
   const selectedFirearmData = firearms.find((f) => f.id === selectedFirearm);
   const selectedBuildData = builds.find((b) => b.id === selectedBuild);
@@ -1924,6 +1925,8 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
                         <span>Location: {session.location}</span>
                         <span>Firearm: {session.firearm.name}</span>
                         <span>Rounds: {session.roundsFired}</span>
+                        <span>Build: {session.build ? session.build.name : "—"}</span>
+                        <span>Ammo: {session.ammoLinks.length > 0 ? session.ammoLinks.map((l) => `${l.ammoStock.brand} (${l.roundsUsed})`).join(", ") : "—"}</span>
                       </div>
                       {session.sessionDrills && session.sessionDrills.length > 0 ? (
                         <table className="w-full text-xs mt-2">
