@@ -50,7 +50,17 @@ async function getAllBuilds() {
 }
 
 export default async function BuildsPage() {
-  const firearms = await getAllBuilds();
+  let firearms: Awaited<ReturnType<typeof getAllBuilds>>;
+  try {
+    firearms = await getAllBuilds();
+  } catch {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <p className="text-vault-text-muted text-sm">Failed to load builds.</p>
+        <a href="/builds" className="text-[#00C2FF] text-sm hover:underline">Tap to retry</a>
+      </div>
+    );
+  }
 
   const totalBuilds = firearms.reduce((sum, f) => sum + f.builds.length, 0);
   const activeBuilds = firearms.reduce(
