@@ -1,161 +1,93 @@
-# ProjectBlackVault
+# BlackVault
 
-**Private, self-hosted firearms and training records on your own hardware.**
-
-ProjectBlackVault helps you keep inventory, maintenance, training, documents, and photos in one local system you control.
+A self-hosted, local-only web app for tracking firearms, accessories, and range sessions. All data stays on your machine.
 
 ---
 
-## Who this is for
+## Screenshots
 
-ProjectBlackVault is built for people who want a practical, private record system without relying on cloud accounts.
-
-- Home server and NAS users
-- Self-hosters who prefer local-only services
-- Anyone tracking inventory, maintenance, and training progress
-
----
-
-## What you can do
-
-- Track firearms and accessories
-- Log round counts and drill sessions
-- Review maintenance status and history
-- Store local documents and photos
-- Export records as PDF or CSV
-- Configure local-network mobile access from **Settings**
+<!-- screenshot: dashboard -->
+<!-- screenshot: vault -->
+<!-- screenshot: range-session -->
+<!-- screenshot: drill-library -->
 
 ---
 
-## Features at a Glance
+## Features
 
-| Section | What it does |
-|---------|-------------|
-| **Vault** | Track every firearm — make, model, caliber, serial, value, photos |
-| **Builds** | Configure accessory loadouts per firearm and mark one active |
-| **Accessories** | Inventory optics, lights, suppressors, grips with round count tracking |
-| **Ammo** | Stock tracking with low-alert thresholds and transaction history |
-| **Range** | Log sessions, track drills, calculate hit factor, build drill templates |
-| **Documents** | Store manuals, receipts, and permits per firearm or accessory |
-| **Exports** | Generate PDF/CSV armory reports for insurance or records |
-| **Settings** | QR-code mobile access — open BlackVault on your phone over Wi-Fi |
+- Firearm and accessory tracking
+- Document uploads
+- Range sessions and drills
+- Drill library and history
+- Drill logging (standalone or tied to a session)
+- Drill performance tracking
+- CSV and PDF export
+- Dashboard
+- Mobile access via local network
 
 ---
 
-## Quick start (Docker)
+## Quick Start (Docker)
 
-> Recommended install path for V1.
-
-### 1) Install prerequisites
-
-- [Docker Engine](https://docs.docker.com/engine/install/)
-- Docker Compose plugin
-
-### 2) Clone and start
+**Requirements:** [Docker](https://docs.docker.com/get-docker/) installed on your machine.
 
 ```bash
-git clone <YOUR_REPO_URL>
+git clone https://github.com/theaveragedeveloper/ProjectBlackVault.git
 cd ProjectBlackVault
-git checkout V1-pub-release
-docker compose up -d --build
+docker compose up --build
 ```
 
-### 3) Open ProjectBlackVault
-
-Open:
-
-- `http://localhost:3000`
-
-If you changed the host port in `docker-compose.yml`, use that port instead.
-
-> **Environment variables:** See `.env.example` for all available configuration options.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
-## Mobile access (local network)
+## Simple Setup (Non-Technical)
 
-Use this when opening ProjectBlackVault from a phone or tablet on the same Wi-Fi/LAN.
+1. Install Docker: [https://docs.docker.com/get-docker/](https://docs.docker.com/get-docker/)
+2. Go to the GitHub repository page and click **Code → Download ZIP**
+3. Extract the ZIP to a folder on your computer
+4. Open a terminal (Command Prompt on Windows, Terminal on Mac) and navigate to that folder
+5. Run: `docker compose up --build`
+6. Open your browser and go to `http://localhost:3000`
 
-1. Open **Settings** in ProjectBlackVault.
-2. Enter a **Mobile Access Host/IP** (example: `192.168.1.50`).
-3. Save settings.
-4. Use the displayed mobile URL (or copy it with the **Copy URL** button).
-
-Tip: reserve a static/DHCP IP on your router so mobile access stays consistent.
+BlackVault will be running and ready to use.
 
 ---
 
-## Updating to the latest `V1-pub-release`
+## Mobile Access (Same Network)
 
-Run this exact flow from your existing `ProjectBlackVault` folder:
+You can open BlackVault on your phone as long as it is on the same Wi-Fi network as your computer.
+
+1. Open BlackVault in your browser and go to **Settings**
+2. The Settings page will detect your local IP automatically and display a QR code
+3. Scan the QR code with your phone, or open `http://192.168.x.x:3000` (using your machine's local IP)
+
+To find your local IP manually: run `ipconfig` on Windows or `ip addr` on Linux/Mac.
+
+---
+
+## Notes
+
+- BlackVault is self-hosted. All data is stored locally on your machine.
+- No cloud connection is required or used.
+- There is no login or authentication in V1.
+- Intended for private, local use only. Do not expose it to the public internet.
+
+---
+
+## Local Development
 
 ```bash
-git checkout V1-pub-release
-git fetch origin
-git reset --hard origin/V1-pub-release
-git clean -fd
-docker compose down -v --remove-orphans || true
-docker compose build --no-cache
-docker compose up -d
+npm install
+npx prisma generate
+npx prisma db push
+npm run dev
 ```
 
----
-
-## Backup and portability
-
-- Use built-in exports for PDF/CSV backups
-- Keep regular host-level backups of your Docker data folders
-
-Because ProjectBlackVault is self-hosted, your data remains under your control.
-
----
-
-## Self-hosting notes
-
-- Designed for local/self-managed environments
-- No cloud dependency is required for core use
-- You control network exposure and backup strategy
-
----
-
-## Troubleshooting
-
-**Port 3000 is already in use**
-Edit `.blackvault.env` and change `PORT=3000` to another port (e.g. `PORT=3001`), then restart:
-```bash
-docker compose down && docker compose up -d
-```
-
-**Can't access BlackVault from my phone**
-1. Make sure your phone is on the same Wi-Fi network as the server
-2. Open **Settings** in BlackVault and check the detected LAN IP
-3. If the IP is wrong, enter your server's local IP manually (find it with `ip addr` on Linux or `ipconfig` on Windows)
-4. Make sure your firewall allows inbound traffic on port 3000
-
-**Database permission errors on startup**
-The data directory must be writable by the container. Run:
-```bash
-chmod -R 755 ./data
-```
-
-**Container keeps restarting**
-Check logs for errors:
-```bash
-docker compose logs -f
-```
-
-**How do I back up my data?**
-Your entire vault is in `./data/db/vault.db` (SQLite). Copy that file to back it up. The app also has PDF/CSV export under Settings → Full Armory Export.
-
----
-
-## Support
-
-- Use GitHub Issues for bug reports and feature requests
-- Include OS, Docker version, and command output when reporting setup/runtime issues
+Open [http://localhost:3000](http://localhost:3000).
 
 ---
 
 ## License
 
-Add your chosen license (for example MIT or Apache-2.0) and include a `LICENSE` file at the repository root.
+MIT License. See [LICENSE](LICENSE) for details.
