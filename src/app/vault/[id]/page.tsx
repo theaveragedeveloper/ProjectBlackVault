@@ -105,7 +105,7 @@ export default async function FirearmDetailPage({
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <p className="text-vault-text-muted text-sm">Failed to load firearm.</p>
-        <a href="/vault" className="text-[#00C2FF] text-sm hover:underline">Back to vault</a>
+        <Link href="/vault" className="text-[#00C2FF] text-sm hover:underline">Back to vault</Link>
       </div>
     );
   }
