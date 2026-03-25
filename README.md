@@ -6,10 +6,13 @@ A self-hosted, local-only web app for tracking firearms, accessories, and range 
 
 ## Screenshots
 
-<!-- screenshot: dashboard -->
-<!-- screenshot: vault -->
-<!-- screenshot: range-session -->
-<!-- screenshot: drill-library -->
+![Dashboard](docs/screenshots/dashboard.png)
+
+![Vault](docs/screenshots/vault.png)
+
+![Range Session](docs/screenshots/range.png)
+
+![Settings](docs/screenshots/settings.png)
 
 ---
 
