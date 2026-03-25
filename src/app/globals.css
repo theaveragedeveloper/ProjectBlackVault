@@ -78,6 +78,10 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 /* ── Tactical Grid Background ─────────────────────────────── */
 .tactical-grid {
   background-image:

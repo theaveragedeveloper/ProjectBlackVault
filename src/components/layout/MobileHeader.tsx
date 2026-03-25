@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Shield, Menu } from "lucide-react";
 import { Sidebar } from "./Sidebar";
 
@@ -30,6 +30,8 @@ export function MobileHeader() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
+  const handleClose = useCallback(() => setOpen(false), []);
+
   return (
     <>
       <header className="md:hidden sticky top-0 z-[450] flex items-center gap-3 h-14 px-4 border-b border-vault-border bg-vault-surface/95 backdrop-blur shrink-0">
@@ -57,7 +59,7 @@ export function MobileHeader() {
       <Sidebar
         mobileOnly
         mobileOpen={open}
-        onMobileClose={() => setOpen(false)}
+        onMobileClose={handleClose}
       />
     </>
   );

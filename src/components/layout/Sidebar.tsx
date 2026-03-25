@@ -187,7 +187,7 @@ export function Sidebar({ mobileOnly = false, mobileOpen = false, onMobileClose 
         <aside
           id="mobile-navigation"
           className={cn(
-            "absolute inset-y-0 left-0 flex h-[100dvh] max-h-[100dvh] w-72 max-w-[88vw] flex-col overflow-hidden border-r border-vault-border bg-vault-surface shadow-2xl transition-transform duration-200",
+            "absolute inset-y-0 left-0 flex h-svh max-h-svh w-72 max-w-[88vw] flex-col overflow-hidden border-r border-vault-border bg-vault-surface shadow-2xl transition-transform duration-200",
             mobileOpen ? "translate-x-0" : "-translate-x-full"
           )}
         >
