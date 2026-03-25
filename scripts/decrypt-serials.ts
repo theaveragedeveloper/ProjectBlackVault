@@ -13,7 +13,7 @@ async function main() {
 
   for (const firearm of firearms) {
     const plain = decryptField(firearm.serialNumber);
-    if (plain && plain !== firearm.serialNumber) {
+    if (plain && plain !== firearm.serialNumber && !plain.startsWith("[unreadable")) {
       await prisma.firearm.update({
         where: { id: firearm.id },
         data: { serialNumber: plain },
