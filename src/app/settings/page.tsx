@@ -28,6 +28,7 @@ export default function SettingsPage() {
   const [localIp, setLocalIp] = useState<string | null>(null);
   const [localPort, setLocalPort] = useState("3000");
   const [copySuccess, setCopySuccess] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string>("");
 
   useEffect(() => {
     fetch("/api/settings")
@@ -66,6 +67,16 @@ export default function SettingsPage() {
   const manualHost = manualLanHost.trim();
   const computedHost = manualHost || localIp || "";
   const finalLanUrl = computedHost ? `http://${computedHost}:${localPort}` : "";
+
+  useEffect(() => {
+    if (finalLanUrl) {
+      import("qrcode").then((QRCode) => {
+        QRCode.toDataURL(finalLanUrl, { width: 160, margin: 2 }).then(setQrDataUrl).catch(() => {});
+      });
+    } else {
+      setQrDataUrl("");
+    }
+  }, [finalLanUrl]);
   const lanStatusLabel = manualHost
     ? "Using your saved Mobile Access Host/IP"
     : localIp
@@ -265,6 +276,13 @@ export default function SettingsPage() {
                 </StandardButton>
               </div>
             ) : null}
+
+            {qrDataUrl && (
+              <div className="flex flex-col items-center gap-2 mt-4">
+                <img src={qrDataUrl} alt="QR code for mobile access" width={160} height={160} className="rounded-lg" />
+                <p className="text-xs text-vault-text-faint">Scan to open on your phone</p>
+              </div>
+            )}
           </div>
         </SectionCard>
 
