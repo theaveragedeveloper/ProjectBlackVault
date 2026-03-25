@@ -188,7 +188,7 @@ function FirearmCard({ firearm, editMode, editBuilds, onDeleteBuild }: FirearmCa
                 {formatCurrency(firearm.purchasePrice)}
               </span>
             ) : (
-              <span className="text-xs text-vault-text-faint">No price</span>
+              <span className="text-xs text-vault-text-faint">—</span>
             )}
 
             {activeBuild ? (

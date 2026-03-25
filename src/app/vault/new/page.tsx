@@ -285,7 +285,7 @@ export default function NewFirearmPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="lastMaintenanceDate" className={LABEL_CLASS}>Last Maintenance</label>
-                <input id="lastMaintenanceDate" name="lastMaintenanceDate" type="date" className={INPUT_CLASS} defaultValue={new Date().toISOString().split("T")[0]} />
+                <input id="lastMaintenanceDate" name="lastMaintenanceDate" type="date" className={INPUT_CLASS} />
               </div>
               <div>
                 <label htmlFor="maintenanceIntervalDays" className={LABEL_CLASS}>Maintenance Interval (days)</label>

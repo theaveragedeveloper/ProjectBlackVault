@@ -10,7 +10,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Project BlackVault",
+  title: "BlackVault",
   description: "Tactical firearm inventory & build management platform",
 };
 
