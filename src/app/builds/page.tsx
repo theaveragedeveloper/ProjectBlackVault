@@ -57,7 +57,7 @@ export default async function BuildsPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <p className="text-vault-text-muted text-sm">Failed to load builds.</p>
-        <a href="/builds" className="text-[#00C2FF] text-sm hover:underline">Tap to retry</a>
+        <Link href="/builds" className="text-[#00C2FF] text-sm hover:underline">Tap to retry</Link>
       </div>
     );
   }
