@@ -1,0 +1,17 @@
+{
+  "name": "BlackVault",
+  "short_name": "BlackVault",
+  "description": "Self-hosted firearm inventory and range tracking",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d0d0d",
+  "theme_color": "#00C2FF",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { COMMON_CALIBERS, BULLET_TYPES } from "@/lib/types";
+import { HelpTip } from "@/components/shared/HelpTip";
 import { ArrowLeft, Plus, Loader2, AlertCircle } from "lucide-react";
 
 const INPUT_CLASS =
@@ -14,6 +15,7 @@ export default function NewAmmoStockPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [caliberInput, setCaliberInput] = useState("");
   const [caliberDropdownOpen, setCaliberDropdownOpen] = useState(false);
 
@@ -42,11 +44,15 @@ export default function NewAmmoStockPage() {
       notes: (data.get("notes") as string) || null,
     };
 
-    if (!payload.caliber) {
-      setError("Caliber is required");
+    const fieldErrors: Record<string, string> = {};
+    if (!payload.caliber) fieldErrors.caliber = "Caliber is required";
+    if (!payload.brand?.trim()) fieldErrors.brand = "Brand is required";
+    if (Object.keys(fieldErrors).length > 0) {
+      setFormErrors(fieldErrors);
       setLoading(false);
       return;
     }
+    setFormErrors({});
 
     try {
       const res = await fetch("/api/ammo", {
@@ -119,6 +125,7 @@ export default function NewAmmoStockPage() {
                   onChange={(e) => {
                     setCaliberInput(e.target.value);
                     setCaliberDropdownOpen(true);
+                    setFormErrors(prev => ({ ...prev, caliber: "" }));
                   }}
                   onFocus={() => setCaliberDropdownOpen(true)}
                   onBlur={() => setTimeout(() => setCaliberDropdownOpen(false), 150)}
@@ -144,6 +151,7 @@ export default function NewAmmoStockPage() {
                   </div>
                 )}
               </div>
+              {formErrors.caliber && <p className="text-xs mt-1" style={{ color: "#E53935" }}>{formErrors.caliber}</p>}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -158,7 +166,9 @@ export default function NewAmmoStockPage() {
                   required
                   placeholder="e.g. Federal"
                   className={INPUT_CLASS}
+                  onChange={() => setFormErrors(prev => ({ ...prev, brand: "" }))}
                 />
+                {formErrors.brand && <p className="text-xs mt-1" style={{ color: "#E53935" }}>{formErrors.brand}</p>}
               </div>
               <div>
                 <label htmlFor="bulletType" className={LABEL_CLASS}>
@@ -179,6 +189,7 @@ export default function NewAmmoStockPage() {
               <div>
                 <label htmlFor="grainWeight" className={LABEL_CLASS}>
                   Grain Weight (gr)
+                  <HelpTip text="The weight of the bullet in grains. Heavier bullets are slower but hit harder; lighter bullets move faster. Common 9mm loads are 115–147 gr." />
                 </label>
                 <input
                   id="grainWeight"

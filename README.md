@@ -27,6 +27,21 @@ ProjectBlackVault is built for people who want a practical, private record syste
 
 ---
 
+## Features at a Glance
+
+| Section | What it does |
+|---------|-------------|
+| **Vault** | Track every firearm — make, model, caliber, serial, value, photos |
+| **Builds** | Configure accessory loadouts per firearm and mark one active |
+| **Accessories** | Inventory optics, lights, suppressors, grips with round count tracking |
+| **Ammo** | Stock tracking with low-alert thresholds and transaction history |
+| **Range** | Log sessions, track drills, calculate hit factor, build drill templates |
+| **Documents** | Store manuals, receipts, and permits per firearm or accessory |
+| **Exports** | Generate PDF/CSV armory reports for insurance or records |
+| **Settings** | QR-code mobile access — open BlackVault on your phone over Wi-Fi |
+
+---
+
 ## Quick start (Docker)
 
 > Recommended install path for V1.
@@ -52,6 +67,8 @@ Open:
 - `http://localhost:3000`
 
 If you changed the host port in `docker-compose.yml`, use that port instead.
+
+> **Environment variables:** See `.env.example` for all available configuration options.
 
 ---
 
@@ -98,6 +115,37 @@ Because ProjectBlackVault is self-hosted, your data remains under your control.
 - Designed for local/self-managed environments
 - No cloud dependency is required for core use
 - You control network exposure and backup strategy
+
+---
+
+## Troubleshooting
+
+**Port 3000 is already in use**
+Edit `.blackvault.env` and change `PORT=3000` to another port (e.g. `PORT=3001`), then restart:
+```bash
+docker compose down && docker compose up -d
+```
+
+**Can't access BlackVault from my phone**
+1. Make sure your phone is on the same Wi-Fi network as the server
+2. Open **Settings** in BlackVault and check the detected LAN IP
+3. If the IP is wrong, enter your server's local IP manually (find it with `ip addr` on Linux or `ipconfig` on Windows)
+4. Make sure your firewall allows inbound traffic on port 3000
+
+**Database permission errors on startup**
+The data directory must be writable by the container. Run:
+```bash
+chmod -R 755 ./data
+```
+
+**Container keeps restarting**
+Check logs for errors:
+```bash
+docker compose logs -f
+```
+
+**How do I back up my data?**
+Your entire vault is in `./data/db/vault.db` (SQLite). Copy that file to back it up. The app also has PDF/CSV export under Settings → Full Armory Export.
 
 ---
 

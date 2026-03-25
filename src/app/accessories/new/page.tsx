@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { SLOT_TYPES, SLOT_TYPE_LABELS, COMMON_CALIBERS } from "@/lib/types";
 import ImagePicker from "@/components/shared/ImagePicker";
+import { HelpTip } from "@/components/shared/HelpTip";
 import { ArrowLeft, Plus, Loader2, AlertCircle } from "lucide-react";
 
 const INPUT_CLASS =
@@ -170,7 +171,10 @@ export default function NewAccessoryPage() {
 
               {/* Caliber (optional) */}
               <div>
-                <label className={LABEL_CLASS}>Caliber</label>
+                <label className={LABEL_CLASS}>
+                  Caliber
+                  <HelpTip text="Calibers this accessory works with. Used to filter compatible accessories when building a loadout." />
+                </label>
                 <div className="relative">
                   <input
                     type="text"
