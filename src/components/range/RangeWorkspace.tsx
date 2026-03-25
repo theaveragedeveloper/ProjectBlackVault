@@ -229,14 +229,11 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
       if (res.ok) {
         const safeSessions = Array.isArray(data) ? data : [];
         setSessions(safeSessions);
-        if (!selectedSessionId && safeSessions.length > 0) {
-          setSelectedSessionId(safeSessions[0].id);
-        }
       }
     } finally {
       setLoadingSessions(false);
     }
-  }, [selectedSessionId]);
+  }, []);
 
   useEffect(() => {
     fetch("/api/firearms")
@@ -349,7 +346,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
 
     const stillExists = sessions.some((session) => session.id === selectedSessionId);
     if (!stillExists) {
-      setSelectedSessionId(sessions[0].id);
+      setSelectedSessionId("");
     }
   }, [sessions, selectedSessionId]);
 

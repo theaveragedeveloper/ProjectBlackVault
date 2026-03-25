@@ -27,6 +27,7 @@ export default function SettingsPage() {
 
   const [localIp, setLocalIp] = useState<string | null>(null);
   const [localPort, setLocalPort] = useState("3000");
+  const [isDocker, setIsDocker] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
 
@@ -57,6 +58,7 @@ export default function SettingsPage() {
       .then((data) => {
         setLocalIp(data.ip ?? null);
         setLocalPort(data.port ?? "3000");
+        setIsDocker(data.isDocker ?? false);
       })
       .catch(() => {
         setLocalIp(null);
@@ -242,6 +244,16 @@ export default function SettingsPage() {
               />
               <p className="mt-2 text-xs text-vault-text-muted">Example: 192.168.1.74 (recommended: reserve this IP in your router)</p>
             </FormField>
+
+            {isDocker && !manualHost && (
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-400">
+                <p className="font-medium mb-1">Running in Docker — auto-detection unavailable</p>
+                <p className="text-xs text-amber-400/80">
+                  Enter your host machine&apos;s LAN IP above (e.g. <span className="font-mono">192.168.1.100</span>).
+                  Find it with <span className="font-mono">ipconfig</span> (Windows) or <span className="font-mono">ifconfig</span> / <span className="font-mono">ip a</span> (Mac/Linux).
+                </p>
+              </div>
+            )}
 
             {finalLanUrl ? (
               <div className="rounded-lg border border-vault-border bg-vault-bg p-3">
