@@ -165,7 +165,7 @@ export function selectVisualEvidence(
     }
   }
 
-  if (options.includeDocuments && options.includeImages) {
+  if (options.includeDocuments) {
     for (const row of payload.attachments) {
       if (!row.fileUrl || !isImageAttachment(row)) continue;
 

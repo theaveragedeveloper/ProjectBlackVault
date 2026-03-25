@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { decryptField } from "@/lib/crypto";
 import {
   parseExportFormatFromSearchParams,
   type ExportFormat,
@@ -379,7 +380,7 @@ export async function GET(request: NextRequest) {
         const receiptCount = itemDocs.filter((doc) => doc.type === "RECEIPT").length;
         const hasPhoto = exportOptions.includeImages && !!firearm.imageUrl;
         const resolvedSerial = exportOptions.includeSerialNumbers
-          ? (firearm.serialNumber ?? "")
+          ? (decryptField(firearm.serialNumber) ?? firearm.serialNumber ?? "")
           : "";
 
         return {

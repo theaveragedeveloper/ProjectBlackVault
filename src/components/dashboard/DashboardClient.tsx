@@ -29,6 +29,7 @@ import {
   ChevronRight,
   GripVertical,
   Settings2,
+  Settings,
   X,
   Package,
 } from "lucide-react";
@@ -90,6 +91,16 @@ interface MaintenanceDueItem {
   maintenanceIntervalDays: number | null;
 }
 
+interface BatteryDueItem {
+  id: string;
+  name: string;
+  manufacturer: string;
+  model: string;
+  batteryType: string | null;
+  lastBatteryChangeDate: string;
+  replacementIntervalDays: number;
+}
+
 function addDays(date: Date, days: number) {
   const next = new Date(date);
   next.setDate(next.getDate() + days);
@@ -98,6 +109,7 @@ function addDays(date: Date, days: number) {
 
 function MaintenanceDueWidget() {
   const [items, setItems] = useState<MaintenanceDueItem[]>([]);
+  const [batteryItems, setBatteryItems] = useState<BatteryDueItem[]>([]);
 
   useEffect(() => {
     fetch("/api/firearms", { cache: "no-store" })
@@ -116,6 +128,28 @@ function MaintenanceDueWidget() {
         setItems(due);
       })
       .catch(() => setItems([]));
+
+    fetch("/api/accessories", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((accessories) => {
+        const now = new Date();
+        const due = (Array.isArray(accessories) ? accessories : [])
+          .filter(
+            (a) =>
+              a.hasBattery === true &&
+              a.lastBatteryChangeDate != null &&
+              a.replacementIntervalDays != null
+          )
+          .map((a) => ({
+            ...a,
+            dueDate: addDays(new Date(a.lastBatteryChangeDate), Number(a.replacementIntervalDays)),
+          }))
+          .filter((a) => a.dueDate <= now)
+          .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
+          .slice(0, 8);
+        setBatteryItems(due);
+      })
+      .catch(() => setBatteryItems([]));
   }, []);
 
   return (
@@ -149,6 +183,37 @@ function MaintenanceDueWidget() {
           </div>
         )}
       </div>
+
+      {batteryItems.length > 0 && (
+        <>
+          <div className="flex items-center gap-2 mt-5 mb-3">
+            <Clock className="w-4 h-4 text-[#F5A623]" />
+            <h2 className="text-sm font-semibold tracking-widest uppercase text-[#F5A623]">
+              Battery Changes Due
+            </h2>
+          </div>
+          <div className="bg-vault-surface border border-vault-border rounded-lg overflow-hidden">
+            <div className="divide-y divide-vault-border">
+              {batteryItems.map((item) => (
+                <Link
+                  key={item.id}
+                  href={`/accessories`}
+                  className="flex items-center justify-between px-4 py-3 hover:bg-vault-surface-2 transition-colors"
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-vault-text">{item.name}</p>
+                    <p className="text-xs text-vault-text-muted">
+                      {item.manufacturer} · {item.model}
+                      {item.batteryType ? ` — ${item.batteryType}` : ""}
+                    </p>
+                  </div>
+                  <span className="text-xs text-[#F5A623] font-mono">Due</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
     </section>
   );
 }
@@ -228,34 +293,46 @@ function SortableWidget({
 function StatsWidget({ data }: { data: DashboardData }) {
   return (
     <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-      <StatCard
-        label="Total Firearms"
-        value={formatNumber(data.firearmCount)}
-        subValue="in vault"
-        icon={Shield}
-        accent="blue"
-      />
-      <StatCard
-        label="Total Accessories"
-        value={formatNumber(data.accessoryCount)}
-        subValue="parts & attachments"
-        icon={Crosshair}
-        accent="default"
-      />
-      <StatCard
-        label="Total Ammo Rounds"
-        value={formatNumber(data.totalAmmoRounds)}
-        subValue="across all calibers"
-        icon={Target}
-        accent="amber"
-      />
-      <StatCard
-        label="Total Investment"
-        value={formatCurrency(data.totalInvestment)}
-        subValue="firearms + accessories"
-        icon={DollarSign}
-        accent="green"
-      />
+      <Link href="/vault" className="block group">
+        <StatCard
+          label="Total Firearms"
+          value={formatNumber(data.firearmCount)}
+          subValue="in vault"
+          icon={Shield}
+          accent="blue"
+          className="group-hover:border-vault-accent/40 transition-colors cursor-pointer"
+        />
+      </Link>
+      <Link href="/accessories" className="block group">
+        <StatCard
+          label="Total Accessories"
+          value={formatNumber(data.accessoryCount)}
+          subValue="parts & attachments"
+          icon={Crosshair}
+          accent="default"
+          className="group-hover:border-vault-accent/40 transition-colors cursor-pointer"
+        />
+      </Link>
+      <Link href="/ammo" className="block group">
+        <StatCard
+          label="Total Ammo Rounds"
+          value={formatNumber(data.totalAmmoRounds)}
+          subValue="across all calibers"
+          icon={Target}
+          accent="amber"
+          className="group-hover:border-vault-accent/40 transition-colors cursor-pointer"
+        />
+      </Link>
+      <Link href="/vault" className="block group">
+        <StatCard
+          label="Total Investment"
+          value={formatCurrency(data.totalInvestment)}
+          subValue="firearms + accessories"
+          icon={DollarSign}
+          accent="green"
+          className="group-hover:border-vault-accent/40 transition-colors cursor-pointer"
+        />
+      </Link>
     </div>
   );
 }
@@ -500,7 +577,7 @@ function AmmoSummaryWidget({ ammoStocks }: { ammoStocks: AmmoStockItem[] }) {
 
 export function DashboardClient({ data }: { data: DashboardData }) {
   const [liveData, setLiveData] = useState<DashboardData>(data);
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [order, setOrder] = useState<string[]>(() => {
     if (typeof window === "undefined") return DEFAULT_ORDER;
     try {
@@ -516,10 +593,9 @@ export function DashboardClient({ data }: { data: DashboardData }) {
     }
   });
   const [editMode, setEditMode] = useState(false);
-  const [mounted] = useState(() => typeof window !== "undefined");
-  const isFirstRun =
-    liveData.firearmCount === 0 && liveData.accessoryCount === 0 && liveData.totalAmmoRounds === 0;
-
+  const [mounted, setMounted] = useState(false);
+  const [welcomeDismissed, setWelcomeDismissed] = useState(false);
+  const [settingsHintDismissed, setSettingsHintDismissed] = useState(false);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
@@ -542,6 +618,12 @@ export function DashboardClient({ data }: { data: DashboardData }) {
     } catch {
       // Keep server-provided data when refresh fails.
     }
+  }, []);
+
+  useEffect(() => {
+    setMounted(true);
+    setWelcomeDismissed(localStorage.getItem("bv-welcome-dismissed") === "1");
+    setSettingsHintDismissed(localStorage.getItem("bv-settings-hint-shown") === "1");
   }, []);
 
   useEffect(() => {
@@ -614,7 +696,9 @@ export function DashboardClient({ data }: { data: DashboardData }) {
     <div className="mx-auto max-w-6xl p-4 sm:p-6">
       <div className="mb-6 flex items-center justify-between">
         <p className="text-xs text-vault-text-faint">
-          Last updated {lastUpdated.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+          {lastUpdated
+            ? `Last updated ${lastUpdated.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
+            : ""}
         </p>
 
         {editMode ? (
@@ -639,24 +723,92 @@ export function DashboardClient({ data }: { data: DashboardData }) {
         )}
       </div>
 
-      {isFirstRun && (
-        <section className="mb-6 rounded-lg border border-[#00C2FF]/25 bg-[#00C2FF]/5 p-4">
-          <h2 className="text-sm font-semibold text-vault-text mb-1">Welcome to BlackVault</h2>
-          <p className="text-xs text-vault-text-muted mb-3">
-            Start by adding a firearm, then attach accessories, upload receipts or tax stamps, and track ammo and range sessions.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Link href="/vault/new" className="text-xs px-3 py-1.5 rounded border border-[#00C2FF]/30 text-[#00C2FF] bg-[#00C2FF]/10 hover:bg-[#00C2FF]/20 transition-colors">
-              Add Firearm
-            </Link>
-            <Link href="/documents" className="text-xs px-3 py-1.5 rounded border border-vault-border text-vault-text-muted hover:text-vault-text hover:border-vault-text-muted/30 transition-colors">
-              Upload Documents
-            </Link>
-            <Link href="/range/log-session" className="text-xs px-3 py-1.5 rounded border border-vault-border text-vault-text-muted hover:text-vault-text hover:border-vault-text-muted/30 transition-colors">
-              Log Range Session
-            </Link>
+      {mounted && !settingsHintDismissed && (
+        <div className="mb-4 flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+          <Settings className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-amber-400 font-medium">New here? Configure mobile access</p>
+            <p className="text-xs text-amber-400/80 mt-0.5">
+              Go to Settings to set up mobile access from your phone and tablet.
+            </p>
           </div>
-        </section>
+          <div className="flex items-center gap-2 shrink-0">
+            <Link
+              href="/settings"
+              className="text-xs text-amber-400 hover:text-amber-300 border border-amber-500/30 px-2.5 py-1 rounded transition-colors whitespace-nowrap"
+            >
+              Open Settings
+            </Link>
+            <button
+              onClick={() => {
+                localStorage.setItem("bv-settings-hint-shown", "1");
+                setSettingsHintDismissed(true);
+              }}
+              className="text-amber-400/60 hover:text-amber-400 transition-colors p-1"
+              aria-label="Dismiss"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {mounted && !welcomeDismissed && liveData.firearmCount === 0 && liveData.accessoryCount === 0 && (
+        <div className="mb-6 bg-vault-surface border border-vault-border rounded-lg p-5 relative">
+          <button
+            onClick={() => {
+              localStorage.setItem("bv-welcome-dismissed", "1");
+              setWelcomeDismissed(true);
+            }}
+            className="absolute top-3 right-3 text-vault-text-faint hover:text-vault-text-muted transition-colors p-1"
+            aria-label="Dismiss welcome card"
+          >
+            <X className="w-4 h-4" />
+          </button>
+          <h2 className="text-base font-semibold text-vault-text mb-1">Welcome to BlackVault</h2>
+          <p className="text-xs text-vault-text-muted mb-4">Here&apos;s how to get started:</p>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-bold text-[#00C2FF] shrink-0">①</span>
+                <span className="text-sm text-vault-text-muted">Add your first firearm</span>
+              </div>
+              <Link
+                href="/vault/new"
+                className="text-xs text-[#00C2FF] hover:text-[#00C2FF]/80 flex items-center gap-1 shrink-0 whitespace-nowrap"
+              >
+                Go to Vault
+                <ChevronRight className="w-3 h-3" />
+              </Link>
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-bold text-[#00C2FF] shrink-0">②</span>
+                <span className="text-sm text-vault-text-muted">Set up mobile access</span>
+              </div>
+              <Link
+                href="/settings"
+                className="text-xs text-[#00C2FF] hover:text-[#00C2FF]/80 flex items-center gap-1 shrink-0 whitespace-nowrap"
+              >
+                Open Settings
+                <ChevronRight className="w-3 h-3" />
+              </Link>
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-bold text-[#00C2FF] shrink-0">③</span>
+                <span className="text-sm text-vault-text-muted">Log a range session</span>
+              </div>
+              <Link
+                href="/range"
+                className="text-xs text-[#00C2FF] hover:text-[#00C2FF]/80 flex items-center gap-1 shrink-0 whitespace-nowrap"
+              >
+                Go to Range
+                <ChevronRight className="w-3 h-3" />
+              </Link>
+            </div>
+          </div>
+        </div>
       )}
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>

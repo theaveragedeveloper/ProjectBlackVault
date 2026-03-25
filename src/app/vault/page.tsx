@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { formatCurrency } from "@/lib/utils";
@@ -101,6 +102,7 @@ interface FirearmCardProps {
 }
 
 function FirearmCard({ firearm, editMode, editBuilds, onDeleteBuild }: FirearmCardProps) {
+  const router = useRouter();
   const typeBadge = TYPE_BADGE_COLORS[firearm.type] ?? "border-vault-border text-vault-text-muted";
   const typeLabel = FIREARM_TYPE_LABELS[firearm.type] ?? firearm.type;
   const activeBuild = firearm.activeBuild;
@@ -183,30 +185,30 @@ function FirearmCard({ firearm, editMode, editBuilds, onDeleteBuild }: FirearmCa
         {/* Footer */}
         {!editMode && (
           <div className="mt-auto flex items-center justify-between pt-3 border-t border-vault-border">
-            {firearm.purchasePrice != null ? (
+            {firearm.purchasePrice != null && firearm.purchasePrice !== 0 ? (
               <span className="text-xs font-mono text-vault-text-muted">
                 {formatCurrency(firearm.purchasePrice)}
               </span>
             ) : (
-              <span className="text-xs text-vault-text-faint">No price</span>
+              <span className="text-xs text-vault-text-faint">—</span>
             )}
 
             {activeBuild ? (
-              <Link
-                href={`/vault/${firearm.id}/builds/${activeBuild.id}`}
+              <button
+                onClick={(e) => { e.stopPropagation(); router.push(`/vault/${firearm.id}/builds/${activeBuild.id}`); }}
                 className="flex items-center gap-1.5 text-xs bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 px-2.5 py-1 rounded transition-colors"
               >
                 <Settings2 className="w-3 h-3" />
                 Configure
-              </Link>
+              </button>
             ) : (
-              <Link
-                href={`/vault/${firearm.id}`}
+              <button
+                onClick={(e) => { e.stopPropagation(); router.push(`/vault/${firearm.id}`); }}
                 className="flex items-center gap-1.5 text-xs bg-vault-border border border-vault-border text-vault-text-muted hover:text-vault-text hover:border-vault-text-muted/30 px-2.5 py-1 rounded transition-colors"
               >
                 <Plus className="w-3 h-3" />
                 Create Build
-              </Link>
+              </button>
             )}
           </div>
         )}

@@ -52,7 +52,7 @@ export async function POST(
     const { id } = await params;
     const body = await request.json();
 
-    const { name, timeSeconds, points, penalties, hits, notes, sortOrder, setNumber } = body;
+    const { name, timeSeconds, points, penalties, hits, notes, sortOrder, setNumber, drillDate } = body;
 
     if (!name || timeSeconds === undefined || points === undefined) {
       return NextResponse.json(
@@ -120,6 +120,7 @@ export async function POST(
         hitFactor,
         notes: typeof notes === "string" ? notes.trim() || null : null,
         sortOrder: typeof sortOrder === "number" && Number.isInteger(sortOrder) ? sortOrder : 0,
+        drillDate: drillDate ? new Date(drillDate) : null,
       },
     });
 

@@ -172,6 +172,7 @@ model AmmoStock {
   bulletType      String?
   quantity        Int               @default(0)
   purchasePrice   Float?
+  pricePerRound   Float?
   purchaseDate    DateTime?
   storageLocation String?
   lowStockAlert   Int?
@@ -237,6 +238,7 @@ model SessionDrill {
   hitFactor      Float
   notes          String?
   sortOrder      Int          @default(0)
+  drillDate      DateTime?
   createdAt      DateTime     @default(now())
 
   @@index([rangeSessionId])

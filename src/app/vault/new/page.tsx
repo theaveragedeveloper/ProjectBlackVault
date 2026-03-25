@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import ImagePicker from "@/components/shared/ImagePicker";
+import { HelpTip } from "@/components/shared/HelpTip";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { FIREARM_TYPES, FIREARM_TYPE_LABELS, COMMON_CALIBERS } from "@/lib/types";
@@ -15,6 +16,7 @@ export default function NewFirearmPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [caliberInput, setCaliberInput] = useState("");
   const [caliberDropdownOpen, setCaliberDropdownOpen] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -23,6 +25,9 @@ export default function NewFirearmPage() {
   const filteredCalibers = COMMON_CALIBERS.filter((c) =>
     c.toLowerCase().includes(caliberInput.toLowerCase())
   );
+  const showCustomCaliberOption =
+    caliberInput.trim() !== "" &&
+    !COMMON_CALIBERS.some((c) => c.toLowerCase() === caliberInput.toLowerCase().trim());
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -31,6 +36,17 @@ export default function NewFirearmPage() {
 
     const form = e.currentTarget;
     const data = new FormData(form);
+
+    const nameVal = (data.get("name") as string) ?? "";
+    const errors: Record<string, string> = {};
+    if (!nameVal.trim()) errors.name = "Name is required";
+    if (!caliberInput.trim()) errors.caliber = "Caliber is required";
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      setLoading(false);
+      return;
+    }
+    setFormErrors({});
 
     const payload = {
       name: data.get("name") as string,
@@ -119,7 +135,9 @@ export default function NewFirearmPage() {
                 required
                 placeholder="e.g. My Glock 19"
                 className={INPUT_CLASS}
+                onChange={() => setFormErrors(prev => ({ ...prev, name: "" }))}
               />
+              {formErrors.name && <p className="text-xs mt-1" style={{ color: "#E53935" }}>{formErrors.name}</p>}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -153,7 +171,7 @@ export default function NewFirearmPage() {
               {/* Caliber Combobox */}
               <div>
                 <label className={LABEL_CLASS}>
-                  Caliber
+                  Caliber <span className="text-[#E53935]">*</span>
                 </label>
                 <div className="relative" ref={caliberRef}>
                   <input
@@ -162,13 +180,14 @@ export default function NewFirearmPage() {
                     onChange={(e) => {
                       setCaliberInput(e.target.value);
                       setCaliberDropdownOpen(true);
+                      setFormErrors(prev => ({ ...prev, caliber: "" }));
                     }}
                     onFocus={() => setCaliberDropdownOpen(true)}
                     onBlur={() => setTimeout(() => setCaliberDropdownOpen(false), 150)}
                     placeholder="e.g. 9mm Luger"
                     className={INPUT_CLASS}
                   />
-                  {caliberDropdownOpen && filteredCalibers.length > 0 && (
+                  {caliberDropdownOpen && (filteredCalibers.length > 0 || showCustomCaliberOption) && (
                     <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-vault-surface border border-vault-border rounded-md shadow-lg max-h-48 overflow-y-auto">
                       {filteredCalibers.map((c) => (
                         <button
@@ -183,9 +202,22 @@ export default function NewFirearmPage() {
                           {c}
                         </button>
                       ))}
+                      {showCustomCaliberOption && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCaliberInput(caliberInput.trim());
+                            setCaliberDropdownOpen(false);
+                          }}
+                          className="w-full text-left px-3 py-2 text-sm text-[#00C2FF] hover:bg-vault-border transition-colors font-mono border-t border-vault-border"
+                        >
+                          + Use &quot;{caliberInput.trim()}&quot;
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
+                {formErrors.caliber && <p className="text-xs mt-1" style={{ color: "#E53935" }}>{formErrors.caliber}</p>}
               </div>
 
               {/* Type */}
@@ -207,6 +239,7 @@ export default function NewFirearmPage() {
             <div>
               <label htmlFor="serialNumber" className={LABEL_CLASS}>
                 Serial Number
+                <HelpTip text="Found on the receiver or frame. Stored as plain text in your local database." />
               </label>
               <input
                 id="serialNumber"
@@ -259,6 +292,7 @@ export default function NewFirearmPage() {
               <div>
                 <label htmlFor="currentValue" className={LABEL_CLASS}>
                   Current Value
+                  <HelpTip text="Estimated current market value. Used for insurance records and total portfolio value on the dashboard." />
                 </label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-vault-text-faint text-sm">$</span>
@@ -285,10 +319,13 @@ export default function NewFirearmPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="lastMaintenanceDate" className={LABEL_CLASS}>Last Maintenance</label>
-                <input id="lastMaintenanceDate" name="lastMaintenanceDate" type="date" className={INPUT_CLASS} defaultValue={new Date().toISOString().split("T")[0]} />
+                <input id="lastMaintenanceDate" name="lastMaintenanceDate" type="date" className={INPUT_CLASS} />
               </div>
               <div>
-                <label htmlFor="maintenanceIntervalDays" className={LABEL_CLASS}>Maintenance Interval (days)</label>
+                <label htmlFor="maintenanceIntervalDays" className={LABEL_CLASS}>
+                  Maintenance Interval (days)
+                  <HelpTip text="How often this firearm should be cleaned and inspected. Leave blank to disable maintenance reminders." />
+                </label>
                 <input id="maintenanceIntervalDays" name="maintenanceIntervalDays" type="number" min="1" step="1" placeholder="e.g. 180" className={INPUT_CLASS} />
               </div>
             </div>

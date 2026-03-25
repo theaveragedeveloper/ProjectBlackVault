@@ -10,6 +10,7 @@ import { LoadingState } from "@/components/shared/LoadingState";
 import { SectionCard } from "@/components/shared/SectionCard";
 import { StandardButton, buttonClassName } from "@/components/shared/StandardButton";
 import { StatusMessage } from "@/components/shared/StatusMessage";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 type DocTypeFilter = "ALL" | "RECEIPT" | "PHOTO" | "NFA_TAX_STAMP" | "OTHER";
 type EntityFilter = "ALL" | "FIREARM" | "ACCESSORY" | "UNATTACHED";
@@ -28,6 +29,7 @@ export default function DocumentLibraryPage() {
   const [typeFilter, setTypeFilter] = useState<DocTypeFilter>("ALL");
   const [entityFilter, setEntityFilter] = useState<EntityFilter>("ALL");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -67,7 +69,6 @@ export default function DocumentLibraryPage() {
   });
 
   async function handleDelete(id: string) {
-    if (!window.confirm("Delete this document? This cannot be undone.")) return;
     setDeletingId(id);
     setActionMessage(null);
 
@@ -246,7 +247,7 @@ export default function DocumentLibraryPage() {
                     </a>
                     <StandardButton
                       variant="danger"
-                      onClick={() => handleDelete(doc.id)}
+                      onClick={() => setConfirmDeleteId(doc.id)}
                       loading={deletingId === doc.id}
                       loadingLabel="Deleting..."
                       className="min-h-8 px-2.5 py-1 text-xs"
@@ -261,6 +262,19 @@ export default function DocumentLibraryPage() {
           </SectionCard>
         )}
       </div>
+
+      <ConfirmDialog
+        open={confirmDeleteId !== null}
+        onOpenChange={(open) => { if (!open) setConfirmDeleteId(null); }}
+        title="Delete document?"
+        description="This document will be permanently deleted. This cannot be undone."
+        confirmLabel="Delete"
+        dangerous
+        onConfirm={() => {
+          if (confirmDeleteId) handleDelete(confirmDeleteId);
+          setConfirmDeleteId(null);
+        }}
+      />
     </div>
   );
 }

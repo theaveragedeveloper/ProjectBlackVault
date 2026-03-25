@@ -1,6 +1,7 @@
 import { PageHeader } from "@/components/shared/PageHeader";
 import { DashboardClient } from "@/components/dashboard/DashboardClient";
 import { getDashboardStats } from "@/lib/dashboard/get-dashboard-stats";
+import { LanBanner } from "@/components/dashboard/LanBanner";
 
 async function getDashboardData() {
   const stats = await getDashboardStats();
@@ -30,6 +31,9 @@ export default async function DashboardPage() {
         title="COMMAND CENTER"
         subtitle="BlackVault Armory Platform — Tactical Inventory Overview"
       />
+      <div className="px-4 sm:px-6 pt-4">
+        <LanBanner />
+      </div>
       <DashboardClient data={data} />
     </div>
   );

@@ -12,7 +12,7 @@ services:
       - "${PORT:-3000}:3000"
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=file:/app/data/vault.db
+      - DATABASE_URL=file:/app/data/vault.db?connection_limit=1
       - VAULT_ENCRYPTION_KEY=${VAULT_ENCRYPTION_KEY:-}
     volumes:
       - ${DATA_DIR:-./data}/db:/app/data

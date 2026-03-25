@@ -4,14 +4,20 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { MobileHeader } from "@/components/layout/MobileHeader";
 import { ThemeProvider } from "@/components/layout/ThemeProvider";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { ErrorBoundary } from "@/components/layout/ErrorBoundary";
 
 export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
 export const metadata: Metadata = {
-  title: "Project BlackVault",
+  title: "BlackVault",
   description: "Tactical firearm inventory & build management platform",
+  manifest: "/site.webmanifest",
+  icons: {
+    icon: "/favicon.svg",
+    apple: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({
@@ -36,7 +42,9 @@ export default function RootLayout({
             <div className="flex flex-col flex-1 min-w-0 min-h-svh overflow-x-clip">
               <MobileHeader />
               <main className="flex-1 min-h-0 overflow-y-auto overflow-x-clip overscroll-contain min-w-0 pb-safe">
-                {children}
+                <ErrorBoundary>
+                  {children}
+                </ErrorBoundary>
               </main>
             </div>
           </div>
