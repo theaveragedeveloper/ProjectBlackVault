@@ -91,6 +91,16 @@ interface MaintenanceDueItem {
   maintenanceIntervalDays: number | null;
 }
 
+interface BatteryDueItem {
+  id: string;
+  name: string;
+  manufacturer: string;
+  model: string;
+  batteryType: string | null;
+  lastBatteryChangeDate: string;
+  replacementIntervalDays: number;
+}
+
 function addDays(date: Date, days: number) {
   const next = new Date(date);
   next.setDate(next.getDate() + days);
@@ -99,6 +109,7 @@ function addDays(date: Date, days: number) {
 
 function MaintenanceDueWidget() {
   const [items, setItems] = useState<MaintenanceDueItem[]>([]);
+  const [batteryItems, setBatteryItems] = useState<BatteryDueItem[]>([]);
 
   useEffect(() => {
     fetch("/api/firearms", { cache: "no-store" })
@@ -117,6 +128,28 @@ function MaintenanceDueWidget() {
         setItems(due);
       })
       .catch(() => setItems([]));
+
+    fetch("/api/accessories", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((accessories) => {
+        const now = new Date();
+        const due = (Array.isArray(accessories) ? accessories : [])
+          .filter(
+            (a) =>
+              a.hasBattery === true &&
+              a.lastBatteryChangeDate != null &&
+              a.replacementIntervalDays != null
+          )
+          .map((a) => ({
+            ...a,
+            dueDate: addDays(new Date(a.lastBatteryChangeDate), Number(a.replacementIntervalDays)),
+          }))
+          .filter((a) => a.dueDate <= now)
+          .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
+          .slice(0, 8);
+        setBatteryItems(due);
+      })
+      .catch(() => setBatteryItems([]));
   }, []);
 
   return (
@@ -150,6 +183,37 @@ function MaintenanceDueWidget() {
           </div>
         )}
       </div>
+
+      {batteryItems.length > 0 && (
+        <>
+          <div className="flex items-center gap-2 mt-5 mb-3">
+            <Clock className="w-4 h-4 text-[#F5A623]" />
+            <h2 className="text-sm font-semibold tracking-widest uppercase text-[#F5A623]">
+              Battery Changes Due
+            </h2>
+          </div>
+          <div className="bg-vault-surface border border-vault-border rounded-lg overflow-hidden">
+            <div className="divide-y divide-vault-border">
+              {batteryItems.map((item) => (
+                <Link
+                  key={item.id}
+                  href={`/accessories`}
+                  className="flex items-center justify-between px-4 py-3 hover:bg-vault-surface-2 transition-colors"
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-vault-text">{item.name}</p>
+                    <p className="text-xs text-vault-text-muted">
+                      {item.manufacturer} · {item.model}
+                      {item.batteryType ? ` — ${item.batteryType}` : ""}
+                    </p>
+                  </div>
+                  <span className="text-xs text-[#F5A623] font-mono">Due</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
     </section>
   );
 }

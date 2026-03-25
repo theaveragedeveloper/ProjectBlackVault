@@ -52,6 +52,7 @@ export async function PUT(
       bulletType,
       quantity,
       purchasePrice,
+      pricePerRound,
       purchaseDate,
       storageLocation,
       lowStockAlert,
@@ -75,6 +76,7 @@ export async function PUT(
         ...(bulletType !== undefined && { bulletType }),
         ...(quantity !== undefined && { quantity }),
         ...(purchasePrice !== undefined && { purchasePrice }),
+        ...(pricePerRound !== undefined && { pricePerRound: pricePerRound ?? null }),
         ...(purchaseDate !== undefined && {
           purchaseDate: purchaseDate ? new Date(purchaseDate) : null,
         }),

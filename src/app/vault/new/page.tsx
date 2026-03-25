@@ -25,6 +25,9 @@ export default function NewFirearmPage() {
   const filteredCalibers = COMMON_CALIBERS.filter((c) =>
     c.toLowerCase().includes(caliberInput.toLowerCase())
   );
+  const showCustomCaliberOption =
+    caliberInput.trim() !== "" &&
+    !COMMON_CALIBERS.some((c) => c.toLowerCase() === caliberInput.toLowerCase().trim());
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -184,7 +187,7 @@ export default function NewFirearmPage() {
                     placeholder="e.g. 9mm Luger"
                     className={INPUT_CLASS}
                   />
-                  {caliberDropdownOpen && filteredCalibers.length > 0 && (
+                  {caliberDropdownOpen && (filteredCalibers.length > 0 || showCustomCaliberOption) && (
                     <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-vault-surface border border-vault-border rounded-md shadow-lg max-h-48 overflow-y-auto">
                       {filteredCalibers.map((c) => (
                         <button
@@ -199,6 +202,18 @@ export default function NewFirearmPage() {
                           {c}
                         </button>
                       ))}
+                      {showCustomCaliberOption && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCaliberInput(caliberInput.trim());
+                            setCaliberDropdownOpen(false);
+                          }}
+                          className="w-full text-left px-3 py-2 text-sm text-[#00C2FF] hover:bg-vault-border transition-colors font-mono border-t border-vault-border"
+                        >
+                          + Use &quot;{caliberInput.trim()}&quot;
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
