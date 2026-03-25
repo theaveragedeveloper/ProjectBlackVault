@@ -14,6 +14,7 @@ import {
   ChevronDown,
   Shield,
   Crosshair,
+  Pencil,
 } from "lucide-react";
 import { SLOTS_BY_FIREARM_TYPE, SLOT_TYPE_LABELS, FirearmType, SlotType } from "@/lib/types";
 import { SLOT_ICONS } from "@/lib/configurator/slot-icons";
@@ -577,9 +578,19 @@ function WeaponCanvas({ build, onSlotClick, onRemoveSlot }: WeaponCanvasProps) {
                     </span>
                     {hasAccessory && slot?.accessory ? (
                       <>
-                        <p className="text-sm font-medium text-vault-text mt-1.5 truncate">
-                          {slot.accessory.name}
-                        </p>
+                        <div className="flex items-center gap-2 mt-1.5">
+                          <p className="text-sm font-medium text-vault-text truncate min-w-0">
+                            {slot.accessory.name}
+                          </p>
+                          <Link
+                            href={`/accessories/${slot.accessory.id}/edit`}
+                            className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded border border-vault-border text-vault-text-faint hover:border-[#00C2FF]/50 hover:text-[#00C2FF] transition-colors"
+                            title="Edit accessory"
+                          >
+                            <Pencil className="w-2.5 h-2.5" />
+                            Edit
+                          </Link>
+                        </div>
                         <p className="text-[11px] text-vault-text-faint mt-0.5 truncate">
                           {slot.accessory.manufacturer}
                         </p>
@@ -826,11 +837,19 @@ function SlotPanel({
                   {getSlotLabel(slotType)}
                 </p>
                 {hasAccessory && slot?.accessory ? (
-                  <div className="flex items-center gap-2 mt-0.5">
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                     <p className="text-xs font-medium text-vault-text truncate">
                       {slot.accessory.name}
                     </p>
                     <RoundCountBadge roundCount={slot.accessory.roundCount} className="text-[9px]" />
+                    <Link
+                      href={`/accessories/${slot.accessory.id}/edit`}
+                      className="flex items-center gap-0.5 px-1 py-0.5 text-[9px] rounded border border-vault-border text-vault-text-faint hover:border-[#00C2FF]/50 hover:text-[#00C2FF] transition-colors"
+                      title="Edit accessory"
+                    >
+                      <Pencil className="w-2 h-2" />
+                      Edit
+                    </Link>
                   </div>
                 ) : (
                   <p className="text-[10px] text-vault-border mt-0.5">Empty</p>

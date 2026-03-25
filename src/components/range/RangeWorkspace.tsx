@@ -63,6 +63,7 @@ interface SessionDrill {
   hits: number | null;
   hitFactor: number;
   notes: string | null;
+  drillDate: string | null;
   createdAt: string;
 }
 
@@ -172,6 +173,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
   const [drillPenalties, setDrillPenalties] = useState<string>("");
   const [drillHits, setDrillHits] = useState<string>("");
   const [drillNotes, setDrillNotes] = useState<string>("");
+  const [drillDate, setDrillDate] = useState<string>("");
   const [customDrillName, setCustomDrillName] = useState("");
   const [customDrillNotes, setCustomDrillNotes] = useState("");
   const [customDrillMode, setCustomDrillMode] = useState<DrillPerformanceMode>("both");
@@ -337,6 +339,15 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
       })
       .finally(() => setLoadingDrills(false));
   }, [selectedSessionId]);
+
+  useEffect(() => {
+    const session = sessions.find((s) => s.id === selectedSessionId);
+    if (session) {
+      setDrillDate(new Date(session.sessionDate).toISOString().slice(0, 10));
+    } else {
+      setDrillDate("");
+    }
+  }, [selectedSessionId, sessions]);
 
   useEffect(() => {
     if (sessions.length === 0) {
@@ -689,6 +700,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
         penalties: selectedDrillTemplate.mode === "time" ? undefined : (drillPenalties ? Number.parseFloat(drillPenalties) : undefined),
         hits: selectedDrillTemplate.mode === "time" ? undefined : (drillHits ? Number.parseInt(drillHits, 10) : undefined),
         notes: drillNotes,
+        ...(drillDate ? { drillDate: new Date(drillDate).toISOString() } : {}),
       };
 
       const endpoint = selectedSessionId ? `/api/range/sessions/${selectedSessionId}/drills` : `/api/range/drills`;
@@ -1366,6 +1378,16 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
               <VaultTextArea rows={2} value={drillNotes} onChange={(e) => setDrillNotes(e.target.value)} className={`resize-none`} />
             </div>
 
+            <div>
+              <label className={vaultLabelClass}>Drill Date</label>
+              <VaultInput
+                type="date"
+                value={drillDate}
+                onChange={(e) => setDrillDate(e.target.value)}
+              />
+              <p className="mt-1 text-xs text-vault-text-faint">Defaults to session date</p>
+            </div>
+
             <div className="flex justify-end">
               <button
                 type="submit"
@@ -1936,14 +1958,26 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
                             </tr>
                           </thead>
                           <tbody>
-                            {session.sessionDrills.map((drill) => (
+                            {session.sessionDrills.map((drill) => {
+                              const sessionDateStr = new Date(session.sessionDate).toISOString().slice(0, 10);
+                              const drillDateStr = drill.drillDate ? new Date(drill.drillDate).toISOString().slice(0, 10) : null;
+                              const showDrillDate = drillDateStr && drillDateStr !== sessionDateStr;
+                              return (
                               <tr key={drill.id} className="border-b border-vault-border/40">
-                                <td className="py-1">{drill.name}</td>
+                                <td className="py-1">
+                                  {drill.name}
+                                  {showDrillDate && (
+                                    <span className="ml-1.5 text-[10px] text-vault-text-faint">
+                                      (logged: {new Date(drill.drillDate!).toLocaleDateString(undefined, { month: "short", day: "numeric" })})
+                                    </span>
+                                  )}
+                                </td>
                                 <td className="py-1">{drill.setNumber}</td>
                                 <td className="py-1 text-right">{drill.timeSeconds}s</td>
                                 <td className="py-1 text-right font-mono text-[#00C2FF]">{drill.hitFactor.toFixed(4)}</td>
                               </tr>
-                            ))}
+                              );
+                            })}
                           </tbody>
                         </table>
                       ) : (

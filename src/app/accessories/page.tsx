@@ -4,7 +4,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/utils";
-import { Plus, Crosshair, Shield, ExternalLink } from "lucide-react";
+import { Plus, Crosshair, Shield, ExternalLink, Pencil } from "lucide-react";
 import { RoundCountBadge } from "@/components/shared/RoundCountBadge";
 
 const SLOT_TYPE_LABELS: Record<string, string> = {
@@ -144,22 +144,32 @@ export default async function AccessoriesPage() {
           <>
             <div className="space-y-3 md:hidden">
               {accessories.map((accessory) => (
-                <Link
+                <div
                   key={accessory.id}
-                  href={`/accessories/${accessory.id}`}
-                  className="block rounded-lg border border-vault-border bg-vault-surface p-3"
+                  className="rounded-lg border border-vault-border bg-vault-surface p-3"
                 >
                   <div className="flex items-start gap-3">
-                    <div className="w-11 h-11 rounded bg-vault-bg border border-vault-border overflow-hidden flex items-center justify-center shrink-0">
+                    <Link href={`/accessories/${accessory.id}`} className="w-11 h-11 rounded bg-vault-bg border border-vault-border overflow-hidden flex items-center justify-center shrink-0">
                       {accessory.imageUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={accessory.imageUrl} alt={accessory.name} className="w-full h-full object-cover" />
                       ) : (
                         <Shield className="w-4 h-4 text-vault-text-faint" />
                       )}
-                    </div>
+                    </Link>
                     <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-vault-text truncate">{accessory.name}</p>
+                      <div className="flex items-center justify-between gap-2">
+                        <Link href={`/accessories/${accessory.id}`} className="min-w-0">
+                          <p className="font-semibold text-vault-text truncate">{accessory.name}</p>
+                        </Link>
+                        <Link
+                          href={`/accessories/${accessory.id}/edit`}
+                          className="shrink-0 flex items-center gap-1 px-2 py-1 text-xs rounded border border-vault-border text-vault-text-muted hover:border-[#00C2FF]/50 hover:text-[#00C2FF] transition-colors"
+                        >
+                          <Pencil className="w-3 h-3" />
+                          Edit
+                        </Link>
+                      </div>
                       <p className="text-xs text-vault-text-faint truncate">
                         {SLOT_TYPE_LABELS[accessory.type] ?? accessory.type}
                         {accessory.manufacturer ? ` · ${accessory.manufacturer}` : ""}
@@ -179,7 +189,7 @@ export default async function AccessoriesPage() {
                       </div>
                     </div>
                   </div>
-                </Link>
+                </div>
               ))}
             </div>
 
@@ -212,6 +222,7 @@ export default async function AccessoriesPage() {
                     <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-vault-text-faint font-medium hidden xl:table-cell">
                       Acquired
                     </th>
+                    <th className="px-4 py-3 w-20" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-vault-border">
@@ -311,6 +322,17 @@ export default async function AccessoriesPage() {
                           <p className="text-xs text-vault-text-faint">
                             {formatDate(accessory.acquisitionDate)}
                           </p>
+                        </td>
+
+                        {/* Edit */}
+                        <td className="px-4 py-3">
+                          <Link
+                            href={`/accessories/${accessory.id}/edit`}
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded border border-vault-border text-vault-text-muted hover:border-[#00C2FF]/50 hover:text-[#00C2FF] transition-colors whitespace-nowrap"
+                          >
+                            <Pencil className="w-3 h-3" />
+                            Edit
+                          </Link>
                         </td>
                       </tr>
                     );

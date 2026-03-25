@@ -18,10 +18,16 @@ export default function NewAmmoStockPage() {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [caliberInput, setCaliberInput] = useState("");
   const [caliberDropdownOpen, setCaliberDropdownOpen] = useState(false);
+  const [totalCost, setTotalCost] = useState("");
+  const [pricePerRound, setPricePerRound] = useState("");
+  const [quantityValue, setQuantityValue] = useState("");
 
   const filteredCalibers = COMMON_CALIBERS.filter((c) =>
     c.toLowerCase().includes(caliberInput.toLowerCase())
   );
+  const showCustomCaliberOption =
+    caliberInput.trim() !== "" &&
+    !COMMON_CALIBERS.some((c) => c.toLowerCase() === caliberInput.toLowerCase().trim());
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -36,8 +42,9 @@ export default function NewAmmoStockPage() {
       brand: data.get("brand") as string,
       grainWeight: data.get("grainWeight") ? Number(data.get("grainWeight")) : null,
       bulletType: (data.get("bulletType") as string) || null,
-      quantity: Number(data.get("quantity")) || 0,
-      purchasePrice: data.get("purchasePrice") ? Number(data.get("purchasePrice")) : null,
+      quantity: Number(quantityValue) || 0,
+      purchasePrice: totalCost ? Number(totalCost) : null,
+      pricePerRound: pricePerRound ? Number(pricePerRound) : null,
       purchaseDate: (data.get("purchaseDate") as string) || null,
       storageLocation: (data.get("storageLocation") as string) || null,
       lowStockAlert: data.get("lowStockAlert") ? Number(data.get("lowStockAlert")) : null,
@@ -133,7 +140,7 @@ export default function NewAmmoStockPage() {
                   placeholder="e.g. 9mm Luger"
                   className={INPUT_CLASS}
                 />
-                {caliberDropdownOpen && filteredCalibers.length > 0 && (
+                {caliberDropdownOpen && (filteredCalibers.length > 0 || showCustomCaliberOption) && (
                   <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-vault-surface border border-vault-border rounded-md shadow-lg max-h-48 overflow-y-auto">
                     {filteredCalibers.map((c) => (
                       <button
@@ -148,6 +155,18 @@ export default function NewAmmoStockPage() {
                         {c}
                       </button>
                     ))}
+                    {showCustomCaliberOption && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCaliberInput(caliberInput.trim());
+                          setCaliberDropdownOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-2 text-sm text-[#00C2FF] hover:bg-vault-border transition-colors font-mono border-t border-vault-border"
+                      >
+                        + Use &quot;{caliberInput.trim()}&quot;
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -212,6 +231,19 @@ export default function NewAmmoStockPage() {
                   min="0"
                   required
                   placeholder="e.g. 500"
+                  value={quantityValue}
+                  onChange={(e) => {
+                    const qty = e.target.value;
+                    setQuantityValue(qty);
+                    const qtyNum = Number(qty);
+                    if (qtyNum > 0) {
+                      if (totalCost) {
+                        setPricePerRound((Number(totalCost) / qtyNum).toFixed(4));
+                      } else if (pricePerRound) {
+                        setTotalCost((Number(pricePerRound) * qtyNum).toFixed(2));
+                      }
+                    }
+                  }}
                   className={INPUT_CLASS}
                 />
               </div>
@@ -225,33 +257,70 @@ export default function NewAmmoStockPage() {
             </legend>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="purchasePrice" className={LABEL_CLASS}>
-                  Purchase Price (total)
+                <label htmlFor="totalCost" className={LABEL_CLASS}>
+                  Total Cost
                 </label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-vault-text-faint text-sm">$</span>
                   <input
-                    id="purchasePrice"
-                    name="purchasePrice"
+                    id="totalCost"
                     type="number"
                     min="0"
                     step="0.01"
                     placeholder="0.00"
+                    value={totalCost}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setTotalCost(val);
+                      const qtyNum = Number(quantityValue);
+                      if (qtyNum > 0 && val) {
+                        setPricePerRound((Number(val) / qtyNum).toFixed(4));
+                      } else if (!val) {
+                        setPricePerRound("");
+                      }
+                    }}
                     className={`${INPUT_CLASS} pl-7`}
                   />
                 </div>
               </div>
               <div>
-                <label htmlFor="purchaseDate" className={LABEL_CLASS}>
-                  Purchase Date
+                <label htmlFor="pricePerRound" className={LABEL_CLASS}>
+                  Price Per Round
                 </label>
-                <input
-                  id="purchaseDate"
-                  name="purchaseDate"
-                  type="date"
-                  className={INPUT_CLASS}
-                />
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-vault-text-faint text-sm">$</span>
+                  <input
+                    id="pricePerRound"
+                    type="number"
+                    min="0"
+                    step="0.0001"
+                    placeholder="0.0000"
+                    value={pricePerRound}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setPricePerRound(val);
+                      const qtyNum = Number(quantityValue);
+                      if (qtyNum > 0 && val) {
+                        setTotalCost((Number(val) * qtyNum).toFixed(2));
+                      } else if (!val) {
+                        setTotalCost("");
+                      }
+                    }}
+                    className={`${INPUT_CLASS} pl-7`}
+                  />
+                </div>
               </div>
+            </div>
+            <div>
+              <label htmlFor="purchaseDate" className={LABEL_CLASS}>
+                Purchase Date
+              </label>
+              <input
+                id="purchaseDate"
+                name="purchaseDate"
+                type="date"
+                className={INPUT_CLASS}
+              />
             </div>
           </fieldset>
 
