@@ -96,8 +96,13 @@ function AccessoryBrowserModal({
     name: "",
     manufacturer: "",
     model: "",
+    serialNumber: "",
     caliber: "",
     purchasePrice: "",
+    acquisitionDate: "",
+    initialRoundCount: "",
+    notes: "",
+    imageUrl: "",
     hasBattery: false,
     batteryType: "",
     replacementIntervalDays: "",
@@ -171,9 +176,14 @@ function AccessoryBrowserModal({
           name: form.name.trim(),
           manufacturer: form.manufacturer.trim(),
           model: form.model.trim() || undefined,
+          serialNumber: form.serialNumber.trim() || undefined,
           type: slotType,
           caliber: form.caliber.trim() || undefined,
           purchasePrice: form.purchasePrice ? parseFloat(form.purchasePrice) : undefined,
+          acquisitionDate: form.acquisitionDate || undefined,
+          initialRoundCount: form.initialRoundCount ? parseInt(form.initialRoundCount, 10) : undefined,
+          notes: form.notes.trim() || undefined,
+          imageUrl: form.imageUrl.trim() || undefined,
           hasBattery: form.hasBattery,
           batteryType: form.batteryType.trim() || undefined,
           replacementIntervalDays: form.replacementIntervalDays
@@ -430,11 +440,33 @@ function AccessoryBrowserModal({
                     placeholder="Optional" />
                 </div>
               </div>
+              {/* Serial Number */}
               <div>
-                <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Purchase Price</label>
-                <input type="number" value={form.purchasePrice} onChange={e => setForm(f => ({...f, purchasePrice: e.target.value}))}
+                <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Serial Number</label>
+                <input value={form.serialNumber} onChange={e => setForm(f => ({...f, serialNumber: e.target.value}))}
                   className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
-                  placeholder="0.00" />
+                  placeholder="Optional" />
+              </div>
+              {/* Purchase Price + Date Acquired side by side */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Purchase Price</label>
+                  <input type="number" value={form.purchasePrice} onChange={e => setForm(f => ({...f, purchasePrice: e.target.value}))}
+                    className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
+                    placeholder="0.00" />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Date Acquired</label>
+                  <input type="date" value={form.acquisitionDate} onChange={e => setForm(f => ({...f, acquisitionDate: e.target.value}))}
+                    className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint" />
+                </div>
+              </div>
+              {/* Prior Use (rounds) */}
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Prior Use (rounds)</label>
+                <input type="number" min="0" step="1" value={form.initialRoundCount} onChange={e => setForm(f => ({...f, initialRoundCount: e.target.value}))}
+                  className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
+                  placeholder="0" />
               </div>
 
               <div className="rounded-md border border-vault-border p-3 space-y-3">
@@ -466,6 +498,21 @@ function AccessoryBrowserModal({
                   <input type="date" value={form.lastBatteryChangeDate} onChange={e => setForm(f => ({...f, lastBatteryChangeDate: e.target.value}))}
                     className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint" />
                 </div>
+              </div>
+              {/* Notes */}
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Notes</label>
+                <textarea value={form.notes} onChange={e => setForm(f => ({...f, notes: e.target.value}))}
+                  rows={3}
+                  className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint resize-none"
+                  placeholder="Optional notes..." />
+              </div>
+              {/* Image URL */}
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Image URL</label>
+                <input value={form.imageUrl} onChange={e => setForm(f => ({...f, imageUrl: e.target.value}))}
+                  className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
+                  placeholder="https://..." />
               </div>
             </div>
           </div>
