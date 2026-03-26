@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Archive, Copy, Download, Files, Settings } from "lucide-react";
+import { Archive, Copy, Download, Files, HardDriveDownload, RotateCcw, Settings, Upload } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SectionCard } from "@/components/shared/SectionCard";
 import { StatusMessage } from "@/components/shared/StatusMessage";
@@ -30,6 +30,15 @@ export default function SettingsPage() {
   const [isDocker, setIsDocker] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
+
+  const [backupStatus, setBackupStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [backupResult, setBackupResult] = useState<{ filename: string; savedToPath?: string; sizeMB: string } | null>(null);
+  const [backupError, setBackupError] = useState<string | null>(null);
+  const [restoreStatus, setRestoreStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [restoreError, setRestoreError] = useState<string | null>(null);
+  const [pendingRestoreFile, setPendingRestoreFile] = useState<File | null>(null);
+  const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
+  const [restoreCounts, setRestoreCounts] = useState<Record<string, number> | null>(null);
 
   useEffect(() => {
     fetch("/api/settings")
@@ -129,6 +138,80 @@ export default function SettingsPage() {
     }
   }
 
+  async function handleBackupNow() {
+    setBackupStatus("loading");
+    setBackupError(null);
+    setBackupResult(null);
+    try {
+      const res = await fetch("/api/backup", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        setBackupStatus("error");
+        setBackupError(json.error ?? "Backup failed.");
+        return;
+      }
+      const filename = json.filename as string;
+      const blob = new Blob([JSON.stringify({ meta: json.meta, ...json.data }, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setBackupResult({ filename, savedToPath: json.savedToPath, sizeMB: json.sizeMB });
+      setBackupStatus("success");
+      setTimeout(() => { setBackupStatus("idle"); setBackupResult(null); }, 8000);
+    } catch {
+      setBackupStatus("error");
+      setBackupError("Network error. Could not reach the backup endpoint.");
+    }
+  }
+
+  function handleRestoreFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setPendingRestoreFile(e.target.files?.[0] ?? null);
+    setShowRestoreConfirm(false);
+    setRestoreStatus("idle");
+    setRestoreError(null);
+    setRestoreCounts(null);
+  }
+
+  async function handleRestoreConfirm() {
+    if (!pendingRestoreFile) return;
+    setShowRestoreConfirm(false);
+    setRestoreStatus("loading");
+    setRestoreError(null);
+    try {
+      const text = await pendingRestoreFile.text();
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        setRestoreStatus("error");
+        setRestoreError("The selected file is not valid JSON. Please select a .json backup file.");
+        return;
+      }
+      const res = await fetch("/api/backup/restore", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(parsed),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        setRestoreStatus("error");
+        setRestoreError(json.error ?? "Restore failed. Your data was not modified.");
+        return;
+      }
+      setRestoreCounts(json.counts);
+      setRestoreStatus("success");
+      setPendingRestoreFile(null);
+    } catch {
+      setRestoreStatus("error");
+      setRestoreError("Network error during restore.");
+    }
+  }
+
   if (dataLoading) {
     return (
       <div className="mx-auto max-w-4xl p-4 sm:p-6">
@@ -211,7 +294,7 @@ export default function SettingsPage() {
 
             <FormField
               label="Preferred Backup Destination Path"
-              hint="Saved as a reference path for your backup process. Exports are still downloaded through your browser in V1."
+              hint="If set, Backup Now will also save the file here on the server in addition to downloading it."
             >
               <input
                 id="backupDestinationPath"
@@ -221,7 +304,130 @@ export default function SettingsPage() {
                 className={INPUT_CLASS}
                 placeholder="/srv/blackvault/backups or D:\\Backups\\BlackVault"
               />
+              <p className="mt-1 text-xs text-vault-text-muted">
+                When running in Docker, this path must be inside a mounted volume (e.g.{" "}
+                <span className="font-mono">/app/data/backups</span>).
+              </p>
             </FormField>
+
+            {/* Backup Now */}
+            <div className="rounded-lg border border-vault-border bg-vault-bg p-4 flex flex-col gap-3">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium text-vault-text">Backup Now</p>
+                  <p className="mt-0.5 text-xs text-vault-text-muted">
+                    Downloads a complete JSON backup of all vault data.
+                    {backupDestinationPath && " Also saves to your configured destination."}
+                  </p>
+                </div>
+                <StandardButton
+                  type="button"
+                  variant="primary"
+                  onClick={handleBackupNow}
+                  disabled={backupStatus === "loading"}
+                  loading={backupStatus === "loading"}
+                  loadingLabel="Backing up…"
+                  icon={<HardDriveDownload className="h-4 w-4" />}
+                >
+                  Backup Now
+                </StandardButton>
+              </div>
+              {backupStatus === "success" && backupResult && (
+                <div className="rounded-md border border-[#00C853]/30 bg-[#00C853]/10 px-3 py-2 flex flex-col gap-0.5">
+                  <p className="text-xs font-medium text-[#00C853]">Backup complete</p>
+                  <p className="font-mono text-xs text-[#00C853]/80">{backupResult.filename}</p>
+                  <p className="text-xs text-[#00C853]/70">{backupResult.sizeMB} MB</p>
+                  {backupResult.savedToPath && (
+                    <p className="text-xs text-[#00C853]/70">
+                      Also saved to: <span className="font-mono">{backupResult.savedToPath}</span>
+                    </p>
+                  )}
+                </div>
+              )}
+              {backupStatus === "error" && backupError && (
+                <StatusMessage tone="error" message={backupError} />
+              )}
+            </div>
+
+            {/* Restore from Backup */}
+            <div className="rounded-lg border border-vault-border bg-vault-bg p-4 flex flex-col gap-3">
+              <div>
+                <p className="text-sm font-medium text-vault-text">Restore from Backup</p>
+                <p className="mt-0.5 text-xs text-vault-text-muted">
+                  Replaces ALL current data with the contents of a backup file. This cannot be undone.
+                </p>
+              </div>
+              <div className="flex items-center gap-3 flex-wrap">
+                <label
+                  htmlFor="restore-file-input"
+                  className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-vault-border bg-vault-surface px-3 py-2 text-sm text-vault-text-muted hover:text-vault-text transition-colors"
+                >
+                  <Upload className="h-4 w-4" />
+                  {pendingRestoreFile ? pendingRestoreFile.name : "Choose .json backup file"}
+                </label>
+                <input
+                  id="restore-file-input"
+                  type="file"
+                  accept=".json,application/json"
+                  className="sr-only"
+                  onChange={handleRestoreFileChange}
+                />
+                {pendingRestoreFile && !showRestoreConfirm && restoreStatus === "idle" && (
+                  <StandardButton
+                    type="button"
+                    variant="danger"
+                    onClick={() => setShowRestoreConfirm(true)}
+                    icon={<RotateCcw className="h-4 w-4" />}
+                  >
+                    Restore
+                  </StandardButton>
+                )}
+              </div>
+              {showRestoreConfirm && pendingRestoreFile && (
+                <div className="rounded-lg border border-[#E53935]/30 bg-[#E53935]/10 p-3 flex flex-col gap-2">
+                  <p className="text-sm font-medium text-[#E53935]">
+                    This will wipe all current data and replace it with the backup. Are you sure?
+                  </p>
+                  <p className="text-xs text-[#E53935]/70">File: {pendingRestoreFile.name}</p>
+                  <p className="text-xs text-[#E53935]/70">Do not navigate away while restore is in progress.</p>
+                  <div className="flex gap-2">
+                    <StandardButton
+                      type="button"
+                      variant="danger"
+                      onClick={handleRestoreConfirm}
+                      disabled={restoreStatus === "loading"}
+                      loading={restoreStatus === "loading"}
+                      loadingLabel="Restoring…"
+                      icon={<RotateCcw className="h-4 w-4" />}
+                    >
+                      Yes, Restore
+                    </StandardButton>
+                    <StandardButton
+                      type="button"
+                      variant="secondary"
+                      onClick={() => { setShowRestoreConfirm(false); setPendingRestoreFile(null); }}
+                    >
+                      Cancel
+                    </StandardButton>
+                  </div>
+                </div>
+              )}
+              {restoreStatus === "loading" && (
+                <p className="text-xs text-vault-text-muted">Restoring data, please wait…</p>
+              )}
+              {restoreStatus === "success" && restoreCounts && (
+                <div className="rounded-md border border-[#00C853]/30 bg-[#00C853]/10 px-3 py-2 flex flex-col gap-0.5">
+                  <p className="text-xs font-medium text-[#00C853]">Restore complete. Data has been replaced.</p>
+                  <p className="text-xs text-[#00C853]/70">
+                    {restoreCounts.firearms ?? 0} firearms · {restoreCounts.accessories ?? 0} accessories ·{" "}
+                    {restoreCounts.ammoStocks ?? 0} ammo stocks · {restoreCounts.rangeSessions ?? 0} range sessions
+                  </p>
+                </div>
+              )}
+              {restoreStatus === "error" && restoreError && (
+                <StatusMessage tone="error" message={restoreError} />
+              )}
+            </div>
           </div>
         </SectionCard>
 
