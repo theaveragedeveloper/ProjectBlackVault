@@ -75,6 +75,7 @@ export async function PUT(
       manufacturer,
       model,
       caliber,
+      compatibleCalibers,
       serialNumber,
       type,
       acquisitionDate,
@@ -99,6 +100,7 @@ export async function PUT(
         ...(manufacturer !== undefined && { manufacturer: normalizeString(manufacturer) || "Unknown" }),
         ...(model !== undefined && { model: normalizeString(model) || "Unknown" }),
         ...(caliber !== undefined && { caliber: normalizeString(caliber) || "Unknown" }),
+        ...(compatibleCalibers !== undefined && { compatibleCalibers: compatibleCalibers ? normalizeString(compatibleCalibers) : null }),
         ...(serialNumber !== undefined && { serialNumber: normalizeString(serialNumber) || fallbackSerialNumber() }),
         ...(type !== undefined && { type: normalizeString(type) || "UNSPECIFIED" }),
         ...(acquisitionDate !== undefined && {

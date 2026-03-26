@@ -15,7 +15,8 @@ model Firearm {
   name            String
   manufacturer    String
   model           String
-  caliber         String
+  caliber             String
+  compatibleCalibers  String?
   serialNumber    String   @unique
   // FirearmType: PISTOL | RIFLE | SHOTGUN | SMG | PCC | REVOLVER | BOLT_ACTION | LEVER_ACTION
   type            String
