@@ -18,6 +18,7 @@ interface Firearm {
   manufacturer: string;
   model: string;
   caliber: string;
+  compatibleCalibers: string | null;
   serialNumber: string;
   type: string;
   acquisitionDate: string;
@@ -54,6 +55,10 @@ export default function EditFirearmPage() {
 
   const [caliberInput, setCaliberInput] = useState("");
   const [caliberDropdownOpen, setCaliberDropdownOpen] = useState(false);
+  const [compatCaliberTags, setCompatCaliberTags] = useState<string[]>([]);
+  const [compatCaliberInput, setCompatCaliberInput] = useState("");
+  const [compatCaliberDropdownOpen, setCompatCaliberDropdownOpen] = useState(false);
+  const compatCaliberRef = useRef<HTMLDivElement>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const caliberRef = useRef<HTMLDivElement>(null);
 
@@ -72,6 +77,11 @@ export default function EditFirearmPage() {
         } else {
           setFirearm(data);
           setCaliberInput(data.caliber ?? "");
+          setCompatCaliberTags(
+            data.compatibleCalibers
+              ? data.compatibleCalibers.split(",").map((s: string) => s.trim()).filter(Boolean)
+              : []
+          );
           setImageUrl(data.imageUrl ?? "");
         }
         setDataLoading(false);
@@ -96,6 +106,7 @@ export default function EditFirearmPage() {
       manufacturer: data.get("manufacturer") as string,
       model: data.get("model") as string,
       caliber: caliberInput,
+      compatibleCalibers: compatCaliberTags.length > 0 ? compatCaliberTags.join(",") : null,
       serialNumber: data.get("serialNumber") as string,
       type: data.get("type") as string,
       acquisitionDate: data.get("acquisitionDate") as string,
@@ -308,6 +319,99 @@ export default function EditFirearmPage() {
                   ))}
                 </select>
               </div>
+            </div>
+
+            {/* Compatible Calibers Tag Input */}
+            <div>
+              <label className={LABEL_CLASS}>
+                Compatible Calibers
+              </label>
+              {compatCaliberTags.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {compatCaliberTags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="inline-flex items-center gap-1 bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] text-xs font-mono rounded px-2 py-0.5"
+                    >
+                      {tag}
+                      <button
+                        type="button"
+                        onClick={() => setCompatCaliberTags((prev) => prev.filter((t) => t !== tag))}
+                        className="hover:text-white transition-colors ml-0.5"
+                        aria-label={`Remove ${tag}`}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="relative" ref={compatCaliberRef}>
+                <input
+                  type="text"
+                  value={compatCaliberInput}
+                  onChange={(e) => {
+                    setCompatCaliberInput(e.target.value);
+                    setCompatCaliberDropdownOpen(true);
+                  }}
+                  onFocus={() => setCompatCaliberDropdownOpen(true)}
+                  onBlur={() => setTimeout(() => setCompatCaliberDropdownOpen(false), 150)}
+                  onKeyDown={(e) => {
+                    if ((e.key === "Enter" || e.key === ",") && compatCaliberInput.trim()) {
+                      e.preventDefault();
+                      const val = compatCaliberInput.trim().replace(/,$/, "");
+                      if (val && !compatCaliberTags.includes(val)) {
+                        setCompatCaliberTags((prev) => [...prev, val]);
+                      }
+                      setCompatCaliberInput("");
+                      setCompatCaliberDropdownOpen(false);
+                    }
+                  }}
+                  placeholder="e.g. .223 Rem (press Enter to add)"
+                  className={INPUT_CLASS}
+                />
+                {compatCaliberDropdownOpen && compatCaliberInput.trim() !== "" && (
+                  <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-vault-surface border border-vault-border rounded-md shadow-lg max-h-48 overflow-y-auto">
+                    {COMMON_CALIBERS.filter(
+                      (c) =>
+                        c.toLowerCase().includes(compatCaliberInput.toLowerCase()) &&
+                        !compatCaliberTags.includes(c)
+                    ).map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => {
+                          if (!compatCaliberTags.includes(c)) {
+                            setCompatCaliberTags((prev) => [...prev, c]);
+                          }
+                          setCompatCaliberInput("");
+                          setCompatCaliberDropdownOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-2 text-sm text-vault-text hover:bg-vault-border hover:text-[#00C2FF] transition-colors font-mono"
+                      >
+                        {c}
+                      </button>
+                    ))}
+                    {!COMMON_CALIBERS.some((c) => c.toLowerCase() === compatCaliberInput.toLowerCase().trim()) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const val = compatCaliberInput.trim();
+                          if (val && !compatCaliberTags.includes(val)) {
+                            setCompatCaliberTags((prev) => [...prev, val]);
+                          }
+                          setCompatCaliberInput("");
+                          setCompatCaliberDropdownOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-2 text-sm text-[#00C2FF] hover:bg-vault-border transition-colors font-mono border-t border-vault-border"
+                      >
+                        + Use &quot;{compatCaliberInput.trim()}&quot;
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-vault-text-faint mt-1">Other calibers this firearm can safely fire. Optional.</p>
             </div>
 
             <div>

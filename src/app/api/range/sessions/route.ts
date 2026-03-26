@@ -168,7 +168,7 @@ export async function POST(request: NextRequest) {
 
     const firearm = await prisma.firearm.findUnique({
       where: { id: resolvedFirearmId },
-      select: { id: true, caliber: true },
+      select: { id: true, caliber: true, compatibleCalibers: true },
     });
     const build = resolvedBuildId
       ? await prisma.build.findUnique({ where: { id: resolvedBuildId }, select: { id: true, firearmId: true } })
@@ -205,9 +205,14 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "One or more ammo selections are invalid" }, { status: 400 });
       }
 
-      if (stock.caliber !== firearm.caliber) {
+      const compatibleCals = (firearm.compatibleCalibers ?? "")
+        .split(",").map((c) => c.trim()).filter(Boolean);
+      const caliberMatch =
+        stock.caliber === firearm.caliber ||
+        compatibleCals.includes(stock.caliber);
+      if (!caliberMatch) {
         return NextResponse.json(
-          { error: `Selected ammo must match firearm caliber (${firearm.caliber})` },
+          { error: `Ammo caliber does not match firearm` },
           { status: 400 }
         );
       }

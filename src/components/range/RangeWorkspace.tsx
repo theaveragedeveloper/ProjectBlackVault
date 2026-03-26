@@ -19,6 +19,7 @@ interface Firearm {
   manufacturer: string;
   type: string;
   caliber: string;
+  compatibleCalibers: string | null;
 }
 
 interface Build {
@@ -413,8 +414,13 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
   const selectedBuildData = builds.find((b) => b.id === selectedBuild);
   const buildAccessories = selectedBuildData?.slots.filter((s) => s.accessory) ?? [];
 
+  const compatibleCalibersList = (selectedFirearmData?.compatibleCalibers ?? "")
+    .split(",").map((c) => c.trim()).filter(Boolean);
   const compatibleAmmo = selectedFirearmData
-    ? ammoStocks.filter((a) => a.caliber === selectedFirearmData.caliber)
+    ? ammoStocks.filter((a) =>
+        a.caliber === selectedFirearmData.caliber ||
+        compatibleCalibersList.includes(a.caliber)
+      )
     : ammoStocks;
 
   const selectedSession = sessions.find((session) => session.id === selectedSessionId) ?? null;
