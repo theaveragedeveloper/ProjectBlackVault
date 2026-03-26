@@ -200,6 +200,17 @@ export const SLOTS_BY_FIREARM_TYPE: Record<FirearmType, SlotType[]> = {
   ],
 };
 
+export const SUGGESTED_SLOTS_BY_FIREARM_TYPE: Record<string, string[]> = {
+  RIFLE:        ["OPTIC", "BARREL", "MUZZLE", "STOCK", "HANDGUARD", "TRIGGER", "GRIP"],
+  PISTOL:       ["OPTIC", "BARREL", "SLIDE", "TRIGGER", "LIGHT", "LASER"],
+  BOLT_ACTION:  ["OPTIC", "OPTIC_MOUNT", "BARREL", "STOCK", "BIPOD", "SUPPRESSOR"],
+  SHOTGUN:      ["OPTIC", "BARREL", "STOCK", "LIGHT", "SLING"],
+  SMG:          ["OPTIC", "BARREL", "STOCK", "LIGHT", "SUPPRESSOR", "GRIP"],
+  PCC:          ["OPTIC", "BARREL", "MUZZLE", "STOCK", "HANDGUARD", "TRIGGER"],
+  REVOLVER:     ["OPTIC", "BARREL", "GRIP", "COMPENSATOR"],
+  LEVER_ACTION: ["OPTIC", "BARREL", "STOCK", "SLING"],
+};
+
 // ─── Ammo Transaction Types ────────────────────────────────────
 export const TRANSACTION_TYPES = [
   "PURCHASE",
