@@ -100,6 +100,18 @@ interface DrillEntryDraft {
   notes: string;
 }
 
+interface DrillFormEntry {
+  id: string;
+  templateId: string | null;
+  templateName: string;
+  mode: DrillPerformanceMode | null;
+  timeSeconds: string;
+  points: string;
+  showNewTemplateForm: boolean;
+  newTemplateName: string;
+  newTemplateMode: DrillPerformanceMode;
+}
+
 
 interface DrillTemplate {
   id: string;
@@ -147,6 +159,20 @@ const DEFAULT_DRILL_LIBRARY: DrillTemplate[] = [
   { id: "dot-torture", name: "Dot Torture", notes: "Accuracy-focused control drill", mode: "accuracy", createdAt: "2026-01-01T00:00:00.000Z" },
 ];
 
+function makeEmptyDrillFormEntry(): DrillFormEntry {
+  return {
+    id: safeId("drill-form"),
+    templateId: null,
+    templateName: "",
+    mode: null,
+    timeSeconds: "",
+    points: "",
+    showNewTemplateForm: false,
+    newTemplateName: "",
+    newTemplateMode: "both",
+  };
+}
+
 export function RangeWorkspace({ view }: RangeWorkspaceProps) {
   const [firearms, setFirearms] = useState<Firearm[]>([]);
   const [builds, setBuilds] = useState<Build[]>([]);
@@ -165,6 +191,8 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
   const [sessionDrillEntries, setSessionDrillEntries] = useState<DrillEntryDraft[]>([
     { id: safeId("session-drill"), name: "", timeSeconds: "", points: "", penalties: "", hits: "", notes: "" },
   ]);
+
+  const [sessionDrillFormEntries, setSessionDrillFormEntries] = useState<DrillFormEntry[]>(() => [makeEmptyDrillFormEntry()]);
 
   const [selectedSessionId, setSelectedSessionId] = useState<string>("");
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
@@ -518,6 +546,61 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
     });
   }
 
+  function updateDrillFormEntry(entryId: string, next: Partial<DrillFormEntry>) {
+    setSessionDrillFormEntries((prev) => prev.map((e) => (e.id === entryId ? { ...e, ...next } : e)));
+  }
+
+  function addDrillFormEntry() {
+    setSessionDrillFormEntries((prev) => [...prev, makeEmptyDrillFormEntry()]);
+  }
+
+  function removeDrillFormEntry(entryId: string) {
+    setSessionDrillFormEntries((prev) => {
+      if (prev.length <= 1) return [makeEmptyDrillFormEntry()];
+      return prev.filter((e) => e.id !== entryId);
+    });
+  }
+
+  function handleDrillTemplateSelect(entryId: string, value: string) {
+    if (value === "__new__") {
+      updateDrillFormEntry(entryId, { templateId: null, templateName: "", mode: null, showNewTemplateForm: true });
+      return;
+    }
+    const template = drillLibrary.find((t) => t.id === value);
+    if (template) {
+      updateDrillFormEntry(entryId, {
+        templateId: template.id,
+        templateName: template.name,
+        mode: template.mode,
+        showNewTemplateForm: false,
+        timeSeconds: "",
+        points: "",
+      });
+    }
+  }
+
+  function handleSaveNewTemplateForEntry(entryId: string, entry: DrillFormEntry) {
+    const name = entry.newTemplateName.trim();
+    if (!name) return;
+    const newTemplate: DrillTemplate = {
+      id: safeId("drill-template"),
+      name,
+      notes: null,
+      mode: entry.newTemplateMode,
+      createdAt: new Date().toISOString(),
+    };
+    setDrillLibrary((prev) => [newTemplate, ...prev]);
+    updateDrillFormEntry(entryId, {
+      templateId: newTemplate.id,
+      templateName: newTemplate.name,
+      mode: newTemplate.mode,
+      showNewTemplateForm: false,
+      newTemplateName: "",
+      timeSeconds: "",
+      points: "",
+    });
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -534,20 +617,16 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
       }))
       .filter((selection) => selection.ammoStockId && Number.isInteger(selection.roundsUsed) && selection.roundsUsed > 0);
     const drillSetCounter = new Map<string, number>();
-    const normalizedSessionDrills = sessionDrillEntries.flatMap((entry, index) => {
-      const name = entry.name.trim();
-      const timeSeconds = Number.parseFloat(entry.timeSeconds);
-      const points = Number.parseFloat(entry.points);
-      const penalties = Number.parseFloat(entry.penalties || "0");
-      const hits = Number.parseInt(entry.hits, 10);
+    const normalizedSessionDrills = sessionDrillFormEntries.flatMap((entry, index) => {
+      if (!entry.templateName || !entry.mode) return [];
+      const name = entry.templateName;
+      const mode = entry.mode;
+      const timeSeconds = mode === "accuracy" ? null : (Number.parseFloat(entry.timeSeconds) || null);
+      const points = mode === "time" ? null : (Number.parseFloat(entry.points) || null);
 
-      if (!name && !entry.timeSeconds && !entry.points && !entry.penalties && !entry.hits && !entry.notes.trim()) {
-        return [];
-      }
-
-      if (!name || !Number.isFinite(timeSeconds) || timeSeconds <= 0 || !Number.isFinite(points) || points < 0) {
-        return [];
-      }
+      // Skip incomplete rows
+      if (mode !== "accuracy" && (timeSeconds === null || !Number.isFinite(timeSeconds) || timeSeconds <= 0)) return [];
+      if (mode !== "time" && (points === null || !Number.isFinite(points) || points < 0)) return [];
 
       const setNumber = (drillSetCounter.get(name) ?? 0) + 1;
       drillSetCounter.set(name, setNumber);
@@ -556,10 +635,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
         name,
         setNumber,
         timeSeconds,
-        points,
-        penalties: Number.isFinite(penalties) && penalties >= 0 ? penalties : undefined,
-        hits: Number.isInteger(hits) && hits >= 0 ? hits : undefined,
-        notes: entry.notes.trim() || undefined,
+        points: points ?? 0,
         sortOrder: index,
       }];
     });
@@ -579,14 +655,15 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
       return;
     }
 
-    const hasIncompleteDrillRows = sessionDrillEntries.some((entry) => {
-      const hasAnyValue = Boolean(entry.name.trim() || entry.timeSeconds || entry.points || entry.penalties || entry.hits || entry.notes.trim());
-      if (!hasAnyValue) return false;
-      const hasRequired = Boolean(entry.name.trim() && entry.timeSeconds && entry.points);
-      return !hasRequired;
+    const hasIncompleteDrillRows = sessionDrillFormEntries.some((entry) => {
+      if (!entry.templateName && !entry.mode && !entry.timeSeconds && !entry.points) return false;
+      if (!entry.templateName || !entry.mode) return true;
+      if (entry.mode !== "accuracy" && (!entry.timeSeconds || Number.parseFloat(entry.timeSeconds) <= 0)) return true;
+      if (entry.mode !== "time" && (!entry.points || Number.parseFloat(entry.points) < 0)) return true;
+      return false;
     });
     if (!isEditingSession && hasIncompleteDrillRows) {
-      setError("Each drill set row must include drill name, time, and points (or leave the row blank).");
+      setError("Each drill row must have a template selected and the required results filled in (or remove the row).");
       setSubmitting(false);
       return;
     }
@@ -658,6 +735,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
         setSessionNote("");
         setAmmoSelections([{ ammoStockId: "", roundsUsed: "" }]);
         setSessionDrillEntries([{ id: safeId("session-drill"), name: "", timeSeconds: "", points: "", penalties: "", hits: "", notes: "" }]);
+        setSessionDrillFormEntries([makeEmptyDrillFormEntry()]);
       } else {
         await loadSessions();
         setSelectedSessionId(sessionJson.id);
@@ -1136,103 +1214,150 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
                 <label className={vaultLabelClass}>Drills Completed During This Session</label>
                 <VaultButton
                   type="button"
-                  onClick={addSessionDrillEntry}
+                  onClick={addDrillFormEntry}
                   className="px-2.5 py-1.5 text-xs"
                 >
-                  Add Drill Set
+                  + Add Drill
                 </VaultButton>
               </div>
-              <p className="text-xs text-vault-text-faint">Add zero, one, or many drill sets. Repeat the same drill name for multiple attempts (Set 1, Set 2, Set 3...).</p>
-              {sessionDrillEntries.map((entry, index) => (
+              <p className="text-xs text-vault-text-faint">Pick a drill template from your library. Repeat the same template for multiple attempts.</p>
+              {sessionDrillFormEntries.map((entry, index) => (
                 <div key={entry.id} className="rounded-md border border-vault-border bg-vault-bg p-3 space-y-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-xs uppercase tracking-widest text-vault-text-muted">Set {index + 1}</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs uppercase tracking-widest text-vault-text-muted">Drill {index + 1}</p>
                     <button
                       type="button"
-                      onClick={() => removeSessionDrillEntry(entry.id)}
-                      className="px-2.5 py-1.5 rounded-md text-xs border border-vault-border text-vault-text-faint hover:text-vault-text"
+                      onClick={() => removeDrillFormEntry(entry.id)}
+                      className="p-1 rounded text-vault-text-faint hover:text-vault-text"
+                      aria-label="Remove drill"
                     >
-                      Remove
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
-                  <div className="grid md:grid-cols-2 gap-3">
-                    <div>
-                      <label className={vaultLabelClass}>Drill Name</label>
-                      <VaultInput
-                        value={entry.name}
-                        onChange={(e) => updateSessionDrillEntry(entry.id, { name: e.target.value })}
-                        
-                        placeholder="e.g. Bill Drill"
-                      />
-                    </div>
-                    <div>
-                      <label className={vaultLabelClass}>Time (seconds)</label>
-                      <VaultInput
-                        type="number"
-                        step="0.01"
-                        min="0.01"
-                        value={entry.timeSeconds}
-                        onChange={(e) => updateSessionDrillEntry(entry.id, { timeSeconds: e.target.value })}
-                        
-                        placeholder="2.45"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-3">
-                    <div>
-                      <label className={vaultLabelClass}>Points</label>
-                      <VaultInput
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={entry.points}
-                        onChange={(e) => updateSessionDrillEntry(entry.id, { points: e.target.value })}
-                        
-                        placeholder="90"
-                      />
-                    </div>
-                    <div>
-                      <label className={vaultLabelClass}>Penalties</label>
-                      <VaultInput
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={entry.penalties}
-                        onChange={(e) => updateSessionDrillEntry(entry.id, { penalties: e.target.value })}
-                        
-                        placeholder="0"
-                      />
-                    </div>
-                    <div>
-                      <label className={vaultLabelClass}>Hits</label>
-                      <VaultInput
-                        type="number"
-                        min="0"
-                        value={entry.hits}
-                        onChange={(e) => updateSessionDrillEntry(entry.id, { hits: e.target.value })}
-                        
-                        placeholder="6"
-                      />
-                    </div>
-                    <div className="bg-vault-surface border border-vault-border rounded-md px-3 py-2">
-                      <p className="text-[11px] text-vault-text-faint uppercase tracking-widest">Hit Factor</p>
-                      <p className="text-lg font-mono text-[#00C2FF]">
-                        {calculateHitFactor(
-                          Math.max(0, (Number.parseFloat(entry.points) || 0) - (Number.parseFloat(entry.penalties) || 0)),
-                          Number.parseFloat(entry.timeSeconds)
-                        ).toFixed(4)}
-                      </p>
-                    </div>
-                  </div>
+
+                  {/* Template selector */}
                   <div>
-                    <label className={vaultLabelClass}>Set Notes</label>
-                    <VaultTextArea
-                      rows={2}
-                      value={entry.notes}
-                      onChange={(e) => updateSessionDrillEntry(entry.id, { notes: e.target.value })}
-                      className={`resize-none`}
-                    />
+                    <label className={vaultLabelClass}>Drill Template</label>
+                    <div className="relative">
+                      <VaultSelect
+                        value={entry.templateId ?? ""}
+                        onChange={(e) => handleDrillTemplateSelect(entry.id, e.target.value)}
+                      >
+                        <option value="">Select a template...</option>
+                        {drillLibrary.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name} ({t.mode.toUpperCase()})
+                          </option>
+                        ))}
+                        <option value="__new__">+ New template…</option>
+                      </VaultSelect>
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-vault-text-faint pointer-events-none" />
+                    </div>
                   </div>
+
+                  {/* Inline new template form */}
+                  {entry.showNewTemplateForm && (
+                    <div className="rounded border border-[#F5A623]/30 bg-[#F5A623]/5 p-3 space-y-3">
+                      <p className="text-xs text-[#F5A623] font-mono uppercase tracking-widest">New Template</p>
+                      <div>
+                        <label className={vaultLabelClass}>Template Name</label>
+                        <VaultInput
+                          value={entry.newTemplateName}
+                          onChange={(e) => updateDrillFormEntry(entry.id, { newTemplateName: e.target.value })}
+                          placeholder="e.g. Bill Drill"
+                        />
+                      </div>
+                      <div>
+                        <label className={vaultLabelClass}>Mode</label>
+                        <div className="flex gap-2">
+                          {(["time", "accuracy", "both"] as DrillPerformanceMode[]).map((m) => (
+                            <button
+                              key={m}
+                              type="button"
+                              onClick={() => updateDrillFormEntry(entry.id, { newTemplateMode: m })}
+                              className={`px-3 py-1.5 rounded text-xs font-mono uppercase border transition-colors ${
+                                entry.newTemplateMode === m
+                                  ? "bg-[#00C2FF]/15 border-[#00C2FF]/50 text-[#00C2FF]"
+                                  : "border-vault-border text-vault-text-faint hover:text-vault-text"
+                              }`}
+                            >
+                              {m}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <VaultButton
+                          type="button"
+                          onClick={() => handleSaveNewTemplateForEntry(entry.id, entry)}
+                          className="px-3 py-1.5 text-xs"
+                        >
+                          Save Template
+                        </VaultButton>
+                        <button
+                          type="button"
+                          onClick={() => updateDrillFormEntry(entry.id, { showNewTemplateForm: false, newTemplateName: "" })}
+                          className="px-3 py-1.5 rounded text-xs border border-vault-border text-vault-text-faint hover:text-vault-text"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Results fields — shown when a template is selected */}
+                  {entry.mode && !entry.showNewTemplateForm && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${
+                          entry.mode === "time" ? "text-[#00C2FF] border-[#00C2FF]/40 bg-[#00C2FF]/10" :
+                          entry.mode === "accuracy" ? "text-[#00C853] border-[#00C853]/40 bg-[#00C853]/10" :
+                          "text-[#D06BFF] border-[#D06BFF]/40 bg-[#D06BFF]/10"
+                        }`}>
+                          {entry.mode.toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="grid sm:grid-cols-2 gap-3">
+                        {entry.mode !== "accuracy" && (
+                          <div>
+                            <label className={vaultLabelClass}>Time (seconds)</label>
+                            <VaultInput
+                              type="number"
+                              step="0.01"
+                              min="0.01"
+                              value={entry.timeSeconds}
+                              onChange={(e) => updateDrillFormEntry(entry.id, { timeSeconds: e.target.value })}
+                              placeholder="2.45"
+                            />
+                          </div>
+                        )}
+                        {entry.mode !== "time" && (
+                          <div>
+                            <label className={vaultLabelClass}>Points</label>
+                            <VaultInput
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={entry.points}
+                              onChange={(e) => updateDrillFormEntry(entry.id, { points: e.target.value })}
+                              placeholder="90"
+                            />
+                          </div>
+                        )}
+                        {entry.mode !== "accuracy" && entry.timeSeconds && (
+                          <div className="bg-vault-surface border border-vault-border rounded-md px-3 py-2">
+                            <p className="text-[11px] text-vault-text-faint uppercase tracking-widest">Hit Factor</p>
+                            <p className="text-lg font-mono text-[#00C2FF]">
+                              {calculateHitFactor(
+                                Math.max(0, Number.parseFloat(entry.points) || 0),
+                                Number.parseFloat(entry.timeSeconds)
+                              ).toFixed(4)}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
