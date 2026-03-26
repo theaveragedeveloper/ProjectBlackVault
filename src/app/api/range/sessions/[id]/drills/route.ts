@@ -54,9 +54,9 @@ export async function POST(
 
     const { name, timeSeconds, points, penalties, hits, notes, sortOrder, setNumber, drillDate } = body;
 
-    if (!name || timeSeconds === undefined || points === undefined) {
+    if (!name || points === undefined) {
       return NextResponse.json(
-        { error: "Missing required fields: name, timeSeconds, points" },
+        { error: "Missing required fields: name, points" },
         { status: 400 }
       );
     }
@@ -65,8 +65,13 @@ export async function POST(
       return NextResponse.json({ error: "name must be a non-empty string" }, { status: 400 });
     }
 
-    if (typeof timeSeconds !== "number" || !Number.isFinite(timeSeconds) || timeSeconds <= 0) {
-      return NextResponse.json({ error: "timeSeconds must be a positive number" }, { status: 400 });
+    // timeSeconds is nullable (accuracy-mode drills don't require a time)
+    if (
+      timeSeconds !== null &&
+      timeSeconds !== undefined &&
+      (typeof timeSeconds !== "number" || !Number.isFinite(timeSeconds) || timeSeconds <= 0)
+    ) {
+      return NextResponse.json({ error: "timeSeconds must be a positive number or null" }, { status: 400 });
     }
 
     if (typeof points !== "number" || !Number.isFinite(points) || points < 0) {
@@ -100,7 +105,8 @@ export async function POST(
 
     const normalizedName = name.trim();
     const adjustedPoints = Math.max(0, points - (typeof penalties === "number" ? penalties : 0));
-    const hitFactor = calculateHitFactor(adjustedPoints, timeSeconds);
+    const resolvedTimeForHF = (timeSeconds === null || timeSeconds === undefined) ? 1 : timeSeconds;
+    const hitFactor = calculateHitFactor(adjustedPoints, resolvedTimeForHF);
     const fallbackSetNumber = await prisma.sessionDrill.count({
       where: {
         rangeSessionId: id,
@@ -113,7 +119,7 @@ export async function POST(
         rangeSessionId: id,
         name: normalizedName,
         setNumber: typeof setNumber === "number" ? setNumber : fallbackSetNumber,
-        timeSeconds,
+        timeSeconds: (timeSeconds === null || timeSeconds === undefined) ? null : timeSeconds,
         points,
         penalties: typeof penalties === "number" ? penalties : null,
         hits: typeof hits === "number" ? hits : null,
