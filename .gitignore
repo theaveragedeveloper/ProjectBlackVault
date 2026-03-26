@@ -58,3 +58,4 @@ prisma/prisma/*.db-journal
 *.db
 .next/
 node_modules/
+.blackvault.env
