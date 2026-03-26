@@ -1,6 +1,10 @@
-# Production compose — builds image locally from source (works on amd64 and arm64).
-# Run `./install.sh` (or install.bat on Windows) for first-time setup.
-# Run `./update.sh` to rebuild and restart with the latest source.
+# BlackVault — Production compose (amd64 + arm64)
+#
+# First time: run ./install.sh (Mac/Linux) or install.bat (Windows)
+# Updates:    run ./update.sh  (Mac/Linux) or update.bat  (Windows)
+# Manual run: copy .env.example to .env, edit DATA_DIR, then: docker compose up -d
+#
+# Docker Compose reads .env automatically — no --env-file flag needed.
 # For local development, use docker-compose.dev.yml instead.
 
 services:
