@@ -76,6 +76,8 @@ export const SLOT_TYPE_LABELS: Record<SlotType, string> = {
   COMPENSATOR: "Compensator",
 };
 
+export const CUSTOM_SLOT_PREFIX = "CUSTOM:";
+
 // Which slots are available per firearm type
 export const SLOTS_BY_FIREARM_TYPE: Record<FirearmType, SlotType[]> = {
   RIFLE: [
@@ -200,7 +202,7 @@ export const SLOTS_BY_FIREARM_TYPE: Record<FirearmType, SlotType[]> = {
   ],
 };
 
-export const SUGGESTED_SLOTS_BY_FIREARM_TYPE: Record<string, string[]> = {
+export const SUGGESTED_SLOTS_BY_FIREARM_TYPE: Record<FirearmType, SlotType[]> = {
   RIFLE:        ["OPTIC", "BARREL", "MUZZLE", "STOCK", "HANDGUARD", "TRIGGER", "GRIP"],
   PISTOL:       ["OPTIC", "BARREL", "SLIDE", "TRIGGER", "LIGHT", "LASER"],
   BOLT_ACTION:  ["OPTIC", "OPTIC_MOUNT", "BARREL", "STOCK", "BIPOD", "SUPPRESSOR"],

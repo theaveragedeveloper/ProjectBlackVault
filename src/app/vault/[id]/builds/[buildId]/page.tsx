@@ -16,11 +16,9 @@ import {
   Crosshair,
   Pencil,
 } from "lucide-react";
-import { SLOTS_BY_FIREARM_TYPE, SUGGESTED_SLOTS_BY_FIREARM_TYPE, SLOT_TYPE_LABELS, FirearmType, SlotType } from "@/lib/types";
+import { SLOTS_BY_FIREARM_TYPE, SUGGESTED_SLOTS_BY_FIREARM_TYPE, SLOT_TYPE_LABELS, CUSTOM_SLOT_PREFIX, FirearmType, SlotType } from "@/lib/types";
 import { SLOT_ICONS } from "@/lib/configurator/slot-icons";
 import { RoundCountBadge } from "@/components/shared/RoundCountBadge";
-
-const CUSTOM_SLOT_PREFIX = "CUSTOM:";
 
 function getSlotLabel(slotType: string) {
   if (slotType.startsWith(CUSTOM_SLOT_PREFIX)) {
@@ -1083,27 +1081,45 @@ export default function BuildConfiguratorPage() {
   }
 
   async function handleAddSlot(slotType: string) {
-    await fetch(`/api/builds/${buildId}/slots`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        slotType,
-        accessoryId: null,
-      }),
-    });
-    await fetchBuild();
+    try {
+      const res = await fetch(`/api/builds/${buildId}/slots`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slotType,
+          accessoryId: null,
+        }),
+      });
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null);
+        setActionFeedback({ type: "error", text: payload?.error ?? "Could not add slot." });
+        return;
+      }
+      await fetchBuild();
+    } catch {
+      setActionFeedback({ type: "error", text: "Could not add slot." });
+    }
   }
 
   async function handleAddCustomSlot(label: string) {
-    await fetch(`/api/builds/${buildId}/slots`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        slotType: `${CUSTOM_SLOT_PREFIX}${label.trim()}`,
-        accessoryId: null,
-      }),
-    });
-    await fetchBuild();
+    try {
+      const res = await fetch(`/api/builds/${buildId}/slots`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slotType: `${CUSTOM_SLOT_PREFIX}${label.trim()}`,
+          accessoryId: null,
+        }),
+      });
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null);
+        setActionFeedback({ type: "error", text: payload?.error ?? "Could not add slot." });
+        return;
+      }
+      await fetchBuild();
+    } catch {
+      setActionFeedback({ type: "error", text: "Could not add slot." });
+    }
   }
 
   // ── Loading/error screens ──────────────────────────────────
