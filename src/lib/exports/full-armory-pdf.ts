@@ -398,7 +398,8 @@ export async function generateFullArmoryPdf(
   }
 
   const mergedBytes = await mergedDoc.save();
-  const blob = new Blob([mergedBytes], { type: "application/pdf" });
+  const safeBytes = new Uint8Array(mergedBytes); // normalize to concrete ArrayBuffer
+  const blob = new Blob([safeBytes], { type: "application/pdf" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
