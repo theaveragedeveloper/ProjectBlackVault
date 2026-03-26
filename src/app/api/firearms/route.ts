@@ -98,7 +98,9 @@ export async function POST(request: NextRequest) {
         manufacturer: normalizeString(manufacturer) || "Unknown",
         model: normalizeString(model) || "Unknown",
         caliber: normalizeString(caliber) || "Unknown",
-        compatibleCalibers: compatibleCalibers ? normalizeString(compatibleCalibers) : null,
+        compatibleCalibers: compatibleCalibers
+          ? compatibleCalibers.split(",").map((s: string) => s.trim()).filter(Boolean).join(",") || null
+          : null,
         serialNumber: normalizeString(serialNumber) || fallbackSerialNumber(),
         type: normalizeString(type) || "UNSPECIFIED",
         acquisitionDate: acquisitionDate ? new Date(acquisitionDate) : new Date(),
