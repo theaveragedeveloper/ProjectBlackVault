@@ -58,7 +58,7 @@ interface SessionDrill {
   id: string;
   name: string;
   setNumber: number;
-  timeSeconds: number;
+  timeSeconds: number | null;
   points: number;
   penalties: number | null;
   hits: number | null;
@@ -765,10 +765,10 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
 
       const parsedTime = Number.parseFloat(drillTime);
       const parsedPoints = Number.parseFloat(drillPoints);
-      const resolvedTime = selectedDrillTemplate.mode === "accuracy" ? 1 : parsedTime;
+      const resolvedTime = selectedDrillTemplate.mode === "accuracy" ? null : parsedTime;
       const resolvedPoints = selectedDrillTemplate.mode === "time" ? 0 : parsedPoints;
 
-      if (!Number.isFinite(resolvedTime) || resolvedTime <= 0) {
+      if (selectedDrillTemplate.mode !== "accuracy" && (!Number.isFinite(resolvedTime) || (resolvedTime as number) <= 0)) {
         throw new Error("Enter a valid drill time.");
       }
 
@@ -1571,7 +1571,6 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={performanceRows} margin={{ top: 8, right: 12, left: 8, bottom: 8 }}>
                     <XAxis dataKey="displayDate" tick={{ fill: "#9CA3AF", fontSize: 11 }} interval="preserveStartEnd" minTickGap={24} />
-                    <YAxis tick={{ fill: "#9CA3AF", fontSize: 11 }} width={52} />
                     <Tooltip
                       contentStyle={{ backgroundColor: "#101114", border: "1px solid #2C2F36", borderRadius: 8 }}
                       labelStyle={{ color: "#E5E7EB" }}
@@ -1988,7 +1987,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
                     </div>
                     <div className="mt-1 text-xs text-vault-text-muted flex flex-wrap gap-3">
                       <span>{drill.points} pts</span>
-                      <span>{drill.timeSeconds}s</span>
+                      <span>{drill.timeSeconds != null ? `${drill.timeSeconds}s` : "—"}</span>
                       {drill.penalties != null && <span>{drill.penalties} pen</span>}
                       {drill.hits != null && <span>{drill.hits} hits</span>}
                     </div>
@@ -2104,7 +2103,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
                                   )}
                                 </td>
                                 <td className="py-1">{drill.setNumber}</td>
-                                <td className="py-1 text-right">{drill.timeSeconds}s</td>
+                                <td className="py-1 text-right">{drill.timeSeconds != null ? `${drill.timeSeconds}s` : "—"}</td>
                                 <td className="py-1 text-right font-mono text-[#00C2FF]">{drill.hitFactor.toFixed(4)}</td>
                               </tr>
                               );
