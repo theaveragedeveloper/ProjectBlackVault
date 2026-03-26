@@ -63,6 +63,7 @@ export default function NewFirearmPage() {
       imageSource: imageUrl ? "uploaded" : null,
       lastMaintenanceDate: (data.get("lastMaintenanceDate") as string) || null,
       maintenanceIntervalDays: data.get("maintenanceIntervalDays") ? Number(data.get("maintenanceIntervalDays")) : null,
+      initialRoundCount: data.get("initialRoundCount") ? Number(data.get("initialRoundCount")) : null,
     };
 
     try {
@@ -183,7 +184,7 @@ export default function NewFirearmPage() {
                       setFormErrors(prev => ({ ...prev, caliber: "" }));
                     }}
                     onFocus={() => setCaliberDropdownOpen(true)}
-                    onBlur={() => setTimeout(() => setCaliberDropdownOpen(false), 150)}
+                    onBlur={() => setCaliberDropdownOpen(false)}
                     placeholder="e.g. 9mm Luger"
                     className={INPUT_CLASS}
                   />
@@ -193,6 +194,7 @@ export default function NewFirearmPage() {
                         <button
                           key={c}
                           type="button"
+                          onPointerDown={(e) => e.preventDefault()}
                           onClick={() => {
                             setCaliberInput(c);
                             setCaliberDropdownOpen(false);
@@ -205,6 +207,7 @@ export default function NewFirearmPage() {
                       {showCustomCaliberOption && (
                         <button
                           type="button"
+                          onPointerDown={(e) => e.preventDefault()}
                           onClick={() => {
                             setCaliberInput(caliberInput.trim());
                             setCaliberDropdownOpen(false);
@@ -307,6 +310,28 @@ export default function NewFirearmPage() {
                   />
                 </div>
               </div>
+            </div>
+          </fieldset>
+
+          {/* Prior Use */}
+          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
+            <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
+              Prior Use
+            </legend>
+            <div>
+              <label htmlFor="initialRoundCount" className={LABEL_CLASS}>
+                Existing Round Count
+                <HelpTip text="If this firearm has already been used, enter the approximate round count. This will be logged as a pre-existing use entry." />
+              </label>
+              <input
+                id="initialRoundCount"
+                name="initialRoundCount"
+                type="number"
+                min="0"
+                step="1"
+                placeholder="e.g. 500 (leave blank if new)"
+                className={INPUT_CLASS}
+              />
             </div>
           </fieldset>
 

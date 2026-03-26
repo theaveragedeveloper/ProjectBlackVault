@@ -66,6 +66,7 @@ interface Accessory {
   name: string;
   manufacturer: string;
   model: string | null;
+  serialNumber: string | null;
   type: string;
   caliber: string | null;
   purchasePrice: number | null;
@@ -225,6 +226,11 @@ export default function AccessoryDetailPage() {
             {accessory.caliber && (
               <span className="text-xs px-2 py-0.5 rounded border border-vault-border text-vault-text-muted font-mono">
                 {accessory.caliber}
+              </span>
+            )}
+            {accessory.serialNumber && (
+              <span className="text-xs px-2 py-0.5 rounded border border-vault-border text-vault-text-faint font-mono">
+                S/N {accessory.serialNumber}
               </span>
             )}
           </div>

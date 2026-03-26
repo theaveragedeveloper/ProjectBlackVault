@@ -28,7 +28,9 @@ export default function ImagePicker({
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Stable temp ID for new items — generated once per form session
   const tempId = useRef<string>(
-    typeof crypto !== "undefined" ? crypto.randomUUID() : `tmp-${Date.now()}`
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
   );
 
   const [preview, setPreview] = useState<string | null>(value ?? currentUrl ?? null);
