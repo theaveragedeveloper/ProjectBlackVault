@@ -186,6 +186,7 @@ function MaintenanceDueWidget() {
 
   const hasFirearmItems = overdueFirearms.length > 0 || dueSoonFirearms.length > 0;
   const hasBatteryItems = overdueItems.length > 0 || dueSoonItems.length > 0;
+  const renderNow = Date.now();
 
   return (
     <section>
@@ -208,7 +209,7 @@ function MaintenanceDueWidget() {
                   <span className="text-[10px] font-semibold tracking-widest uppercase text-[#E53935]/70">Overdue</span>
                 </div>
                 {overdueFirearms.map((item) => {
-                  const daysOverdue = Math.ceil((new Date().getTime() - item.dueDate.getTime()) / 86400000);
+                  const daysOverdue = Math.ceil((renderNow - item.dueDate.getTime()) / 86400000);
                   return (
                     <Link
                       key={item.id}
@@ -231,7 +232,7 @@ function MaintenanceDueWidget() {
                   <span className="text-[10px] font-semibold tracking-widest uppercase text-yellow-400/70">Due Soon</span>
                 </div>
                 {dueSoonFirearms.map((item) => {
-                  const daysUntil = Math.ceil((item.dueDate.getTime() - new Date().getTime()) / 86400000);
+                  const daysUntil = Math.ceil((item.dueDate.getTime() - renderNow) / 86400000);
                   return (
                     <Link
                       key={item.id}
@@ -268,7 +269,7 @@ function MaintenanceDueWidget() {
                     <span className="text-[10px] font-semibold tracking-widest uppercase text-[#E53935]/70">Overdue</span>
                   </div>
                   {overdueItems.map((item) => {
-                    const daysOverdue = Math.ceil((new Date().getTime() - item.dueDate.getTime()) / 86400000);
+                    const daysOverdue = Math.ceil((renderNow - item.dueDate.getTime()) / 86400000);
                     return (
                       <Link
                         key={item.id}
@@ -294,7 +295,7 @@ function MaintenanceDueWidget() {
                     <span className="text-[10px] font-semibold tracking-widest uppercase text-yellow-400/70">Due Soon</span>
                   </div>
                   {dueSoonItems.map((item) => {
-                    const daysUntil = Math.ceil((item.dueDate.getTime() - new Date().getTime()) / 86400000);
+                    const daysUntil = Math.ceil((item.dueDate.getTime() - renderNow) / 86400000);
                     return (
                       <Link
                         key={item.id}
