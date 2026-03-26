@@ -93,6 +93,7 @@ model Accessory {
   name                   String
   manufacturer           String
   model                  String?
+  serialNumber           String?
   // type matches SlotType values above
   type                   String
   caliber                String?

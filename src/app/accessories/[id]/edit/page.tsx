@@ -17,6 +17,7 @@ interface Accessory {
   name: string;
   manufacturer: string;
   model: string | null;
+  serialNumber: string | null;
   type: string;
   caliber: string | null;
   acquisitionDate: string | null;
@@ -94,6 +95,7 @@ export default function EditAccessoryPage() {
       name: data.get("name") as string,
       manufacturer: data.get("manufacturer") as string,
       model: (data.get("model") as string) || null,
+      serialNumber: (data.get("serialNumber") as string) || null,
       type: data.get("type") as string,
       caliber: caliberInput || null,
       acquisitionDate: (data.get("acquisitionDate") as string) || null,
@@ -249,6 +251,20 @@ export default function EditAccessoryPage() {
               </div>
             </div>
 
+            <div>
+              <label htmlFor="serialNumber" className={LABEL_CLASS}>
+                Serial Number
+              </label>
+              <input
+                id="serialNumber"
+                name="serialNumber"
+                type="text"
+                defaultValue={accessory.serialNumber ?? ""}
+                placeholder="e.g. SN-12345 (optional)"
+                className={`${INPUT_CLASS} font-mono`}
+              />
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Type */}
               <div>
@@ -282,7 +298,7 @@ export default function EditAccessoryPage() {
                       setCaliberDropdownOpen(true);
                     }}
                     onFocus={() => setCaliberDropdownOpen(true)}
-                    onBlur={() => setTimeout(() => setCaliberDropdownOpen(false), 150)}
+                    onBlur={() => setCaliberDropdownOpen(false)}
                     placeholder="e.g. 5.56x45mm"
                     className={INPUT_CLASS}
                   />
@@ -292,6 +308,7 @@ export default function EditAccessoryPage() {
                         <button
                           key={c}
                           type="button"
+                          onPointerDown={(e) => e.preventDefault()}
                           onClick={() => {
                             setCaliberInput(c);
                             setCaliberDropdownOpen(false);

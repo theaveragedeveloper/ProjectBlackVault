@@ -80,6 +80,7 @@ export async function POST(request: NextRequest) {
       imageSource,
       lastMaintenanceDate,
       maintenanceIntervalDays,
+      initialRoundCount,
     } = body;
 
     const normalizedName = normalizeString(name);
@@ -116,6 +117,20 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+
+    // If the user specified an initial round count (pre-existing use), log it as a range session
+    const parsedInitialRounds = initialRoundCount ? Math.floor(Number(initialRoundCount)) : 0;
+    if (parsedInitialRounds > 0) {
+      await prisma.rangeSession.create({
+        data: {
+          firearmId: firearm.id,
+          sessionDate: firearm.acquisitionDate ?? new Date(),
+          location: "Pre-existing use",
+          roundsFired: parsedInitialRounds,
+          notes: "Initial round count logged at time of vault entry.",
+        },
+      });
+    }
 
     revalidateDashboardData();
 
