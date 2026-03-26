@@ -53,10 +53,13 @@ The wizard will ask where to store your data and what port to use, then build an
 ```bash
 git clone https://github.com/theaveragedeveloper/ProjectBlackVault.git
 cd ProjectBlackVault
-docker compose up --build
+cp .env.example .env          # optional: edit DATA_DIR or PORT first
+docker compose up -d --build
 ```
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+Your data is stored in `./data` by default (inside the project folder). Edit `DATA_DIR` in `.env` to use a different location.
 
 ---
 
@@ -66,7 +69,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 2. Go to the GitHub repository page and click **Code → Download ZIP**
 3. Extract the ZIP to a folder on your computer
 4. Open a terminal (Command Prompt on Windows, Terminal on Mac) and navigate to that folder
-5. Run: `docker compose up --build`
+5. Run: `docker compose up -d --build`
 6. Open your browser and go to `http://localhost:3000`
 
 BlackVault will be running and ready to use.
@@ -82,6 +85,55 @@ You can open BlackVault on your phone as long as it is on the same Wi-Fi network
 3. Scan the QR code with your phone, or open `http://192.168.x.x:3000` (using your machine's local IP)
 
 To find your local IP manually: run `ipconfig` on Windows or `ip addr` on Linux/Mac.
+
+---
+
+## Data Safety
+
+### Where your data lives
+
+BlackVault stores everything in the directory set by `DATA_DIR` in your `.env` file:
+
+```
+DATA_DIR/
+├── db/
+│   └── vault.db        ← your database (all firearms, accessories, sessions)
+└── uploads/
+    └── ...             ← uploaded images and documents
+```
+
+By default this is `./data` inside the project folder. You can change it to any absolute path (e.g. `/home/yourname/blackvault-data`) by editing `.env` before first run.
+
+### Backing up your data
+
+Copy the entire `DATA_DIR` folder to a safe location:
+
+```bash
+cp -r ./data ~/blackvault-backup-$(date +%Y%m%d)
+```
+
+### Updating without losing data
+
+Run `./update.sh` (Mac/Linux) or `update.bat` (Windows). The update script:
+1. Checks your database exists at the configured location before rebuilding
+2. Warns you if it detects a path mismatch (so you never boot into an empty app)
+3. Rebuilds the image and restarts
+
+Your data directory is never touched during an update.
+
+### Moving to a new machine
+
+1. Copy your entire `DATA_DIR` to the new machine
+2. Clone the BlackVault repo on the new machine
+3. Run `install.sh` / `install.bat` — it will ask for the data directory; point it at your copied folder
+
+### If two data directories exist
+
+This can happen if you ran `docker compose up` from different directories. Both databases still exist — no data was deleted. To recover:
+
+1. Open `data/db/vault.db` and `~/.blackvault/db/vault.db` (or wherever) with [DB Browser for SQLite](https://sqlitebrowser.org/) to see which has your real data
+2. Set `DATA_DIR` in `.env` to the correct path
+3. Run `docker compose up -d` — it will use that path going forward
 
 ---
 
