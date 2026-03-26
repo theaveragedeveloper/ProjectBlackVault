@@ -30,6 +30,22 @@ A self-hosted, local-only web app for tracking firearms, accessories, and range 
 
 ---
 
+## Recommended Setup (Setup Wizard)
+
+The setup wizard handles everything automatically — data directory, port, and startup.
+
+**Mac / Linux:**
+```bash
+chmod +x install.sh && ./install.sh
+```
+
+**Windows:**
+Double-click `install.bat` or run it from Command Prompt.
+
+The wizard will ask where to store your data and what port to use, then build and start BlackVault automatically.
+
+---
+
 ## Quick Start (Docker)
 
 **Requirements:** [Docker](https://docs.docker.com/get-docker/) installed on your machine.

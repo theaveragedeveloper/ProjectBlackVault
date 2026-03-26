@@ -74,6 +74,7 @@ export async function POST(request: NextRequest) {
       name,
       manufacturer,
       model,
+      serialNumber,
       type,
       caliber,
       purchasePrice,
@@ -87,6 +88,7 @@ export async function POST(request: NextRequest) {
       batteryType,
       lastBatteryChangeDate,
       replacementIntervalDays,
+      initialRoundCount,
     } = body;
 
     const normalizedName = normalizeString(name);
@@ -102,6 +104,7 @@ export async function POST(request: NextRequest) {
         name: normalizedName,
         manufacturer: normalizeString(manufacturer) || "Unknown",
         model: normalizeString(model) || null,
+        serialNumber: normalizeString(serialNumber) || null,
         type: normalizeString(type) || "UNSPECIFIED",
         caliber: caliber ?? null,
         purchasePrice: purchasePrice ?? null,
@@ -115,8 +118,23 @@ export async function POST(request: NextRequest) {
         batteryType: batteryType ?? null,
         lastBatteryChangeDate: lastBatteryChangeDate ? new Date(lastBatteryChangeDate) : null,
         replacementIntervalDays: replacementIntervalDays ?? null,
+        roundCount: initialRoundCount ? Math.floor(Number(initialRoundCount)) : 0,
       },
     });
+
+    // If initial round count was set, create a log entry for traceability
+    const parsedInitialRounds = initialRoundCount ? Math.floor(Number(initialRoundCount)) : 0;
+    if (parsedInitialRounds > 0) {
+      await prisma.roundCountLog.create({
+        data: {
+          accessoryId: accessory.id,
+          roundsAdded: parsedInitialRounds,
+          previousCount: 0,
+          newCount: parsedInitialRounds,
+          sessionNote: "Initial round count logged at time of vault entry.",
+        },
+      });
+    }
 
     revalidateDashboardData();
 
