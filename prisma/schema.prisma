@@ -294,6 +294,7 @@ model AppSettings {
   manualLanHost           String?
   defaultCurrency         String   @default("USD")
   appPassword             String?
+  defaultAmmoAlertThreshold Int?
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 }
