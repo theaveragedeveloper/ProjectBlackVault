@@ -454,6 +454,11 @@ export default function AmmoPage() {
                                     Alert at {formatNumber(stock.lowStockAlert)} rds
                                   </p>
                                 )}
+                                {stock.lowStockAlert === null && (
+                                  <span className="text-xs text-vault-text-muted flex items-center gap-1 mt-0.5 ml-3.5">
+                                    <span>⚠</span> No alert set
+                                  </span>
+                                )}
                               </div>
                               <div className="text-right shrink-0">
                                 <p className={`text-base font-bold font-mono ${tc}`}>
