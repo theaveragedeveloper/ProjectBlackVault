@@ -58,7 +58,6 @@ export default function EditFirearmPage() {
   const [compatCaliberTags, setCompatCaliberTags] = useState<string[]>([]);
   const [compatCaliberInput, setCompatCaliberInput] = useState("");
   const [compatCaliberDropdownOpen, setCompatCaliberDropdownOpen] = useState(false);
-  const compatCaliberRef = useRef<HTMLDivElement>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const caliberRef = useRef<HTMLDivElement>(null);
 
@@ -346,7 +345,7 @@ export default function EditFirearmPage() {
                   ))}
                 </div>
               )}
-              <div className="relative" ref={compatCaliberRef}>
+              <div className="relative">
                 <input
                   type="text"
                   value={compatCaliberInput}
@@ -357,6 +356,11 @@ export default function EditFirearmPage() {
                   onFocus={() => setCompatCaliberDropdownOpen(true)}
                   onBlur={() => setTimeout(() => setCompatCaliberDropdownOpen(false), 150)}
                   onKeyDown={(e) => {
+                    if (e.key === "Backspace" && compatCaliberInput === "") {
+                      e.preventDefault();
+                      setCompatCaliberTags(prev => prev.slice(0, -1));
+                      return;
+                    }
                     if ((e.key === "Enter" || e.key === ",") && compatCaliberInput.trim()) {
                       e.preventDefault();
                       const val = compatCaliberInput.trim().replace(/,$/, "");

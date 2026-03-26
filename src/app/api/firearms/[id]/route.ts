@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { revalidateDashboardData } from "@/lib/dashboard/revalidate-dashboard";
+import { decryptField } from "@/lib/crypto";
 
 
 function normalizeString(value: unknown) {
@@ -46,7 +47,7 @@ export async function GET(
 
     return NextResponse.json({
       ...firearm,
-      serialNumber: firearm.serialNumber,
+      serialNumber: decryptField(firearm.serialNumber),
       notes: firearm.notes,
       buildCount: firearm._count.builds,
       activeBuild,
@@ -100,7 +101,11 @@ export async function PUT(
         ...(manufacturer !== undefined && { manufacturer: normalizeString(manufacturer) || "Unknown" }),
         ...(model !== undefined && { model: normalizeString(model) || "Unknown" }),
         ...(caliber !== undefined && { caliber: normalizeString(caliber) || "Unknown" }),
-        ...(compatibleCalibers !== undefined && { compatibleCalibers: compatibleCalibers ? normalizeString(compatibleCalibers) : null }),
+        ...(compatibleCalibers !== undefined && {
+          compatibleCalibers: compatibleCalibers
+            ? compatibleCalibers.split(",").map((s: string) => s.trim()).filter(Boolean).join(",") || null
+            : null,
+        }),
         ...(serialNumber !== undefined && { serialNumber: normalizeString(serialNumber) || fallbackSerialNumber() }),
         ...(type !== undefined && { type: normalizeString(type) || "UNSPECIFIED" }),
         ...(acquisitionDate !== undefined && {
