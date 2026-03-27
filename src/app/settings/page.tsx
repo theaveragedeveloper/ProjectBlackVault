@@ -20,6 +20,7 @@ export default function SettingsPage() {
   const [autoBackupCadence, setAutoBackupCadence] = useState<"daily" | "weekly" | "monthly">("weekly");
   const [backupDestinationPath, setBackupDestinationPath] = useState("");
   const [manualLanHost, setManualLanHost] = useState("");
+  const [defaultAmmoAlertThreshold, setDefaultAmmoAlertThreshold] = useState<string>("");
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -52,6 +53,9 @@ export default function SettingsPage() {
           setAutoBackupCadence(data.autoBackupCadence ?? "weekly");
           setBackupDestinationPath(data.backupDestinationPath ?? "");
           setManualLanHost(data.manualLanHost ?? "");
+          setDefaultAmmoAlertThreshold(
+            data.defaultAmmoAlertThreshold != null ? String(data.defaultAmmoAlertThreshold) : ""
+          );
         }
         setDataLoading(false);
       })
@@ -100,6 +104,17 @@ export default function SettingsPage() {
     setSaveSuccess(false);
     setSaving(true);
 
+    const trimmedThreshold = defaultAmmoAlertThreshold.trim();
+    let parsedThreshold: number | null = null;
+    if (trimmedThreshold !== "") {
+      parsedThreshold = Number.parseInt(trimmedThreshold, 10);
+      if (Number.isNaN(parsedThreshold) || parsedThreshold < 0) {
+        setSaveError("Alert threshold must be a non-negative whole number.");
+        setSaving(false);
+        return;
+      }
+    }
+
     try {
       const res = await fetch("/api/settings", {
         method: "PUT",
@@ -110,17 +125,18 @@ export default function SettingsPage() {
           autoBackupCadence,
           backupDestinationPath,
           manualLanHost,
+          defaultAmmoAlertThreshold: parsedThreshold,
         }),
       });
 
       if (!res.ok) {
-        setSaveError("Could not save mobile access settings. Please try again.");
+        setSaveError("Could not save settings. Please try again.");
       } else {
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 3000);
       }
     } catch {
-      setSaveError("Could not save mobile access settings. Please try again.");
+      setSaveError("Could not save settings. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -502,6 +518,27 @@ export default function SettingsPage() {
               </div>
             )}
           </div>
+        </SectionCard>
+
+        <SectionCard
+          title="Ammunition"
+          description="Default behavior for new ammo stocks."
+        >
+          <FormField
+            label="Default Low Stock Alert Threshold"
+            hint="New ammo stocks will automatically get this alert threshold when created"
+          >
+            <input
+              id="defaultAmmoAlertThreshold"
+              type="number"
+              min={0}
+              step={1}
+              value={defaultAmmoAlertThreshold}
+              onChange={(e) => setDefaultAmmoAlertThreshold(e.target.value)}
+              className={INPUT_CLASS}
+              placeholder="e.g. 200 (leave blank for none)"
+            />
+          </FormField>
         </SectionCard>
 
         <SectionCard

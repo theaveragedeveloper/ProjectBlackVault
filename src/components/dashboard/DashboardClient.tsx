@@ -107,33 +107,56 @@ function addDays(date: Date, days: number) {
   return next;
 }
 
+const UPCOMING_MS = 30 * 24 * 60 * 60 * 1000;
+
+interface MaintenanceDueItemWithDue extends MaintenanceDueItem {
+  dueDate: Date;
+}
+
+interface BatteryDueItemWithDue extends BatteryDueItem {
+  dueDate: Date;
+}
+
 function MaintenanceDueWidget() {
-  const [items, setItems] = useState<MaintenanceDueItem[]>([]);
-  const [batteryItems, setBatteryItems] = useState<BatteryDueItem[]>([]);
+  const [overdueFirearms, setOverdueFirearms] = useState<MaintenanceDueItemWithDue[]>([]);
+  const [dueSoonFirearms, setDueSoonFirearms] = useState<MaintenanceDueItemWithDue[]>([]);
+  const [overdueItems, setOverdueItems] = useState<BatteryDueItemWithDue[]>([]);
+  const [dueSoonItems, setDueSoonItems] = useState<BatteryDueItemWithDue[]>([]);
 
   useEffect(() => {
     fetch("/api/firearms", { cache: "no-store" })
       .then((r) => r.json())
       .then((firearms) => {
         const now = new Date();
-        const due = (Array.isArray(firearms) ? firearms : [])
+        const upcoming = new Date(now.getTime() + UPCOMING_MS);
+        const allDue = (Array.isArray(firearms) ? firearms : [])
           .filter((f) => f.lastMaintenanceDate && f.maintenanceIntervalDays)
           .map((f) => ({
             ...f,
             dueDate: addDays(new Date(f.lastMaintenanceDate), Number(f.maintenanceIntervalDays)),
           }))
-          .filter((f) => f.dueDate <= now)
-          .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
-          .slice(0, 8);
-        setItems(due);
+          .filter((f) => f.dueDate <= upcoming)
+          .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+
+        const overdue = allDue.filter((f) => f.dueDate <= now);
+        const dueSoon = allDue.filter((f) => f.dueDate > now);
+        const MAX = 8;
+        const overdueDisplay = overdue.slice(0, MAX);
+        const dueSoonDisplay = dueSoon.slice(0, MAX - overdueDisplay.length);
+        setOverdueFirearms(overdueDisplay);
+        setDueSoonFirearms(dueSoonDisplay);
       })
-      .catch(() => setItems([]));
+      .catch(() => {
+        setOverdueFirearms([]);
+        setDueSoonFirearms([]);
+      });
 
     fetch("/api/accessories", { cache: "no-store" })
       .then((r) => r.json())
       .then((accessories) => {
         const now = new Date();
-        const due = (Array.isArray(accessories) ? accessories : [])
+        const upcoming = new Date(now.getTime() + UPCOMING_MS);
+        const allDue = (Array.isArray(accessories) ? accessories : [])
           .filter(
             (a) =>
               a.hasBattery === true &&
@@ -144,13 +167,26 @@ function MaintenanceDueWidget() {
             ...a,
             dueDate: addDays(new Date(a.lastBatteryChangeDate), Number(a.replacementIntervalDays)),
           }))
-          .filter((a) => a.dueDate <= now)
-          .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
-          .slice(0, 8);
-        setBatteryItems(due);
+          .filter((a) => a.dueDate <= upcoming)
+          .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+
+        const overdue = allDue.filter((a) => a.dueDate <= now);
+        const dueSoon = allDue.filter((a) => a.dueDate > now);
+        const MAX = 8;
+        const overdueDisplay = overdue.slice(0, MAX);
+        const dueSoonDisplay = dueSoon.slice(0, MAX - overdueDisplay.length);
+        setOverdueItems(overdueDisplay);
+        setDueSoonItems(dueSoonDisplay);
       })
-      .catch(() => setBatteryItems([]));
+      .catch(() => {
+        setOverdueItems([]);
+        setDueSoonItems([]);
+      });
   }, []);
+
+  const hasFirearmItems = overdueFirearms.length > 0 || dueSoonFirearms.length > 0;
+  const hasBatteryItems = overdueItems.length > 0 || dueSoonItems.length > 0;
+  const renderNow = Date.now();
 
   return (
     <section>
@@ -161,30 +197,63 @@ function MaintenanceDueWidget() {
         </h2>
       </div>
       <div className="bg-vault-surface border border-vault-border rounded-lg overflow-hidden">
-        {items.length === 0 ? (
+        {!hasFirearmItems ? (
           <div className="p-8 text-center">
             <p className="text-sm text-vault-text-muted">No firearms currently due for maintenance</p>
           </div>
         ) : (
           <div className="divide-y divide-vault-border">
-            {items.map((item) => (
-              <Link
-                key={item.id}
-                href={`/vault/${item.id}`}
-                className="flex items-center justify-between px-4 py-3 hover:bg-vault-surface-2 transition-colors"
-              >
-                <div>
-                  <p className="text-sm font-semibold text-vault-text">{item.name}</p>
-                  <p className="text-xs text-vault-text-muted">{item.manufacturer} · {item.model}</p>
+            {overdueFirearms.length > 0 && (
+              <>
+                <div className="px-4 py-1.5 bg-[#E53935]/5">
+                  <span className="text-[10px] font-semibold tracking-widest uppercase text-[#E53935]/70">Overdue</span>
                 </div>
-                <span className="text-xs text-[#E53935] font-mono">Due</span>
-              </Link>
-            ))}
+                {overdueFirearms.map((item) => {
+                  const daysOverdue = Math.ceil((renderNow - item.dueDate.getTime()) / 86400000);
+                  return (
+                    <Link
+                      key={item.id}
+                      href={`/vault/${item.id}`}
+                      className="flex items-center justify-between px-4 py-3 hover:bg-vault-surface-2 transition-colors"
+                    >
+                      <div>
+                        <p className="text-sm font-semibold text-vault-text">{item.name}</p>
+                        <p className="text-xs text-vault-text-muted">{item.manufacturer} · {item.model}</p>
+                      </div>
+                      <span className="text-xs text-[#E53935] font-mono">{daysOverdue}d overdue</span>
+                    </Link>
+                  );
+                })}
+              </>
+            )}
+            {dueSoonFirearms.length > 0 && (
+              <>
+                <div className="px-4 py-1.5 bg-yellow-400/5">
+                  <span className="text-[10px] font-semibold tracking-widest uppercase text-yellow-400/70">Due Soon</span>
+                </div>
+                {dueSoonFirearms.map((item) => {
+                  const daysUntil = Math.ceil((item.dueDate.getTime() - renderNow) / 86400000);
+                  return (
+                    <Link
+                      key={item.id}
+                      href={`/vault/${item.id}`}
+                      className="flex items-center justify-between px-4 py-3 hover:bg-vault-surface-2 transition-colors"
+                    >
+                      <div>
+                        <p className="text-sm font-semibold text-vault-text">{item.name}</p>
+                        <p className="text-xs text-vault-text-muted">{item.manufacturer} · {item.model}</p>
+                      </div>
+                      <span className="text-xs text-yellow-400 font-mono">Due in {daysUntil}d</span>
+                    </Link>
+                  );
+                })}
+              </>
+            )}
           </div>
         )}
       </div>
 
-      {batteryItems.length > 0 && (
+      {hasBatteryItems && (
         <>
           <div className="flex items-center gap-2 mt-5 mb-3">
             <Clock className="w-4 h-4 text-[#F5A623]" />
@@ -194,22 +263,58 @@ function MaintenanceDueWidget() {
           </div>
           <div className="bg-vault-surface border border-vault-border rounded-lg overflow-hidden">
             <div className="divide-y divide-vault-border">
-              {batteryItems.map((item) => (
-                <Link
-                  key={item.id}
-                  href={`/accessories`}
-                  className="flex items-center justify-between px-4 py-3 hover:bg-vault-surface-2 transition-colors"
-                >
-                  <div>
-                    <p className="text-sm font-semibold text-vault-text">{item.name}</p>
-                    <p className="text-xs text-vault-text-muted">
-                      {item.manufacturer} · {item.model}
-                      {item.batteryType ? ` — ${item.batteryType}` : ""}
-                    </p>
+              {overdueItems.length > 0 && (
+                <>
+                  <div className="px-4 py-1.5 bg-[#E53935]/5">
+                    <span className="text-[10px] font-semibold tracking-widest uppercase text-[#E53935]/70">Overdue</span>
                   </div>
-                  <span className="text-xs text-[#F5A623] font-mono">Due</span>
-                </Link>
-              ))}
+                  {overdueItems.map((item) => {
+                    const daysOverdue = Math.ceil((renderNow - item.dueDate.getTime()) / 86400000);
+                    return (
+                      <Link
+                        key={item.id}
+                        href={`/accessories`}
+                        className="flex items-center justify-between px-4 py-3 hover:bg-vault-surface-2 transition-colors"
+                      >
+                        <div>
+                          <p className="text-sm font-semibold text-vault-text">{item.name}</p>
+                          <p className="text-xs text-vault-text-muted">
+                            {item.manufacturer} · {item.model}
+                            {item.batteryType ? ` — ${item.batteryType}` : ""}
+                          </p>
+                        </div>
+                        <span className="text-xs text-[#E53935] font-mono">{daysOverdue}d overdue</span>
+                      </Link>
+                    );
+                  })}
+                </>
+              )}
+              {dueSoonItems.length > 0 && (
+                <>
+                  <div className="px-4 py-1.5 bg-yellow-400/5">
+                    <span className="text-[10px] font-semibold tracking-widest uppercase text-yellow-400/70">Due Soon</span>
+                  </div>
+                  {dueSoonItems.map((item) => {
+                    const daysUntil = Math.ceil((item.dueDate.getTime() - renderNow) / 86400000);
+                    return (
+                      <Link
+                        key={item.id}
+                        href={`/accessories`}
+                        className="flex items-center justify-between px-4 py-3 hover:bg-vault-surface-2 transition-colors"
+                      >
+                        <div>
+                          <p className="text-sm font-semibold text-vault-text">{item.name}</p>
+                          <p className="text-xs text-vault-text-muted">
+                            {item.manufacturer} · {item.model}
+                            {item.batteryType ? ` — ${item.batteryType}` : ""}
+                          </p>
+                        </div>
+                        <span className="text-xs text-yellow-400 font-mono">Due in {daysUntil}d</span>
+                      </Link>
+                    );
+                  })}
+                </>
+              )}
             </div>
           </div>
         </>

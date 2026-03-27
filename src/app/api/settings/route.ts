@@ -61,6 +61,7 @@ export async function GET() {
       backupDestinationPath: settings.backupDestinationPath,
       manualLanHost: settings.manualLanHost,
       defaultCurrency: settings.defaultCurrency,
+      defaultAmmoAlertThreshold: settings.defaultAmmoAlertThreshold,
       createdAt: settings.createdAt,
       updatedAt: settings.updatedAt,
     };
@@ -96,6 +97,7 @@ export async function PUT(request: NextRequest) {
       backupDestinationPath,
       manualLanHost,
       defaultCurrency,
+      defaultAmmoAlertThreshold,
     } = body;
 
     const updateData: Record<string, unknown> = {};
@@ -172,6 +174,21 @@ export async function PUT(request: NextRequest) {
       updateData.manualLanHost = normalized || null;
     }
 
+    if (defaultAmmoAlertThreshold !== undefined) {
+      if (defaultAmmoAlertThreshold === null) {
+        updateData.defaultAmmoAlertThreshold = null;
+      } else {
+        const parsed = Number.parseInt(String(defaultAmmoAlertThreshold), 10);
+        if (!Number.isFinite(parsed) || parsed < 0) {
+          return NextResponse.json(
+            { error: "defaultAmmoAlertThreshold must be a non-negative integer or null." },
+            { status: 400 }
+          );
+        }
+        updateData.defaultAmmoAlertThreshold = parsed;
+      }
+    }
+
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(
         { error: "No valid settings fields provided." },
@@ -196,6 +213,7 @@ export async function PUT(request: NextRequest) {
       backupDestinationPath: settings.backupDestinationPath,
       manualLanHost: settings.manualLanHost,
       defaultCurrency: settings.defaultCurrency,
+      defaultAmmoAlertThreshold: settings.defaultAmmoAlertThreshold,
       createdAt: settings.createdAt,
       updatedAt: settings.updatedAt,
     };

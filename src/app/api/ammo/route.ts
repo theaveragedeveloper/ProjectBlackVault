@@ -83,6 +83,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    let resolvedLowStockAlert: number | null = lowStockAlert ?? null;
+    if (resolvedLowStockAlert == null) {
+      const settings = await prisma.appSettings.findUnique({ where: { id: "singleton" } });
+      resolvedLowStockAlert = settings?.defaultAmmoAlertThreshold ?? null;
+    }
+
     const stock = await prisma.ammoStock.create({
       data: {
         caliber,
@@ -94,7 +100,7 @@ export async function POST(request: NextRequest) {
         pricePerRound: pricePerRound ?? null,
         purchaseDate: purchaseDate ? new Date(purchaseDate) : null,
         storageLocation: storageLocation ?? null,
-        lowStockAlert: lowStockAlert ?? null,
+        lowStockAlert: resolvedLowStockAlert,
         notes: notes ?? null,
       },
       include: {
