@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { SLOT_TYPES, SLOT_TYPE_LABELS, COMMON_CALIBERS } from "@/lib/types";
 import ImagePicker from "@/components/shared/ImagePicker";
+import { HelpTip } from "@/components/shared/HelpTip";
 import { ArrowLeft, Plus, Loader2, AlertCircle } from "lucide-react";
 
 const INPUT_CLASS =
@@ -37,6 +38,7 @@ export default function NewAccessoryPage() {
       name: data.get("name") as string,
       manufacturer: data.get("manufacturer") as string,
       model: (data.get("model") as string) || null,
+      serialNumber: (data.get("serialNumber") as string) || null,
       type: data.get("type") as string,
       caliber: caliberInput || null,
       acquisitionDate: (data.get("acquisitionDate") as string) || null,
@@ -51,6 +53,7 @@ export default function NewAccessoryPage() {
         Number.isFinite(parsedReplacementInterval) && parsedReplacementInterval > 0
           ? parsedReplacementInterval
           : null,
+      initialRoundCount: data.get("initialRoundCount") ? Number(data.get("initialRoundCount")) : null,
     };
 
     try {
@@ -153,6 +156,19 @@ export default function NewAccessoryPage() {
               </div>
             </div>
 
+            <div>
+              <label htmlFor="serialNumber" className={LABEL_CLASS}>
+                Serial Number
+              </label>
+              <input
+                id="serialNumber"
+                name="serialNumber"
+                type="text"
+                placeholder="e.g. SN-12345 (optional)"
+                className={`${INPUT_CLASS} font-mono`}
+              />
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="type" className={LABEL_CLASS}>
@@ -170,7 +186,10 @@ export default function NewAccessoryPage() {
 
               {/* Caliber (optional) */}
               <div>
-                <label className={LABEL_CLASS}>Caliber</label>
+                <label className={LABEL_CLASS}>
+                  Caliber
+                  <HelpTip text="Calibers this accessory works with. Used to filter compatible accessories when building a loadout." />
+                </label>
                 <div className="relative">
                   <input
                     type="text"
@@ -180,7 +199,7 @@ export default function NewAccessoryPage() {
                       setCaliberDropdownOpen(true);
                     }}
                     onFocus={() => setCaliberDropdownOpen(true)}
-                    onBlur={() => setTimeout(() => setCaliberDropdownOpen(false), 150)}
+                    onBlur={() => setCaliberDropdownOpen(false)}
                     placeholder="e.g. 5.56x45mm"
                     className={INPUT_CLASS}
                   />
@@ -190,6 +209,7 @@ export default function NewAccessoryPage() {
                         <button
                           key={c}
                           type="button"
+                          onPointerDown={(e) => e.preventDefault()}
                           onClick={() => {
                             setCaliberInput(c);
                             setCaliberDropdownOpen(false);
@@ -245,6 +265,28 @@ export default function NewAccessoryPage() {
           </fieldset>
 
 
+
+          {/* Prior Use */}
+          <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
+            <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
+              Prior Use
+            </legend>
+            <div>
+              <label htmlFor="initialRoundCount" className={LABEL_CLASS}>
+                Existing Round Count
+                <HelpTip text="If this accessory has already been used, enter the approximate round count. This will be set as the starting round count." />
+              </label>
+              <input
+                id="initialRoundCount"
+                name="initialRoundCount"
+                type="number"
+                min="0"
+                step="1"
+                placeholder="e.g. 500 (leave blank if new)"
+                className={INPUT_CLASS}
+              />
+            </div>
+          </fieldset>
 
           {/* Battery Tracking */}
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">

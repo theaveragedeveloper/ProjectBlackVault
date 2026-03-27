@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Archive, Copy, Download, Files, Settings } from "lucide-react";
+import { Archive, Copy, Download, Files, HardDriveDownload, RotateCcw, Settings, Upload } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SectionCard } from "@/components/shared/SectionCard";
 import { StatusMessage } from "@/components/shared/StatusMessage";
@@ -20,6 +20,7 @@ export default function SettingsPage() {
   const [autoBackupCadence, setAutoBackupCadence] = useState<"daily" | "weekly" | "monthly">("weekly");
   const [backupDestinationPath, setBackupDestinationPath] = useState("");
   const [manualLanHost, setManualLanHost] = useState("");
+  const [defaultAmmoAlertThreshold, setDefaultAmmoAlertThreshold] = useState<string>("");
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -27,7 +28,18 @@ export default function SettingsPage() {
 
   const [localIp, setLocalIp] = useState<string | null>(null);
   const [localPort, setLocalPort] = useState("3000");
+  const [isDocker, setIsDocker] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string>("");
+
+  const [backupStatus, setBackupStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [backupResult, setBackupResult] = useState<{ filename: string; savedToPath?: string; sizeMB: string } | null>(null);
+  const [backupError, setBackupError] = useState<string | null>(null);
+  const [restoreStatus, setRestoreStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [restoreError, setRestoreError] = useState<string | null>(null);
+  const [pendingRestoreFile, setPendingRestoreFile] = useState<File | null>(null);
+  const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
+  const [restoreCounts, setRestoreCounts] = useState<Record<string, number> | null>(null);
 
   useEffect(() => {
     fetch("/api/settings")
@@ -41,6 +53,9 @@ export default function SettingsPage() {
           setAutoBackupCadence(data.autoBackupCadence ?? "weekly");
           setBackupDestinationPath(data.backupDestinationPath ?? "");
           setManualLanHost(data.manualLanHost ?? "");
+          setDefaultAmmoAlertThreshold(
+            data.defaultAmmoAlertThreshold != null ? String(data.defaultAmmoAlertThreshold) : ""
+          );
         }
         setDataLoading(false);
       })
@@ -56,6 +71,7 @@ export default function SettingsPage() {
       .then((data) => {
         setLocalIp(data.ip ?? null);
         setLocalPort(data.port ?? "3000");
+        setIsDocker(data.isDocker ?? false);
       })
       .catch(() => {
         setLocalIp(null);
@@ -66,6 +82,16 @@ export default function SettingsPage() {
   const manualHost = manualLanHost.trim();
   const computedHost = manualHost || localIp || "";
   const finalLanUrl = computedHost ? `http://${computedHost}:${localPort}` : "";
+
+  useEffect(() => {
+    if (finalLanUrl) {
+      import("qrcode").then((QRCode) => {
+        QRCode.toDataURL(finalLanUrl, { width: 160, margin: 2 }).then(setQrDataUrl).catch(() => {});
+      });
+    } else {
+      setQrDataUrl("");
+    }
+  }, [finalLanUrl]);
   const lanStatusLabel = manualHost
     ? "Using your saved Mobile Access Host/IP"
     : localIp
@@ -78,6 +104,17 @@ export default function SettingsPage() {
     setSaveSuccess(false);
     setSaving(true);
 
+    const trimmedThreshold = defaultAmmoAlertThreshold.trim();
+    let parsedThreshold: number | null = null;
+    if (trimmedThreshold !== "") {
+      parsedThreshold = Number.parseInt(trimmedThreshold, 10);
+      if (Number.isNaN(parsedThreshold) || parsedThreshold < 0) {
+        setSaveError("Alert threshold must be a non-negative whole number.");
+        setSaving(false);
+        return;
+      }
+    }
+
     try {
       const res = await fetch("/api/settings", {
         method: "PUT",
@@ -88,17 +125,18 @@ export default function SettingsPage() {
           autoBackupCadence,
           backupDestinationPath,
           manualLanHost,
+          defaultAmmoAlertThreshold: parsedThreshold,
         }),
       });
 
       if (!res.ok) {
-        setSaveError("Could not save mobile access settings. Please try again.");
+        setSaveError("Could not save settings. Please try again.");
       } else {
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 3000);
       }
     } catch {
-      setSaveError("Could not save mobile access settings. Please try again.");
+      setSaveError("Could not save settings. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -113,6 +151,80 @@ export default function SettingsPage() {
       setTimeout(() => setCopySuccess(false), 2000);
     } catch {
       setCopySuccess(false);
+    }
+  }
+
+  async function handleBackupNow() {
+    setBackupStatus("loading");
+    setBackupError(null);
+    setBackupResult(null);
+    try {
+      const res = await fetch("/api/backup", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        setBackupStatus("error");
+        setBackupError(json.error ?? "Backup failed.");
+        return;
+      }
+      const filename = json.filename as string;
+      const blob = new Blob([JSON.stringify({ meta: json.meta, ...json.data }, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setBackupResult({ filename, savedToPath: json.savedToPath, sizeMB: json.sizeMB });
+      setBackupStatus("success");
+      setTimeout(() => { setBackupStatus("idle"); setBackupResult(null); }, 8000);
+    } catch {
+      setBackupStatus("error");
+      setBackupError("Network error. Could not reach the backup endpoint.");
+    }
+  }
+
+  function handleRestoreFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setPendingRestoreFile(e.target.files?.[0] ?? null);
+    setShowRestoreConfirm(false);
+    setRestoreStatus("idle");
+    setRestoreError(null);
+    setRestoreCounts(null);
+  }
+
+  async function handleRestoreConfirm() {
+    if (!pendingRestoreFile) return;
+    setShowRestoreConfirm(false);
+    setRestoreStatus("loading");
+    setRestoreError(null);
+    try {
+      const text = await pendingRestoreFile.text();
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        setRestoreStatus("error");
+        setRestoreError("The selected file is not valid JSON. Please select a .json backup file.");
+        return;
+      }
+      const res = await fetch("/api/backup/restore", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(parsed),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        setRestoreStatus("error");
+        setRestoreError(json.error ?? "Restore failed. Your data was not modified.");
+        return;
+      }
+      setRestoreCounts(json.counts);
+      setRestoreStatus("success");
+      setPendingRestoreFile(null);
+    } catch {
+      setRestoreStatus("error");
+      setRestoreError("Network error during restore.");
     }
   }
 
@@ -198,7 +310,7 @@ export default function SettingsPage() {
 
             <FormField
               label="Preferred Backup Destination Path"
-              hint="Saved as a reference path for your backup process. Exports are still downloaded through your browser in V1."
+              hint="If set, Backup Now will also save the file here on the server in addition to downloading it."
             >
               <input
                 id="backupDestinationPath"
@@ -208,7 +320,130 @@ export default function SettingsPage() {
                 className={INPUT_CLASS}
                 placeholder="/srv/blackvault/backups or D:\\Backups\\BlackVault"
               />
+              <p className="mt-1 text-xs text-vault-text-muted">
+                When running in Docker, this path must be inside a mounted volume (e.g.{" "}
+                <span className="font-mono">/app/data/backups</span>).
+              </p>
             </FormField>
+
+            {/* Backup Now */}
+            <div className="rounded-lg border border-vault-border bg-vault-bg p-4 flex flex-col gap-3">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium text-vault-text">Backup Now</p>
+                  <p className="mt-0.5 text-xs text-vault-text-muted">
+                    Downloads a complete JSON backup of all vault data.
+                    {backupDestinationPath && " Also saves to your configured destination."}
+                  </p>
+                </div>
+                <StandardButton
+                  type="button"
+                  variant="primary"
+                  onClick={handleBackupNow}
+                  disabled={backupStatus === "loading"}
+                  loading={backupStatus === "loading"}
+                  loadingLabel="Backing up…"
+                  icon={<HardDriveDownload className="h-4 w-4" />}
+                >
+                  Backup Now
+                </StandardButton>
+              </div>
+              {backupStatus === "success" && backupResult && (
+                <div className="rounded-md border border-[#00C853]/30 bg-[#00C853]/10 px-3 py-2 flex flex-col gap-0.5">
+                  <p className="text-xs font-medium text-[#00C853]">Backup complete</p>
+                  <p className="font-mono text-xs text-[#00C853]/80">{backupResult.filename}</p>
+                  <p className="text-xs text-[#00C853]/70">{backupResult.sizeMB} MB</p>
+                  {backupResult.savedToPath && (
+                    <p className="text-xs text-[#00C853]/70">
+                      Also saved to: <span className="font-mono">{backupResult.savedToPath}</span>
+                    </p>
+                  )}
+                </div>
+              )}
+              {backupStatus === "error" && backupError && (
+                <StatusMessage tone="error" message={backupError} />
+              )}
+            </div>
+
+            {/* Restore from Backup */}
+            <div className="rounded-lg border border-vault-border bg-vault-bg p-4 flex flex-col gap-3">
+              <div>
+                <p className="text-sm font-medium text-vault-text">Restore from Backup</p>
+                <p className="mt-0.5 text-xs text-vault-text-muted">
+                  Replaces ALL current data with the contents of a backup file. This cannot be undone.
+                </p>
+              </div>
+              <div className="flex items-center gap-3 flex-wrap">
+                <label
+                  htmlFor="restore-file-input"
+                  className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-vault-border bg-vault-surface px-3 py-2 text-sm text-vault-text-muted hover:text-vault-text transition-colors"
+                >
+                  <Upload className="h-4 w-4" />
+                  {pendingRestoreFile ? pendingRestoreFile.name : "Choose .json backup file"}
+                </label>
+                <input
+                  id="restore-file-input"
+                  type="file"
+                  accept=".json,application/json"
+                  className="sr-only"
+                  onChange={handleRestoreFileChange}
+                />
+                {pendingRestoreFile && !showRestoreConfirm && restoreStatus === "idle" && (
+                  <StandardButton
+                    type="button"
+                    variant="danger"
+                    onClick={() => setShowRestoreConfirm(true)}
+                    icon={<RotateCcw className="h-4 w-4" />}
+                  >
+                    Restore
+                  </StandardButton>
+                )}
+              </div>
+              {showRestoreConfirm && pendingRestoreFile && (
+                <div className="rounded-lg border border-[#E53935]/30 bg-[#E53935]/10 p-3 flex flex-col gap-2">
+                  <p className="text-sm font-medium text-[#E53935]">
+                    This will wipe all current data and replace it with the backup. Are you sure?
+                  </p>
+                  <p className="text-xs text-[#E53935]/70">File: {pendingRestoreFile.name}</p>
+                  <p className="text-xs text-[#E53935]/70">Do not navigate away while restore is in progress.</p>
+                  <div className="flex gap-2">
+                    <StandardButton
+                      type="button"
+                      variant="danger"
+                      onClick={handleRestoreConfirm}
+                      disabled={restoreStatus === "loading"}
+                      loading={restoreStatus === "loading"}
+                      loadingLabel="Restoring…"
+                      icon={<RotateCcw className="h-4 w-4" />}
+                    >
+                      Yes, Restore
+                    </StandardButton>
+                    <StandardButton
+                      type="button"
+                      variant="secondary"
+                      onClick={() => { setShowRestoreConfirm(false); setPendingRestoreFile(null); }}
+                    >
+                      Cancel
+                    </StandardButton>
+                  </div>
+                </div>
+              )}
+              {restoreStatus === "loading" && (
+                <p className="text-xs text-vault-text-muted">Restoring data, please wait…</p>
+              )}
+              {restoreStatus === "success" && restoreCounts && (
+                <div className="rounded-md border border-[#00C853]/30 bg-[#00C853]/10 px-3 py-2 flex flex-col gap-0.5">
+                  <p className="text-xs font-medium text-[#00C853]">Restore complete. Data has been replaced.</p>
+                  <p className="text-xs text-[#00C853]/70">
+                    {restoreCounts.firearms ?? 0} firearms · {restoreCounts.accessories ?? 0} accessories ·{" "}
+                    {restoreCounts.ammoStocks ?? 0} ammo stocks · {restoreCounts.rangeSessions ?? 0} range sessions
+                  </p>
+                </div>
+              )}
+              {restoreStatus === "error" && restoreError && (
+                <StatusMessage tone="error" message={restoreError} />
+              )}
+            </div>
           </div>
         </SectionCard>
 
@@ -231,6 +466,16 @@ export default function SettingsPage() {
               />
               <p className="mt-2 text-xs text-vault-text-muted">Example: 192.168.1.74 (recommended: reserve this IP in your router)</p>
             </FormField>
+
+            {isDocker && !manualHost && (
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-400">
+                <p className="font-medium mb-1">Running in Docker — auto-detection unavailable</p>
+                <p className="text-xs text-amber-400/80">
+                  Enter your host machine&apos;s LAN IP above (e.g. <span className="font-mono">192.168.1.100</span>).
+                  Find it with <span className="font-mono">ipconfig</span> (Windows) or <span className="font-mono">ifconfig</span> / <span className="font-mono">ip a</span> (Mac/Linux).
+                </p>
+              </div>
+            )}
 
             {finalLanUrl ? (
               <div className="rounded-lg border border-vault-border bg-vault-bg p-3">
@@ -265,7 +510,35 @@ export default function SettingsPage() {
                 </StandardButton>
               </div>
             ) : null}
+
+            {qrDataUrl && (
+              <div className="flex flex-col items-center gap-2 mt-4">
+                <img src={qrDataUrl} alt="QR code for mobile access" width={160} height={160} className="rounded-lg" />
+                <p className="text-xs text-vault-text-faint">Scan to open on your phone</p>
+              </div>
+            )}
           </div>
+        </SectionCard>
+
+        <SectionCard
+          title="Ammunition"
+          description="Default behavior for new ammo stocks."
+        >
+          <FormField
+            label="Default Low Stock Alert Threshold"
+            hint="New ammo stocks will automatically get this alert threshold when created"
+          >
+            <input
+              id="defaultAmmoAlertThreshold"
+              type="number"
+              min={0}
+              step={1}
+              value={defaultAmmoAlertThreshold}
+              onChange={(e) => setDefaultAmmoAlertThreshold(e.target.value)}
+              className={INPUT_CLASS}
+              placeholder="e.g. 200 (leave blank for none)"
+            />
+          </FormField>
         </SectionCard>
 
         <SectionCard

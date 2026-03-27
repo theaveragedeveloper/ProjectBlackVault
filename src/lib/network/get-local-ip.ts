@@ -1,4 +1,5 @@
 import os, { NetworkInterfaceInfo } from "os";
+import fs from "fs";
 
 function isPrivateLanIpv4(address: string): boolean {
   if (address.startsWith("169.254.")) return false;
@@ -44,7 +45,16 @@ function interfacePriority(name: string): number {
   return 3;
 }
 
+export function isDockerEnvironment(): boolean {
+  return fs.existsSync("/.dockerenv");
+}
+
 export function getLocalIp(): string | null {
+  // Inside Docker, os.networkInterfaces() only sees the container's network
+  // (e.g. 172.18.x.x on eth0), not the host's LAN IP. Return null so callers
+  // know to ask the user for a manual override.
+  if (isDockerEnvironment()) return null;
+
   const interfaces = os.networkInterfaces();
   const candidates: Array<{ address: string; priority: number; interfacePriority: number }> = [];
 

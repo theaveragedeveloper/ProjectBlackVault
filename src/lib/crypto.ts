@@ -1,52 +1,38 @@
-import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
+/**
+ * crypto.ts — V1: no encryption.
+ * encryptField is a passthrough; decryptField unwraps any legacy enc:... values
+ * from pre-V1 builds so old data stays readable.
+ */
 
-const ALGO = "aes-256-gcm";
+import { createDecipheriv } from "crypto";
+
 const PREFIX = "enc:";
 
-function getKey(): Buffer | null {
-  const hex = process.env.VAULT_ENCRYPTION_KEY;
-  if (!hex) return null;
-  if (hex.length !== 64) {
-    throw new Error(
-      `VAULT_ENCRYPTION_KEY must be 64 hex characters (32 bytes). Got ${hex.length} chars.`
-    );
-  }
-  return Buffer.from(hex, "hex");
-}
-
 export function encryptField(value: string): string {
-  const key = getKey();
-  if (!key) return value; // encryption not configured — store plaintext
-
-  const iv = randomBytes(12);
-  const cipher = createCipheriv(ALGO, key, iv);
-  const ciphertext = Buffer.concat([cipher.update(value, "utf8"), cipher.final()]);
-  const tag = cipher.getAuthTag();
-
-  return `${PREFIX}${iv.toString("base64")}:${ciphertext.toString("base64")}:${tag.toString("base64")}`;
+  return value; // plain text storage in V1
 }
 
 export function decryptField(value: string | null | undefined): string | null {
   if (value == null) return null;
-  if (!value.startsWith(PREFIX)) return value; // plaintext — backward compat
+  if (!value.startsWith(PREFIX)) return value; // already plain text
 
-  const key = getKey();
-  if (!key) return value; // key not configured — return raw (won't be readable)
+  // Legacy encrypted value — attempt to decrypt using the stored key if present
+  const hex = process.env.VAULT_ENCRYPTION_KEY;
+  if (!hex || hex.length !== 64) return value; // key missing, return raw
 
   try {
+    const key = Buffer.from(hex, "hex");
     const parts = value.slice(PREFIX.length).split(":");
-    if (parts.length !== 3) throw new Error("Invalid ciphertext format");
-
+    if (parts.length !== 3) return value;
     const [ivB64, ciphertextB64, tagB64] = parts;
     const iv = Buffer.from(ivB64, "base64");
     const ciphertext = Buffer.from(ciphertextB64, "base64");
     const tag = Buffer.from(tagB64, "base64");
-
-    const decipher = createDecipheriv(ALGO, key, iv);
+    const decipher = createDecipheriv("aes-256-gcm", key, iv);
     decipher.setAuthTag(tag);
     const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
     return plaintext.toString("utf8");
   } catch {
-    return "[decryption error — wrong key?]";
+    return "[unreadable — wrong key?]";
   }
 }

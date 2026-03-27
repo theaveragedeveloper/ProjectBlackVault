@@ -15,7 +15,8 @@ model Firearm {
   name            String
   manufacturer    String
   model           String
-  caliber         String
+  caliber             String
+  compatibleCalibers  String?
   serialNumber    String   @unique
   // FirearmType: PISTOL | RIFLE | SHOTGUN | SMG | PCC | REVOLVER | BOLT_ACTION | LEVER_ACTION
   type            String
@@ -93,6 +94,7 @@ model Accessory {
   name                   String
   manufacturer           String
   model                  String?
+  serialNumber           String?
   // type matches SlotType values above
   type                   String
   caliber                String?
@@ -172,6 +174,7 @@ model AmmoStock {
   bulletType      String?
   quantity        Int               @default(0)
   purchasePrice   Float?
+  pricePerRound   Float?
   purchaseDate    DateTime?
   storageLocation String?
   lowStockAlert   Int?
@@ -230,13 +233,14 @@ model SessionDrill {
   rangeSession   RangeSession @relation(fields: [rangeSessionId], references: [id], onDelete: Cascade)
   name           String
   setNumber      Int          @default(1)
-  timeSeconds    Float
-  points         Float
+  timeSeconds    Float?
+  points         Float?
   penalties      Float?
   hits           Int?
   hitFactor      Float
   notes          String?
   sortOrder      Int          @default(0)
+  drillDate      DateTime?
   createdAt      DateTime     @default(now())
 
   @@index([rangeSessionId])
@@ -290,6 +294,7 @@ model AppSettings {
   manualLanHost           String?
   defaultCurrency         String   @default("USD")
   appPassword             String?
+  defaultAmmoAlertThreshold Int?
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 }

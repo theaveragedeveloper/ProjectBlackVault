@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getLocalIp } from "@/lib/network/get-local-ip";
+import { getLocalIp, isDockerEnvironment } from "@/lib/network/get-local-ip";
 
 export const runtime = "nodejs";
 
@@ -11,13 +11,17 @@ export async function GET() {
   try {
     const ip = getLocalIp();
     const port = getAppPort();
+    const isDocker = isDockerEnvironment();
 
     if (!ip) {
       return NextResponse.json({
         ip: null,
         port,
         url: null,
-        message: "Unable to detect local network IP",
+        isDocker,
+        message: isDocker
+          ? "Running in Docker — auto-detection unavailable"
+          : "Unable to detect local network IP",
       });
     }
 
@@ -25,6 +29,7 @@ export async function GET() {
       ip,
       port,
       url: `http://${ip}:${port}`,
+      isDocker,
       message: null,
     });
   } catch (error) {
@@ -33,6 +38,7 @@ export async function GET() {
       ip: null,
       port: getAppPort(),
       url: null,
+      isDocker: false,
       message: "Unable to detect local network IP",
     });
   }

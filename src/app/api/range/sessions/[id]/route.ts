@@ -111,13 +111,7 @@ export async function PUT(
         ammoLinks: {
           include: {
             ammoStock: {
-              select: {
-                id: true,
-                caliber: true,
-                brand: true,
-                grainWeight: true,
-                bulletType: true,
-              },
+              select: { id: true, caliber: true, brand: true, grainWeight: true, bulletType: true },
             },
           },
           orderBy: { createdAt: "asc" },
@@ -132,5 +126,34 @@ export async function PUT(
   } catch (error) {
     console.error("PUT /api/range/sessions/[id] error:", error);
     return NextResponse.json({ error: "Failed to update range session" }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const auth = await requireAuth();
+  if (auth) return auth;
+
+  try {
+    const { id } = await params;
+
+    const existing = await prisma.rangeSession.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: "Range session not found" }, { status: 404 });
+    }
+
+    // Cascade deletes sessionDrills and ammoLinks via schema relations
+    await prisma.rangeSession.delete({ where: { id } });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("DELETE /api/range/sessions/[id] error:", error);
+    return NextResponse.json({ error: "Failed to delete range session" }, { status: 500 });
   }
 }

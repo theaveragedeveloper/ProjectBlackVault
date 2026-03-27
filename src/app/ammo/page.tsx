@@ -24,6 +24,7 @@ interface AmmoStock {
   bulletType: string | null;
   quantity: number;
   purchasePrice: number | null;
+  pricePerRound: number | null;
   purchaseDate: string | null;
   storageLocation: string | null;
   lowStockAlert: number | null;
@@ -391,9 +392,21 @@ export default function AmmoPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <p className={`text-2xl font-bold font-mono tabular-nums ${totalColor}`}>
-                        {formatNumber(group.totalQuantity)}
-                      </p>
+                      <div className="text-right">
+                        <p className={`text-2xl font-bold font-mono tabular-nums ${totalColor}`}>
+                          {formatNumber(group.totalQuantity)}
+                        </p>
+                        {(() => {
+                          const priced = group.stocks.filter((s) => s.pricePerRound != null);
+                          if (priced.length === 0) return null;
+                          const avg = priced.reduce((sum, s) => sum + (s.pricePerRound ?? 0), 0) / priced.length;
+                          return (
+                            <p className="text-[10px] text-[#00C2FF] font-mono tabular-nums">
+                              Avg: ${avg.toFixed(3)}/rd
+                            </p>
+                          );
+                        })()}
+                      </div>
                       {isExpanded ? (
                         <ChevronUp className="w-4 h-4 text-vault-text-faint shrink-0" />
                       ) : (
@@ -436,10 +449,15 @@ export default function AmmoPage() {
                                     <p className="text-[10px] text-vault-text-faint">{stock.storageLocation}</p>
                                   </div>
                                 )}
-                                {stock.lowStockAlert && (
+                                {stock.lowStockAlert != null && stock.lowStockAlert > 0 && (
                                   <p className="text-[10px] text-vault-text-faint ml-3.5 mt-0.5">
                                     Alert at {formatNumber(stock.lowStockAlert)} rds
                                   </p>
+                                )}
+                                {stock.lowStockAlert === null && (
+                                  <span className="text-xs text-vault-text-muted flex items-center gap-1 mt-0.5 ml-3.5">
+                                    <span>⚠</span> No alert set
+                                  </span>
                                 )}
                               </div>
                               <div className="text-right shrink-0">
@@ -451,7 +469,7 @@ export default function AmmoPage() {
                             </div>
 
                             {/* Stock progress bar */}
-                            {stock.lowStockAlert && (
+                            {stock.lowStockAlert != null && stock.lowStockAlert > 0 && (
                               <div className="mb-2 ml-3.5">
                                 <div className="w-full bg-vault-border rounded-full h-1">
                                   <div

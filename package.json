@@ -6,7 +6,9 @@
     "dev": "next dev -H 0.0.0.0",
     "build": "DATABASE_URL=${DATABASE_URL:-file:${PWD}/prisma/prisma/dev.db} prisma generate && DATABASE_URL=${DATABASE_URL:-file:${PWD}/prisma/prisma/dev.db} prisma migrate deploy && DATABASE_URL=${DATABASE_URL:-file:${PWD}/prisma/prisma/dev.db} next build",
     "start": "next start -H 0.0.0.0",
-    "lint": "eslint"
+    "lint": "eslint",
+    "decrypt-serials": "npx ts-node --project tsconfig.json scripts/decrypt-serials.ts",
+    "reset-db": "npx ts-node --project tsconfig.json scripts/reset-db.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -34,7 +36,9 @@
     "jspdf": "^2.5.2",
     "lucide-react": "^0.576.0",
     "next": "16.1.6",
+    "pdf-lib": "^1.17.1",
     "prisma": "^5.22.0",
+    "qrcode": "^1.5.4",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "recharts": "^3.7.0",
@@ -46,6 +50,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

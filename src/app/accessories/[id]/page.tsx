@@ -18,6 +18,7 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronUp,
+  Pencil,
 } from "lucide-react";
 
 const SLOT_TYPE_LABELS: Record<string, string> = {
@@ -66,6 +67,7 @@ interface Accessory {
   name: string;
   manufacturer: string;
   model: string | null;
+  serialNumber: string | null;
   type: string;
   caliber: string | null;
   purchasePrice: number | null;
@@ -207,13 +209,20 @@ export default function AccessoryDetailPage() {
           </div>
         )}
 
-        <div className="absolute top-0 left-0 right-0 flex items-center px-6 py-4">
+        <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-4">
           <Link
             href="/accessories"
             className="flex items-center gap-1.5 text-[#E8EDF2]/80 hover:text-vault-text text-sm transition-colors bg-vault-bg/60 backdrop-blur-sm px-3 py-1.5 rounded-md border border-[#1C2530]/60"
           >
             <ArrowLeft className="w-4 h-4" />
             Accessories
+          </Link>
+          <Link
+            href={`/accessories/${id}/edit`}
+            className="flex items-center gap-1.5 text-sm bg-vault-bg/60 backdrop-blur-sm border border-[#1C2530]/60 text-vault-text-muted hover:text-vault-text px-3 py-1.5 rounded-md transition-colors"
+          >
+            <Pencil className="w-4 h-4" />
+            Edit
           </Link>
         </div>
 
@@ -225,6 +234,11 @@ export default function AccessoryDetailPage() {
             {accessory.caliber && (
               <span className="text-xs px-2 py-0.5 rounded border border-vault-border text-vault-text-muted font-mono">
                 {accessory.caliber}
+              </span>
+            )}
+            {accessory.serialNumber && (
+              <span className="text-xs px-2 py-0.5 rounded border border-vault-border text-vault-text-faint font-mono">
+                S/N {accessory.serialNumber}
               </span>
             )}
           </div>

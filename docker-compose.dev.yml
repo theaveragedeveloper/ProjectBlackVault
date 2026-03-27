@@ -12,7 +12,7 @@ services:
       - "${PORT:-3000}:3000"
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=file:/app/data/vault.db
+      - DATABASE_URL=file:/app/data/vault.db?connection_limit=1
     volumes:
       - blackvault-dev-db:/app/data
       - blackvault-dev-uploads:/app/uploads

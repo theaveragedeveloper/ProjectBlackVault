@@ -1,6 +1,7 @@
 "use client";
 
 import jsPDF from "jspdf";
+import { PDFDocument } from "pdf-lib";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import {
   type FullArmoryAttachmentRow,
@@ -251,14 +252,16 @@ export async function generateFullArmoryPdf(
       addLine(10);
     }
 
-    const pdfReceiptCount = payload.attachments.filter((row) => isPdfReceipt(row)).length;
-    if (pdfReceiptCount > 0) {
+    const pdfAttachmentCount = payload.attachments.filter(
+      (row) => (row.mimeType ?? "").toLowerCase() === "application/pdf" || (row.fileUrl ?? "").toLowerCase().endsWith(".pdf")
+    ).length;
+    if (pdfAttachmentCount > 0) {
       ensureSpace(24);
       addLine(8);
       doc.setFont("helvetica", "italic");
       doc.setFontSize(FONT_SIZE_SMALL);
       doc.text(
-        `${pdfReceiptCount} receipt PDF file(s) are referenced in the index and not embedded as page images.`,
+        `${pdfAttachmentCount} PDF document(s) will be appended as additional pages at the end of this export.`,
         PAGE_MARGIN,
         y
       );
@@ -357,5 +360,50 @@ export async function generateFullArmoryPdf(
   }
 
   const filename = `full-armory-export-${toFileSafeTimestamp(payload.meta.generatedAt)}.pdf`;
-  doc.save(filename);
+
+  // Merge any PDF document attachments using pdf-lib
+  const pdfAttachments = options.includeDocuments
+    ? payload.attachments.filter((row) => isPdfReceipt(row) || (row.mimeType ?? "").toLowerCase() === "application/pdf" || (row.fileUrl ?? "").toLowerCase().endsWith(".pdf"))
+    : [];
+
+  if (pdfAttachments.length === 0) {
+    doc.save(filename);
+    return;
+  }
+
+  // Convert jsPDF output to ArrayBuffer for pdf-lib
+  const mainPdfBytes = doc.output("arraybuffer");
+  const mergedDoc = await PDFDocument.load(mainPdfBytes);
+
+  for (const attachment of pdfAttachments) {
+    try {
+      const response = await fetch(attachment.fileUrl, { credentials: "include" });
+      if (!response.ok) continue;
+      const bytes = await response.arrayBuffer();
+      const attachedPdf = await PDFDocument.load(bytes, { ignoreEncryption: true });
+      const copiedPages = await mergedDoc.copyPages(attachedPdf, attachedPdf.getPageIndices());
+
+      // Add a label page before the document's pages
+      const labelPage = mergedDoc.addPage();
+      const { width, height } = labelPage.getSize();
+      labelPage.drawText(`Document: ${attachment.name}`, { x: 36, y: height - 60, size: 14 });
+      labelPage.drawText(`Type: ${attachment.type}  |  Linked to: ${attachment.linkedItemName || "Unattached"}`, { x: 36, y: height - 80, size: 10 });
+
+      for (const page of copiedPages) {
+        mergedDoc.addPage(page);
+      }
+    } catch {
+      // Skip unreadable/corrupt PDF attachments
+    }
+  }
+
+  const mergedBytes = await mergedDoc.save();
+  const safeBytes = new Uint8Array(mergedBytes); // normalize to concrete ArrayBuffer
+  const blob = new Blob([safeBytes], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }

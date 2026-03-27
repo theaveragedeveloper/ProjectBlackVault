@@ -1,113 +1,164 @@
-# ProjectBlackVault
+# BlackVault
 
-**Private, self-hosted firearms and training records on your own hardware.**
-
-ProjectBlackVault helps you keep inventory, maintenance, training, documents, and photos in one local system you control.
+A self-hosted, local-only web app for tracking firearms, accessories, and range sessions. All data stays on your machine.
 
 ---
 
-## Who this is for
+## Screenshots
 
-ProjectBlackVault is built for people who want a practical, private record system without relying on cloud accounts.
+![Dashboard](docs/screenshots/dashboard.png)
 
-- Home server and NAS users
-- Self-hosters who prefer local-only services
-- Anyone tracking inventory, maintenance, and training progress
+![Vault](docs/screenshots/vault.png)
 
----
+![Range Session](docs/screenshots/range.png)
 
-## What you can do
-
-- Track firearms and accessories
-- Log round counts and drill sessions
-- Review maintenance status and history
-- Store local documents and photos
-- Export records as PDF or CSV
-- Configure local-network mobile access from **Settings**
+![Settings](docs/screenshots/settings.png)
 
 ---
 
-## Quick start (Docker)
+## Features
 
-> Recommended install path for V1.
+- Firearm and accessory tracking
+- Document uploads
+- Range sessions and drills
+- Drill library and history
+- Drill logging (standalone or tied to a session)
+- Drill performance tracking
+- CSV and PDF export
+- Dashboard
+- Mobile access via local network
 
-### 1) Install prerequisites
+---
 
-- [Docker Engine](https://docs.docker.com/engine/install/)
-- Docker Compose plugin
+## Recommended Setup (Setup Wizard)
 
-### 2) Clone and start
+The setup wizard handles everything automatically — data directory, port, and startup.
+
+**Mac / Linux:**
+```bash
+chmod +x install.sh && ./install.sh
+```
+
+**Windows:**
+Double-click `install.bat` or run it from Command Prompt.
+
+The wizard will ask where to store your data and what port to use, then build and start BlackVault automatically.
+
+---
+
+## Quick Start (Docker)
+
+**Requirements:** [Docker](https://docs.docker.com/get-docker/) installed on your machine.
 
 ```bash
-git clone <YOUR_REPO_URL>
+git clone https://github.com/theaveragedeveloper/ProjectBlackVault.git
 cd ProjectBlackVault
-git checkout V1-pub-release
+cp .env.example .env          # optional: edit DATA_DIR or PORT first
 docker compose up -d --build
 ```
 
-### 3) Open ProjectBlackVault
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-Open:
-
-- `http://localhost:3000`
-
-If you changed the host port in `docker-compose.yml`, use that port instead.
+Your data is stored in `./data` by default (inside the project folder). Edit `DATA_DIR` in `.env` to use a different location.
 
 ---
 
-## Mobile access (local network)
+## Simple Setup (Non-Technical)
 
-Use this when opening ProjectBlackVault from a phone or tablet on the same Wi-Fi/LAN.
+1. Install Docker: [https://docs.docker.com/get-docker/](https://docs.docker.com/get-docker/)
+2. Go to the GitHub repository page and click **Code → Download ZIP**
+3. Extract the ZIP to a folder on your computer
+4. Open a terminal (Command Prompt on Windows, Terminal on Mac) and navigate to that folder
+5. Run: `docker compose up -d --build`
+6. Open your browser and go to `http://localhost:3000`
 
-1. Open **Settings** in ProjectBlackVault.
-2. Enter a **Mobile Access Host/IP** (example: `192.168.1.50`).
-3. Save settings.
-4. Use the displayed mobile URL (or copy it with the **Copy URL** button).
-
-Tip: reserve a static/DHCP IP on your router so mobile access stays consistent.
+BlackVault will be running and ready to use.
 
 ---
 
-## Updating to the latest `V1-pub-release`
+## Mobile Access (Same Network)
 
-Run this exact flow from your existing `ProjectBlackVault` folder:
+You can open BlackVault on your phone as long as it is on the same Wi-Fi network as your computer.
 
-```bash
-git checkout V1-pub-release
-git fetch origin
-git reset --hard origin/V1-pub-release
-git clean -fd
-docker compose down -v --remove-orphans || true
-docker compose build --no-cache
-docker compose up -d
+1. Open BlackVault in your browser and go to **Settings**
+2. The Settings page will detect your local IP automatically and display a QR code
+3. Scan the QR code with your phone, or open `http://192.168.x.x:3000` (using your machine's local IP)
+
+To find your local IP manually: run `ipconfig` on Windows or `ip addr` on Linux/Mac.
+
+---
+
+## Data Safety
+
+### Where your data lives
+
+BlackVault stores everything in the directory set by `DATA_DIR` in your `.env` file:
+
+```
+DATA_DIR/
+├── db/
+│   └── vault.db        ← your database (all firearms, accessories, sessions)
+└── uploads/
+    └── ...             ← uploaded images and documents
 ```
 
+By default this is `./data` inside the project folder. You can change it to any absolute path (e.g. `/home/yourname/blackvault-data`) by editing `.env` before first run.
+
+### Backing up your data
+
+Copy the entire `DATA_DIR` folder to a safe location:
+
+```bash
+cp -r ./data ~/blackvault-backup-$(date +%Y%m%d)
+```
+
+### Updating without losing data
+
+Run `./update.sh` (Mac/Linux) or `update.bat` (Windows). The update script:
+1. Checks your database exists at the configured location before rebuilding
+2. Warns you if it detects a path mismatch (so you never boot into an empty app)
+3. Rebuilds the image and restarts
+
+Your data directory is never touched during an update.
+
+### Moving to a new machine
+
+1. Copy your entire `DATA_DIR` to the new machine
+2. Clone the BlackVault repo on the new machine
+3. Run `install.sh` / `install.bat` — it will ask for the data directory; point it at your copied folder
+
+### If two data directories exist
+
+This can happen if you ran `docker compose up` from different directories. Both databases still exist — no data was deleted. To recover:
+
+1. Open `data/db/vault.db` and `~/.blackvault/db/vault.db` (or wherever) with [DB Browser for SQLite](https://sqlitebrowser.org/) to see which has your real data
+2. Set `DATA_DIR` in `.env` to the correct path
+3. Run `docker compose up -d` — it will use that path going forward
+
 ---
 
-## Backup and portability
+## Notes
 
-- Use built-in exports for PDF/CSV backups
-- Keep regular host-level backups of your Docker data folders
-
-Because ProjectBlackVault is self-hosted, your data remains under your control.
-
----
-
-## Self-hosting notes
-
-- Designed for local/self-managed environments
-- No cloud dependency is required for core use
-- You control network exposure and backup strategy
+- BlackVault is self-hosted. All data is stored locally on your machine.
+- No cloud connection is required or used.
+- There is no login or authentication in V1.
+- Intended for private, local use only. Do not expose it to the public internet.
 
 ---
 
-## Support
+## Local Development
 
-- Use GitHub Issues for bug reports and feature requests
-- Include OS, Docker version, and command output when reporting setup/runtime issues
+```bash
+npm install
+npx prisma generate
+npx prisma db push
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000).
 
 ---
 
 ## License
 
-Add your chosen license (for example MIT or Apache-2.0) and include a `LICENSE` file at the repository root.
+MIT License. See [LICENSE](LICENSE) for details.

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { revalidateDashboardData } from "@/lib/dashboard/revalidate-dashboard";
+import { decryptField } from "@/lib/crypto";
 
 
 function normalizeString(value: unknown) {
@@ -40,7 +41,7 @@ export async function GET() {
     const result = firearms.map((firearm) => ({
       ...firearm,
       firearmRoundCount: firearm.rangeSessions.reduce((sum, session) => sum + session.roundsFired, 0),
-      serialNumber: firearm.serialNumber,
+      serialNumber: decryptField(firearm.serialNumber) ?? firearm.serialNumber,
       notes: firearm.notes,
       buildCount: firearm._count.builds,
       activeBuild: firearm.builds[0] ?? null,
@@ -69,6 +70,7 @@ export async function POST(request: NextRequest) {
       manufacturer,
       model,
       caliber,
+      compatibleCalibers,
       serialNumber,
       type,
       acquisitionDate,
@@ -79,6 +81,7 @@ export async function POST(request: NextRequest) {
       imageSource,
       lastMaintenanceDate,
       maintenanceIntervalDays,
+      initialRoundCount,
     } = body;
 
     const normalizedName = normalizeString(name);
@@ -95,6 +98,9 @@ export async function POST(request: NextRequest) {
         manufacturer: normalizeString(manufacturer) || "Unknown",
         model: normalizeString(model) || "Unknown",
         caliber: normalizeString(caliber) || "Unknown",
+        compatibleCalibers: compatibleCalibers
+          ? compatibleCalibers.split(",").map((s: string) => s.trim()).filter(Boolean).join(",") || null
+          : null,
         serialNumber: normalizeString(serialNumber) || fallbackSerialNumber(),
         type: normalizeString(type) || "UNSPECIFIED",
         acquisitionDate: acquisitionDate ? new Date(acquisitionDate) : new Date(),
@@ -115,6 +121,20 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+
+    // If the user specified an initial round count (pre-existing use), log it as a range session
+    const parsedInitialRounds = initialRoundCount ? Math.floor(Number(initialRoundCount)) : 0;
+    if (parsedInitialRounds > 0) {
+      await prisma.rangeSession.create({
+        data: {
+          firearmId: firearm.id,
+          sessionDate: firearm.acquisitionDate ?? new Date(),
+          location: "Pre-existing use",
+          roundsFired: parsedInitialRounds,
+          notes: "Initial round count logged at time of vault entry.",
+        },
+      });
+    }
 
     revalidateDashboardData();
 
