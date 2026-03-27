@@ -449,7 +449,7 @@ export default function AmmoPage() {
                                     <p className="text-[10px] text-vault-text-faint">{stock.storageLocation}</p>
                                   </div>
                                 )}
-                                {stock.lowStockAlert && (
+                                {stock.lowStockAlert != null && stock.lowStockAlert > 0 && (
                                   <p className="text-[10px] text-vault-text-faint ml-3.5 mt-0.5">
                                     Alert at {formatNumber(stock.lowStockAlert)} rds
                                   </p>
@@ -469,7 +469,7 @@ export default function AmmoPage() {
                             </div>
 
                             {/* Stock progress bar */}
-                            {stock.lowStockAlert && (
+                            {stock.lowStockAlert != null && stock.lowStockAlert > 0 && (
                               <div className="mb-2 ml-3.5">
                                 <div className="w-full bg-vault-border rounded-full h-1">
                                   <div

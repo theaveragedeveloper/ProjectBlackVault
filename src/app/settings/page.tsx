@@ -104,6 +104,17 @@ export default function SettingsPage() {
     setSaveSuccess(false);
     setSaving(true);
 
+    const trimmedThreshold = defaultAmmoAlertThreshold.trim();
+    let parsedThreshold: number | null = null;
+    if (trimmedThreshold !== "") {
+      parsedThreshold = Number.parseInt(trimmedThreshold, 10);
+      if (Number.isNaN(parsedThreshold) || parsedThreshold < 0) {
+        setSaveError("Alert threshold must be a non-negative whole number.");
+        setSaving(false);
+        return;
+      }
+    }
+
     try {
       const res = await fetch("/api/settings", {
         method: "PUT",
@@ -114,21 +125,18 @@ export default function SettingsPage() {
           autoBackupCadence,
           backupDestinationPath,
           manualLanHost,
-          defaultAmmoAlertThreshold:
-            defaultAmmoAlertThreshold.trim() === ""
-              ? null
-              : Number.parseInt(defaultAmmoAlertThreshold.trim(), 10),
+          defaultAmmoAlertThreshold: parsedThreshold,
         }),
       });
 
       if (!res.ok) {
-        setSaveError("Could not save mobile access settings. Please try again.");
+        setSaveError("Could not save settings. Please try again.");
       } else {
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 3000);
       }
     } catch {
-      setSaveError("Could not save mobile access settings. Please try again.");
+      setSaveError("Could not save settings. Please try again.");
     } finally {
       setSaving(false);
     }
