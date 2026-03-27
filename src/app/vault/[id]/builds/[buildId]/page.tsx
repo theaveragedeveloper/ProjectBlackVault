@@ -16,11 +16,9 @@ import {
   Crosshair,
   Pencil,
 } from "lucide-react";
-import { SLOTS_BY_FIREARM_TYPE, SLOT_TYPE_LABELS, FirearmType, SlotType } from "@/lib/types";
+import { SLOTS_BY_FIREARM_TYPE, SUGGESTED_SLOTS_BY_FIREARM_TYPE, SLOT_TYPE_LABELS, CUSTOM_SLOT_PREFIX, FirearmType, SlotType } from "@/lib/types";
 import { SLOT_ICONS } from "@/lib/configurator/slot-icons";
 import { RoundCountBadge } from "@/components/shared/RoundCountBadge";
-
-const CUSTOM_SLOT_PREFIX = "CUSTOM:";
 
 function getSlotLabel(slotType: string) {
   if (slotType.startsWith(CUSTOM_SLOT_PREFIX)) {
@@ -98,8 +96,13 @@ function AccessoryBrowserModal({
     name: "",
     manufacturer: "",
     model: "",
+    serialNumber: "",
     caliber: "",
     purchasePrice: "",
+    acquisitionDate: "",
+    initialRoundCount: "",
+    notes: "",
+    imageUrl: "",
     hasBattery: false,
     batteryType: "",
     replacementIntervalDays: "",
@@ -173,9 +176,14 @@ function AccessoryBrowserModal({
           name: form.name.trim(),
           manufacturer: form.manufacturer.trim(),
           model: form.model.trim() || undefined,
+          serialNumber: form.serialNumber.trim() || undefined,
           type: slotType,
           caliber: form.caliber.trim() || undefined,
           purchasePrice: form.purchasePrice ? parseFloat(form.purchasePrice) : undefined,
+          acquisitionDate: form.acquisitionDate || undefined,
+          initialRoundCount: form.initialRoundCount ? parseInt(form.initialRoundCount, 10) : undefined,
+          notes: form.notes.trim() || undefined,
+          imageUrl: form.imageUrl.trim() || undefined,
           hasBattery: form.hasBattery,
           batteryType: form.batteryType.trim() || undefined,
           replacementIntervalDays: form.replacementIntervalDays
@@ -432,11 +440,33 @@ function AccessoryBrowserModal({
                     placeholder="Optional" />
                 </div>
               </div>
+              {/* Serial Number */}
               <div>
-                <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Purchase Price</label>
-                <input type="number" value={form.purchasePrice} onChange={e => setForm(f => ({...f, purchasePrice: e.target.value}))}
+                <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Serial Number</label>
+                <input value={form.serialNumber} onChange={e => setForm(f => ({...f, serialNumber: e.target.value}))}
                   className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
-                  placeholder="0.00" />
+                  placeholder="Optional" />
+              </div>
+              {/* Purchase Price + Date Acquired side by side */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Purchase Price</label>
+                  <input type="number" value={form.purchasePrice} onChange={e => setForm(f => ({...f, purchasePrice: e.target.value}))}
+                    className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
+                    placeholder="0.00" />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Date Acquired</label>
+                  <input type="date" value={form.acquisitionDate} onChange={e => setForm(f => ({...f, acquisitionDate: e.target.value}))}
+                    className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint" />
+                </div>
+              </div>
+              {/* Prior Use (rounds) */}
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Prior Use (rounds)</label>
+                <input type="number" min="0" step="1" value={form.initialRoundCount} onChange={e => setForm(f => ({...f, initialRoundCount: e.target.value}))}
+                  className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
+                  placeholder="0" />
               </div>
 
               <div className="rounded-md border border-vault-border p-3 space-y-3">
@@ -468,6 +498,21 @@ function AccessoryBrowserModal({
                   <input type="date" value={form.lastBatteryChangeDate} onChange={e => setForm(f => ({...f, lastBatteryChangeDate: e.target.value}))}
                     className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint" />
                 </div>
+              </div>
+              {/* Notes */}
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Notes</label>
+                <textarea value={form.notes} onChange={e => setForm(f => ({...f, notes: e.target.value}))}
+                  rows={3}
+                  className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint resize-none"
+                  placeholder="Optional notes..." />
+              </div>
+              {/* Image URL */}
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Image URL</label>
+                <input value={form.imageUrl} onChange={e => setForm(f => ({...f, imageUrl: e.target.value}))}
+                  className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
+                  placeholder="https://..." />
               </div>
             </div>
           </div>
@@ -522,19 +567,57 @@ interface WeaponCanvasProps {
   build: Build;
   onSlotClick: (slotType: string) => void;
   onRemoveSlot: (slotType: string) => void;
+  onAddSlot: (slotType: string) => Promise<void>;
+  onAddCustomSlot: (label: string) => Promise<void>;
 }
 
-function WeaponCanvas({ build, onSlotClick, onRemoveSlot }: WeaponCanvasProps) {
+function WeaponCanvas({ build, onSlotClick, onRemoveSlot, onAddSlot, onAddCustomSlot }: WeaponCanvasProps) {
   const firearmType = build.firearm.type as FirearmType;
-  const baseSlots = SLOTS_BY_FIREARM_TYPE[firearmType] ?? [];
-  const customSlots = build.slots
-    .map((slot) => slot.slotType)
-    .filter((slotType) => slotType.startsWith(CUSTOM_SLOT_PREFIX));
-  const availableSlots = [...baseSlots, ...customSlots];
+  const [showSlotPicker, setShowSlotPicker] = useState(false);
+  const [customSlotInput, setCustomSlotInput] = useState("");
+  const [addingCustom, setAddingCustom] = useState(false);
+  const [customSlotError, setCustomSlotError] = useState<string | null>(null);
+
+  // Only slots that are explicitly in build.slots (added by user)
+  const addedSlotTypes = build.slots.map((s) => s.slotType);
 
   const slotMap: Record<string, BuildSlot> = {};
   for (const slot of build.slots) {
     slotMap[slot.slotType] = slot;
+  }
+
+  const suggestedSlots: string[] = SUGGESTED_SLOTS_BY_FIREARM_TYPE[firearmType] ?? [];
+  const allBaseSlots: string[] = SLOTS_BY_FIREARM_TYPE[firearmType] ?? [];
+  const otherSlots = allBaseSlots.filter((s) => !suggestedSlots.includes(s));
+
+  async function handlePickSlot(slotType: string) {
+    if (addedSlotTypes.includes(slotType)) return;
+    await onAddSlot(slotType);
+    setShowSlotPicker(false);
+  }
+
+  async function handleAddCustom() {
+    const trimmed = customSlotInput.trim();
+    if (!trimmed) {
+      setCustomSlotError("Enter a custom slot name first.");
+      return;
+    }
+    const slotType = `${CUSTOM_SLOT_PREFIX}${trimmed}`;
+    if (addedSlotTypes.includes(slotType)) {
+      setCustomSlotError("That slot already exists.");
+      return;
+    }
+    setAddingCustom(true);
+    setCustomSlotError(null);
+    try {
+      await onAddCustomSlot(trimmed);
+      setCustomSlotInput("");
+      setShowSlotPicker(false);
+    } catch {
+      setCustomSlotError("Could not create custom slot.");
+    } finally {
+      setAddingCustom(false);
+    }
   }
 
   return (
@@ -545,93 +628,210 @@ function WeaponCanvas({ build, onSlotClick, onRemoveSlot }: WeaponCanvasProps) {
         </p>
         <h2 className="text-base font-semibold text-vault-text">{build.name}</h2>
         <p className="text-xs text-vault-text-muted mt-1">
-          Select a tile to add or change an attachment. Empty slots are clearly marked.
+          Add slots for each attachment position, then assign accessories to them.
         </p>
 
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-          {availableSlots.map((slotType) => {
-            const slot = slotMap[slotType];
-            const hasAccessory = !!slot?.accessory;
-            const slotIconConfig = getSlotIconConfig(slotType);
-            const SlotIcon = slotIconConfig?.icon ?? Shield;
+        {/* Existing added slots */}
+        {addedSlotTypes.length > 0 && (
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+            {addedSlotTypes.map((slotType) => {
+              const slot = slotMap[slotType];
+              const hasAccessory = !!slot?.accessory;
+              const slotIconConfig = getSlotIconConfig(slotType);
+              const SlotIcon = slotIconConfig?.icon ?? Shield;
 
-            return (
-              <div
-                key={slotType}
-                className={`rounded-lg border p-3 md:p-4 ${
-                  hasAccessory
-                    ? "border-vault-border bg-vault-bg"
-                    : "border-vault-border/80 bg-vault-surface"
-                }`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-[10px] uppercase tracking-widest font-mono text-vault-text-faint">{getSlotLabel(slotType)}</p>
-                    <span
-                      className={`inline-flex mt-1 text-[9px] font-mono uppercase tracking-wide px-1.5 py-0.5 rounded border ${
-                        hasAccessory
-                          ? "text-[#00C853] border-[#00C853]/35 bg-[#00C853]/10"
-                          : "text-vault-text-faint border-vault-border bg-vault-bg/60"
-                      }`}
-                    >
-                      {hasAccessory ? "Configured" : "Empty"}
-                    </span>
-                    {hasAccessory && slot?.accessory ? (
-                      <>
-                        <div className="flex items-center gap-2 mt-1.5">
-                          <p className="text-sm font-medium text-vault-text truncate min-w-0">
-                            {slot.accessory.name}
+              return (
+                <div
+                  key={slotType}
+                  className={`rounded-lg border p-3 md:p-4 ${
+                    hasAccessory
+                      ? "border-vault-border bg-vault-bg"
+                      : "border-vault-border/80 bg-vault-surface"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[10px] uppercase tracking-widest font-mono text-vault-text-faint">{getSlotLabel(slotType)}</p>
+                      <span
+                        className={`inline-flex mt-1 text-[9px] font-mono uppercase tracking-wide px-1.5 py-0.5 rounded border ${
+                          hasAccessory
+                            ? "text-[#00C853] border-[#00C853]/35 bg-[#00C853]/10"
+                            : "text-vault-text-faint border-vault-border bg-vault-bg/60"
+                        }`}
+                      >
+                        {hasAccessory ? "Configured" : "Empty"}
+                      </span>
+                      {hasAccessory && slot?.accessory ? (
+                        <>
+                          <div className="flex items-center gap-2 mt-1.5">
+                            <p className="text-sm font-medium text-vault-text truncate min-w-0">
+                              {slot.accessory.name}
+                            </p>
+                            <Link
+                              href={`/accessories/${slot.accessory.id}/edit`}
+                              className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded border border-vault-border text-vault-text-faint hover:border-[#00C2FF]/50 hover:text-[#00C2FF] transition-colors"
+                              title="Edit accessory"
+                            >
+                              <Pencil className="w-2.5 h-2.5" />
+                              Edit
+                            </Link>
+                          </div>
+                          <p className="text-[11px] text-vault-text-faint mt-0.5 truncate">
+                            {slot.accessory.manufacturer}
                           </p>
-                          <Link
-                            href={`/accessories/${slot.accessory.id}/edit`}
-                            className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded border border-vault-border text-vault-text-faint hover:border-[#00C2FF]/50 hover:text-[#00C2FF] transition-colors"
-                            title="Edit accessory"
-                          >
-                            <Pencil className="w-2.5 h-2.5" />
-                            Edit
-                          </Link>
-                        </div>
-                        <p className="text-[11px] text-vault-text-faint mt-0.5 truncate">
-                          {slot.accessory.manufacturer}
-                        </p>
-                      </>
-                    ) : (
-                      <p className="text-xs text-vault-text-faint mt-1">No accessory assigned</p>
+                        </>
+                      ) : (
+                        <p className="text-xs text-vault-text-faint mt-1">No accessory assigned</p>
+                      )}
+                    </div>
+
+                    <div
+                      className="w-8 h-8 rounded-md flex items-center justify-center shrink-0"
+                      style={{ backgroundColor: `${slotIconConfig?.color ?? "#8B9DB0"}18` }}
+                    >
+                      <SlotIcon
+                        className="w-4 h-4"
+                        style={{ color: slotIconConfig?.color ?? "#8B9DB0" }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex items-center gap-2">
+                    <button
+                      onClick={() => onSlotClick(slotType)}
+                      className="flex-1 min-h-9 px-3 py-2 text-xs font-medium rounded-md border border-[#00C2FF]/35 text-[#00C2FF] hover:bg-[#00C2FF]/10 transition-colors"
+                    >
+                      {hasAccessory ? "Change" : "Add Attachment"}
+                    </button>
+
+                    {hasAccessory && (
+                      <button
+                        onClick={() => onRemoveSlot(slotType)}
+                        className="min-h-9 px-3 py-2 text-xs font-medium rounded-md border border-[#E53935]/30 text-[#E53935] hover:bg-[#E53935]/10 transition-colors"
+                      >
+                        Remove
+                      </button>
                     )}
                   </div>
-
-                  <div
-                    className="w-8 h-8 rounded-md flex items-center justify-center shrink-0"
-                    style={{ backgroundColor: `${slotIconConfig?.color ?? "#8B9DB0"}18` }}
-                  >
-                    <SlotIcon
-                      className="w-4 h-4"
-                      style={{ color: slotIconConfig?.color ?? "#8B9DB0" }}
-                    />
-                  </div>
                 </div>
+              );
+            })}
+          </div>
+        )}
 
-                <div className="mt-3 flex items-center gap-2">
-                  <button
-                    onClick={() => onSlotClick(slotType)}
-                    className="flex-1 min-h-9 px-3 py-2 text-xs font-medium rounded-md border border-[#00C2FF]/35 text-[#00C2FF] hover:bg-[#00C2FF]/10 transition-colors"
-                  >
-                    {hasAccessory ? "Change" : "Add Attachment"}
-                  </button>
+        {/* Empty state when no slots added yet */}
+        {addedSlotTypes.length === 0 && !showSlotPicker && (
+          <div className="mt-4 flex flex-col items-center justify-center py-10 border border-dashed border-vault-border rounded-lg gap-3">
+            <div className="w-10 h-10 rounded-full bg-vault-border/30 flex items-center justify-center">
+              <Plus className="w-5 h-5 text-vault-text-faint" />
+            </div>
+            <p className="text-sm text-vault-text-muted text-center">No slots added yet.</p>
+            <p className="text-xs text-vault-text-faint text-center max-w-xs">
+              Add slots for each attachment position on this build — optic, barrel, stock, and more.
+            </p>
+          </div>
+        )}
 
-                  {hasAccessory && (
-                    <button
-                      onClick={() => onRemoveSlot(slotType)}
-                      className="min-h-9 px-3 py-2 text-xs font-medium rounded-md border border-[#E53935]/30 text-[#E53935] hover:bg-[#E53935]/10 transition-colors"
-                    >
-                      Remove
-                    </button>
-                  )}
+        {/* Add Slot button */}
+        <div className="mt-4">
+          <button
+            onClick={() => setShowSlotPicker((v) => !v)}
+            className="flex items-center gap-2 px-4 py-2 rounded-md border border-[#00C2FF]/35 text-[#00C2FF] text-xs font-medium hover:bg-[#00C2FF]/10 transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            {showSlotPicker ? "Cancel" : "+ Add Slot"}
+          </button>
+        </div>
+
+        {/* Slot Picker Panel */}
+        {showSlotPicker && (
+          <div className="mt-3 border border-vault-border rounded-xl bg-vault-bg p-4 space-y-5">
+            {/* Section A — Suggested */}
+            {suggestedSlots.length > 0 && (
+              <div>
+                <p className="text-[10px] uppercase tracking-widest font-mono text-vault-text-faint mb-2">
+                  Suggested for {build.firearm.type.replace(/_/g, " ")}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {suggestedSlots.map((slotType) => {
+                    const alreadyAdded = addedSlotTypes.includes(slotType);
+                    return (
+                      <button
+                        key={slotType}
+                        onClick={() => handlePickSlot(slotType)}
+                        disabled={alreadyAdded}
+                        className={`px-3 py-1.5 rounded-md border text-xs font-medium transition-colors ${
+                          alreadyAdded
+                            ? "opacity-40 cursor-not-allowed border-vault-border text-vault-text-faint"
+                            : "border-[#00C2FF]/40 text-[#00C2FF] hover:bg-[#00C2FF]/10 cursor-pointer"
+                        }`}
+                      >
+                        {SLOT_TYPE_LABELS[slotType as SlotType] ?? slotType}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
-            );
-          })}
-        </div>
+            )}
+
+            {/* Section B — All Other Slots */}
+            {otherSlots.length > 0 && (
+              <div>
+                <p className="text-[10px] uppercase tracking-widest font-mono text-vault-text-faint mb-2">
+                  Other Slots
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {otherSlots.map((slotType) => {
+                    const alreadyAdded = addedSlotTypes.includes(slotType);
+                    return (
+                      <button
+                        key={slotType}
+                        onClick={() => handlePickSlot(slotType)}
+                        disabled={alreadyAdded}
+                        className={`px-3 py-1.5 rounded-md border text-xs font-medium transition-colors ${
+                          alreadyAdded
+                            ? "opacity-40 cursor-not-allowed border-vault-border text-vault-text-faint"
+                            : "border-vault-border text-vault-text-muted hover:border-vault-text-muted/40 hover:text-vault-text cursor-pointer"
+                        }`}
+                      >
+                        {SLOT_TYPE_LABELS[slotType as SlotType] ?? slotType}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Divider */}
+            <div className="border-t border-vault-border" />
+
+            {/* Section C — Custom Slot */}
+            <div>
+              <p className="text-[10px] uppercase tracking-widest font-mono text-vault-text-faint mb-2">
+                Custom Slot
+              </p>
+              <div className="flex items-center gap-2">
+                <input
+                  value={customSlotInput}
+                  onChange={(e) => setCustomSlotInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleAddCustom(); }}
+                  placeholder="e.g. Data Card, Suppressor Cover"
+                  className="flex-1 bg-vault-surface border border-vault-border rounded-md px-2.5 py-1.5 text-xs text-vault-text focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
+                />
+                <button
+                  onClick={handleAddCustom}
+                  disabled={addingCustom}
+                  className="px-3 py-1.5 rounded-md text-xs border border-[#00C2FF]/35 text-[#00C2FF] hover:bg-[#00C2FF]/10 disabled:opacity-60"
+                >
+                  {addingCustom ? "Adding..." : "Add"}
+                </button>
+              </div>
+              {customSlotError && (
+                <p className="text-[10px] text-[#E53935] mt-1">{customSlotError}</p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -643,25 +843,16 @@ interface SlotPanelProps {
   build: Build;
   allBuilds: Build[];
   onSwitchBuild: (buildId: string) => void;
-  onAddCustomSlot: (label: string) => Promise<void>;
 }
 
 function SlotPanel({
   build,
   allBuilds,
   onSwitchBuild,
-  onAddCustomSlot,
 }: SlotPanelProps) {
   const [switchOpen, setSwitchOpen] = useState(false);
-  const [newCustomSlot, setNewCustomSlot] = useState("");
-  const [addingCustomSlot, setAddingCustomSlot] = useState(false);
-  const [customSlotError, setCustomSlotError] = useState<string | null>(null);
-  const firearmType = build.firearm.type as FirearmType;
-  const baseSlots = SLOTS_BY_FIREARM_TYPE[firearmType] ?? [];
-  const customSlots = build.slots
-    .map((slot) => slot.slotType)
-    .filter((slotType) => slotType.startsWith(CUSTOM_SLOT_PREFIX));
-  const availableSlots = [...baseSlots, ...customSlots];
+  // Only slots that have been explicitly added (exist in build.slots)
+  const addedSlotTypes = build.slots.map((slot) => slot.slotType);
 
   const slotMap: Record<string, BuildSlot> = {};
   for (const slot of build.slots) {
@@ -670,31 +861,7 @@ function SlotPanel({
 
   const otherBuilds = allBuilds.filter((b) => b.id !== build.id);
   const filledCount = build.slots.filter((s) => s.accessoryId).length;
-
-  async function handleAddCustomSlot() {
-    const trimmed = newCustomSlot.trim();
-    if (!trimmed) {
-      setCustomSlotError("Enter a custom slot name first.");
-      return;
-    }
-    const slotType = `${CUSTOM_SLOT_PREFIX}${trimmed}`;
-    if (availableSlots.includes(slotType)) {
-      setCustomSlotError("That custom slot already exists.");
-      return;
-    }
-    setAddingCustomSlot(true);
-    setCustomSlotError(null);
-    try {
-      await onAddCustomSlot(trimmed);
-      setNewCustomSlot("");
-    } catch {
-      setCustomSlotError("Could not create custom slot.");
-    } finally {
-      setAddingCustomSlot(false);
-    }
-  }
-
-  const customSlotCount = customSlots.length;
+  const totalSlots = addedSlotTypes.length;
 
   return (
     <div className="flex flex-col bg-vault-surface border-t md:h-full md:border-t-0 border-l-0 md:border-l border-vault-border">
@@ -719,17 +886,17 @@ function SlotPanel({
         <div className="mt-2">
           <div className="flex items-center justify-between mb-1">
             <span className="text-[10px] text-vault-text-faint">
-              {filledCount}/{availableSlots.length} slots configured
+              {filledCount}/{totalSlots} slots configured
             </span>
             <span className="text-[10px] text-vault-text-faint font-mono">
-              {Math.round((filledCount / (availableSlots.length || 1)) * 100)}%
+              {Math.round((filledCount / (totalSlots || 1)) * 100)}%
             </span>
           </div>
           <div className="h-0.5 bg-vault-border rounded-full overflow-hidden">
             <div
               className="h-full bg-[#00C2FF] rounded-full transition-all duration-500"
               style={{
-                width: `${(filledCount / (availableSlots.length || 1)) * 100}%`,
+                width: `${(filledCount / (totalSlots || 1)) * 100}%`,
               }}
             />
           </div>
@@ -770,104 +937,88 @@ function SlotPanel({
             )}
           </div>
         )}
-
-        <div className="mt-3 p-2.5 border border-vault-border rounded-md bg-vault-bg/50 space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-[10px] uppercase tracking-widest text-vault-text-faint">Custom Slot</p>
-            <span className="text-[10px] text-vault-text-faint">{customSlotCount} added</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              value={newCustomSlot}
-              onChange={(e) => setNewCustomSlot(e.target.value)}
-              placeholder="e.g. Data Card"
-              className="flex-1 bg-vault-surface border border-vault-border rounded-md px-2.5 py-1.5 text-xs text-vault-text focus:outline-none focus:border-[#00C2FF]"
-            />
-            <button
-              onClick={handleAddCustomSlot}
-              disabled={addingCustomSlot}
-              className="px-2.5 py-1.5 rounded-md text-xs border border-[#00C2FF]/35 text-[#00C2FF] hover:bg-[#00C2FF]/10 disabled:opacity-60"
-            >
-              {addingCustomSlot ? "Adding..." : "Add"}
-            </button>
-          </div>
-          {customSlotError && <p className="text-[10px] text-[#E53935]">{customSlotError}</p>}
-        </div>
       </div>
 
-      {/* Slot list */}
+      {/* Slot list — only added slots */}
       <div className="md:flex-1 md:overflow-y-auto">
-        {availableSlots.map((slotType) => {
-          const slot = slotMap[slotType];
-          const hasAccessory = !!slot?.accessory;
-          const slotIconConfig = getSlotIconConfig(slotType);
-          const SlotIcon = slotIconConfig?.icon ?? Shield;
+        {addedSlotTypes.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 px-4 gap-2">
+            <p className="text-xs text-vault-text-faint text-center">No slots added yet.</p>
+            <p className="text-[10px] text-vault-border text-center">Use &quot;+ Add Slot&quot; to get started.</p>
+          </div>
+        ) : (
+          addedSlotTypes.map((slotType) => {
+            const slot = slotMap[slotType];
+            const hasAccessory = !!slot?.accessory;
+            const slotIconConfig = getSlotIconConfig(slotType);
+            const SlotIcon = slotIconConfig?.icon ?? Shield;
 
-          return (
-            <div
-              key={slotType}
-              className="flex items-center gap-3 px-4 py-3 border-b border-[#1C2530]/50"
-            >
-              {/* Icon */}
+            return (
               <div
-                className="w-7 h-7 rounded flex items-center justify-center shrink-0"
-                style={{
-                  backgroundColor: hasAccessory
-                    ? `${slotIconConfig?.color ?? "#8B9DB0"}15`
-                    : "transparent",
-                }}
+                key={slotType}
+                className="flex items-center gap-3 px-4 py-3 border-b border-[#1C2530]/50"
               >
-                <SlotIcon
-                  className="w-3.5 h-3.5"
+                {/* Icon */}
+                <div
+                  className="w-7 h-7 rounded flex items-center justify-center shrink-0"
                   style={{
-                    color: hasAccessory
-                      ? slotIconConfig?.color ?? "#8B9DB0"
-                      : "#2A3B4C",
+                    backgroundColor: hasAccessory
+                      ? `${slotIconConfig?.color ?? "#8B9DB0"}15`
+                      : "transparent",
                   }}
-                />
-              </div>
+                >
+                  <SlotIcon
+                    className="w-3.5 h-3.5"
+                    style={{
+                      color: hasAccessory
+                        ? slotIconConfig?.color ?? "#8B9DB0"
+                        : "#2A3B4C",
+                    }}
+                  />
+                </div>
 
-              {/* Label + content */}
-              <div className="flex-1 min-w-0">
-                <p
-                  className={`text-[10px] uppercase tracking-widest font-mono ${
-                    hasAccessory ? "text-vault-text-faint" : "text-vault-border"
+                {/* Label + content */}
+                <div className="flex-1 min-w-0">
+                  <p
+                    className={`text-[10px] uppercase tracking-widest font-mono ${
+                      hasAccessory ? "text-vault-text-faint" : "text-vault-border"
+                    }`}
+                  >
+                    {getSlotLabel(slotType)}
+                  </p>
+                  {hasAccessory && slot?.accessory ? (
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                      <p className="text-xs font-medium text-vault-text truncate">
+                        {slot.accessory.name}
+                      </p>
+                      <RoundCountBadge roundCount={slot.accessory.roundCount} className="text-[9px]" />
+                      <Link
+                        href={`/accessories/${slot.accessory.id}/edit`}
+                        className="flex items-center gap-0.5 px-1 py-0.5 text-[9px] rounded border border-vault-border text-vault-text-faint hover:border-[#00C2FF]/50 hover:text-[#00C2FF] transition-colors"
+                        title="Edit accessory"
+                      >
+                        <Pencil className="w-2 h-2" />
+                        Edit
+                      </Link>
+                    </div>
+                  ) : (
+                    <p className="text-[10px] text-vault-border mt-0.5">Empty</p>
+                  )}
+                </div>
+
+                <span
+                  className={`shrink-0 text-[9px] font-mono uppercase tracking-wide px-1.5 py-0.5 rounded border ${
+                    hasAccessory
+                      ? "text-[#00C853] border-[#00C853]/35 bg-[#00C853]/10"
+                      : "text-vault-text-faint border-vault-border"
                   }`}
                 >
-                  {getSlotLabel(slotType)}
-                </p>
-                {hasAccessory && slot?.accessory ? (
-                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                    <p className="text-xs font-medium text-vault-text truncate">
-                      {slot.accessory.name}
-                    </p>
-                    <RoundCountBadge roundCount={slot.accessory.roundCount} className="text-[9px]" />
-                    <Link
-                      href={`/accessories/${slot.accessory.id}/edit`}
-                      className="flex items-center gap-0.5 px-1 py-0.5 text-[9px] rounded border border-vault-border text-vault-text-faint hover:border-[#00C2FF]/50 hover:text-[#00C2FF] transition-colors"
-                      title="Edit accessory"
-                    >
-                      <Pencil className="w-2 h-2" />
-                      Edit
-                    </Link>
-                  </div>
-                ) : (
-                  <p className="text-[10px] text-vault-border mt-0.5">Empty</p>
-                )}
+                  {hasAccessory ? "Configured" : "Empty"}
+                </span>
               </div>
-
-              <span
-                className={`shrink-0 text-[9px] font-mono uppercase tracking-wide px-1.5 py-0.5 rounded border ${
-                  hasAccessory
-                    ? "text-[#00C853] border-[#00C853]/35 bg-[#00C853]/10"
-                    : "text-vault-text-faint border-vault-border"
-                }`}
-              >
-                {hasAccessory ? "Configured" : "Empty"}
-              </span>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
     </div>
   );
@@ -976,16 +1127,46 @@ export default function BuildConfiguratorPage() {
     router.push(`/vault/${firearmId}/builds/${newBuildId}`);
   }
 
+  async function handleAddSlot(slotType: string) {
+    try {
+      const res = await fetch(`/api/builds/${buildId}/slots`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slotType,
+          accessoryId: null,
+        }),
+      });
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null);
+        setActionFeedback({ type: "error", text: payload?.error ?? "Could not add slot." });
+        return;
+      }
+      await fetchBuild();
+    } catch {
+      setActionFeedback({ type: "error", text: "Could not add slot." });
+    }
+  }
+
   async function handleAddCustomSlot(label: string) {
-    await fetch(`/api/builds/${buildId}/slots`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        slotType: `${CUSTOM_SLOT_PREFIX}${label.trim()}`,
-        accessoryId: null,
-      }),
-    });
-    await fetchBuild();
+    try {
+      const res = await fetch(`/api/builds/${buildId}/slots`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slotType: `${CUSTOM_SLOT_PREFIX}${label.trim()}`,
+          accessoryId: null,
+        }),
+      });
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null);
+        setActionFeedback({ type: "error", text: payload?.error ?? "Could not add slot." });
+        return;
+      }
+      await fetchBuild();
+    } catch {
+      setActionFeedback({ type: "error", text: "Could not add slot." });
+    }
   }
 
   // ── Loading/error screens ──────────────────────────────────
@@ -1083,6 +1264,8 @@ export default function BuildConfiguratorPage() {
             build={build}
             onSlotClick={(slotType) => setBrowserSlot(slotType)}
             onRemoveSlot={handleRemoveSlot}
+            onAddSlot={handleAddSlot}
+            onAddCustomSlot={handleAddCustomSlot}
           />
         </div>
 
@@ -1092,7 +1275,6 @@ export default function BuildConfiguratorPage() {
             build={build}
             allBuilds={allBuilds}
             onSwitchBuild={handleSwitchBuild}
-            onAddCustomSlot={handleAddCustomSlot}
           />
         </div>
       </div>

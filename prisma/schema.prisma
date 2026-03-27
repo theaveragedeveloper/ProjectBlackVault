@@ -15,7 +15,8 @@ model Firearm {
   name            String
   manufacturer    String
   model           String
-  caliber         String
+  caliber             String
+  compatibleCalibers  String?
   serialNumber    String   @unique
   // FirearmType: PISTOL | RIFLE | SHOTGUN | SMG | PCC | REVOLVER | BOLT_ACTION | LEVER_ACTION
   type            String
@@ -232,8 +233,8 @@ model SessionDrill {
   rangeSession   RangeSession @relation(fields: [rangeSessionId], references: [id], onDelete: Cascade)
   name           String
   setNumber      Int          @default(1)
-  timeSeconds    Float
-  points         Float
+  timeSeconds    Float?
+  points         Float?
   penalties      Float?
   hits           Int?
   hitFactor      Float
@@ -293,6 +294,7 @@ model AppSettings {
   manualLanHost           String?
   defaultCurrency         String   @default("USD")
   appPassword             String?
+  defaultAmmoAlertThreshold Int?
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 }

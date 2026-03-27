@@ -98,16 +98,19 @@ export async function POST(request: NextRequest) {
     const normalizedSessionDrills = Array.isArray(sessionDrills)
       ? sessionDrills.flatMap((entry, index) => {
         const name = typeof entry?.name === "string" ? entry.name.trim() : "";
-        const timeSeconds = typeof entry?.timeSeconds === "number" ? entry.timeSeconds : NaN;
+        const rawTimeSeconds = entry?.timeSeconds;
+        const timeSeconds = rawTimeSeconds === null || rawTimeSeconds === undefined
+          ? null
+          : typeof rawTimeSeconds === "number" ? rawTimeSeconds : NaN;
         const points = typeof entry?.points === "number" ? entry.points : NaN;
         const penaltiesValue = entry?.penalties;
         const hitsValue = entry?.hits;
         const sortOrderValue = entry?.sortOrder;
         const setNumberValue = entry?.setNumber;
 
-        if (!name || !Number.isFinite(timeSeconds) || timeSeconds <= 0 || !Number.isFinite(points) || points < 0) {
-          return [];
-        }
+        if (!name) return [];
+        if (timeSeconds !== null && (!Number.isFinite(timeSeconds) || timeSeconds <= 0)) return [];
+        if (!Number.isFinite(points) || points < 0) return [];
 
         const penalties = typeof penaltiesValue === "number" && Number.isFinite(penaltiesValue) && penaltiesValue >= 0
           ? penaltiesValue
@@ -122,6 +125,7 @@ export async function POST(request: NextRequest) {
           ? setNumberValue
           : null;
         const adjustedPoints = Math.max(0, points - (penalties ?? 0));
+        const resolvedTimeForHF = timeSeconds ?? 1;
 
         return [{
           name,
@@ -132,7 +136,7 @@ export async function POST(request: NextRequest) {
           notes: typeof entry?.notes === "string" ? entry.notes.trim() || null : null,
           sortOrder,
           setNumber,
-          hitFactor: calculateHitFactor(adjustedPoints, timeSeconds),
+          hitFactor: calculateHitFactor(adjustedPoints, resolvedTimeForHF),
         }];
       })
       : [];
@@ -168,7 +172,7 @@ export async function POST(request: NextRequest) {
 
     const firearm = await prisma.firearm.findUnique({
       where: { id: resolvedFirearmId },
-      select: { id: true, caliber: true },
+      select: { id: true, caliber: true, compatibleCalibers: true },
     });
     const build = resolvedBuildId
       ? await prisma.build.findUnique({ where: { id: resolvedBuildId }, select: { id: true, firearmId: true } })
@@ -205,9 +209,14 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "One or more ammo selections are invalid" }, { status: 400 });
       }
 
-      if (stock.caliber !== firearm.caliber) {
+      const compatibleCals = (firearm.compatibleCalibers ?? "")
+        .split(",").map((c) => c.trim()).filter(Boolean);
+      const caliberMatch =
+        stock.caliber === firearm.caliber ||
+        compatibleCals.includes(stock.caliber);
+      if (!caliberMatch) {
         return NextResponse.json(
-          { error: `Selected ammo must match firearm caliber (${firearm.caliber})` },
+          { error: `Ammo caliber does not match firearm` },
           { status: 400 }
         );
       }
