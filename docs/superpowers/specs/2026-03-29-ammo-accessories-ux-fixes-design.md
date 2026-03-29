@@ -8,7 +8,7 @@
 
 ## Overview
 
-Five targeted UX fixes across the ammo and accessories sections. No schema changes required for issues 1–3. Issue 4 requires a new optional field on `AmmoTransaction`. Issue 5 is frontend-only detection logic.
+Five targeted UX fixes across the ammo and accessories sections. Issue 4 requires adding three optional fields to `AmmoTransaction` in the Prisma schema. All other changes are frontend or existing-API adjustments.
 
 ---
 
@@ -16,11 +16,9 @@ Five targeted UX fixes across the ammo and accessories sections. No schema chang
 
 **Problem:** The battery change alert displays the accessory name but is not clickable. Users must manually navigate to find the accessory.
 
-**Fix:** Wrap each battery alert item in an `<a href="/accessories/[id]">` (or Next.js `<Link>`). The accessory `id` is available wherever the alert is rendered.
+**Root cause:** In `src/components/dashboard/DashboardClient.tsx`, the overdue and due-soon battery alert `<Link>` elements hardcode `href="/accessories"` (the list page). The `BatteryDueItem` interface already includes the `id` field.
 
-**Files to check:**
-- `src/app/page.tsx` (Command Center dashboard alerts)
-- `src/components/` — any battery alert component
+**Fix:** In `DashboardClient.tsx`, change both battery alert link hrefs from `/accessories` to `/accessories/[item.id]`.
 
 **Acceptance criteria:**
 - Tapping/clicking a battery change alert navigates directly to `/accessories/[id]`
@@ -30,11 +28,11 @@ Five targeted UX fixes across the ammo and accessories sections. No schema chang
 
 ## Issue 2 — Ammo Edit Button
 
-**Problem:** There is no way to edit an existing ammo stock entry. The only options are Add Rounds and Log Use.
+**Problem:** There is no way to edit an existing ammo stock entry's metadata. The only options are Add Rounds and Log Use.
 
-**Fix:** Add an Edit button to each stock row on `/ammo`. Clicking it opens a modal to update the stock's metadata fields.
+**Fix:** Add an Edit button to each stock row on `/ammo`. Clicking it opens a modal pre-populated with the stock's current values.
 
-**Editable fields (NOT quantity — that's managed via transactions):**
+**Editable fields (NOT quantity — managed via transactions):**
 - Caliber
 - Brand
 - Bullet Type
@@ -45,84 +43,92 @@ Five targeted UX fixes across the ammo and accessories sections. No schema chang
 
 **Implementation:**
 - New `EditAmmoModal` component in `src/app/ammo/page.tsx` (same pattern as `AddRoundsModal`)
-- Calls `PUT /api/ammo/[id]` with updated fields
-- On success, updates local state (no full page reload)
+- Calls `PUT /api/ammo/[id]` — this handler already accepts all listed fields and returns the full updated stock object
+- On success, replace the stock entry in local state using the returned object (no page reload)
 
 **Acceptance criteria:**
 - Edit button visible on each stock row
 - Modal opens pre-populated with current values
-- Saving updates the stock and closes the modal
+- Saving updates the row in-place and closes the modal
 
 ---
 
 ## Issue 3 — Accessory Image Upload
 
-**Problem:** In some editing contexts (suspected: build configurator slot editor), the accessory image field shows a URL text input instead of the `ImagePicker` file upload component.
+**Problem:** In the build configurator (`/vault/[id]/builds/[buildId]/page.tsx`), the accessory image field is a plain `<input type="text">` for a URL instead of a file upload.
 
-**Fix:** Locate all accessory edit surfaces and replace any URL text input with `<ImagePicker entityType="accessory" />`. The standalone `/accessories/[id]/edit/page.tsx` already uses `ImagePicker` correctly — the fix targets any other edit surface (e.g., build slot modal, inline edit).
+**Fix:** Replace the URL text input with `<ImagePicker entityType="accessory" entityId={slot.accessoryId} value={imageUrl} onChange={(url) => setImageUrl(url)} />`.
 
-**Files to investigate:**
-- `src/app/vault/[id]/builds/[buildId]/page.tsx` — build configurator (most likely source)
-- Any accessory edit modal rendered from a build context
+**ImagePicker contract:**
+- `entityType="accessory"` — routes uploads to the correct storage path
+- `entityId` — the existing accessory's ID (available as `slot.accessoryId` in the build slot form)
+- `value` — the current `imageUrl` string from local state (or `null`)
+- `onChange(url, source)` — called with the new URL after upload completes; store `url` in the same `imageUrl` state field that was previously bound to the text input
+- The component calls `POST /api/images/upload` internally; no additional API wiring needed in the parent form
 
 **Acceptance criteria:**
-- No URL text input appears when editing an accessory image in any context
-- File upload (drag-and-drop or click) works consistently everywhere
+- No URL text input appears when editing an accessory image in the build configurator
+- File upload (drag-and-drop or click) works; image preview displays after upload
+- Saved accessory reflects the new image
 
 ---
 
 ## Issue 4 — Add Rounds Modal: Purchase Details
 
-**Problem:** The `AddRoundsModal` only captures quantity and a note. Users cannot record the purchase price or date when restocking, losing cost tracking history.
+**Problem:** The `AddRoundsModal` only captures quantity and a note. Purchase price and date are lost when restocking.
 
-**Fix:** Expand `AddRoundsModal` with optional purchase detail fields:
-- **Total Cost** (dollar amount)
-- **Price Per Round** (auto-calculated from total cost ÷ quantity, same as the new ammo form)
-- **Purchase Date**
-
-These are stored on the `AmmoTransaction` record. The `AmmoTransaction` model already has a `note` field; `purchasePrice`, `pricePerRound`, and `purchaseDate` need to be added as optional fields.
-
-**Schema change** (`prisma/schema.prisma`):
+**Schema change** (`prisma/schema.prisma`) — add three optional fields to `AmmoTransaction`:
 ```prisma
 model AmmoTransaction {
-  // existing fields ...
+  // existing fields unchanged ...
   purchasePrice    Float?
   pricePerRound    Float?
-  purchaseDate     String?
+  purchaseDate     DateTime?
 }
 ```
+`purchaseDate` uses `DateTime?` (consistent with the rest of the schema) and is passed from the API as an ISO 8601 string, converted with `new Date()` before writing to Prisma.
 
-**API change:** `POST /api/ammo/[id]/transactions` accepts and stores the three new optional fields.
+**API change:** `POST /api/ammo/[id]/transactions` — accept optional `purchasePrice: number`, `pricePerRound: number`, and `purchaseDate: string` in the request body; write them to the new fields.
 
-**UI change:** `AddRoundsModal` gains the three fields below quantity, with the same auto-calc behavior as `/ammo/new`.
+**UI change:** `AddRoundsModal` gains three optional fields below the quantity input:
+- **Total Cost** (`purchasePrice`) — dollar amount
+- **Price Per Round** (`pricePerRound`) — auto-calculated as `totalCost / quantity`, editable; same two-way auto-calc as `/ammo/new`
+- **Purchase Date** (`purchaseDate`) — date input
+
+All three fields are optional. If omitted, the transaction is created as before.
 
 **Acceptance criteria:**
-- Price and date fields are optional — existing Add Rounds flow still works without them
+- Price and date fields are optional — existing Add Rounds flow works without them
 - Auto-calculation between total cost and price per round works
-- Fields are saved and visible in transaction history
+- All three fields are persisted to the `AmmoTransaction` record when provided
 
 ---
 
 ## Issue 5 — Duplicate Ammo Merge Prompt
 
-**Problem:** Creating a new ammo entry with the same caliber + brand + grain weight + bullet type creates a duplicate stock record instead of adding to the existing one.
+**Problem:** Creating a new ammo entry with the same identifying fields creates a duplicate record instead of adding to existing stock.
 
-**Fix:** On the `/ammo/new` form, after the user fills in caliber + brand (the minimum identifying fields), query `GET /api/ammo?caliber=X&brand=Y` to check for existing matches. If a match is found on form submit, show an inline prompt before creating.
+**Duplicate check — timing:** The check runs **on form submit only** (not live as fields are typed). Before calling `POST /api/ammo`, the client fetches `GET /api/ammo` to retrieve all existing stocks, then filters client-side for a match.
 
-**Match criteria:** caliber + brand + grain weight + bullet type (all four must match for a "duplicate" — different grain weights are different lots).
+**Match criteria:** All four fields must match exactly:
+- `caliber` (string, case-insensitive)
+- `brand` (string, case-insensitive)
+- `grainWeight` (float or null — `null` matches `null`, non-null matches same value)
+- `bulletType` (string or null — same null-equals-null rule)
 
-**Prompt text:**
+If a match is found, show an inline confirmation prompt instead of submitting:
+
 > "You already have [Brand] [Caliber] [Grain]gr [BulletType] in stock ([X] rds). Add these rounds to existing stock instead?"
 >
-> [Yes, add to existing] [No, create separate lot]
+> **[Yes, add to existing]** &nbsp; **[No, create separate lot]**
 
-**Yes, add to existing:** Posts a `PURCHASE` transaction to `/api/ammo/[id]/transactions` with the quantity, price, and date from the form, then redirects to `/ammo`.
+**Yes, add to existing:** Post a `PURCHASE` transaction to `POST /api/ammo/[matchId]/transactions` carrying the quantity, purchasePrice, pricePerRound, and purchaseDate values from the form. Redirect to `/ammo` on success.
 
-**No, create separate lot:** Proceeds with the original `POST /api/ammo` create flow.
+**No, create separate lot:** Proceed with the original `POST /api/ammo` create and redirect as normal.
 
 **Acceptance criteria:**
-- Prompt only appears when all four identifying fields match an existing record
-- "Yes" path creates a transaction and redirects, no duplicate record created
+- Prompt only appears when all four identifying fields match an existing record (including null-equals-null)
+- "Yes" path creates a transaction, no duplicate record is created, user is redirected to `/ammo`
 - "No" path creates a new record as before
 - If no match exists, form submits normally with no prompt
 
@@ -132,15 +138,12 @@ model AmmoTransaction {
 
 | File | Change |
 |------|--------|
-| `src/app/page.tsx` | Battery alert items become links to `/accessories/[id]` |
-| `src/app/ammo/page.tsx` | Add `EditAmmoModal`, edit button on stock rows |
-| `src/app/api/ammo/[id]/route.ts` | Verify `PUT` handler accepts all editable fields |
-| `src/app/vault/[id]/builds/[buildId]/page.tsx` | Replace URL input with `ImagePicker` if present |
-| `src/app/ammo/new/page.tsx` | Add duplicate detection + merge prompt |
-| `src/app/api/ammo/new/page.tsx` | Add duplicate check query before submit |
+| `src/components/dashboard/DashboardClient.tsx` | Battery alert links → `/accessories/[item.id]` |
+| `src/app/ammo/page.tsx` | Add `EditAmmoModal` + edit button on stock rows; expand `AddRoundsModal` with purchase fields |
+| `src/app/api/ammo/[id]/transactions/route.ts` | Accept and store `purchasePrice`, `pricePerRound`, `purchaseDate` |
+| `src/app/vault/[id]/builds/[buildId]/page.tsx` | Replace URL text input with `ImagePicker` for accessory image |
+| `src/app/ammo/new/page.tsx` | Add submit-time duplicate detection + merge prompt |
 | `prisma/schema.prisma` | Add `purchasePrice`, `pricePerRound`, `purchaseDate` to `AmmoTransaction` |
-| `src/app/api/ammo/[id]/transactions/route.ts` | Accept and store new optional fields |
-| `src/app/ammo/page.tsx` (`AddRoundsModal`) | Add purchase detail fields |
 
 ---
 
@@ -148,4 +151,5 @@ model AmmoTransaction {
 
 - Editing quantity directly on an ammo stock record (use transactions)
 - Merging existing duplicate records retroactively
-- Transaction history display changes
+- Transaction history display UI changes
+- Adding `caliber`/`brand` query param filtering to `GET /api/ammo` (client-side filter is sufficient)
