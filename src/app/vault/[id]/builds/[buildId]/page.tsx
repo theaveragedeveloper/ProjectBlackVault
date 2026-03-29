@@ -20,6 +20,7 @@ import {
 import { SLOTS_BY_FIREARM_TYPE, SUGGESTED_SLOTS_BY_FIREARM_TYPE, SLOT_TYPE_LABELS, CUSTOM_SLOT_PREFIX, FirearmType, SlotType } from "@/lib/types";
 import { SLOT_ICONS } from "@/lib/configurator/slot-icons";
 import { RoundCountBadge } from "@/components/shared/RoundCountBadge";
+import ImagePicker from "@/components/shared/ImagePicker";
 
 function getSlotLabel(slotType: string) {
   if (slotType.startsWith(CUSTOM_SLOT_PREFIX)) {
@@ -508,12 +509,14 @@ function AccessoryBrowserModal({
                   className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint resize-none"
                   placeholder="Optional notes..." />
               </div>
-              {/* Image URL */}
+              {/* Image */}
               <div>
-                <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Image URL</label>
-                <input value={form.imageUrl} onChange={e => setForm(f => ({...f, imageUrl: e.target.value}))}
-                  className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
-                  placeholder="https://..." />
+                <label className="block text-[10px] uppercase tracking-widest text-vault-text-faint mb-1.5">Image</label>
+                <ImagePicker
+                  entityType="accessory"
+                  value={form.imageUrl || null}
+                  onChange={(url) => setForm(f => ({ ...f, imageUrl: url ?? "" }))}
+                />
               </div>
             </div>
           </div>
