@@ -21,7 +21,7 @@ export async function POST(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { type, quantity, note } = body;
+    const { type, quantity, note, purchasePrice, pricePerRound, purchaseDate } = body;
 
     if (!type || quantity === undefined || quantity === null) {
       return NextResponse.json(
@@ -97,6 +97,9 @@ export async function POST(
           previousQty,
           newQty,
           note: note ?? null,
+          purchasePrice: purchasePrice ?? null,
+          pricePerRound: pricePerRound ?? null,
+          purchaseDate: purchaseDate ? new Date(purchaseDate) : null,
         },
       }),
     ]);
