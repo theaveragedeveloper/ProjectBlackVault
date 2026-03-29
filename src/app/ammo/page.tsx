@@ -14,6 +14,7 @@ import {
   ChevronUp,
   MapPin,
   TrendingDown,
+  Pencil,
 } from "lucide-react";
 
 interface AmmoStock {
@@ -217,6 +218,160 @@ function AddRoundsModal({
   );
 }
 
+function EditAmmoModal({
+  stock,
+  onClose,
+  onSuccess,
+}: {
+  stock: AmmoStock;
+  onClose: () => void;
+  onSuccess: (updated: AmmoStock) => void;
+}) {
+  const [caliber, setCaliber] = useState(stock.caliber);
+  const [brand, setBrand] = useState(stock.brand);
+  const [grainWeight, setGrainWeight] = useState(stock.grainWeight?.toString() ?? "");
+  const [bulletType, setBulletType] = useState(stock.bulletType ?? "");
+  const [storageLocation, setStorageLocation] = useState(stock.storageLocation ?? "");
+  const [lowStockAlert, setLowStockAlert] = useState(stock.lowStockAlert?.toString() ?? "");
+  const [notes, setNotes] = useState(stock.notes ?? "");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!caliber.trim() || !brand.trim()) {
+      setError("Caliber and brand are required.");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    const res = await fetch(`/api/ammo/${stock.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        caliber: caliber.trim(),
+        brand: brand.trim(),
+        grainWeight: grainWeight ? Number(grainWeight) : null,
+        bulletType: bulletType.trim() || null,
+        storageLocation: storageLocation.trim() || null,
+        lowStockAlert: lowStockAlert ? Number(lowStockAlert) : null,
+        notes: notes.trim() || null,
+      }),
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      setError(json.error ?? "Failed to update");
+      setSubmitting(false);
+    } else {
+      onSuccess(json as AmmoStock);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-vault-bg/80 backdrop-blur-sm">
+      <div className="bg-vault-surface border border-vault-border rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <h3 className="text-sm font-semibold text-vault-text mb-4">Edit Ammo</h3>
+        {error && (
+          <div className="flex items-center gap-2 bg-[#E53935]/10 border border-[#E53935]/30 rounded px-3 py-2 mb-4">
+            <AlertCircle className="w-4 h-4 text-[#E53935] shrink-0" />
+            <p className="text-xs text-[#E53935]">{error}</p>
+          </div>
+        )}
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">
+                Caliber <span className="text-[#E53935]">*</span>
+              </label>
+              <VaultInput
+                type="text"
+                required
+                value={caliber}
+                onChange={(e) => setCaliber(e.target.value)}
+                className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF]"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">
+                Brand <span className="text-[#E53935]">*</span>
+              </label>
+              <VaultInput
+                type="text"
+                required
+                value={brand}
+                onChange={(e) => setBrand(e.target.value)}
+                className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF]"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">Grain Weight</label>
+              <VaultInput
+                type="number"
+                min={0}
+                step="0.1"
+                value={grainWeight}
+                onChange={(e) => setGrainWeight(e.target.value)}
+                placeholder="e.g. 124"
+                className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">Bullet Type</label>
+              <VaultInput
+                type="text"
+                value={bulletType}
+                onChange={(e) => setBulletType(e.target.value)}
+                placeholder="e.g. FMJ"
+                className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">Storage Location</label>
+            <VaultInput
+              type="text"
+              value={storageLocation}
+              onChange={(e) => setStorageLocation(e.target.value)}
+              placeholder="e.g. Safe A"
+              className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">Low Stock Alert (rds)</label>
+            <VaultInput
+              type="number"
+              min={0}
+              value={lowStockAlert}
+              onChange={(e) => setLowStockAlert(e.target.value)}
+              placeholder="e.g. 200"
+              className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">Notes</label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              placeholder="Optional notes"
+              className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint resize-none"
+            />
+          </div>
+          <div className="flex gap-2 justify-end pt-2">
+            <VaultButton type="button" onClick={onClose} variant="ghost">Cancel</VaultButton>
+            <VaultButton type="submit" disabled={submitting}>
+              {submitting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Pencil className="w-3 h-3" />}
+              Save
+            </VaultButton>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function LogUseModal({
   stock,
   onClose,
@@ -319,6 +474,7 @@ export default function AmmoPage() {
   const [expandedCalibers, setExpandedCalibers] = useState<Set<string>>(new Set());
   const [addModal, setAddModal] = useState<AmmoStock | null>(null);
   const [logModal, setLogModal] = useState<AmmoStock | null>(null);
+  const [editModal, setEditModal] = useState<AmmoStock | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -352,6 +508,22 @@ export default function AmmoPage() {
           0
         ),
       }))
+    );
+  }
+
+  function handleStockEdit(updated: AmmoStock) {
+    setGroups((prev) =>
+      prev.map((g) => {
+        const hasStock = g.stocks.some((s) => s.id === updated.id);
+        if (!hasStock) return g;
+        const newStocks = g.stocks.map((s) => (s.id === updated.id ? updated : s));
+        return {
+          ...g,
+          caliber: updated.caliber,
+          stocks: newStocks,
+          totalQuantity: newStocks.reduce((sum, s) => sum + s.quantity, 0),
+        };
+      })
     );
   }
 
@@ -549,6 +721,13 @@ export default function AmmoPage() {
                             {/* Action buttons */}
                             <div className="flex items-center gap-2 ml-3.5">
                               <button
+                                onClick={() => setEditModal(stock)}
+                                className="flex items-center gap-1 text-[10px] bg-vault-surface border border-vault-border text-vault-text-muted hover:text-[#00C2FF] hover:border-[#00C2FF]/40 px-2 py-1 rounded transition-colors"
+                              >
+                                <Pencil className="w-2.5 h-2.5" />
+                                Edit
+                              </button>
+                              <button
                                 onClick={() => setAddModal(stock)}
                                 className="flex items-center gap-1 text-[10px] bg-[#00C853]/10 border border-[#00C853]/30 text-[#00C853] hover:bg-[#00C853]/20 px-2 py-1 rounded transition-colors"
                               >
@@ -593,6 +772,16 @@ export default function AmmoPage() {
           stock={logModal}
           onClose={() => setLogModal(null)}
           onSuccess={handleQtyUpdate}
+        />
+      )}
+      {editModal && (
+        <EditAmmoModal
+          stock={editModal}
+          onClose={() => setEditModal(null)}
+          onSuccess={(updated) => {
+            handleStockEdit(updated);
+            setEditModal(null);
+          }}
         />
       )}
     </div>
