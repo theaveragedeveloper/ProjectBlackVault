@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { revalidateDashboardData } from "@/lib/dashboard/revalidate-dashboard";
 
 // GET /api/builds/[id] - Get a single build with slots and accessories populated
 export async function GET(
@@ -107,7 +108,7 @@ export async function PUT(
 
 // DELETE /api/builds/[id] - Delete a build
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -118,7 +119,27 @@ export async function DELETE(
       return NextResponse.json({ error: "Build not found" }, { status: 404 });
     }
 
+    const body = await request.json().catch(() => ({}));
+    const deleteAccessories = body.deleteAccessories === true;
+
+    if (deleteAccessories) {
+      const slots = await prisma.buildSlot.findMany({
+        where: { buildId: id, accessoryId: { not: null } },
+        select: { accessoryId: true },
+      });
+      const accessoryIds = slots.map((s) => s.accessoryId).filter(Boolean) as string[];
+      if (accessoryIds.length > 0) {
+        await prisma.accessory.deleteMany({ where: { id: { in: accessoryIds } } });
+      }
+    } else {
+      await prisma.buildSlot.updateMany({
+        where: { buildId: id },
+        data: { accessoryId: null },
+      });
+    }
+
     await prisma.build.delete({ where: { id } });
+    revalidateDashboardData();
 
     return NextResponse.json({ success: true, id });
   } catch (error) {

@@ -15,6 +15,7 @@ import {
   Shield,
   Crosshair,
   Pencil,
+  Trash2,
 } from "lucide-react";
 import { SLOTS_BY_FIREARM_TYPE, SUGGESTED_SLOTS_BY_FIREARM_TYPE, SLOT_TYPE_LABELS, CUSTOM_SLOT_PREFIX, FirearmType, SlotType } from "@/lib/types";
 import { SLOT_ICONS } from "@/lib/configurator/slot-icons";
@@ -1040,6 +1041,11 @@ export default function BuildConfiguratorPage() {
 
   const [activatingBuild, setActivatingBuild] = useState(false);
 
+  // Delete build state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteAccessories, setDeleteAccessories] = useState<"keep" | "delete">("keep");
+  const [deletingBuild, setDeletingBuild] = useState(false);
+
   // Modal state
   const [browserSlot, setBrowserSlot] = useState<string | null>(null);
 
@@ -1125,6 +1131,24 @@ export default function BuildConfiguratorPage() {
 
   function handleSwitchBuild(newBuildId: string) {
     router.push(`/vault/${firearmId}/builds/${newBuildId}`);
+  }
+
+  async function handleDeleteBuild() {
+    setDeletingBuild(true);
+    try {
+      const res = await fetch(`/api/builds/${buildId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deleteAccessories: deleteAccessories === "delete" }),
+      });
+      if (res.ok) {
+        router.push(`/vault/${firearmId}`);
+      } else {
+        setDeletingBuild(false);
+      }
+    } catch {
+      setDeletingBuild(false);
+    }
   }
 
   async function handleAddSlot(slotType: string) {
@@ -1242,6 +1266,16 @@ export default function BuildConfiguratorPage() {
               Build Active
             </span>
           )}
+
+          {/* Delete button */}
+          <button
+            onClick={() => { setShowDeleteModal(true); setDeleteAccessories("keep"); }}
+            className="flex items-center gap-1.5 text-xs border border-[#E53935]/40 text-[#E53935] hover:bg-[#E53935]/10 px-3 py-1.5 rounded transition-colors"
+            aria-label="Delete build"
+          >
+            <Trash2 className="w-3 h-3" />
+            <span className="hidden sm:inline">Delete</span>
+          </button>
         </div>
       </div>
       {actionFeedback && (
@@ -1291,6 +1325,75 @@ export default function BuildConfiguratorPage() {
           }}
         />
       )}
+
+      {/* Delete Build Modal */}
+      {showDeleteModal && build && (() => {
+        const accCount = build.slots.filter((s) => s.accessory).length;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+            <div className="bg-vault-surface border border-vault-border rounded-xl p-6 w-full max-w-sm shadow-2xl">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-9 h-9 rounded-full bg-[#E53935]/10 flex items-center justify-center shrink-0">
+                  <Trash2 className="w-4 h-4 text-[#E53935]" />
+                </div>
+                <h2 className="text-base font-semibold text-vault-text">Delete Build</h2>
+              </div>
+
+              {accCount > 0 ? (
+                <>
+                  <p className="text-sm text-vault-text-muted mb-4">
+                    <span className="text-vault-text font-medium">{build.name}</span> has{" "}
+                    <span className="text-vault-text font-medium">{accCount} accessor{accCount !== 1 ? "ies" : "y"}</span>.
+                  </p>
+                  <div className="space-y-2 mb-5">
+                    <p className="text-xs font-medium uppercase tracking-widest text-vault-text-muted mb-2">What should happen to the accessories?</p>
+                    {[
+                      { value: "keep", label: "Keep accessories in vault" },
+                      { value: "delete", label: "Delete accessories too" },
+                    ].map((opt) => (
+                      <label key={opt.value} className="flex items-center gap-3 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="deleteBuildAccessoriesConfigurator"
+                          value={opt.value}
+                          checked={deleteAccessories === opt.value}
+                          onChange={() => setDeleteAccessories(opt.value as "keep" | "delete")}
+                          className="accent-[#00C2FF]"
+                        />
+                        <span className="text-sm text-vault-text">{opt.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-vault-text-muted mb-5">
+                  Delete <span className="text-vault-text font-medium">{build.name}</span>? This cannot be undone.
+                </p>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteModal(false)}
+                  disabled={deletingBuild}
+                  className="flex-1 px-4 py-2 text-sm text-vault-text-muted border border-vault-border rounded-md hover:border-vault-text-muted/40 transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteBuild}
+                  disabled={deletingBuild}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm bg-[#E53935]/10 border border-[#E53935]/40 text-[#E53935] rounded-md hover:bg-[#E53935]/20 transition-colors disabled:opacity-50"
+                >
+                  {deletingBuild ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  {deletingBuild ? "Deleting..." : "Delete Build"}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

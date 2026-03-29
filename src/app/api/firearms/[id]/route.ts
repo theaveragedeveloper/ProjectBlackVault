@@ -24,7 +24,7 @@ export async function GET(
       where: { id },
       include: {
         _count: {
-          select: { builds: true },
+          select: { builds: true, rangeSessions: true },
         },
         builds: {
           include: {
@@ -50,6 +50,7 @@ export async function GET(
       serialNumber: decryptField(firearm.serialNumber),
       notes: firearm.notes,
       buildCount: firearm._count.builds,
+      rangeSessionCount: firearm._count.rangeSessions,
       activeBuild,
       _count: undefined,
     });
@@ -167,7 +168,7 @@ export async function PUT(
 
 // DELETE /api/firearms/[id] - Delete a firearm
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -176,6 +177,33 @@ export async function DELETE(
     const existing = await prisma.firearm.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: "Firearm not found" }, { status: 404 });
+    }
+
+    const body = await request.json().catch(() => ({}));
+    const deleteAccessories = body.deleteAccessories === true;
+
+    const builds = await prisma.build.findMany({
+      where: { firearmId: id },
+      select: { id: true },
+    });
+    const buildIds = builds.map((b) => b.id);
+
+    if (buildIds.length > 0) {
+      if (deleteAccessories) {
+        const slots = await prisma.buildSlot.findMany({
+          where: { buildId: { in: buildIds }, accessoryId: { not: null } },
+          select: { accessoryId: true },
+        });
+        const accessoryIds = slots.map((s) => s.accessoryId).filter(Boolean) as string[];
+        if (accessoryIds.length > 0) {
+          await prisma.accessory.deleteMany({ where: { id: { in: accessoryIds } } });
+        }
+      } else {
+        await prisma.buildSlot.updateMany({
+          where: { buildId: { in: buildIds } },
+          data: { accessoryId: null },
+        });
+      }
     }
 
     await prisma.firearm.delete({ where: { id } });
