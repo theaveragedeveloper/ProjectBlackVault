@@ -273,7 +273,7 @@ function MaintenanceDueWidget() {
                     return (
                       <Link
                         key={item.id}
-                        href={`/accessories`}
+                        href={`/accessories/${item.id}`}
                         className="flex items-center justify-between px-4 py-3 hover:bg-vault-surface-2 transition-colors"
                       >
                         <div>
@@ -299,7 +299,7 @@ function MaintenanceDueWidget() {
                     return (
                       <Link
                         key={item.id}
-                        href={`/accessories`}
+                        href={`/accessories/${item.id}`}
                         className="flex items-center justify-between px-4 py-3 hover:bg-vault-surface-2 transition-colors"
                       >
                         <div>
