@@ -255,8 +255,11 @@ model AmmoTransaction {
   quantity     Int
   previousQty  Int
   newQty       Int
-  note         String?
-  transactedAt DateTime @default(now())
+  note          String?
+  transactedAt  DateTime  @default(now())
+  purchasePrice Float?
+  pricePerRound Float?
+  purchaseDate  DateTime?
 
   @@index([stockId])
   @@index([transactedAt])
