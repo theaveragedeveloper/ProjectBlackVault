@@ -71,6 +71,14 @@ function AddRoundsModal({
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [totalCost, setTotalCost] = useState("");
+  const [pricePerRound, setPricePerRound] = useState("");
+  const [purchaseDate, setPurchaseDate] = useState("");
+
+  function parsedQtyForCalc(): number {
+    const n = Number.parseInt(qty, 10);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -84,7 +92,14 @@ function AddRoundsModal({
     const res = await fetch(`/api/ammo/${stock.id}/transactions`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "PURCHASE", quantity: parsedQty, note: note || undefined }),
+      body: JSON.stringify({
+        type: "PURCHASE",
+        quantity: parsedQty,
+        note: note || undefined,
+        purchasePrice: totalCost ? Number(totalCost) : undefined,
+        pricePerRound: pricePerRound ? Number(pricePerRound) : undefined,
+        purchaseDate: purchaseDate || undefined,
+      }),
     });
     const json = await res.json();
     if (!res.ok) {
@@ -135,6 +150,52 @@ function AddRoundsModal({
               onChange={(e) => setNote(e.target.value)}
               placeholder="e.g. Academy purchase"
               className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
+            />
+          </div>
+          {/* Purchase Details */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">Total Cost ($)</label>
+              <VaultInput
+                type="number"
+                min={0}
+                step="0.01"
+                value={totalCost}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setTotalCost(val);
+                  const qtyNum = parsedQtyForCalc();
+                  if (qtyNum > 0 && val) setPricePerRound((Number(val) / qtyNum).toFixed(4));
+                }}
+                placeholder="e.g. 24.99"
+                className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">Price / Round ($)</label>
+              <VaultInput
+                type="number"
+                min={0}
+                step="0.0001"
+                value={pricePerRound}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setPricePerRound(val);
+                  const qtyNum = parsedQtyForCalc();
+                  if (qtyNum > 0 && val) setTotalCost((Number(val) * qtyNum).toFixed(2));
+                }}
+                placeholder="e.g. 0.0499"
+                className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest text-vault-text-muted mb-1.5">Purchase Date</label>
+            <VaultInput
+              type="date"
+              value={purchaseDate}
+              onChange={(e) => setPurchaseDate(e.target.value)}
+              className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF]"
             />
           </div>
           <div className="flex gap-2 justify-end pt-2">
