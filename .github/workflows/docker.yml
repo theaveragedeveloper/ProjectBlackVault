@@ -2,7 +2,7 @@ name: Build & Push Docker Image
 
 on:
   push:
-    branches: [main, V1-pub-release]
+    branches: [main, V1-pub-release, V1.2]
 
 jobs:
   build:
