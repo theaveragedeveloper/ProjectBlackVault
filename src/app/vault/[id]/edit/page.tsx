@@ -5,12 +5,22 @@ import ImagePicker from "@/components/shared/ImagePicker";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { FIREARM_TYPES, FIREARM_TYPE_LABELS, COMMON_CALIBERS } from "@/lib/types";
-import { ArrowLeft, Save, Loader2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Save, Loader2, AlertCircle, Trash2 } from "lucide-react";
 
 const INPUT_CLASS =
   "w-full bg-vault-surface border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint transition-colors";
 const LABEL_CLASS =
   "block text-xs font-medium uppercase tracking-widest text-vault-text-muted mb-1.5";
+
+interface BuildSlot {
+  accessory: { id: string } | null;
+}
+
+interface Build {
+  id: string;
+  name: string;
+  slots: BuildSlot[];
+}
 
 interface Firearm {
   id: string;
@@ -28,6 +38,8 @@ interface Firearm {
   imageUrl: string | null;
   lastMaintenanceDate: string | null;
   maintenanceIntervalDays: number | null;
+  builds: Build[];
+  rangeSessionCount: number;
 }
 
 function toDateInputValue(dateStr: string | null): string {
@@ -60,6 +72,16 @@ export default function EditFirearmPage() {
   const [compatCaliberDropdownOpen, setCompatCaliberDropdownOpen] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const caliberRef = useRef<HTMLDivElement>(null);
+
+  // Delete firearm state
+  const [showDeleteFirearmModal, setShowDeleteFirearmModal] = useState(false);
+  const [deleteFirearmAccessories, setDeleteFirearmAccessories] = useState<"keep" | "delete">("keep");
+  const [deletingFirearm, setDeletingFirearm] = useState(false);
+
+  // Delete build state
+  const [deleteBuildTarget, setDeleteBuildTarget] = useState<{ id: string; name: string; accessoryCount: number } | null>(null);
+  const [deleteBuildAccessories, setDeleteBuildAccessories] = useState<"keep" | "delete">("keep");
+  const [deletingBuild, setDeletingBuild] = useState(false);
 
   const filteredCalibers = COMMON_CALIBERS.filter((c) =>
     c.toLowerCase().includes(caliberInput.toLowerCase())
@@ -143,6 +165,43 @@ export default function EditFirearmPage() {
     }
   }
 
+  async function handleDeleteFirearm() {
+    if (!firearm) return;
+    setDeletingFirearm(true);
+    try {
+      const res = await fetch(`/api/firearms/${firearm.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deleteAccessories: deleteFirearmAccessories === "delete" }),
+      });
+      if (res.ok) {
+        router.push("/vault");
+      } else {
+        setDeletingFirearm(false);
+      }
+    } catch {
+      setDeletingFirearm(false);
+    }
+  }
+
+  async function handleDeleteBuild(buildId: string) {
+    setDeletingBuild(true);
+    try {
+      const res = await fetch(`/api/builds/${buildId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deleteAccessories: deleteBuildAccessories === "delete" }),
+      });
+      if (res.ok) {
+        setFirearm((prev) => prev ? { ...prev, builds: prev.builds.filter((b) => b.id !== buildId) } : prev);
+        setDeleteBuildTarget(null);
+        setDeleteBuildAccessories("keep");
+      }
+    } finally {
+      setDeletingBuild(false);
+    }
+  }
+
   if (dataLoading) {
     return (
       <div className="flex items-center justify-center min-h-full">
@@ -174,6 +233,11 @@ export default function EditFirearmPage() {
       </div>
     );
   }
+
+  const totalAccessoryCount = firearm.builds.reduce(
+    (sum, b) => sum + b.slots.filter((s) => s.accessory).length,
+    0
+  );
 
   return (
     <div className="min-h-full">
@@ -563,7 +627,195 @@ export default function EditFirearmPage() {
             </button>
           </div>
         </form>
+
+        {/* Builds section */}
+        <div className="mt-8 border-t border-vault-border pt-6">
+          <h3 className="text-xs font-mono uppercase tracking-widest text-vault-text-muted mb-3">Builds</h3>
+          {firearm.builds.length === 0 ? (
+            <p className="text-sm text-vault-text-faint">No builds</p>
+          ) : (
+            <div className="space-y-2">
+              {firearm.builds.map((build) => {
+                const accCount = build.slots.filter((s) => s.accessory).length;
+                return (
+                  <div
+                    key={build.id}
+                    className="flex items-center justify-between bg-vault-surface border border-vault-border rounded-md px-4 py-2.5"
+                  >
+                    <span className="text-sm text-vault-text">{build.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDeleteBuildTarget({ id: build.id, name: build.name, accessoryCount: accCount });
+                        setDeleteBuildAccessories("keep");
+                      }}
+                      className="text-vault-text-muted hover:text-[#E53935] transition-colors p-1"
+                      aria-label={`Delete build ${build.name}`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Delete Firearm section */}
+        <div className="mt-6 border-t border-vault-border pt-6">
+          <button
+            type="button"
+            onClick={() => setShowDeleteFirearmModal(true)}
+            className="flex items-center gap-2 px-4 py-2 text-sm border border-[#E53935]/40 text-[#E53935] rounded-md hover:bg-[#E53935]/10 transition-colors"
+          >
+            <Trash2 className="w-4 h-4" />
+            Delete Firearm
+          </button>
+        </div>
       </div>
+
+      {/* Delete Firearm Modal */}
+      {showDeleteFirearmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="bg-vault-surface border border-vault-border rounded-xl p-6 w-full max-w-sm shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-9 h-9 rounded-full bg-[#E53935]/10 flex items-center justify-center shrink-0">
+                <Trash2 className="w-4 h-4 text-[#E53935]" />
+              </div>
+              <h2 className="text-base font-semibold text-vault-text">Delete Firearm</h2>
+            </div>
+
+            {(firearm.builds.length > 0 || totalAccessoryCount > 0) && (
+              <p className="text-sm text-vault-text-muted mb-4">
+                This firearm has{" "}
+                <span className="text-vault-text font-medium">{firearm.builds.length} build{firearm.builds.length !== 1 ? "s" : ""}</span>
+                {totalAccessoryCount > 0 && (
+                  <> and{" "}
+                    <span className="text-vault-text font-medium">{totalAccessoryCount} accessor{totalAccessoryCount !== 1 ? "ies" : "y"}</span>
+                  </>
+                )}.
+              </p>
+            )}
+
+            {firearm.rangeSessionCount > 0 && (
+              <p className="text-sm text-[#E53935]/80 mb-4">
+                This will also delete{" "}
+                <span className="font-medium">{firearm.rangeSessionCount} range session{firearm.rangeSessionCount !== 1 ? "s" : ""}</span> for this firearm.
+              </p>
+            )}
+
+            {(firearm.builds.length > 0 || totalAccessoryCount > 0) ? (
+              <div className="space-y-2 mb-5">
+                <p className="text-xs font-medium uppercase tracking-widest text-vault-text-muted mb-2">What should happen to the accessories?</p>
+                {[
+                  { value: "keep", label: "Keep accessories in vault" },
+                  { value: "delete", label: "Delete accessories too" },
+                ].map((opt) => (
+                  <label key={opt.value} className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="deleteFirearmAccessories"
+                      value={opt.value}
+                      checked={deleteFirearmAccessories === opt.value}
+                      onChange={() => setDeleteFirearmAccessories(opt.value as "keep" | "delete")}
+                      className="accent-[#00C2FF]"
+                    />
+                    <span className="text-sm text-vault-text">{opt.label}</span>
+                  </label>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-vault-text-muted mb-5">This cannot be undone.</p>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowDeleteFirearmModal(false)}
+                disabled={deletingFirearm}
+                className="flex-1 px-4 py-2 text-sm text-vault-text-muted border border-vault-border rounded-md hover:border-vault-text-muted/40 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteFirearm}
+                disabled={deletingFirearm}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm bg-[#E53935]/10 border border-[#E53935]/40 text-[#E53935] rounded-md hover:bg-[#E53935]/20 transition-colors disabled:opacity-50"
+              >
+                {deletingFirearm ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                {deletingFirearm ? "Deleting..." : "Delete Firearm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Build Modal */}
+      {deleteBuildTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="bg-vault-surface border border-vault-border rounded-xl p-6 w-full max-w-sm shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-9 h-9 rounded-full bg-[#E53935]/10 flex items-center justify-center shrink-0">
+                <Trash2 className="w-4 h-4 text-[#E53935]" />
+              </div>
+              <h2 className="text-base font-semibold text-vault-text">Delete Build</h2>
+            </div>
+
+            {deleteBuildTarget.accessoryCount > 0 ? (
+              <>
+                <p className="text-sm text-vault-text-muted mb-4">
+                  <span className="text-vault-text font-medium">{deleteBuildTarget.name}</span> has{" "}
+                  <span className="text-vault-text font-medium">{deleteBuildTarget.accessoryCount} accessor{deleteBuildTarget.accessoryCount !== 1 ? "ies" : "y"}</span>.
+                </p>
+                <div className="space-y-2 mb-5">
+                  <p className="text-xs font-medium uppercase tracking-widest text-vault-text-muted mb-2">What should happen to the accessories?</p>
+                  {[
+                    { value: "keep", label: "Keep accessories in vault" },
+                    { value: "delete", label: "Delete accessories too" },
+                  ].map((opt) => (
+                    <label key={opt.value} className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="deleteBuildAccessories"
+                        value={opt.value}
+                        checked={deleteBuildAccessories === opt.value}
+                        onChange={() => setDeleteBuildAccessories(opt.value as "keep" | "delete")}
+                        className="accent-[#00C2FF]"
+                      />
+                      <span className="text-sm text-vault-text">{opt.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-vault-text-muted mb-5">
+                Delete <span className="text-vault-text font-medium">{deleteBuildTarget.name}</span>? This cannot be undone.
+              </p>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => { setDeleteBuildTarget(null); setDeleteBuildAccessories("keep"); }}
+                disabled={deletingBuild}
+                className="flex-1 px-4 py-2 text-sm text-vault-text-muted border border-vault-border rounded-md hover:border-vault-text-muted/40 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDeleteBuild(deleteBuildTarget.id)}
+                disabled={deletingBuild}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm bg-[#E53935]/10 border border-[#E53935]/40 text-[#E53935] rounded-md hover:bg-[#E53935]/20 transition-colors disabled:opacity-50"
+              >
+                {deletingBuild ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                {deletingBuild ? "Deleting..." : "Delete Build"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -53,12 +53,14 @@ if [ -n "$ACTIVE_DATA_DIR" ]; then
       LEGACY_DB="$HOME/.blackvault/db/vault.db"
     fi
     if [ -n "$LEGACY_DB" ]; then
-      echo "   However, data was found at: $LEGACY_DB"
-      echo "   Your .env DATA_DIR may be pointing to the wrong location."
+      LEGACY_DATA_DIR=$(dirname "$(dirname "$LEGACY_DB")")
+      echo "   Data found at: $LEGACY_DB"
+      echo "   Auto-updating DATA_DIR in .env:"
+      echo "     $ACTIVE_DATA_DIR  →  $LEGACY_DATA_DIR"
+      sed -i.bak "s|^DATA_DIR=.*|DATA_DIR=$LEGACY_DATA_DIR|" .env
+      ACTIVE_DATA_DIR="$LEGACY_DATA_DIR"
+      echo "   .env updated. Continuing update..."
       echo ""
-      echo "   To fix: update DATA_DIR in .env to the correct path, then re-run update.sh"
-      echo "   OR:      run install.sh to reconfigure (it will detect your existing data)"
-      exit 1
     else
       echo "   No existing database found in any known location."
       echo "   This may be a fresh install — continuing."

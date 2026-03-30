@@ -322,55 +322,56 @@ export async function GET(request: NextRequest) {
     const exportOptions = parseExportOptionsFromSearchParams(request.nextUrl.searchParams);
     const preset: ExportPreset = exportOptions.preset;
 
-    const [firearms, accessories, documents, ammoStocks] = await Promise.all([
-      prisma.firearm.findMany({
-        select: {
-          id: true,
-          name: true,
-          manufacturer: true,
-          model: true,
-          caliber: true,
-          serialNumber: true,
-          type: true,
-          acquisitionDate: true,
-          purchasePrice: true,
-          currentValue: true,
-          notes: true,
-          imageUrl: true,
-        },
-        orderBy: [{ manufacturer: "asc" }, { model: "asc" }, { name: "asc" }],
-      }),
-      prisma.accessory.findMany({
-        select: {
-          id: true,
-          name: true,
-          manufacturer: true,
-          model: true,
-          type: true,
-          caliber: true,
-          acquisitionDate: true,
-          purchasePrice: true,
-          notes: true,
-          imageUrl: true,
-        },
-        orderBy: [{ manufacturer: "asc" }, { name: "asc" }],
-      }),
-      exportOptions.includeDocuments ? findDocumentsForExport() : Promise.resolve([]),
-      exportOptions.includeAmmo
-        ? prisma.ammoStock.findMany({
-            select: {
-              id: true,
-              brand: true,
-              caliber: true,
-              quantity: true,
-              lowStockAlert: true,
-              purchasePrice: true,
-              notes: true,
-            },
-            orderBy: [{ caliber: "asc" }, { brand: "asc" }],
-          })
-        : Promise.resolve([]),
-    ]) as [FirearmExportRecord[], AccessoryExportRecord[], ExportDocumentRecord[], ExportAmmoRecord[]];
+    // Sequential queries — SQLite connection_limit=1 cannot handle concurrent reads
+    const firearms = (await prisma.firearm.findMany({
+      select: {
+        id: true,
+        name: true,
+        manufacturer: true,
+        model: true,
+        caliber: true,
+        serialNumber: true,
+        type: true,
+        acquisitionDate: true,
+        purchasePrice: true,
+        currentValue: true,
+        notes: true,
+        imageUrl: true,
+      },
+      orderBy: [{ manufacturer: "asc" }, { model: "asc" }, { name: "asc" }],
+    })) as FirearmExportRecord[];
+    const accessories = (await prisma.accessory.findMany({
+      select: {
+        id: true,
+        name: true,
+        manufacturer: true,
+        model: true,
+        type: true,
+        caliber: true,
+        acquisitionDate: true,
+        purchasePrice: true,
+        notes: true,
+        imageUrl: true,
+      },
+      orderBy: [{ manufacturer: "asc" }, { name: "asc" }],
+    })) as AccessoryExportRecord[];
+    const documents = (exportOptions.includeDocuments
+      ? await findDocumentsForExport()
+      : []) as ExportDocumentRecord[];
+    const ammoStocks = (exportOptions.includeAmmo
+      ? await prisma.ammoStock.findMany({
+          select: {
+            id: true,
+            brand: true,
+            caliber: true,
+            quantity: true,
+            lowStockAlert: true,
+            purchasePrice: true,
+            notes: true,
+          },
+          orderBy: [{ caliber: "asc" }, { brand: "asc" }],
+        })
+      : []) as ExportAmmoRecord[];
 
     const receiptDocuments = documents.filter((doc) => doc.type === "RECEIPT");
 

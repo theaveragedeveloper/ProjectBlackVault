@@ -11,6 +11,21 @@ const INPUT_CLASS =
   "w-full bg-vault-surface border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint transition-colors";
 const LABEL_CLASS = "block text-xs font-medium uppercase tracking-widest text-vault-text-muted mb-1.5";
 
+function matchesDuplicate(
+  existing: { caliber: string; brand: string; grainWeight: number | null; bulletType: string | null },
+  payload: { caliber: string; brand: string; grainWeight: number | null; bulletType: string | null }
+): boolean {
+  const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+  const sameNullable = (a: number | string | null, b: number | string | null) =>
+    a === null && b === null ? true : a !== null && b !== null && String(a) === String(b);
+  return (
+    same(existing.caliber, payload.caliber) &&
+    same(existing.brand, payload.brand) &&
+    sameNullable(existing.grainWeight, payload.grainWeight) &&
+    sameNullable(existing.bulletType, payload.bulletType)
+  );
+}
+
 export default function NewAmmoStockPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -21,6 +36,15 @@ export default function NewAmmoStockPage() {
   const [totalCost, setTotalCost] = useState("");
   const [pricePerRound, setPricePerRound] = useState("");
   const [quantityValue, setQuantityValue] = useState("");
+  const [duplicateMatch, setDuplicateMatch] = useState<{
+    id: string;
+    brand: string;
+    caliber: string;
+    grainWeight: number | null;
+    bulletType: string | null;
+    quantity: number;
+  } | null>(null);
+  const [pendingPayload, setPendingPayload] = useState<Record<string, unknown> | null>(null);
 
   const filteredCalibers = COMMON_CALIBERS.filter((c) =>
     c.toLowerCase().includes(caliberInput.toLowerCase())
@@ -61,6 +85,23 @@ export default function NewAmmoStockPage() {
     }
     setFormErrors({});
 
+    // Check for duplicates before creating
+    try {
+      const existing = await fetch("/api/ammo").then((r) => r.json());
+      // GET /api/ammo returns { grouped: [...], all: [...] }
+      const allStocks: Array<{ id: string; caliber: string; brand: string; grainWeight: number | null; bulletType: string | null; quantity: number }> =
+        existing?.all ?? [];
+      const match = allStocks.find((s) => matchesDuplicate(s, payload));
+      if (match) {
+        setPendingPayload(payload);
+        setDuplicateMatch(match);
+        setLoading(false);
+        return; // Stop here — wait for user decision
+      }
+    } catch {
+      // If check fails, proceed with normal create
+    }
+
     try {
       const res = await fetch("/api/ammo", {
         method: "POST",
@@ -80,6 +121,33 @@ export default function NewAmmoStockPage() {
     } catch {
       setError("Network error. Please try again.");
       setLoading(false);
+    }
+  }
+
+  async function handleMergeConfirm() {
+    if (!duplicateMatch || !pendingPayload) return;
+    setLoading(true);
+    setError(null);
+    const res = await fetch(`/api/ammo/${duplicateMatch.id}/transactions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "PURCHASE",
+        quantity: Number(pendingPayload.quantity),
+        purchasePrice: pendingPayload.purchasePrice ?? undefined,
+        pricePerRound: pendingPayload.pricePerRound ?? undefined,
+        purchaseDate: pendingPayload.purchaseDate ?? undefined,
+        note: pendingPayload.notes ? String(pendingPayload.notes) : undefined,
+      }),
+    });
+    if (res.ok) {
+      router.push("/ammo");
+    } else {
+      const json = await res.json();
+      setError(json.error ?? "Failed to add rounds to existing stock.");
+      setLoading(false);
+      setDuplicateMatch(null);
+      setPendingPayload(null);
     }
   }
 
@@ -377,6 +445,56 @@ export default function NewAmmoStockPage() {
               />
             </div>
           </fieldset>
+
+          {duplicateMatch && (
+            <div className="bg-[#F5A623]/10 border border-[#F5A623]/40 rounded-lg p-4 space-y-3">
+              <p className="text-sm text-vault-text">
+                You already have{" "}
+                <span className="font-semibold">
+                  {duplicateMatch.brand} {duplicateMatch.caliber}
+                  {duplicateMatch.grainWeight ? ` ${duplicateMatch.grainWeight}gr` : ""}
+                  {duplicateMatch.bulletType ? ` ${duplicateMatch.bulletType}` : ""}
+                </span>{" "}
+                in stock ({duplicateMatch.quantity.toLocaleString()} rds). Add these rounds to existing stock instead?
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleMergeConfirm}
+                  disabled={loading}
+                  className="flex items-center gap-2 bg-[#00C853]/10 border border-[#00C853]/30 text-[#00C853] hover:bg-[#00C853]/20 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                >
+                  {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                  Yes, add to existing
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDuplicateMatch(null);
+                    setPendingPayload(null);
+                    if (pendingPayload) {
+                      setLoading(true);
+                      fetch("/api/ammo", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(pendingPayload),
+                      })
+                        .then((r) => r.json())
+                        .then((json) => {
+                          if (json.id) router.push("/ammo");
+                          else setError(json.error ?? "Failed to create ammo stock.");
+                        })
+                        .catch(() => setError("Network error."))
+                        .finally(() => setLoading(false));
+                    }
+                  }}
+                  className="flex items-center gap-2 bg-transparent border border-vault-border text-vault-text-muted hover:text-vault-text hover:border-vault-text-muted/50 px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                >
+                  No, create separate lot
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-3 pt-2">

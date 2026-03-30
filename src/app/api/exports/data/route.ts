@@ -356,112 +356,82 @@ export async function GET(request: NextRequest) {
       },
     };
 
-    const queries: Promise<void>[] = [];
-
+    // Sequential queries — SQLite connection_limit=1 cannot handle concurrent reads
     if (flags.firearms) {
-      queries.push(
-        prisma.firearm.findMany({ orderBy: [{ manufacturer: "asc" }, { model: "asc" }, { name: "asc" }] }).then((rows) => {
-          payload.firearms = includeSerialNumbers
-            ? rows
-            : rows.map((row) => {
-                const rest = { ...row } as Record<string, unknown>;
-                delete rest.serialNumber;
-                return rest;
-              });
-        })
-      );
+      const rows = await prisma.firearm.findMany({ orderBy: [{ manufacturer: "asc" }, { model: "asc" }, { name: "asc" }] });
+      payload.firearms = includeSerialNumbers
+        ? rows
+        : rows.map((row) => {
+            const rest = { ...row } as Record<string, unknown>;
+            delete rest.serialNumber;
+            return rest;
+          });
     }
 
     if (flags.accessories) {
-      queries.push(
-        prisma.accessory.findMany({ orderBy: [{ manufacturer: "asc" }, { name: "asc" }] }).then((rows) => {
-          payload.accessories = rows;
-        })
-      );
+      payload.accessories = await prisma.accessory.findMany({ orderBy: [{ manufacturer: "asc" }, { name: "asc" }] });
     }
 
     if (flags.builds) {
-      queries.push(
-        prisma.build.findMany({
-          include: {
-            slots: {
-              include: { accessory: true },
-              orderBy: { slotType: "asc" },
-            },
+      payload.builds = await prisma.build.findMany({
+        include: {
+          slots: {
+            include: { accessory: true },
+            orderBy: { slotType: "asc" },
           },
-          orderBy: [{ firearmId: "asc" }, { name: "asc" }],
-        }).then((rows) => {
-          payload.builds = rows;
-        })
-      );
+        },
+        orderBy: [{ firearmId: "asc" }, { name: "asc" }],
+      });
     }
 
     if (flags.ammo) {
-      queries.push(
-        prisma.ammoStock.findMany({
-          include: {
-            transactions: {
-              orderBy: { transactedAt: "desc" },
-            },
+      payload.ammoStocks = await prisma.ammoStock.findMany({
+        include: {
+          transactions: {
+            orderBy: { transactedAt: "desc" },
           },
-          orderBy: [{ caliber: "asc" }, { brand: "asc" }],
-        }).then((rows) => {
-          payload.ammoStocks = rows;
-        })
-      );
+        },
+        orderBy: [{ caliber: "asc" }, { brand: "asc" }],
+      });
     }
 
     if (flags.rangeSessions) {
-      queries.push(
-        prisma.rangeSession.findMany({
-          include: {
-            sessionDrills: { orderBy: [{ sortOrder: "asc" }, { name: "asc" }, { setNumber: "asc" }] },
-            ammoLinks: true,
-          },
-          orderBy: { sessionDate: "desc" },
-        }).then((rows) => {
-          payload.rangeSessions = rows;
-        })
-      );
+      payload.rangeSessions = await prisma.rangeSession.findMany({
+        include: {
+          sessionDrills: { orderBy: [{ sortOrder: "asc" }, { name: "asc" }, { setNumber: "asc" }] },
+          ammoLinks: true,
+        },
+        orderBy: { sessionDate: "desc" },
+      });
     }
 
     if (flags.documents) {
-      queries.push(
-        prisma.document.findMany({
-          include: {
-            firearm: { select: { id: true, name: true } },
-            accessory: { select: { id: true, name: true } },
-          },
-          orderBy: { createdAt: "desc" },
-        }).then((rows) => {
-          payload.documents = rows;
-        })
-      );
+      payload.documents = await prisma.document.findMany({
+        include: {
+          firearm: { select: { id: true, name: true } },
+          accessory: { select: { id: true, name: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      });
     }
 
     if (flags.settings) {
-      queries.push(
-        Promise.resolve().then(() => {
-          if (!appSettings) {
-            payload.settings = null;
-            return;
-          }
-          const settingsRecord = appSettings as Record<string, unknown>;
-          payload.settings = {
-            id: settingsRecord.id,
-            defaultCurrency: settingsRecord.defaultCurrency,
-            dataStoragePath: settingsRecord.dataStoragePath,
-            createdAt: settingsRecord.createdAt,
-            updatedAt: settingsRecord.updatedAt,
-            includeUploadsInBackup: settingsRecord.includeUploadsInBackup,
-            autoBackupEnabled: settingsRecord.autoBackupEnabled,
-            autoBackupCadence: settingsRecord.autoBackupCadence,
-          };
-        })
-      );
+      if (!appSettings) {
+        payload.settings = null;
+      } else {
+        const settingsRecord = appSettings as Record<string, unknown>;
+        payload.settings = {
+          id: settingsRecord.id,
+          defaultCurrency: settingsRecord.defaultCurrency,
+          dataStoragePath: settingsRecord.dataStoragePath,
+          createdAt: settingsRecord.createdAt,
+          updatedAt: settingsRecord.updatedAt,
+          includeUploadsInBackup: settingsRecord.includeUploadsInBackup,
+          autoBackupEnabled: settingsRecord.autoBackupEnabled,
+          autoBackupCadence: settingsRecord.autoBackupCadence,
+        };
+      }
     }
-
-    await Promise.all(queries);
 
     if (includeUploadReferences) {
       const uploadReferences: Array<Record<string, string>> = [];

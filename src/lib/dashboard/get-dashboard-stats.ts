@@ -72,82 +72,72 @@ export interface DashboardStatsResponse {
 }
 
 export async function getDashboardStats(): Promise<DashboardStatsResponse> {
-  const [
-    firearmCount,
-    accessoryCount,
-    ammoStocks,
-    firearms,
-    accessories,
-    recentFirearms,
-    recentAccessories,
-    recentAmmo,
-  ] = await Promise.all([
-    prisma.firearm.count(),
-    prisma.accessory.count(),
-    prisma.ammoStock.findMany({
-      select: {
-        id: true,
-        caliber: true,
-        brand: true,
-        quantity: true,
-        purchasePrice: true,
-        lowStockAlert: true,
-        grainWeight: true,
-        bulletType: true,
-      },
-    }),
-    prisma.firearm.findMany({
-      select: {
-        id: true,
-        purchasePrice: true,
-        currentValue: true,
-      },
-    }),
-    prisma.accessory.findMany({
-      select: {
-        id: true,
-        purchasePrice: true,
-      },
-    }),
-    prisma.firearm.findMany({
-      take: 5,
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        name: true,
-        manufacturer: true,
-        model: true,
-        type: true,
-        caliber: true,
-        imageUrl: true,
-        acquisitionDate: true,
-        createdAt: true,
-      },
-    }),
-    prisma.accessory.findMany({
-      take: 5,
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        name: true,
-        manufacturer: true,
-        type: true,
-        imageUrl: true,
-        createdAt: true,
-      },
-    }),
-    prisma.ammoStock.findMany({
-      take: 5,
-      orderBy: { updatedAt: "desc" },
-      select: {
-        id: true,
-        caliber: true,
-        brand: true,
-        quantity: true,
-        updatedAt: true,
-      },
-    }),
-  ]);
+  // Sequential queries — SQLite connection_limit=1 cannot handle concurrent reads
+  const firearmCount = await prisma.firearm.count();
+  const accessoryCount = await prisma.accessory.count();
+  const ammoStocks = await prisma.ammoStock.findMany({
+    select: {
+      id: true,
+      caliber: true,
+      brand: true,
+      quantity: true,
+      purchasePrice: true,
+      lowStockAlert: true,
+      grainWeight: true,
+      bulletType: true,
+    },
+  });
+  const firearms = await prisma.firearm.findMany({
+    select: {
+      id: true,
+      purchasePrice: true,
+      currentValue: true,
+    },
+  });
+  const accessories = await prisma.accessory.findMany({
+    select: {
+      id: true,
+      purchasePrice: true,
+    },
+  });
+  const recentFirearms = await prisma.firearm.findMany({
+    take: 5,
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      name: true,
+      manufacturer: true,
+      model: true,
+      type: true,
+      caliber: true,
+      imageUrl: true,
+      acquisitionDate: true,
+      createdAt: true,
+    },
+  });
+  const recentAccessories = await prisma.accessory.findMany({
+    take: 5,
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      name: true,
+      manufacturer: true,
+      type: true,
+      imageUrl: true,
+      createdAt: true,
+    },
+  });
+  const recentAmmo = await prisma.ammoStock.findMany({
+    take: 5,
+    orderBy: { updatedAt: "desc" },
+    select: {
+      id: true,
+      caliber: true,
+      brand: true,
+      quantity: true,
+      updatedAt: true,
+    },
+  });
 
   const ammoByCaliber: Record<
     string,

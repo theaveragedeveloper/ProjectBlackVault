@@ -273,7 +273,7 @@ function MaintenanceDueWidget() {
                     return (
                       <Link
                         key={item.id}
-                        href={`/accessories`}
+                        href={`/accessories/${item.id}`}
                         className="flex items-center justify-between px-4 py-3 hover:bg-vault-surface-2 transition-colors"
                       >
                         <div>
@@ -299,7 +299,7 @@ function MaintenanceDueWidget() {
                     return (
                       <Link
                         key={item.id}
-                        href={`/accessories`}
+                        href={`/accessories/${item.id}`}
                         className="flex items-center justify-between px-4 py-3 hover:bg-vault-surface-2 transition-colors"
                       >
                         <div>
@@ -683,20 +683,9 @@ function AmmoSummaryWidget({ ammoStocks }: { ammoStocks: AmmoStockItem[] }) {
 export function DashboardClient({ data }: { data: DashboardData }) {
   const [liveData, setLiveData] = useState<DashboardData>(data);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [order, setOrder] = useState<string[]>(() => {
-    if (typeof window === "undefined") return DEFAULT_ORDER;
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (!saved) return DEFAULT_ORDER;
-      const parsed: string[] = JSON.parse(saved);
-      return [
-        ...parsed.filter((id) => DEFAULT_ORDER.includes(id)),
-        ...DEFAULT_ORDER.filter((id) => !parsed.includes(id)),
-      ];
-    } catch {
-      return DEFAULT_ORDER;
-    }
-  });
+  // Always initialise with DEFAULT_ORDER so server and client render identically,
+  // avoiding React hydration mismatch #418.  localStorage is read in useEffect below.
+  const [order, setOrder] = useState<string[]>(DEFAULT_ORDER);
   const [editMode, setEditMode] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [welcomeDismissed, setWelcomeDismissed] = useState(false);
@@ -729,6 +718,19 @@ export function DashboardClient({ data }: { data: DashboardData }) {
     setMounted(true);
     setWelcomeDismissed(localStorage.getItem("bv-welcome-dismissed") === "1");
     setSettingsHintDismissed(localStorage.getItem("bv-settings-hint-shown") === "1");
+    // Restore saved widget order now that we're safely on the client
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed: string[] = JSON.parse(saved);
+        setOrder([
+          ...parsed.filter((id) => DEFAULT_ORDER.includes(id)),
+          ...DEFAULT_ORDER.filter((id) => !parsed.includes(id)),
+        ]);
+      }
+    } catch {
+      // keep DEFAULT_ORDER
+    }
   }, []);
 
   useEffect(() => {
