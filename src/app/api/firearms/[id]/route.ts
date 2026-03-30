@@ -182,31 +182,36 @@ export async function DELETE(
     const body = await request.json().catch(() => ({}));
     const deleteAccessories = body.deleteAccessories === true;
 
+    // Fetch build IDs outside the transaction (read-only, no mutation risk)
     const builds = await prisma.build.findMany({
       where: { firearmId: id },
       select: { id: true },
     });
     const buildIds = builds.map((b) => b.id);
 
-    if (buildIds.length > 0) {
-      if (deleteAccessories) {
-        const slots = await prisma.buildSlot.findMany({
-          where: { buildId: { in: buildIds }, accessoryId: { not: null } },
-          select: { accessoryId: true },
-        });
-        const accessoryIds = slots.map((s) => s.accessoryId).filter(Boolean) as string[];
-        if (accessoryIds.length > 0) {
-          await prisma.accessory.deleteMany({ where: { id: { in: accessoryIds } } });
+    // Wrap all mutations in a transaction so partial failures don't leave orphaned data
+    await prisma.$transaction(async (tx) => {
+      if (buildIds.length > 0) {
+        if (deleteAccessories) {
+          const slots = await tx.buildSlot.findMany({
+            where: { buildId: { in: buildIds }, accessoryId: { not: null } },
+            select: { accessoryId: true },
+          });
+          const accessoryIds = slots.map((s) => s.accessoryId).filter(Boolean) as string[];
+          if (accessoryIds.length > 0) {
+            await tx.accessory.deleteMany({ where: { id: { in: accessoryIds } } });
+          }
+        } else {
+          await tx.buildSlot.updateMany({
+            where: { buildId: { in: buildIds } },
+            data: { accessoryId: null },
+          });
         }
-      } else {
-        await prisma.buildSlot.updateMany({
-          where: { buildId: { in: buildIds } },
-          data: { accessoryId: null },
-        });
       }
-    }
 
-    await prisma.firearm.delete({ where: { id } });
+      await tx.firearm.delete({ where: { id } });
+    });
+
     revalidateDashboardData();
 
     return NextResponse.json({ success: true, id });

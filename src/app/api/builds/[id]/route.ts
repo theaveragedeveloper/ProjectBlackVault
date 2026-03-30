@@ -122,23 +122,27 @@ export async function DELETE(
     const body = await request.json().catch(() => ({}));
     const deleteAccessories = body.deleteAccessories === true;
 
-    if (deleteAccessories) {
-      const slots = await prisma.buildSlot.findMany({
-        where: { buildId: id, accessoryId: { not: null } },
-        select: { accessoryId: true },
-      });
-      const accessoryIds = slots.map((s) => s.accessoryId).filter(Boolean) as string[];
-      if (accessoryIds.length > 0) {
-        await prisma.accessory.deleteMany({ where: { id: { in: accessoryIds } } });
+    // Wrap all mutations in a transaction so partial failures don't leave orphaned data
+    await prisma.$transaction(async (tx) => {
+      if (deleteAccessories) {
+        const slots = await tx.buildSlot.findMany({
+          where: { buildId: id, accessoryId: { not: null } },
+          select: { accessoryId: true },
+        });
+        const accessoryIds = slots.map((s) => s.accessoryId).filter(Boolean) as string[];
+        if (accessoryIds.length > 0) {
+          await tx.accessory.deleteMany({ where: { id: { in: accessoryIds } } });
+        }
+      } else {
+        await tx.buildSlot.updateMany({
+          where: { buildId: id },
+          data: { accessoryId: null },
+        });
       }
-    } else {
-      await prisma.buildSlot.updateMany({
-        where: { buildId: id },
-        data: { accessoryId: null },
-      });
-    }
 
-    await prisma.build.delete({ where: { id } });
+      await tx.build.delete({ where: { id } });
+    });
+
     revalidateDashboardData();
 
     return NextResponse.json({ success: true, id });
