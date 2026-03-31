@@ -214,15 +214,14 @@ model RangeSession {
 }
 
 model RangeSessionAmmoLink {
-  id             String       @id @default(cuid())
+  id             String        @id @default(cuid())
   rangeSessionId String
-  rangeSession   RangeSession @relation(fields: [rangeSessionId], references: [id], onDelete: Cascade)
-  ammoStockId    String
-  ammoStock      AmmoStock    @relation(fields: [ammoStockId], references: [id], onDelete: Cascade)
+  rangeSession   RangeSession  @relation(fields: [rangeSessionId], references: [id], onDelete: Cascade)
+  ammoStockId    String?
+  ammoStock      AmmoStock?    @relation(fields: [ammoStockId], references: [id], onDelete: SetNull)
   roundsUsed     Int
-  createdAt      DateTime     @default(now())
+  createdAt      DateTime      @default(now())
 
-  @@unique([rangeSessionId, ammoStockId])
   @@index([rangeSessionId])
   @@index([ammoStockId])
 }
