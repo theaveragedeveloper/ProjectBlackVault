@@ -137,7 +137,14 @@ function AddRoundsModal({
               min={1}
               required
               value={qty}
-              onChange={(e) => setQty(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setQty(val);
+                const qtyNum = Number.parseInt(val, 10);
+                if (Number.isFinite(qtyNum) && qtyNum > 0 && pricePerRound) {
+                  setTotalCost((Number(pricePerRound) * qtyNum).toFixed(2));
+                }
+              }}
               placeholder="e.g. 500"
               className="w-full bg-vault-bg border border-vault-border text-vault-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#00C2FF] placeholder-vault-text-faint"
             />
@@ -512,19 +519,47 @@ export default function AmmoPage() {
   }
 
   function handleStockEdit(updated: AmmoStock) {
-    setGroups((prev) =>
-      prev.map((g) => {
-        const hasStock = g.stocks.some((s) => s.id === updated.id);
-        if (!hasStock) return g;
-        const newStocks = g.stocks.map((s) => (s.id === updated.id ? updated : s));
-        return {
-          ...g,
-          caliber: updated.caliber,
-          stocks: newStocks,
-          totalQuantity: newStocks.reduce((sum, s) => sum + s.quantity, 0),
-        };
-      })
-    );
+    setGroups((prev) => {
+      // Find which group currently holds this stock
+      const oldGroup = prev.find((g) => g.stocks.some((s) => s.id === updated.id));
+      if (!oldGroup) return prev;
+
+      const caliberChanged = oldGroup.caliber !== updated.caliber;
+
+      if (!caliberChanged) {
+        // Simple in-place update
+        return prev.map((g) => {
+          if (g.caliber !== oldGroup.caliber) return g;
+          const newStocks = g.stocks.map((s) => (s.id === updated.id ? updated : s));
+          return { ...g, stocks: newStocks, totalQuantity: newStocks.reduce((sum, s) => sum + s.quantity, 0) };
+        });
+      }
+
+      // Remove from old group (drop the group if empty)
+      const withoutOld = prev
+        .map((g) => {
+          if (g.caliber !== oldGroup.caliber) return g;
+          const newStocks = g.stocks.filter((s) => s.id !== updated.id);
+          if (newStocks.length === 0) return null;
+          return { ...g, stocks: newStocks, totalQuantity: newStocks.reduce((sum, s) => sum + s.quantity, 0) };
+        })
+        .filter(Boolean) as typeof prev;
+
+      // Insert into new caliber group (create if not exists)
+      const existingNewGroup = withoutOld.find((g) => g.caliber === updated.caliber);
+      if (existingNewGroup) {
+        return withoutOld.map((g) => {
+          if (g.caliber !== updated.caliber) return g;
+          const newStocks = [...g.stocks, updated];
+          return { ...g, stocks: newStocks, totalQuantity: newStocks.reduce((sum, s) => sum + s.quantity, 0) };
+        });
+      } else {
+        return [
+          ...withoutOld,
+          { caliber: updated.caliber, stocks: [updated], totalQuantity: updated.quantity },
+        ].sort((a, b) => a.caliber.localeCompare(b.caliber));
+      }
+    });
   }
 
   function toggleCaliber(caliber: string) {
