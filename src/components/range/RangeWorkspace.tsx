@@ -85,7 +85,7 @@ interface RangeSession {
       brand: string;
       grainWeight: number | null;
       bulletType: string | null;
-    };
+    } | null;
   }>;
   sessionDrills: SessionDrill[];
 }
@@ -492,7 +492,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
     setAmmoSelections(
       sessionToEdit.ammoLinks.length > 0
         ? sessionToEdit.ammoLinks.map((link) => ({
-            ammoStockId: link.ammoStock.id,
+            ammoStockId: link.ammoStock?.id ?? "",
             roundsUsed: String(link.roundsUsed),
           }))
         : [{ ammoStockId: "", roundsUsed: "" }]
@@ -2064,7 +2064,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
                       </div>
                     </div>
                     <p className="text-xs text-vault-text-muted mt-1">
-                      {session.firearm.name}{session.build ? ` · ${session.build.name}` : ""} · {session.ammoLinks.map((link) => `${link.ammoStock.brand} (${link.roundsUsed})`).join(", ")}
+                      {session.firearm.name}{session.build ? ` · ${session.build.name}` : ""} · {session.ammoLinks.map((link) => link.ammoStock ? `${link.ammoStock.brand} (${link.roundsUsed})` : `Removed lot (${link.roundsUsed})`).join(", ")}
                     </p>
                   </div>
                   {expandedSessionId === session.id && (
@@ -2075,7 +2075,7 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
                         <span>Firearm: {session.firearm.name}</span>
                         <span>Rounds: {session.roundsFired}</span>
                         <span>Build: {session.build ? session.build.name : "—"}</span>
-                        <span>Ammo: {session.ammoLinks.length > 0 ? session.ammoLinks.map((l) => `${l.ammoStock.brand} (${l.roundsUsed})`).join(", ") : "—"}</span>
+                        <span>Ammo: {session.ammoLinks.length > 0 ? session.ammoLinks.map((l) => l.ammoStock ? `${l.ammoStock.brand} (${l.roundsUsed})` : `Removed lot (${l.roundsUsed})`).join(", ") : "—"}</span>
                       </div>
                       {session.sessionDrills && session.sessionDrills.length > 0 ? (
                         <table className="w-full text-xs mt-2">

@@ -120,10 +120,15 @@ export async function DELETE(
       );
     }
 
+    // Count session links — returned to client for confirmation UI
+    const sessionLinkCount = await prisma.rangeSessionAmmoLink.count({
+      where: { ammoStockId: id },
+    });
+
     await prisma.ammoStock.delete({ where: { id } });
     revalidateDashboardData();
 
-    return NextResponse.json({ success: true, id });
+    return NextResponse.json({ success: true, id, sessionLinkCount });
   } catch (error) {
     console.error("DELETE /api/ammo/[id] error:", error);
     return NextResponse.json(

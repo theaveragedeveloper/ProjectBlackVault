@@ -15,6 +15,7 @@ import {
   MapPin,
   TrendingDown,
   Pencil,
+  Trash2,
 } from "lucide-react";
 
 interface AmmoStock {
@@ -482,6 +483,8 @@ export default function AmmoPage() {
   const [addModal, setAddModal] = useState<AmmoStock | null>(null);
   const [logModal, setLogModal] = useState<AmmoStock | null>(null);
   const [editModal, setEditModal] = useState<AmmoStock | null>(null);
+  const [deleteConfirmStock, setDeleteConfirmStock] = useState<AmmoStock | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -572,6 +575,29 @@ export default function AmmoPage() {
       }
       return next;
     });
+  }
+
+  function handleDeleteStock(stock: AmmoStock) {
+    setDeleteConfirmStock(stock);
+  }
+
+  async function confirmDeleteStock() {
+    if (!deleteConfirmStock) return;
+    setDeleting(true);
+    const res = await fetch(`/api/ammo/${deleteConfirmStock.id}`, { method: "DELETE" });
+    if (res.ok) {
+      setGroups((prev) =>
+        prev
+          .map((g) => {
+            const newStocks = g.stocks.filter((s) => s.id !== deleteConfirmStock.id);
+            if (newStocks.length === 0) return null;
+            return { ...g, stocks: newStocks, totalQuantity: newStocks.reduce((sum, s) => sum + s.quantity, 0) };
+          })
+          .filter(Boolean) as typeof prev
+      );
+      setDeleteConfirmStock(null);
+    }
+    setDeleting(false);
   }
 
   const totalRounds = groups.reduce((sum, g) => sum + g.totalQuantity, 0);
@@ -776,6 +802,13 @@ export default function AmmoPage() {
                                 <TrendingDown className="w-2.5 h-2.5" />
                                 Log Use
                               </button>
+                              <button
+                                onClick={() => handleDeleteStock(stock)}
+                                className="p-1.5 rounded text-vault-text-faint hover:text-[#E53935] hover:bg-[#E53935]/10 transition-colors"
+                                title="Delete lot"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
                               {stock.purchasePrice && (
                                 <span className="text-[10px] text-vault-text-faint font-mono ml-auto">
                                   {formatCurrency(stock.purchasePrice)}
@@ -818,6 +851,35 @@ export default function AmmoPage() {
             setEditModal(null);
           }}
         />
+      )}
+      {deleteConfirmStock && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-vault-bg/80 backdrop-blur-sm">
+          <div className="bg-vault-surface border border-vault-border rounded-lg p-6 w-full max-w-sm">
+            <h3 className="text-sm font-semibold text-vault-text mb-2">Delete Ammo Lot?</h3>
+            <p className="text-xs text-vault-text-muted mb-1">
+              <span className="text-vault-text font-medium">{deleteConfirmStock.brand} · {deleteConfirmStock.caliber}</span>
+            </p>
+            <p className="text-xs text-vault-text-muted mb-4">
+              Sessions that used this lot will be preserved, but the ammo details will show as <span className="text-vault-text">Removed lot</span>.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setDeleteConfirmStock(null)}
+                className="px-3 py-1.5 text-xs rounded border border-vault-border text-vault-text-muted hover:text-vault-text transition-colors"
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteStock}
+                disabled={deleting}
+                className="px-3 py-1.5 text-xs rounded bg-[#E53935]/10 border border-[#E53935]/30 text-[#E53935] hover:bg-[#E53935]/20 transition-colors disabled:opacity-50"
+              >
+                {deleting ? "Deleting..." : "Delete Lot"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
