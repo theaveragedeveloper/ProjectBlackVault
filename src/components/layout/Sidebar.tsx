@@ -18,6 +18,7 @@ import {
   History,
   Calculator,
   Library,
+  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
@@ -90,6 +91,17 @@ export function Sidebar({ mobileOnly = false, mobileOpen = false, onMobileClose 
       </div>
 
       <nav className="flex-1 overflow-y-auto overscroll-contain py-3 space-y-0.5 px-2 pb-6">
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent("bv:search:open"))}
+          className={cn(
+            "flex items-center gap-2 w-full px-3 py-2 rounded-md text-vault-text-faint hover:text-vault-text hover:bg-vault-border/40 transition-colors text-sm mb-1",
+            collapsed ? "justify-center" : ""
+          )}
+          title={collapsed ? "Search" : undefined}
+        >
+          <Search className="w-4 h-4 shrink-0" />
+          {!collapsed && <span>Search</span>}
+        </button>
         {!collapsed && <p className="px-2.5 pb-2 text-[10px] tracking-[0.18em] uppercase text-vault-text-faint">Navigation</p>}
 
         {PRIMARY_NAV_ITEMS.map((item) => {

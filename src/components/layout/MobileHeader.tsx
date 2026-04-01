@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Shield, Menu } from "lucide-react";
+import { Shield, Menu, Search } from "lucide-react";
 import { Sidebar } from "./Sidebar";
 
 export function MobileHeader() {
@@ -54,6 +54,15 @@ export function MobileHeader() {
           <p className="text-xs font-bold text-vault-text tracking-widest uppercase">
             BlackVault
           </p>
+        </div>
+        <div className="ml-auto">
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent("bv:search:open"))}
+            className="inline-flex min-h-10 items-center gap-1.5 px-2 py-1.5 rounded-md border border-vault-border text-vault-text-faint hover:text-vault-text-muted hover:bg-vault-border/60 transition-colors"
+            aria-label="Search"
+          >
+            <Search className="w-5 h-5" />
+          </button>
         </div>
       </header>
       <Sidebar

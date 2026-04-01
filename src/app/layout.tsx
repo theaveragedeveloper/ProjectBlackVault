@@ -5,6 +5,7 @@ import { MobileHeader } from "@/components/layout/MobileHeader";
 import { ThemeProvider } from "@/components/layout/ThemeProvider";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { ErrorBoundary } from "@/components/layout/ErrorBoundary";
+import { GlobalSearch } from "@/components/search/GlobalSearch";
 
 export const viewport: Viewport = {
   viewportFit: "cover",
@@ -49,6 +50,7 @@ export default function RootLayout({
             </div>
           </div>
           <ThemeToggle />
+          <GlobalSearch />
         </ThemeProvider>
       </body>
     </html>
