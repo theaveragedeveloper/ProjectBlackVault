@@ -14,12 +14,18 @@ function calculateHitFactor(points: number, timeSeconds: number): number {
   return Number((points / timeSeconds).toFixed(4));
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const auth = await requireAuth();
   if (auth) return auth;
 
   try {
+    const { searchParams } = request.nextUrl;
+    const take = Math.min(Math.max(parseInt(searchParams.get("take") ?? "20"), 1), 50);
+    const skip = Math.max(parseInt(searchParams.get("skip") ?? "0"), 0);
+
     const sessions = await prisma.rangeSession.findMany({
+      take,
+      skip,
       include: {
         firearm: {
           select: {
