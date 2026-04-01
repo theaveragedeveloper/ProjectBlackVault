@@ -248,6 +248,13 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
   const [deleteErrorId, setDeleteErrorId] = useState<string | null>(null);
   const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
 
+  // Session history — paginated fetch (separate from sessions state used by dropdowns/stats)
+  const [historyItems, setHistoryItems] = useState<typeof sessions>([]);
+  const [historyOffset, setHistoryOffset] = useState(0);
+  const [historyHasMore, setHistoryHasMore] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyConfirmId, setHistoryConfirmId] = useState<string | null>(null);
+
   // Drill library — session counts + notice banner
   const [sessionCountByDrill, setSessionCountByDrill] = useState<Record<string, number>>({});
   const [drillLibNoticeDismissed, setDrillLibNoticeDismissed] = useState(false);
@@ -265,6 +272,30 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
       setLoadingSessions(false);
     }
   }, []);
+
+  const loadSessionHistoryPage = useCallback(async (skip: number) => {
+    setHistoryLoading(true);
+    try {
+      const res = await fetch(`/api/range/sessions?take=20&skip=${skip}`);
+      if (!res.ok) return;
+      const data = (await res.json()) as RangeSession[];
+      if (skip === 0) {
+        setHistoryItems(data);
+      } else {
+        setHistoryItems((prev) => [...prev, ...data]);
+      }
+      setHistoryOffset(skip + data.length);
+      setHistoryHasMore(data.length === 20);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (view === "session-history" && historyItems.length === 0) {
+      void loadSessionHistoryPage(0);
+    }
+  }, [view, historyItems.length, loadSessionHistoryPage]);
 
   useEffect(() => {
     fetch("/api/firearms")
@@ -302,6 +333,14 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
       setDeletingSessionId(null);
       setDeleteConfirmId(null);
     }
+  };
+
+  const handleDeleteHistoryItem = async (id: string) => {
+    const res = await fetch(`/api/range/sessions/${id}`, { method: "DELETE" });
+    if (res.ok) {
+      setHistoryItems((prev) => prev.filter((s) => s.id !== id));
+    }
+    setHistoryConfirmId(null);
   };
 
   const loadBuilds = useCallback(async (firearmId: string) => {
@@ -2003,13 +2042,13 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
         <fieldset id="range-session-history" className={`${SECTION_CARD_CLASS} scroll-mt-20`}>
           <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">Session History</legend>
 
-          {loadingSessions ? (
+          {historyLoading && historyItems.length === 0 ? (
             <div className="flex items-center gap-2 text-sm text-vault-text-muted"><Loader2 className="w-4 h-4 animate-spin" />Loading sessions...</div>
-          ) : sessions.length === 0 ? (
+          ) : historyItems.length === 0 ? (
             <p className="text-sm text-vault-text-faint">No sessions logged yet. Save a range session to start drill history.</p>
           ) : (
             <div className="space-y-2">
-              {sessions.slice(0, 8).map((session) => (
+              {historyItems.map((session) => (
                 <div
                   key={session.id}
                   className={`w-full text-left rounded-md border transition-colors ${
@@ -2036,30 +2075,23 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
                           <Pencil className="w-3 h-3" />
                           Edit
                         </Link>
-                        {deleteConfirmId === session.id ? (
+                        {historyConfirmId === session.id ? (
                           <span className="flex items-center gap-1">
                             <span className="text-xs text-vault-text-muted">Delete?</span>
                             <button
-                              onClick={() => handleDeleteSession(session.id)}
-                              disabled={!!deletingSessionId}
+                              onClick={() => void handleDeleteHistoryItem(session.id)}
                               className="text-xs text-red-400 hover:text-red-300"
                             >Yes</button>
-                            <button onClick={() => setDeleteConfirmId(null)} className="text-xs text-vault-text-muted hover:text-vault-text">Cancel</button>
+                            <button onClick={() => setHistoryConfirmId(null)} className="text-xs text-vault-text-muted hover:text-vault-text">Cancel</button>
                           </span>
                         ) : (
                           <button
-                            onClick={() => {
-                              setDeleteConfirmId(session.id);
-                              setDeleteErrorId(null);
-                            }}
+                            onClick={() => setHistoryConfirmId(session.id)}
                             className="p-1.5 text-vault-text-faint hover:text-red-400 transition-colors"
                             title="Delete session"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
-                        )}
-                        {deleteErrorId === session.id && (
-                          <span className="text-xs text-red-400">Failed to delete. Try again.</span>
                         )}
                       </div>
                     </div>
@@ -2117,6 +2149,18 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
                   )}
                 </div>
               ))}
+              <div className="flex flex-col items-center gap-2 pt-2">
+                <p className="text-xs text-vault-text-faint">Showing {historyItems.length} sessions</p>
+                {historyHasMore && (
+                  <button
+                    onClick={() => void loadSessionHistoryPage(historyOffset)}
+                    disabled={historyLoading}
+                    className="text-xs text-[#00C2FF] hover:underline disabled:opacity-50"
+                  >
+                    {historyLoading ? "Loading…" : "Load more"}
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
