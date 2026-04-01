@@ -7,6 +7,7 @@ import { decryptField } from "@/lib/crypto";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { ItemDocumentPanel } from "@/components/shared/ItemDocumentPanel";
 import { RoundCountBadge } from "@/components/shared/RoundCountBadge";
+import { RemoveImageButton } from "@/components/shared/RemoveImageButton";
 import {
   ArrowLeft,
   Edit,
@@ -132,6 +133,8 @@ export default async function FirearmDetailPage({
   const daysUntilDue = nextDueDate ? Math.ceil((nextDueDate.getTime() - now.getTime()) / 86400000) : null;
   const maintenanceStatus = daysUntilDue == null ? { label: "Neutral", style: "text-vault-text-faint border-vault-border" } : daysUntilDue < 0 ? { label: "Due", style: "text-[#E53935] border-[#E53935]/40" } : daysUntilDue <= 14 ? { label: "Upcoming", style: "text-[#F5A623] border-[#F5A623]/40" } : { label: "On Track", style: "text-[#00C853] border-[#00C853]/40" };
 
+  const imageFilename = firearm.imageUrl ? firearm.imageUrl.split("/").pop() ?? "" : "";
+
   return (
     <div className="min-h-full">
       {/* Hero Banner */}
@@ -161,13 +164,22 @@ export default async function FirearmDetailPage({
             <ArrowLeft className="w-4 h-4" />
             Vault
           </Link>
-          <Link
-            href={`/vault/${id}/edit`}
-            className="flex items-center gap-1.5 text-sm bg-vault-bg/60 backdrop-blur-sm border border-[#1C2530]/60 text-vault-text-muted hover:text-vault-text px-3 py-1.5 rounded-md transition-colors"
-          >
-            <Edit className="w-4 h-4" />
-            Edit
-          </Link>
+          <div className="flex items-center gap-2">
+            {firearm.imageUrl && imageFilename && (
+              <RemoveImageButton
+                filename={imageFilename}
+                entityType="firearm"
+                entityId={firearm.id}
+              />
+            )}
+            <Link
+              href={`/vault/${id}/edit`}
+              className="flex items-center gap-1.5 text-sm bg-vault-bg/60 backdrop-blur-sm border border-[#1C2530]/60 text-vault-text-muted hover:text-vault-text px-3 py-1.5 rounded-md transition-colors"
+            >
+              <Edit className="w-4 h-4" />
+              Edit
+            </Link>
+          </div>
         </div>
 
         {/* Name + badges over image */}

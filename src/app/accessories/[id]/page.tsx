@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/utils";
 import { ItemDocumentPanel } from "@/components/shared/ItemDocumentPanel";
 import { RoundCountBadge } from "@/components/shared/RoundCountBadge";
+import { RemoveImageButton } from "@/components/shared/RemoveImageButton";
 import {
   ArrowLeft,
   Shield,
@@ -188,6 +189,7 @@ export default function AccessoryDetailPage() {
 
   const roundColor = roundCountColor(accessory.roundCount, accessory.type);
   const visibleLogs = historyExpanded ? accessory.roundCountLogs : accessory.roundCountLogs.slice(0, 5);
+  const imageFilename = accessory.imageUrl ? accessory.imageUrl.split("/").pop() ?? "" : "";
 
   return (
     <div className="min-h-full">
@@ -217,13 +219,23 @@ export default function AccessoryDetailPage() {
             <ArrowLeft className="w-4 h-4" />
             Accessories
           </Link>
-          <Link
-            href={`/accessories/${id}/edit`}
-            className="flex items-center gap-1.5 text-sm bg-vault-bg/60 backdrop-blur-sm border border-[#1C2530]/60 text-vault-text-muted hover:text-vault-text px-3 py-1.5 rounded-md transition-colors"
-          >
-            <Pencil className="w-4 h-4" />
-            Edit
-          </Link>
+          <div className="flex items-center gap-2">
+            {accessory.imageUrl && imageFilename && (
+              <RemoveImageButton
+                filename={imageFilename}
+                entityType="accessory"
+                entityId={accessory.id}
+                onSuccess={() => setAccessory((prev) => prev ? { ...prev, imageUrl: null } : prev)}
+              />
+            )}
+            <Link
+              href={`/accessories/${id}/edit`}
+              className="flex items-center gap-1.5 text-sm bg-vault-bg/60 backdrop-blur-sm border border-[#1C2530]/60 text-vault-text-muted hover:text-vault-text px-3 py-1.5 rounded-md transition-colors"
+            >
+              <Pencil className="w-4 h-4" />
+              Edit
+            </Link>
+          </div>
         </div>
 
         <div className="absolute bottom-0 left-0 right-0 px-6 pb-4">
