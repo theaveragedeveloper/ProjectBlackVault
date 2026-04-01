@@ -654,7 +654,7 @@ export default function AmmoPage() {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 items-start">
             {groups.map((group) => {
               const worstStatus = group.stocks.reduce<string>((worst, s) => {
                 const st = stockStatus(s.quantity, s.lowStockAlert);

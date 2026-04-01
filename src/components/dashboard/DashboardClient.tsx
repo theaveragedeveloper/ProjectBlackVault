@@ -442,7 +442,7 @@ function StatsWidget({ data }: { data: DashboardData }) {
   );
 }
 
-function LowAmmoWidget({ items }: { items: AmmoStockItem[] }) {
+function LowAmmoWidget({ items, totalStocks }: { items: AmmoStockItem[]; totalStocks: number }) {
   return (
     <section>
       <div className="flex items-center gap-2 mb-3">
@@ -462,7 +462,7 @@ function LowAmmoWidget({ items }: { items: AmmoStockItem[] }) {
             <div className="w-10 h-10 rounded-full bg-[#00C853]/10 border border-[#00C853]/20 flex items-center justify-center mx-auto mb-3">
               <Target className="w-5 h-5 text-[#00C853]" />
             </div>
-            <p className="text-sm text-vault-text-muted">All stocks are well supplied</p>
+            <p className="text-sm text-vault-text-muted">{totalStocks === 0 ? "No ammo entered" : "All stocks are well supplied"}</p>
           </div>
         ) : (
           <div className="divide-y divide-vault-border">
@@ -779,7 +779,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
       case "maintenance-due":
         return <MaintenanceDueWidget />;
       case "low-ammo":
-        return <LowAmmoWidget items={liveData.lowStockItems} />;
+        return <LowAmmoWidget items={liveData.lowStockItems} totalStocks={liveData.ammoStocks.length} />;
       case "recent":
         return <RecentWidget firearms={liveData.recentFirearms} />;
       case "ammo-summary":
