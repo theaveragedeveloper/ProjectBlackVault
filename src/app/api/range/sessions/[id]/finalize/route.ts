@@ -46,6 +46,8 @@ export async function POST(
       const sessionNote = `Range session ${session.id}`;
 
       for (const ammoLink of session.ammoLinks) {
+        if (!ammoLink.ammoStockId) continue;
+
         const existing = await tx.ammoTransaction.findFirst({
           where: {
             stockId: ammoLink.ammoStockId,
