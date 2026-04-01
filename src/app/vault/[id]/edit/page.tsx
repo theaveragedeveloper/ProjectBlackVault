@@ -83,6 +83,9 @@ export default function EditFirearmPage() {
   const [deleteBuildAccessories, setDeleteBuildAccessories] = useState<"keep" | "delete">("keep");
   const [deletingBuild, setDeletingBuild] = useState(false);
 
+  const [deleteFirearmError, setDeleteFirearmError] = useState<string | null>(null);
+  const [deleteBuildError, setDeleteBuildError] = useState<string | null>(null);
+
   const filteredCalibers = COMMON_CALIBERS.filter((c) =>
     c.toLowerCase().includes(caliberInput.toLowerCase())
   );
@@ -167,6 +170,7 @@ export default function EditFirearmPage() {
 
   async function handleDeleteFirearm() {
     if (!firearm) return;
+    setDeleteFirearmError(null);
     setDeletingFirearm(true);
     try {
       const res = await fetch(`/api/firearms/${firearm.id}`, {
@@ -177,14 +181,17 @@ export default function EditFirearmPage() {
       if (res.ok) {
         router.push("/vault");
       } else {
+        setDeleteFirearmError("Failed to delete. Please try again.");
         setDeletingFirearm(false);
       }
     } catch {
+      setDeleteFirearmError("Failed to delete. Please try again.");
       setDeletingFirearm(false);
     }
   }
 
   async function handleDeleteBuild(buildId: string) {
+    setDeleteBuildError(null);
     setDeletingBuild(true);
     try {
       const res = await fetch(`/api/builds/${buildId}`, {
@@ -196,6 +203,9 @@ export default function EditFirearmPage() {
         setFirearm((prev) => prev ? { ...prev, builds: prev.builds.filter((b) => b.id !== buildId) } : prev);
         setDeleteBuildTarget(null);
         setDeleteBuildAccessories("keep");
+        setDeleteBuildError(null);
+      } else {
+        setDeleteBuildError("Failed to delete. Please try again.");
       }
     } finally {
       setDeletingBuild(false);
@@ -728,6 +738,12 @@ export default function EditFirearmPage() {
               <p className="text-sm text-vault-text-muted mb-5">This cannot be undone.</p>
             )}
 
+            {deleteFirearmError && (
+              <div className="flex items-center gap-2 bg-[#E53935]/10 border border-[#E53935]/30 rounded px-3 py-2 mb-2">
+                <AlertCircle className="w-4 h-4 text-[#E53935] shrink-0" />
+                <p className="text-xs text-[#E53935]">{deleteFirearmError}</p>
+              </div>
+            )}
             <div className="flex gap-3">
               <button
                 type="button"
@@ -794,6 +810,12 @@ export default function EditFirearmPage() {
               </p>
             )}
 
+            {deleteBuildError && (
+              <div className="flex items-center gap-2 bg-[#E53935]/10 border border-[#E53935]/30 rounded px-3 py-2 mb-2">
+                <AlertCircle className="w-4 h-4 text-[#E53935] shrink-0" />
+                <p className="text-xs text-[#E53935]">{deleteBuildError}</p>
+              </div>
+            )}
             <div className="flex gap-3">
               <button
                 type="button"
