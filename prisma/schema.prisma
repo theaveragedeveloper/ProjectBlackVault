@@ -32,9 +32,10 @@ model Firearm {
   lastMaintenanceDate DateTime?
   maintenanceIntervalDays Int?
 
-  builds          Build[]
-  rangeSessions   RangeSession[]
-  documents       Document[]
+  builds           Build[]
+  rangeSessions    RangeSession[]
+  documents        Document[]
+  maintenanceLogs  MaintenanceLog[]
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -280,6 +281,22 @@ model ImageCache {
   cachedAt    DateTime @default(now())
 
   @@index([entityType, entityId])
+}
+
+// ─── MAINTENANCE LOG ──────────────────────────────────────────
+
+model MaintenanceLog {
+  id         String   @id @default(cuid())
+  firearmId  String
+  firearm    Firearm  @relation(fields: [firearmId], references: [id], onDelete: Cascade)
+  date       DateTime
+  notes      String
+  roundCount Int?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([firearmId])
+  @@index([date])
 }
 
 // ─── SETTINGS ─────────────────────────────────────────────────
