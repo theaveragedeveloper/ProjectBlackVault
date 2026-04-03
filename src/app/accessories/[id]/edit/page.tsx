@@ -28,6 +28,7 @@ interface Accessory {
   batteryType: string | null;
   lastBatteryChangeDate: string | null;
   replacementIntervalDays: number | null;
+  roundCount: number;
 }
 
 function toDateInputValue(dateStr: string | null): string {
@@ -56,6 +57,9 @@ export default function EditAccessoryPage() {
   const [caliberInput, setCaliberInput] = useState("");
   const [caliberDropdownOpen, setCaliberDropdownOpen] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+
+  const [priorRounds, setPriorRounds] = useState("");
+  const [priorRoundsNote, setPriorRoundsNote] = useState("");
 
   const filteredCalibers = COMMON_CALIBERS.filter((c) =>
     c.toLowerCase().includes(caliberInput.toLowerCase())
@@ -122,6 +126,19 @@ export default function EditAccessoryPage() {
         setError(json.error ?? "Failed to update accessory");
         setLoading(false);
         return;
+      }
+
+      // Log prior round count if provided (only allowed when current count is 0)
+      const priorRoundsNum = parseInt(priorRounds);
+      if (priorRoundsNum > 0) {
+        await fetch(`/api/accessories/${accessoryId}/rounds`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            rounds: priorRoundsNum,
+            note: priorRoundsNote || "Prior use at time of entry",
+          }),
+        });
       }
 
       setSuccess(true);
@@ -368,6 +385,42 @@ export default function EditAccessoryPage() {
           </fieldset>
 
 
+
+          {/* Prior Use — only show if no rounds logged yet */}
+          {accessory.roundCount === 0 && (
+            <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">
+              <legend className="text-xs font-mono uppercase tracking-widest text-[#00C2FF] px-1 -ml-1">
+                Prior Use
+              </legend>
+              <p className="text-xs text-vault-text-muted">
+                If this accessory has rounds from prior use, enter them here to set a baseline round count.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className={LABEL_CLASS}>Round Count from Prior Use</label>
+                  <input
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={priorRounds}
+                    onChange={(e) => setPriorRounds(e.target.value)}
+                    placeholder="e.g. 500"
+                    className={INPUT_CLASS}
+                  />
+                </div>
+                <div>
+                  <label className={LABEL_CLASS}>Note (optional)</label>
+                  <input
+                    type="text"
+                    value={priorRoundsNote}
+                    onChange={(e) => setPriorRoundsNote(e.target.value)}
+                    placeholder="e.g. Previous owner"
+                    className={INPUT_CLASS}
+                  />
+                </div>
+              </div>
+            </fieldset>
+          )}
 
           {/* Battery Tracking */}
           <fieldset className="bg-vault-surface border border-vault-border rounded-lg p-5 space-y-4">

@@ -21,6 +21,9 @@ export async function GET(
         roundCountLogs: {
           orderBy: { loggedAt: "desc" },
         },
+        batteryChangeLogs: {
+          orderBy: { changedAt: "desc" },
+        },
         buildSlots: {
           include: {
             build: {
