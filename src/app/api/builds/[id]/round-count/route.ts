@@ -57,7 +57,6 @@ export async function GET(
         }
       | {
           type: "session";
-          id: string;
           sessionId: string;
           location: string;
           roundsAdded: number;
@@ -78,10 +77,9 @@ export async function GET(
       })),
       ...sessions.map((s) => ({
         type: "session" as const,
-        id: s.id,
         sessionId: s.id,
         location: s.location,
-        roundsAdded: s.roundsFired,
+        roundsAdded: s.roundsFired ?? 0,
         sessionDate: s.sessionDate.toISOString(),
         date: s.sessionDate.toISOString(),
       })),
@@ -127,6 +125,13 @@ export async function POST(
       );
     }
 
+    if (sessionNote !== undefined && typeof sessionNote !== "string") {
+      return NextResponse.json(
+        { error: "sessionNote must be a string" },
+        { status: 400 }
+      );
+    }
+
     const build = await prisma.build.findUnique({
       where: { id },
       select: { roundCount: true },
@@ -141,7 +146,7 @@ export async function POST(
     await prisma.$transaction([
       prisma.build.update({
         where: { id },
-        data: { roundCount: newCount },
+        data: { roundCount: { increment: roundsAdded } },
       }),
       prisma.buildRoundCountLog.create({
         data: {
