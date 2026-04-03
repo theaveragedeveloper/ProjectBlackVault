@@ -57,6 +57,8 @@ model Build {
 
   slots       BuildSlot[]
   rangeSessions RangeSession[]
+  roundCount     Int                  @default(0)
+  roundCountLogs BuildRoundCountLog[]
 
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
@@ -246,6 +248,20 @@ model SessionDrill {
   createdAt      DateTime     @default(now())
 
   @@index([rangeSessionId])
+}
+
+model BuildRoundCountLog {
+  id            String   @id @default(cuid())
+  buildId       String
+  build         Build    @relation(fields: [buildId], references: [id], onDelete: Cascade)
+  roundsAdded   Int
+  previousCount Int
+  newCount      Int
+  sessionNote   String?
+  loggedAt      DateTime @default(now())
+
+  @@index([buildId])
+  @@index([loggedAt])
 }
 
 model AmmoTransaction {
