@@ -160,7 +160,7 @@ Below the count display, a collapsible section triggered by a chevron:
 - **Collapsed by default**, labeled "Round Count Log"
 - When expanded, shows a unified timeline (newest first) of:
   - **Manual entries:** rounds added, note, date
-  - **Range sessions:** location, rounds fired, date — links to the session in Range > Session History
+  - **Range sessions:** location, rounds fired, date
 - Visual distinction between entry types (small badge: "Manual" vs "Session")
 - Matches the collapsible pattern used by the maintenance log on the firearm detail page
 
@@ -182,3 +182,4 @@ Below the count display, a collapsible section triggered by a chevron:
 - Editing or deleting individual log entries
 - Build-level round count alerts or maintenance intervals (separate feature)
 - Displaying build round count on the vault card or firearm detail page
+- Deep-linking session log entries to Range > Session History (no per-session URL exists in V1)
