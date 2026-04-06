@@ -21,6 +21,7 @@ import { SLOTS_BY_FIREARM_TYPE, SUGGESTED_SLOTS_BY_FIREARM_TYPE, SLOT_TYPE_LABEL
 import { SLOT_ICONS } from "@/lib/configurator/slot-icons";
 import { RoundCountBadge } from "@/components/shared/RoundCountBadge";
 import ImagePicker from "@/components/shared/ImagePicker";
+import { BuildRoundCountSection } from "@/components/builds/BuildRoundCountSection";
 
 function getSlotLabel(slotType: string) {
   if (slotType.startsWith(CUSTOM_SLOT_PREFIX)) {
@@ -942,6 +943,8 @@ function SlotPanel({
           </div>
         )}
       </div>
+
+      <BuildRoundCountSection buildId={build.id} />
 
       {/* Slot list — only added slots */}
       <div className="md:flex-1 md:overflow-y-auto">
