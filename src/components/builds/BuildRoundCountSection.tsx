@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ChevronDown, ChevronUp, Plus, Target } from "lucide-react";
 
 type ManualLogEntry = {
@@ -52,7 +52,7 @@ export function BuildRoundCountSection({ buildId }: { buildId: string }) {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  async function fetchRoundCount() {
+  const fetchRoundCount = useCallback(async () => {
     setFetchError(false);
     try {
       const res = await fetch(`/api/builds/${buildId}/round-count`);
@@ -64,12 +64,11 @@ export function BuildRoundCountSection({ buildId }: { buildId: string }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [buildId]);
 
   useEffect(() => {
     fetchRoundCount();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [buildId]);
+  }, [fetchRoundCount]);
 
   async function handleSubmit() {
     const rounds = parseInt(formRounds, 10);
@@ -95,7 +94,6 @@ export function BuildRoundCountSection({ buildId }: { buildId: string }) {
       setFormRounds("");
       setFormNote("");
       setShowForm(false);
-      setLoading(true);
       await fetchRoundCount();
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Failed to add rounds");
