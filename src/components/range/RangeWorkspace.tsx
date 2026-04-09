@@ -769,7 +769,14 @@ export function RangeWorkspace({ view }: RangeWorkspaceProps) {
         setSelectedSessionId(sessionJson.id);
         setFinalizeState("success");
         setSuccess("Session saved and finalized.");
-        setWarning(null);
+        if (finalizeJson.stockWarnings && finalizeJson.stockWarnings.length > 0) {
+          const names = finalizeJson.stockWarnings
+            .map((w: { name: string; caliber: string }) => `${w.name} (${w.caliber})`)
+            .join(", ");
+          setWarning(`Stock depleted: ${names} — you may want to update your inventory.`);
+        } else {
+          setWarning(null);
+        }
         setRoundsFired("");
         setSessionNote("");
         setAmmoSelections([{ ammoStockId: "", roundsUsed: "" }]);

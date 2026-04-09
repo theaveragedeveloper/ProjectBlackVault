@@ -44,6 +44,7 @@ export async function POST(
       }
 
       const sessionNote = `Range session ${session.id}`;
+      const stockWarnings: { name: string; caliber: string; shortfall: number }[] = [];
 
       for (const ammoLink of session.ammoLinks) {
         if (!ammoLink.ammoStockId) continue;
@@ -64,12 +65,19 @@ export async function POST(
           throw new Error("Ammo stock no longer exists for this session");
         }
 
-        if (stock.quantity < ammoLink.roundsUsed) {
-          throw new Error(`Insufficient ammo stock for ${stock.brand} (${stock.caliber})`);
+        const deductQty = Math.min(ammoLink.roundsUsed, stock.quantity);
+        const wasInsufficient = ammoLink.roundsUsed > stock.quantity;
+
+        if (wasInsufficient) {
+          stockWarnings.push({
+            name: stock.brand,
+            caliber: stock.caliber,
+            shortfall: ammoLink.roundsUsed - stock.quantity,
+          });
         }
 
         const previousQty = stock.quantity;
-        const newQty = previousQty - ammoLink.roundsUsed;
+        const newQty = previousQty - deductQty;
 
         await tx.ammoStock.update({
           where: { id: stock.id },
@@ -80,7 +88,7 @@ export async function POST(
           data: {
             stockId: stock.id,
             type: "RANGE_USE",
-            quantity: ammoLink.roundsUsed,
+            quantity: deductQty,
             previousQty,
             newQty,
             note: sessionNote,
@@ -137,6 +145,7 @@ export async function POST(
         sessionId: session.id,
         accessoriesProcessed: accessoryIdsToProcess.length,
         ammoLinksProcessed: session.ammoLinks.length,
+        stockWarnings,
       };
     });
 
