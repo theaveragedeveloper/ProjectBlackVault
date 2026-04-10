@@ -279,11 +279,12 @@ export default function VaultPage() {
   }
 
   async function handleUnarchiveFirearm(id: string) {
-    await fetch(`/api/firearms/${id}/archive`, {
+    const res = await fetch(`/api/firearms/${id}/archive`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ archived: false }),
     });
+    if (!res.ok) return;
     await refreshLists();
   }
 

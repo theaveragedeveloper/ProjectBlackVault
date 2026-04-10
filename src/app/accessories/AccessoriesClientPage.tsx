@@ -81,11 +81,12 @@ export function AccessoriesClientPage({ accessories, archivedAccessories }: Prop
   const [archivedExpanded, setArchivedExpanded] = useState(false);
 
   async function handleUnarchive(id: string) {
-    await fetch(`/api/accessories/${id}/archive`, {
+    const res = await fetch(`/api/accessories/${id}/archive`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ archived: false }),
     });
+    if (!res.ok) return;
     router.refresh();
   }
 
