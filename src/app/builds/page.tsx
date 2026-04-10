@@ -29,6 +29,7 @@ const TYPE_BADGE_COLORS: Record<string, string> = {
 
 async function getAllBuilds() {
   const firearms = await prisma.firearm.findMany({
+    where: { archivedAt: null },
     include: {
       builds: {
         include: {

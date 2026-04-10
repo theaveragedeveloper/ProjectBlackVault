@@ -324,6 +324,7 @@ export async function GET(request: NextRequest) {
 
     // Sequential queries — SQLite connection_limit=1 cannot handle concurrent reads
     const firearms = (await prisma.firearm.findMany({
+      where: { archivedAt: null },
       select: {
         id: true,
         name: true,
@@ -341,6 +342,7 @@ export async function GET(request: NextRequest) {
       orderBy: [{ manufacturer: "asc" }, { model: "asc" }, { name: "asc" }],
     })) as FirearmExportRecord[];
     const accessories = (await prisma.accessory.findMany({
+      where: { archivedAt: null },
       select: {
         id: true,
         name: true,

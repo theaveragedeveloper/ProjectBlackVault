@@ -13,9 +13,13 @@ function fallbackSerialNumber() {
 }
 
 // GET /api/firearms - List all firearms with build count
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const showArchived = searchParams.get("archived") === "true";
+
     const firearms = await prisma.firearm.findMany({
+      where: showArchived ? { archivedAt: { not: null } } : { archivedAt: null },
       include: {
         _count: {
           select: { builds: true },

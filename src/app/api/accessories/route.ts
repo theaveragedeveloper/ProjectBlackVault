@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     const type = normalizeString(searchParams.get("type"));
 
     const accessories = await prisma.accessory.findMany({
-      where: type ? { type } : undefined,
+      where: type ? { type, archivedAt: null } : { archivedAt: null },
       include: {
         buildSlots: {
           include: {
