@@ -6,6 +6,7 @@ import { AccessoriesClientPage } from "./AccessoriesClientPage";
 
 async function getAccessories() {
   const accessories = await prisma.accessory.findMany({
+    where: { archivedAt: null },
     include: {
       buildSlots: {
         include: {
