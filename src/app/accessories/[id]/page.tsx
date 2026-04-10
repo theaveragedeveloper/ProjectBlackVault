@@ -295,12 +295,14 @@ export default function AccessoryDetailPage() {
               <Pencil className="w-4 h-4" />
               Edit
             </Link>
-            <ArchiveButton
-              id={id as string}
-              entityType="accessories"
-              redirectTo="/accessories"
-              label="Archive Accessory"
-            />
+            {id && (
+              <ArchiveButton
+                id={id}
+                entityType="accessories"
+                redirectTo="/accessories"
+                label="Archive Accessory"
+              />
+            )}
           </div>
         </div>
 
