@@ -17,6 +17,7 @@ import {
   Pencil,
   Trash2,
   CheckCircle2,
+  ChevronRight,
 } from "lucide-react";
 
 const FIREARM_TYPES = ["ALL", "PISTOL", "RIFLE", "SHOTGUN", "SMG", "PCC", "REVOLVER", "BOLT_ACTION", "LEVER_ACTION"] as const;
@@ -66,6 +67,7 @@ interface Firearm {
   buildCount: number;
   activeBuild: ActiveBuild | null;
   firearmRoundCount: number;
+  archivedAt: string | null;
 }
 
 interface Build {
@@ -264,15 +266,36 @@ export default function VaultPage() {
     accessories: { id: string; name: string }[];
   } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [archivedFirearms, setArchivedFirearms] = useState<Firearm[]>([]);
+  const [archivedExpanded, setArchivedExpanded] = useState(false);
+
+  async function refreshLists() {
+    const [active, archived] = await Promise.all([
+      fetch("/api/firearms").then((r) => r.json()),
+      fetch("/api/firearms?archived=true").then((r) => r.json()),
+    ]);
+    if (Array.isArray(active)) setFirearms(active);
+    if (Array.isArray(archived)) setArchivedFirearms(archived);
+  }
+
+  async function handleUnarchiveFirearm(id: string) {
+    await fetch(`/api/firearms/${id}/archive`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ archived: false }),
+    });
+    await refreshLists();
+  }
 
   useEffect(() => {
-    fetch("/api/firearms")
-      .then((r) => r.json())
-      .then((data) => {
-        setFirearms(data);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+    Promise.all([
+      fetch("/api/firearms").then((r) => r.json()),
+      fetch("/api/firearms?archived=true").then((r) => r.json()),
+    ]).then(([active, archived]) => {
+      if (Array.isArray(active)) setFirearms(active);
+      if (Array.isArray(archived)) setArchivedFirearms(archived);
+      setLoading(false);
+    }).catch(() => setLoading(false));
   }, []);
 
   useEffect(() => {
@@ -523,6 +546,46 @@ export default function VaultPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Archived firearms section */}
+      {archivedFirearms.length > 0 && (
+        <div className="mt-10 px-6 pb-8">
+          <button
+            onClick={() => setArchivedExpanded((v) => !v)}
+            className="flex items-center gap-2 text-xs text-vault-text-faint uppercase tracking-widest hover:text-vault-text-muted transition-colors mb-3"
+          >
+            <ChevronRight className={`w-3.5 h-3.5 transition-transform ${archivedExpanded ? "rotate-90" : ""}`} />
+            Archived ({archivedFirearms.length})
+          </button>
+
+          {archivedExpanded && (
+            <div className="space-y-2">
+              {archivedFirearms.map((firearm) => (
+                <div
+                  key={firearm.id}
+                  className="flex items-center justify-between bg-vault-surface border border-vault-border rounded-lg px-4 py-3 opacity-60"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-vault-text-muted font-medium">{firearm.name}</span>
+                    <span className="text-xs text-vault-text-faint font-mono">{firearm.caliber}</span>
+                    {firearm.archivedAt && (
+                      <span className="text-xs text-vault-text-faint">
+                        archived {new Date(firearm.archivedAt).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => handleUnarchiveFirearm(firearm.id)}
+                    className="text-xs text-[#00C2FF] hover:underline"
+                  >
+                    Unarchive
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

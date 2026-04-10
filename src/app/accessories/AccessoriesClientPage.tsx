@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, Crosshair, Shield, ExternalLink, Pencil } from "lucide-react";
+import { Plus, Crosshair, Shield, ExternalLink, Pencil, ChevronRight } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/utils";
 import { RoundCountBadge } from "@/components/shared/RoundCountBadge";
@@ -62,12 +63,31 @@ interface AccessoryWithBuild {
   } | null;
 }
 
-interface Props {
-  accessories: AccessoryWithBuild[];
+interface ArchivedAccessory {
+  id: string;
+  name: string;
+  type: string;
+  archivedAt: Date | string | null;
 }
 
-export function AccessoriesClientPage({ accessories }: Props) {
+interface Props {
+  accessories: AccessoryWithBuild[];
+  archivedAccessories: ArchivedAccessory[];
+}
+
+export function AccessoriesClientPage({ accessories, archivedAccessories }: Props) {
+  const router = useRouter();
   const [selectedType, setSelectedType] = useState<string | null>(null);
+  const [archivedExpanded, setArchivedExpanded] = useState(false);
+
+  async function handleUnarchive(id: string) {
+    await fetch(`/api/accessories/${id}/archive`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ archived: false }),
+    });
+    router.refresh();
+  }
 
   const usedTypes = [...new Set(accessories.map((a) => a.type).filter(Boolean))].sort((a, b) => {
     const labelA = SLOT_TYPE_LABELS[a] ?? a;
@@ -378,6 +398,46 @@ export function AccessoriesClientPage({ accessories }: Props) {
               </div>
             </div>
           </>
+        )}
+
+        {/* Archived accessories section */}
+        {archivedAccessories.length > 0 && (
+          <div className="mt-10">
+            <button
+              onClick={() => setArchivedExpanded((v) => !v)}
+              className="flex items-center gap-2 text-xs text-vault-text-faint uppercase tracking-widest hover:text-vault-text-muted transition-colors mb-3"
+            >
+              <ChevronRight className={`w-3.5 h-3.5 transition-transform ${archivedExpanded ? "rotate-90" : ""}`} />
+              Archived ({archivedAccessories.length})
+            </button>
+
+            {archivedExpanded && (
+              <div className="space-y-2">
+                {archivedAccessories.map((accessory) => (
+                  <div
+                    key={accessory.id}
+                    className="flex items-center justify-between bg-vault-surface border border-vault-border rounded-lg px-4 py-3 opacity-60"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm text-vault-text-muted font-medium">{accessory.name}</span>
+                      <span className="text-xs text-vault-text-faint font-mono">{SLOT_TYPE_LABELS[accessory.type] ?? accessory.type}</span>
+                      {accessory.archivedAt && (
+                        <span className="text-xs text-vault-text-faint">
+                          archived {new Date(accessory.archivedAt).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleUnarchive(accessory.id)}
+                      className="text-xs text-[#00C2FF] hover:underline"
+                    >
+                      Unarchive
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

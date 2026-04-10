@@ -40,10 +40,27 @@ async function getAccessories() {
   });
 }
 
+async function getArchivedAccessories() {
+  return prisma.accessory.findMany({
+    where: { archivedAt: { not: null } },
+    select: {
+      id: true,
+      name: true,
+      type: true,
+      archivedAt: true,
+    },
+    orderBy: { archivedAt: "desc" },
+  });
+}
+
 export default async function AccessoriesPage() {
   let accessories: Awaited<ReturnType<typeof getAccessories>>;
+  let archivedAccessories: Awaited<ReturnType<typeof getArchivedAccessories>>;
   try {
-    accessories = await getAccessories();
+    [accessories, archivedAccessories] = await Promise.all([
+      getAccessories(),
+      getArchivedAccessories(),
+    ]);
   } catch {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
@@ -53,5 +70,5 @@ export default async function AccessoriesPage() {
     );
   }
 
-  return <AccessoriesClientPage accessories={accessories} />;
+  return <AccessoriesClientPage accessories={accessories} archivedAccessories={archivedAccessories} />;
 }
