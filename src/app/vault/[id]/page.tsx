@@ -9,6 +9,7 @@ import { ItemDocumentPanel } from "@/components/shared/ItemDocumentPanel";
 import { RoundCountBadge } from "@/components/shared/RoundCountBadge";
 import { RemoveImageButton } from "@/components/shared/RemoveImageButton";
 import { MaintenanceSection } from "@/components/vault/MaintenanceSection";
+import { ArchiveButton } from "@/components/shared/ArchiveButton";
 import {
   ArrowLeft,
   Edit,
@@ -173,6 +174,12 @@ export default async function FirearmDetailPage({
               <Edit className="w-4 h-4" />
               Edit
             </Link>
+            <ArchiveButton
+              id={id}
+              entityType="firearms"
+              redirectTo="/vault"
+              label="Archive Firearm"
+            />
           </div>
         </div>
 

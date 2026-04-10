@@ -7,6 +7,7 @@ import { formatCurrency, formatDate, formatNumber } from "@/lib/utils";
 import { ItemDocumentPanel } from "@/components/shared/ItemDocumentPanel";
 import { RoundCountBadge } from "@/components/shared/RoundCountBadge";
 import { RemoveImageButton } from "@/components/shared/RemoveImageButton";
+import { ArchiveButton } from "@/components/shared/ArchiveButton";
 import {
   ArrowLeft,
   Shield,
@@ -294,6 +295,12 @@ export default function AccessoryDetailPage() {
               <Pencil className="w-4 h-4" />
               Edit
             </Link>
+            <ArchiveButton
+              id={id as string}
+              entityType="accessories"
+              redirectTo="/accessories"
+              label="Archive Accessory"
+            />
           </div>
         </div>
 
