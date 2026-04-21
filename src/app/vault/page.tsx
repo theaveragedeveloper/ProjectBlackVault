@@ -268,6 +268,7 @@ export default function VaultPage() {
   const [deleting, setDeleting] = useState(false);
   const [archivedFirearms, setArchivedFirearms] = useState<Firearm[]>([]);
   const [archivedExpanded, setArchivedExpanded] = useState(false);
+  const [unarchiveError, setUnarchiveError] = useState<string | null>(null);
 
   async function refreshLists() {
     const [active, archived] = await Promise.all([
@@ -279,12 +280,17 @@ export default function VaultPage() {
   }
 
   async function handleUnarchiveFirearm(id: string) {
+    setUnarchiveError(null);
     const res = await fetch(`/api/firearms/${id}/archive`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ archived: false }),
     });
-    if (!res.ok) return;
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      setUnarchiveError(json.error ?? "Failed to unarchive. Please try again.");
+      return;
+    }
     await refreshLists();
   }
 
@@ -560,6 +566,9 @@ export default function VaultPage() {
             <ChevronRight className={`w-3.5 h-3.5 transition-transform ${archivedExpanded ? "rotate-90" : ""}`} />
             Archived ({archivedFirearms.length})
           </button>
+          {unarchiveError && (
+            <p className="text-xs text-[#E53935] px-1 mt-1">{unarchiveError}</p>
+          )}
 
           {archivedExpanded && (
             <div className="space-y-2">
