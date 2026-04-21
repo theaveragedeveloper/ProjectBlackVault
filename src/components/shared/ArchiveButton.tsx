@@ -9,9 +9,10 @@ interface ArchiveButtonProps {
   entityType: "firearms" | "accessories";
   redirectTo: string;
   label?: string;
+  unarchive?: boolean;  // when true, sends { archived: false }
 }
 
-export function ArchiveButton({ id, entityType, redirectTo, label = "Archive" }: ArchiveButtonProps) {
+export function ArchiveButton({ id, entityType, redirectTo, label = "Archive", unarchive = false }: ArchiveButtonProps) {
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -24,7 +25,7 @@ export function ArchiveButton({ id, entityType, redirectTo, label = "Archive" }:
       const res = await fetch(`/api/${entityType}/${id}/archive`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ archived: true }),
+        body: JSON.stringify({ archived: !unarchive }),
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
@@ -42,7 +43,9 @@ export function ArchiveButton({ id, entityType, redirectTo, label = "Archive" }:
   if (confirming) {
     return (
       <div className="flex items-center gap-3">
-        <span className="text-sm text-vault-text-muted">Archive this item?</span>
+        <span className="text-sm text-vault-text-muted">
+          {unarchive ? "Unarchive this item?" : "Archive this item?"}
+        </span>
         <button
           onClick={handleConfirm}
           disabled={loading}

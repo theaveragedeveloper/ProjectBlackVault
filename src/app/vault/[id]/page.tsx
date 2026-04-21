@@ -12,6 +12,7 @@ import { MaintenanceSection } from "@/components/vault/MaintenanceSection";
 import { ArchiveButton } from "@/components/shared/ArchiveButton";
 import {
   ArrowLeft,
+  Archive,
   Edit,
   Shield,
   Plus,
@@ -118,6 +119,30 @@ export default async function FirearmDetailPage({
 
   if (!firearm) {
     notFound();
+  }
+
+  if (firearm.archivedAt) {
+    return (
+      <div className="min-h-full">
+        <div className="max-w-5xl mx-auto px-4 py-8">
+          <Link href="/vault" className="flex items-center gap-2 text-vault-text-muted hover:text-vault-text text-sm mb-6 transition-colors">
+            <ArrowLeft className="w-4 h-4" />
+            Back to vault
+          </Link>
+          <div className="rounded-lg border border-[#F5A623]/30 bg-[#F5A623]/5 p-6 flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <Archive className="w-5 h-5 text-[#F5A623]" />
+              <span className="text-[#F5A623] font-medium">This firearm is archived</span>
+            </div>
+            <p className="text-vault-text-muted text-sm">
+              <strong className="text-vault-text">{firearm.name}</strong> was archived on{" "}
+              {new Date(firearm.archivedAt).toLocaleDateString()}. It is hidden from your active vault, builds, and exports.
+            </p>
+            <ArchiveButton id={id} entityType="firearms" redirectTo="/vault" label="Unarchive Firearm" unarchive />
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const typeBadge = TYPE_BADGE_COLORS[firearm.type] ?? "border-vault-border text-vault-text-muted";
