@@ -51,7 +51,7 @@ export function ArchiveButton({ id, entityType, redirectTo, label = "Archive", u
           disabled={loading}
           className="text-xs px-3 py-1.5 rounded border border-[#F5A623]/40 text-[#F5A623] hover:bg-[#F5A623]/10 transition-colors disabled:opacity-50"
         >
-          {loading ? "Archiving…" : "Yes, archive"}
+          {loading ? (unarchive ? "Unarchiving…" : "Archiving…") : (unarchive ? "Yes, unarchive" : "Yes, archive")}
         </button>
         <button
           onClick={() => setConfirming(false)}
