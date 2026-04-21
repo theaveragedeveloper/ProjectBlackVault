@@ -22,6 +22,7 @@ import {
   ChevronUp,
   Pencil,
   BatteryCharging,
+  Archive,
 } from "lucide-react";
 
 const SLOT_TYPE_LABELS: Record<string, string> = {
@@ -90,6 +91,7 @@ interface Accessory {
   hasBattery: boolean;
   batteryType: string | null;
   batteryChangeLogs: BatteryChangeLog[];
+  archivedAt: string | null;
 }
 
 const BARREL_TYPES = new Set(["BARREL", "SUPPRESSOR", "MUZZLE", "COMPENSATOR"]);
@@ -243,6 +245,32 @@ export default function AccessoryDetailPage() {
         <Link href="/accessories" className="text-sm text-[#00C2FF] hover:underline">
           Back to Accessories
         </Link>
+      </div>
+    );
+  }
+
+  if (accessory.archivedAt) {
+    return (
+      <div className="min-h-full">
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          <Link href="/accessories" className="flex items-center gap-2 text-vault-text-muted hover:text-vault-text text-sm mb-6 transition-colors">
+            <ArrowLeft className="w-4 h-4" />
+            Back to accessories
+          </Link>
+          <div className="rounded-lg border border-[#F5A623]/30 bg-[#F5A623]/5 p-6 flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <Archive className="w-5 h-5 text-[#F5A623]" />
+              <span className="text-[#F5A623] font-medium">This accessory is archived</span>
+            </div>
+            <p className="text-vault-text-muted text-sm">
+              <strong className="text-vault-text">{accessory.name}</strong> was archived on{" "}
+              {new Date(accessory.archivedAt).toLocaleDateString()}. It is hidden from your active accessories and exports.
+            </p>
+            {id && (
+              <ArchiveButton id={id} entityType="accessories" redirectTo="/accessories" label="Unarchive Accessory" unarchive />
+            )}
+          </div>
+        </div>
       </div>
     );
   }
