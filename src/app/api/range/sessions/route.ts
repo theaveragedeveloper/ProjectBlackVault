@@ -168,7 +168,7 @@ export async function POST(request: NextRequest) {
 
     const resolvedFirearmId = typeof firearmId === "string" && firearmId
       ? firearmId
-      : (await prisma.firearm.findFirst({ select: { id: true }, orderBy: { createdAt: "asc" } }))?.id;
+      : (await prisma.firearm.findFirst({ where: { archivedAt: null }, select: { id: true }, orderBy: { createdAt: "asc" } }))?.id;
 
     if (!resolvedFirearmId) {
       return NextResponse.json({ error: "No firearm available to log this session" }, { status: 400 });
@@ -177,7 +177,7 @@ export async function POST(request: NextRequest) {
     const resolvedBuildId = typeof buildId === "string" && buildId ? buildId : null;
 
     const firearm = await prisma.firearm.findUnique({
-      where: { id: resolvedFirearmId },
+      where: { id: resolvedFirearmId, archivedAt: null },
       select: { id: true, caliber: true, compatibleCalibers: true },
     });
     const build = resolvedBuildId
