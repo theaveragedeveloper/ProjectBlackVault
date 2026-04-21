@@ -84,7 +84,7 @@ export async function PUT(
     const resolvedFirearmId = updateData.firearmId ?? existing.firearmId;
     const resolvedBuildId = updateData.buildId !== undefined ? updateData.buildId : existing.buildId;
 
-    const firearm = await prisma.firearm.findUnique({ where: { id: resolvedFirearmId }, select: { id: true } });
+    const firearm = await prisma.firearm.findUnique({ where: { id: resolvedFirearmId, archivedAt: null }, select: { id: true } });
     if (!firearm) {
       return NextResponse.json({ error: "Firearm not found" }, { status: 404 });
     }
