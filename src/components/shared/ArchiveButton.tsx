@@ -30,6 +30,7 @@ export function ArchiveButton({ id, entityType, redirectTo, label = "Archive" }:
         const json = await res.json().catch(() => ({}));
         throw new Error(json.error ?? "Failed to archive");
       }
+      router.refresh();
       router.push(redirectTo);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
