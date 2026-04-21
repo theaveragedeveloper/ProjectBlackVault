@@ -226,13 +226,6 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
-
-      if (stock.quantity < ammoLink.roundsUsed) {
-        return NextResponse.json(
-          { error: `Insufficient ammo stock for ${stock.brand}. Available: ${stock.quantity}` },
-          { status: 400 }
-        );
-      }
     }
 
     const created = await prisma.rangeSession.create({
