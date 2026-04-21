@@ -358,7 +358,7 @@ export async function GET(request: NextRequest) {
 
     // Sequential queries — SQLite connection_limit=1 cannot handle concurrent reads
     if (flags.firearms) {
-      const rows = await prisma.firearm.findMany({ orderBy: [{ manufacturer: "asc" }, { model: "asc" }, { name: "asc" }] });
+      const rows = await prisma.firearm.findMany({ where: { archivedAt: null }, orderBy: [{ manufacturer: "asc" }, { model: "asc" }, { name: "asc" }] });
       payload.firearms = includeSerialNumbers
         ? rows
         : rows.map((row) => {
@@ -369,7 +369,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (flags.accessories) {
-      payload.accessories = await prisma.accessory.findMany({ orderBy: [{ manufacturer: "asc" }, { name: "asc" }] });
+      payload.accessories = await prisma.accessory.findMany({ where: { archivedAt: null }, orderBy: [{ manufacturer: "asc" }, { name: "asc" }] });
     }
 
     if (flags.builds) {
