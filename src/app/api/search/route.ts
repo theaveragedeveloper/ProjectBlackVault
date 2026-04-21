@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
   // Sequential queries — SQLite connection_limit=1
   const firearms = await prisma.firearm.findMany({
     where: {
+      archivedAt: null,
       OR: [
         { name: { contains: q } },
         { manufacturer: { contains: q } },
@@ -27,6 +28,7 @@ export async function GET(request: NextRequest) {
 
   const accessories = await prisma.accessory.findMany({
     where: {
+      archivedAt: null,
       OR: [
         { name: { contains: q } },
         { manufacturer: { contains: q } },
