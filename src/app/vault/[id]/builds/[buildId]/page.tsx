@@ -181,6 +181,59 @@ function AccessoryBrowserModal({
     }
   }
 
+  async function transferAccessory(accessoryId: string) {
+    if (!conflict) return;
+    setTransferring(true);
+    setAssignError(null);
+    try {
+      // Step 1: Release from old build
+      let releaseRes: Response;
+      if (transferMode === "remove-slot") {
+        releaseRes = await fetch(
+          `/api/builds/${conflict.buildId}/slots?slotType=${encodeURIComponent(conflict.slotType)}`,
+          { method: "DELETE" }
+        );
+      } else {
+        releaseRes = await fetch(`/api/builds/${conflict.buildId}/slots`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ slotType: conflict.slotType, accessoryId: null }),
+        });
+      }
+
+      if (!releaseRes.ok) {
+        const j = await releaseRes.json();
+        setAssignError(j.error ?? "Failed to release accessory from previous build");
+        return;
+      }
+
+      // Step 2: Assign to current build
+      const assignRes = await fetch(`/api/builds/${buildId}/slots`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slotType, accessoryId }),
+      });
+
+      if (!assignRes.ok) {
+        const j = await assignRes.json();
+        setAssignError(j.error ?? "Failed to assign accessory to this build");
+        setConflict(null); // accessory is now unassigned — user can retry normally
+        return;
+      }
+
+      // Success: reset conflict, stay open for continued editing
+      setConflict(null);
+      setAssignError(null);
+      setTransferMode("leave-empty");
+      onAssigned();
+      // intentionally do NOT call onClose() — modal stays open
+    } catch {
+      setAssignError("Network error during transfer");
+    } finally {
+      setTransferring(false);
+    }
+  }
+
   async function handleCreate() {
     if (!form.name.trim() || !form.manufacturer.trim()) {
       setCreateError("Name and Manufacturer are required");
