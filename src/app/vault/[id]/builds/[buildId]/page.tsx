@@ -373,11 +373,78 @@ function AccessoryBrowserModal({
           </div>
         )}
 
-        {/* Error banner (browse view assign errors) */}
+        {/* Error banner / Transfer card */}
         {view === "browse" && assignError && (
-          <div className="mx-5 mt-3 flex items-center gap-2 bg-[#E53935]/10 border border-[#E53935]/30 rounded-md px-3 py-2 shrink-0">
-            <AlertCircle className="w-4 h-4 text-[#E53935] shrink-0" />
-            <p className="text-xs text-[#E53935]">{assignError}</p>
+          <div className="mx-5 mt-3 shrink-0">
+            {conflict && pendingAccessoryId ? (
+              /* Transfer card */
+              <div className="bg-[#E53935]/10 border border-[#E53935]/30 rounded-md px-3 py-3 space-y-3">
+                {/* Conflict header */}
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-[#E53935] shrink-0 mt-0.5" />
+                  <p className="text-xs text-[#E53935]">
+                    Already in <span className="font-semibold">&quot;{conflict.buildName}&quot;</span>
+                    {" "}/ {getSlotLabel(conflict.slotType)}
+                  </p>
+                </div>
+
+                {/* Radio options */}
+                <div className="space-y-1.5 pl-6">
+                  <p className="text-[10px] uppercase tracking-widest text-vault-text-faint mb-2">What should happen to that slot?</p>
+                  <label className="flex items-center gap-2 cursor-pointer group">
+                    <input
+                      type="radio"
+                      name="transferMode"
+                      value="leave-empty"
+                      checked={transferMode === "leave-empty"}
+                      onChange={() => setTransferMode("leave-empty")}
+                      className="accent-[#00C2FF]"
+                    />
+                    <span className="text-xs text-vault-text-muted group-hover:text-vault-text transition-colors">
+                      Leave slot empty on &quot;{conflict.buildName}&quot;
+                    </span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer group">
+                    <input
+                      type="radio"
+                      name="transferMode"
+                      value="remove-slot"
+                      checked={transferMode === "remove-slot"}
+                      onChange={() => setTransferMode("remove-slot")}
+                      className="accent-[#00C2FF]"
+                    />
+                    <span className="text-xs text-vault-text-muted group-hover:text-vault-text transition-colors">
+                      Remove slot from &quot;{conflict.buildName}&quot;
+                    </span>
+                  </label>
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex justify-end gap-2 pt-1">
+                  <button
+                    onClick={() => { setConflict(null); setAssignError(null); setPendingAccessoryId(null); setTransferMode("leave-empty"); }}
+                    disabled={transferring}
+                    className="text-xs text-vault-text-muted hover:text-vault-text transition-colors px-3 py-1.5 rounded-md hover:bg-vault-border disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => transferAccessory(pendingAccessoryId!)}
+                    disabled={transferring}
+                    className="flex items-center gap-1.5 text-xs bg-[#00C2FF]/10 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF]/20 transition-colors px-3 py-1.5 rounded-md disabled:opacity-50"
+                  >
+                    {transferring && <Loader2 className="w-3 h-3 animate-spin" />}
+                    Transfer →
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* Plain error banner (non-conflict errors) */
+              <div className="flex items-center gap-2 bg-[#E53935]/10 border border-[#E53935]/30 rounded-md px-3 py-2">
+                <AlertCircle className="w-4 h-4 text-[#E53935] shrink-0" />
+                <p className="text-xs text-[#E53935]">{assignError}</p>
+              </div>
+            )}
           </div>
         )}
 
