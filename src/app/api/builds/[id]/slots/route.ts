@@ -102,3 +102,46 @@ export async function PUT(
     );
   }
 }
+
+// DELETE /api/builds/[id]/slots?slotType=OPTIC - Remove a slot entirely from a build
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id: buildId } = await params;
+    const { searchParams } = new URL(request.url);
+    const slotType = searchParams.get("slotType");
+
+    if (!slotType) {
+      return NextResponse.json(
+        { error: "Missing required query param: slotType" },
+        { status: 400 }
+      );
+    }
+
+    const build = await prisma.build.findUnique({ where: { id: buildId } });
+    if (!build) {
+      return NextResponse.json({ error: "Build not found" }, { status: 404 });
+    }
+
+    const slot = await prisma.buildSlot.findUnique({
+      where: { buildId_slotType: { buildId, slotType } },
+    });
+    if (!slot) {
+      return NextResponse.json({ error: "Slot not found" }, { status: 404 });
+    }
+
+    await prisma.buildSlot.delete({
+      where: { buildId_slotType: { buildId, slotType } },
+    });
+
+    return NextResponse.json({ success: true, slotType });
+  } catch (error) {
+    console.error("DELETE /api/builds/[id]/slots error:", error);
+    return NextResponse.json(
+      { error: "Failed to delete slot" },
+      { status: 500 }
+    );
+  }
+}
