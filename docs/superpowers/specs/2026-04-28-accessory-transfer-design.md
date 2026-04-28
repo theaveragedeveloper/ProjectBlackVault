@@ -86,11 +86,15 @@ Two sequential API calls:
 `src/app/api/builds/[id]/slots/route.ts` gains a `DELETE` handler:
 
 - Reads `slotType` from query params (`?slotType=OPTIC`)
-- Validates: build must exist, `slotType` must be provided
+- Validates: returns 400 if `slotType` is missing or empty; returns 404 if the build doesn't exist
 - Finds the `BuildSlot` row for `{ buildId, slotType }` and deletes it
-- Returns `{ success: true }` on success, 404 if the slot doesn't exist
+- Returns `{ success: true, slotType }` on success; returns 404 if the slot doesn't exist for that build
 
-No schema changes required — `BuildSlot` rows are already independently deletable.
+No schema changes required — `BuildSlot` rows are independently deletable. No cache revalidation needed: the existing `PUT /api/builds/[id]/slots` handler does not call `revalidateDashboardData()`, so DELETE follows the same pattern.
+
+### Step 2 Failure Handling
+
+If Step 1 succeeds but Step 2 fails (assign to new build returns an error), the old build's slot is already cleared. The user sees the error message in the banner. At this point `conflict` is reset (the accessory is no longer assigned anywhere), so the user can simply click the accessory again and assign normally. No manual cleanup required.
 
 ## Files Changed
 
