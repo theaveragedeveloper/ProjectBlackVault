@@ -93,6 +93,14 @@ function AccessoryBrowserModal({
   const [search, setSearch] = useState("");
   const [assigning, setAssigning] = useState<string | null>(null);
   const [assignError, setAssignError] = useState<string | null>(null);
+  const [conflict, setConflict] = useState<{
+    buildId: string
+    buildName: string
+    slotType: string
+  } | null>(null)
+  const [transferMode, setTransferMode] = useState<"leave-empty" | "remove-slot">("leave-empty")
+  const [transferring, setTransferring] = useState(false)
+  const [pendingAccessoryId, setPendingAccessoryId] = useState<string | null>(null)
 
   const [view, setView] = useState<"browse" | "create">("browse");
   const [form, setForm] = useState({
@@ -143,6 +151,8 @@ function AccessoryBrowserModal({
   async function assignAccessory(accessoryId: string) {
     setAssigning(accessoryId);
     setAssignError(null);
+    setConflict(null);
+    setPendingAccessoryId(null);
     try {
       const res = await fetch(`/api/builds/${buildId}/slots`, {
         method: "PUT",
@@ -152,6 +162,13 @@ function AccessoryBrowserModal({
       const json = await res.json();
       if (!res.ok) {
         setAssignError(json.error ?? "Failed to assign accessory");
+        if (res.status === 409 && json.conflictingSlot) {
+          setConflict(json.conflictingSlot);
+          setTransferMode("leave-empty");
+          setPendingAccessoryId(accessoryId);
+        } else {
+          setConflict(null);
+        }
       } else {
         onAssigned();
         onClose();
