@@ -153,6 +153,7 @@ function AccessoryBrowserModal({
     setAssignError(null);
     setConflict(null);
     setPendingAccessoryId(null);
+    setTransferMode("leave-empty");
     try {
       const res = await fetch(`/api/builds/${buildId}/slots`, {
         method: "PUT",
@@ -187,6 +188,9 @@ function AccessoryBrowserModal({
     }
     setCreating(true);
     setCreateError(null);
+    setConflict(null);
+    setPendingAccessoryId(null);
+    setTransferMode("leave-empty");
     try {
       // Create the accessory
       const createRes = await fetch("/api/accessories", {
