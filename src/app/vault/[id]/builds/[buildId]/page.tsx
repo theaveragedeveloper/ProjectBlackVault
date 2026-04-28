@@ -79,6 +79,7 @@ interface AccessoryBrowserModalProps {
   buildId: string;
   onClose: () => void;
   onAssigned: () => void;
+  onTransferred: () => void;
 }
 
 function AccessoryBrowserModal({
@@ -86,6 +87,7 @@ function AccessoryBrowserModal({
   buildId,
   onClose,
   onAssigned,
+  onTransferred,
 }: AccessoryBrowserModalProps) {
   const [accessories, setAccessories] = useState<Accessory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -225,8 +227,9 @@ function AccessoryBrowserModal({
       setConflict(null);
       setAssignError(null);
       setTransferMode("leave-empty");
-      onAssigned();
-      // intentionally do NOT call onClose() — modal stays open
+      setPendingAccessoryId(null);
+      onTransferred();
+      // modal stays open — onTransferred only refreshes, does not close
     } catch {
       setAssignError("Network error during transfer");
     } finally {
@@ -335,7 +338,7 @@ function AccessoryBrowserModal({
         {/* Tab bar */}
         <div className="flex border-b border-vault-border shrink-0">
           <button
-            onClick={() => setView("browse")}
+            onClick={() => { setView("browse"); setConflict(null); setAssignError(null); setPendingAccessoryId(null); setTransferMode("leave-empty"); }}
             className={`flex-1 py-2.5 text-xs font-medium tracking-wide transition-colors ${
               view === "browse"
                 ? "text-[#00C2FF] border-b-2 border-[#00C2FF]"
@@ -345,7 +348,7 @@ function AccessoryBrowserModal({
             Browse Library
           </button>
           <button
-            onClick={() => setView("create")}
+            onClick={() => { setView("create"); setConflict(null); setAssignError(null); setPendingAccessoryId(null); setTransferMode("leave-empty"); }}
             className={`flex-1 py-2.5 text-xs font-medium tracking-wide transition-colors ${
               view === "create"
                 ? "text-[#00C2FF] border-b-2 border-[#00C2FF]"
@@ -1468,6 +1471,9 @@ export default function BuildConfiguratorPage() {
           onClose={() => setBrowserSlot(null)}
           onAssigned={() => {
             setBrowserSlot(null);
+            fetchBuild();
+          }}
+          onTransferred={() => {
             fetchBuild();
           }}
         />
